@@ -3331,6 +3331,8 @@ pub enum Msg {
         PathBuf,
         Result<(Command, crate::launch::Vars), String>,
     ),
+    /// MX3JN2: a Yoake game exited with 75: its join request was read, validated and installed (or why not).
+    JoinSync(Result<crate::full_access::JoinSyncDone, String>),
 }
 
 /// A running process; its output arrives as `Msg::Line`, its end as `Msg::Exit`.
@@ -3455,7 +3457,7 @@ impl WhilePlaying {
     }
 }
 
-#[derive(Default, serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Settings {
     pub selected: Option<String>,
     /// The instance Play starts (`instances`), by id. Unset means Horizon, the game's home.
@@ -3549,6 +3551,49 @@ pub struct Settings {
     /// mods") is on (`full_access::active_dev_folder`). Set it through `full_access::set_dev_folder`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub full_access_dev_folder: Option<PathBuf>,
+    /// MX3JN2: "Get missing mods automatically when joining" (docs/yoake2/JOIN-MODS.md). On by default (also in a file
+    /// that has no such key); when on, every Yoake game the launcher starts gets `--join-mod-sync`.
+    #[serde(default = "join_mod_sync_default")]
+    pub join_mod_sync: bool,
+}
+
+fn join_mod_sync_default() -> bool {
+    true
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            selected: None,
+            instance: None,
+            minecraft_dir: None,
+            server_dir: None,
+            install_new_versions: None,
+            prune_old_versions: None,
+            keep_versions: None,
+            skip_opening: false,
+            desktop_entry: None,
+            game_args: String::new(),
+            proxy: None,
+            appearance: Appearance::default(),
+            ping_notice_seen: false,
+            owner_notice_seen: false,
+            partner_seen_secs: 0,
+            partner_hidden: false,
+            while_playing: WhilePlaying::default(),
+            accent: crate::themes::Accent::default(),
+            background: None,
+            language: None,
+            native_mods_noticed: false,
+            native_profile: None,
+            native_release: false,
+            dev_offline: false,
+            dev_unsigned_dll: false,
+            dev_unsigned_wasm: false,
+            full_access_dev_folder: None,
+            join_mod_sync: true,
+        }
+    }
 }
 
 impl Settings {

@@ -629,7 +629,7 @@ impl Control {
             Err(e) => return Err(format!("{}: {e}", mods_dir.display())),
         };
         files.sort();
-        let mut list = ApprovedList { entries: Vec::new(), protected: vec![self.dir.clone(), self.checksum_path()], generation: 0 };
+        let mut list = ApprovedList { entries: Vec::new(), protected: vec![self.dir.clone(), self.checksum_path()], generation: 0, host: None };
         for path in files {
             let Ok(bytes) = std::fs::read(&path) else { continue };
             let sha256 = sha256_hex(&bytes);
@@ -697,6 +697,10 @@ pub struct ApprovedList {
     /// MX3HR1: dev-mode hot reload. The launcher raises it on every rewrite of the file; absent = 0. Only a game started
     /// with `--full-access-dev` looks at it (it reloads when it grows); otherwise it is ignored.
     generation: u64,
+    /// MX3JN1: the host this launch joins (`server:<host>:<port>` / `friend:<portal user id>`). Entries with origin
+    /// `server` or `friend` are valid only in a list that names their host; the game loads them only from that
+    /// host's folder and only when its own `--remote-mods` names the same host. Absent = no remote mods.
+    host: Option<String>,
 }
 
 /// What changed between two lists (the launcher shows it to the player before approving a new launch).
@@ -719,7 +723,18 @@ impl ApprovedList {
     pub const MAX_BYTES: u64 = 1 << 20;
 
     pub fn new(entries: Vec<ApprovedEntry>, protected: Vec<PathBuf>) -> Self {
-        Self { entries, protected, generation: 0 }
+        Self { entries, protected, generation: 0, host: None }
+    }
+
+    /// The host scope of this list (MX3JN1); see the `host` field.
+    pub fn host(&self) -> Option<&str> {
+        self.host.as_deref()
+    }
+
+    /// Scopes the list to the host the launch joins. Entries with origin `server`/`friend` need it.
+    pub fn with_host(mut self, host: impl Into<String>) -> Self {
+        self.host = Some(host.into());
+        self
     }
 
     /// The rewrite counter (0 when the file has none). See the `generation` field.
@@ -748,6 +763,9 @@ impl ApprovedList {
         let mut text = format!("# This launch's approved full-access packages (written by the launcher; the game reads it once).\nformat = {}\n", Self::FORMAT);
         let paths: Vec<String> = self.protected.iter().map(|p| format!("{:?}", p.to_string_lossy())).collect();
         text.push_str(&format!("protected = [{}]\n", paths.join(", ")));
+        if let Some(host) = &self.host {
+            text.push_str(&format!("host = {host:?}\n"));
+        }
         if self.generation != 0 {
             text.push_str(&format!("generation = {}\n", self.generation));
         }
@@ -771,6 +789,10 @@ impl ApprovedList {
                 list.protected.push(PathBuf::from(item.as_str().ok_or("approved list: protected holds strings")?));
             }
         }
+        if let Some(host) = table.get("host") {
+            let host = host.as_str().filter(|h| valid_host_key(h)).ok_or("approved list: host must be a host key (server:<host>:<port> or friend:<id>)")?;
+            list.host = Some(host.to_owned());
+        }
         if let Some(packages) = table.get("package") {
             for (n, item) in packages.as_array().ok_or("approved list: package must be an array of tables")?.iter().enumerate() {
                 let item = item.as_table().ok_or_else(|| format!("approved list: package[{n}] must be a table"))?;
@@ -779,7 +801,14 @@ impl ApprovedList {
                 if !is_sha256_hex(&sha256) {
                     return Err(format!("approved list: package[{n}].sha256 must be 64 hex digits"));
                 }
-                let origin = Origin::parse(get("origin")?).filter(|o| o.can_be_full_access()).ok_or_else(|| format!("approved list: package[{n}].origin must be local, catalog or dev"))?;
+                let origin = Origin::parse(get("origin")?).ok_or_else(|| format!("approved list: package[{n}].origin must be local, catalog, dev, server or friend"))?;
+                // MX3JN1: a server's or friend's package is valid only in a list scoped to its host, and the host's kind matches.
+                if !origin.can_be_full_access() {
+                    let scoped = list.host.as_deref().is_some_and(|host| host.starts_with(&format!("{}:", origin.as_str())));
+                    if !scoped {
+                        return Err(format!("approved list: package[{n}].origin {} needs a matching top-level host", origin.as_str()));
+                    }
+                }
                 list.entries.push(ApprovedEntry { id: get("id")?.to_owned(), version: get("version")?.to_owned(), sha256, origin });
             }
         }
@@ -829,9 +858,24 @@ impl ApprovedList {
     }
 
     /// The two files the loader (`load_dir`) works with: approvals by hash, and the origin of each hash. Game side.
+    /// Only the player's own (`local`) and catalog packages: what the plain `mods/` folder may run. Entries of a host
+    /// scope are never in here ([`ApprovedList::to_remote_files`]).
     pub fn to_files(&self) -> (AllowFile, OriginFile) {
+        self.files_where(|e| e.origin.can_be_full_access())
+    }
+
+    /// MX3JN1: the pair for the folder of the host this launch joins (`mods/remote/<host dir>/`): the `server`/`friend`
+    /// entries, and only when this list names exactly `host_key` as its scope. Empty for any other key.
+    pub fn to_remote_files(&self, host_key: &str) -> (AllowFile, OriginFile) {
+        if self.host.as_deref() != Some(host_key) {
+            return (AllowFile::default(), OriginFile::default());
+        }
+        self.files_where(|e| !e.origin.can_be_full_access())
+    }
+
+    fn files_where(&self, keep: impl Fn(&ApprovedEntry) -> bool) -> (AllowFile, OriginFile) {
         let (mut allow, mut origins) = (AllowFile::default(), OriginFile::default());
-        for e in &self.entries {
+        for e in self.entries.iter().filter(|e| keep(e)) {
             allow.allow(&e.id, &e.version, &e.sha256);
             origins.record(&e.sha256, OriginRecord { origin: e.origin, id: e.id.clone(), version: e.version.clone(), signer: None });
         }
@@ -855,6 +899,62 @@ impl ApprovedList {
         }
         diff
     }
+}
+
+/// MX3JN1: a host key as the launcher and the game pass it around: `server:<host>:<port>` or `friend:<portal user id>`,
+/// plain characters only (it names a folder and sits on a command line), at most [`MAX_HOST_KEY`] of them.
+pub fn valid_host_key(key: &str) -> bool {
+    let Some((kind, rest)) = key.split_once(':') else { return false };
+    matches!(kind, "server" | "friend")
+        && !rest.is_empty()
+        && key.len() <= MAX_HOST_KEY
+        && !rest.contains("..")
+        && key.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b':' | b'.' | b'-' | b'_' | b'[' | b']'))
+}
+
+/// Characters in a host key at most.
+pub const MAX_HOST_KEY: usize = 200;
+
+/// The folder name of a host key under `<mods>/remote/`: the key with `:` written as `+` (a colon is not allowed in a
+/// Windows folder name, and neither a host name nor a portal id holds a `+`).
+pub fn host_dir_name(key: &str) -> String {
+    key.replace(':', "+")
+}
+
+/// MX3JN1: `<mods>/remote/<host dir>/`, where the packages fetched from one host live; `None` for an invalid key.
+pub fn host_remote_dir(mods_dir: &Path, host_key: &str) -> Option<PathBuf> {
+    valid_host_key(host_key).then(|| mods_dir.join("remote").join(host_dir_name(host_key)))
+}
+
+/// MX3JN1, for the launcher: stores a package fetched from the host `host_key` as `<mods>/remote/<host dir>/<sha256>.yak`
+/// (named by its hash; never overwrites a file with other content; the control files are not touched) after checking
+/// that the bytes hash to `expected_sha256` and form a valid package. Returns the stored path. Approval is the launcher's
+/// separate act ([`ApprovedList::with_host`] with `server`/`friend` entries).
+pub fn install_remote_package(mods_dir: &Path, host_key: &str, bytes: &[u8], expected_sha256: &str) -> Result<PathBuf, String> {
+    let dir = host_remote_dir(mods_dir, host_key).ok_or_else(|| format!("not a host key: {host_key:?}"))?;
+    let sha256 = sha256_hex(bytes);
+    if !is_sha256_hex(expected_sha256) || sha256 != expected_sha256 {
+        return Err("the package does not match the SHA-256 the host announced".into());
+    }
+    Archive::new(Cursor::new(bytes.to_vec()))?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let target = dir.join(format!("{sha256}.yak"));
+    {
+        use std::io::Write;
+        match std::fs::OpenOptions::new().write(true).create_new(true).open(&target) {
+            Ok(mut file) => {
+                file.write_all(bytes).map_err(|e| format!("{}: {e}", target.display()))?;
+                let _ = file.sync_all();
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                if std::fs::read(&target).map(|existing| sha256_hex(&existing) != sha256).unwrap_or(true) {
+                    return Err(format!("{} already exists with other content", target.display()));
+                }
+            }
+            Err(e) => return Err(format!("{}: {e}", target.display())),
+        }
+    }
+    Ok(target)
 }
 
 /// The folder of packages delivered by a server or a friend: `<mods>/remote/<origin>/`.
@@ -1119,5 +1219,109 @@ mod tests {
         assert_eq!(ApprovedList::path_from(args(&["--full-access-approved"]), None), None);
         assert_eq!(ApprovedList::path_from(args(&[]), None), None, "no list: nothing is full-access");
         assert_eq!(ApprovedList::path_from(args(&[]), Some("".into())), None);
+    }
+
+    fn data_package(dir: &Path, id: &str) -> Vec<u8> {
+        let src = dir.join(format!("src_{id}"));
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(
+            src.join("yak.toml"),
+            format!("format = 1\nid = '{id}'\nversion = '1.0.0'\nname = '{id}'\nauthors = ['t']\ndescription = 'd'\n[yoake]\nversion = '*'\n[side]\nclient = true\nserver = false\nrequired_on_join = false\n"),
+        )
+        .unwrap();
+        let out = dir.join(format!("{id}.yak"));
+        super::super::pack_directory(&src, &out, &BTreeMap::new()).unwrap();
+        std::fs::read(out).unwrap()
+    }
+
+    #[test]
+    fn a_list_keeps_its_host_and_its_generation_together() {
+        let key = "friend:user_7";
+        let list = ApprovedList::new(vec![entry("d", 'd', Origin::Dev), entry("l", 'a', Origin::Local), entry("f", 'f', Origin::Friend)], vec![]).with_host(key).with_generation(4);
+        let again = ApprovedList::parse(&list.to_text()).unwrap();
+        assert_eq!((again.host(), again.generation()), (Some(key), 4));
+        assert_eq!(again, list);
+        let error = ApprovedList::parse(&list.to_text().replace(r#"origin = "dev""#, r#"origin = "nope""#)).unwrap_err();
+        for word in ["local", "catalog", "dev", "server", "friend"] {
+            assert!(error.contains(word), "{error}");
+        }
+    }
+
+    #[test]
+    fn a_servers_or_friends_package_is_valid_only_in_a_list_scoped_to_its_host() {
+        let server_key = "server:play.example.com:25565";
+        let friend_key = "friend:user_7";
+        let remote = |id: &str, hash: char, origin: Origin| entry(id, hash, origin);
+        let list = ApprovedList::new(vec![entry("mine", 'a', Origin::Local), remote("theirs", 'b', Origin::Server)], vec![]).with_host(server_key);
+        assert_eq!(list.host(), Some(server_key));
+        assert_eq!(ApprovedList::parse(&list.to_text()).unwrap(), list, "the host survives the file");
+        // the plain mods folder never sees the host's entries; the host's folder sees only them, and only for its own key
+        let (allow, origins) = list.to_files();
+        assert!(allow.is_allowed("mine", &"a".repeat(64)) && !allow.is_allowed("theirs", &"b".repeat(64)));
+        assert_eq!(origins.origin_of(&"b".repeat(64)), None);
+        let (allow, origins) = list.to_remote_files(server_key);
+        assert!(allow.is_allowed("theirs", &"b".repeat(64)) && !allow.is_allowed("mine", &"a".repeat(64)));
+        assert_eq!(origins.origin_of(&"b".repeat(64)), Some(Origin::Server));
+        for other in ["server:other.example.com:25565", friend_key, "server:play.example.com:25566", ""] {
+            let (allow, origins) = list.to_remote_files(other);
+            assert!(allow.entries().is_empty() && origins.is_empty(), "{other:?}");
+        }
+        // a list without a host cannot carry a remote entry, nor can one scoped to the other kind of host
+        let unscoped = ApprovedList::new(vec![remote("theirs", 'b', Origin::Server)], vec![]);
+        assert!(ApprovedList::parse(&unscoped.to_text()).is_err());
+        let wrong_kind = ApprovedList::new(vec![remote("theirs", 'b', Origin::Friend)], vec![]).with_host(server_key);
+        assert!(ApprovedList::parse(&wrong_kind.to_text()).is_err());
+        let friend = ApprovedList::new(vec![remote("theirs", 'b', Origin::Friend)], vec![]).with_host(friend_key);
+        assert_eq!(ApprovedList::parse(&friend.to_text()).unwrap(), friend);
+        // a bad host is no list; a list with no remote entries may still name one or none
+        for bad in ["", "server", "server:../x", "usb:x", "server:a b"] {
+            let text = format!("format = 1\nhost = {bad:?}\n");
+            assert!(ApprovedList::parse(&text).is_err(), "{bad:?}");
+        }
+        assert!(ApprovedList::parse("format = 1\n").unwrap().host().is_none());
+        // a launch with no host scope has no remote files at all
+        let (allow, _) = ApprovedList::new(vec![entry("mine", 'a', Origin::Local)], vec![]).to_remote_files(server_key);
+        assert!(allow.entries().is_empty());
+    }
+
+    #[test]
+    fn host_keys_and_their_folder_names() {
+        for good in ["server:a.example:25565", "server:[::1]:25565", "friend:u-1_x", "server:192.168.0.2:1"] {
+            assert!(valid_host_key(good), "{good}");
+        }
+        for bad in ["", "server", "server:", "friend", "x:y", "server:a/b", "server:a b", "server:..", "server:a..b", "server:é:1"] {
+            assert!(!valid_host_key(bad), "{bad:?}");
+        }
+        assert!(!valid_host_key(&format!("friend:{}", "a".repeat(MAX_HOST_KEY))));
+        assert_eq!(host_dir_name("server:a.example:25565"), "server+a.example+25565");
+        let mods = Path::new("mods");
+        assert_eq!(host_remote_dir(mods, "friend:u1"), Some(mods.join("remote").join("friend+u1")));
+        assert_eq!(host_remote_dir(mods, "../x"), None);
+    }
+
+    #[test]
+    fn a_remote_package_is_stored_by_its_hash_under_its_host_and_never_overwritten() {
+        let base = scratch("install_remote");
+        let bytes = data_package(&base, "demo_remote");
+        let hash = sha256_hex(&bytes);
+        let mods = base.join("mods");
+        let key = "server:play.example.com:25565";
+        let path = install_remote_package(&mods, key, &bytes, &hash).unwrap();
+        assert_eq!(path, mods.join("remote").join("server+play.example.com+25565").join(format!("{hash}.yak")));
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert_eq!(install_remote_package(&mods, key, &bytes, &hash).unwrap(), path, "the same package twice is fine");
+        // another host gets its own folder
+        let other = install_remote_package(&mods, "friend:u1", &bytes, &hash).unwrap();
+        assert_ne!(other.parent(), path.parent());
+        // wrong hash, bad key, not a package: nothing is written
+        assert!(install_remote_package(&mods, key, &bytes, &"0".repeat(64)).is_err());
+        assert!(install_remote_package(&mods, "server:../x", &bytes, &hash).is_err());
+        assert!(install_remote_package(&mods, "server:b.example:1", b"not a package", &sha256_hex(b"not a package")).is_err());
+        assert!(!mods.join("remote").join("server+b.example+1").exists());
+        // the plain mods folder is untouched and the full-access loader's scan finds nothing
+        assert!(std::fs::read_dir(&mods).unwrap().flatten().all(|item| item.file_name() == "remote"));
+        // a file under that name with other bytes is refused
+        std::fs::write(&path, b"other").unwrap();
+        assert!(install_remote_package(&mods, key, &bytes, &hash).is_err());
     }
 }

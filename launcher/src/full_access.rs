@@ -41,6 +41,13 @@ use std::process::Command;
 use std::sync::Mutex;
 
 mod dev;
+mod join;
+pub use join::{
+    friend_host_key, handle_exit as handle_join_exit, handle_exit_in as handle_join_exit_in, is_exit_text as is_join_exit_text,
+    last_join_sync, last_join_sync_for, parse_request as parse_join_request, remote_hosts, remote_hosts_in, remove_remote_host,
+    remove_remote_host_in, server_host_key, JoinRequest, JoinSyncDone, JoinSyncStatus, Rejoin, RemoteHost, RemoteMod,
+    EXIT_CODE as JOIN_EXIT_CODE, REMOTE_ARG, SYNC_ARG as JOIN_SYNC_ARG,
+};
 pub use dev::{
     active_dev_folder, dev_folder_status, set_dev_folder, status_for, validate_dev_folder, DevStatus, DevSync, DEV_ARG,
 };
@@ -596,31 +603,37 @@ pub struct Prepared {
     /// The developer folder is active for this launch: `--full-access-dev` is passed and the folder is watched until
     /// the run folder is dropped.
     pub dev: bool,
+    /// MX3JN2: `--join-mod-sync` is passed (the setting "Get missing mods automatically when joining" was on).
+    pub join_mod_sync: bool,
+    /// MX3JN2: the host this launch joins and has a remote folder for: `--remote-mods <key>` is passed, and the list
+    /// (when there is one) is scoped to it.
+    pub remote_host: Option<String>,
 }
 
 impl Prepared {
     /// Adds `--full-access-approved <abs path>` to the game's command line (nothing when there is no list).
     pub fn apply(&self, cmd: &mut Command) {
-        if let Some(run) = &self.run {
-            cmd.arg(APPROVED_ARG).arg(run.approved_path());
-            if self.dev {
-                cmd.arg(DEV_ARG);
-            }
-        }
+        cmd.args(self.args());
     }
 
     /// The argument pair, for callers that build their own command line.
     pub fn args(&self) -> Vec<std::ffi::OsString> {
-        self.run
-            .iter()
-            .flat_map(|run| {
-                let mut args: Vec<std::ffi::OsString> = vec![APPROVED_ARG.into(), run.approved_path().as_os_str().to_owned()];
-                if self.dev {
-                    args.push(DEV_ARG.into());
-                }
-                args
-            })
-            .collect()
+        let mut args: Vec<std::ffi::OsString> = Vec::new();
+        if let Some(run) = &self.run {
+            args.push(APPROVED_ARG.into());
+            args.push(run.approved_path().as_os_str().to_owned());
+            if self.dev {
+                args.push(DEV_ARG.into());
+            }
+        }
+        if self.join_mod_sync {
+            args.push(JOIN_SYNC_ARG.into());
+        }
+        if let Some(host) = &self.remote_host {
+            args.push(REMOTE_ARG.into());
+            args.push(host.into());
+        }
+        args
     }
 }
 
@@ -664,8 +677,15 @@ fn new_run_folder(data: &Path, list: &ApprovedList) -> Result<RunFolder, String>
 /// argument with [`Prepared::apply`] and keep [`Prepared::run`] until the game exits. On a problem nothing is passed
 /// and [`Prepared::problem`] says why (also kept for [`last_launch_problem`]).
 pub fn prepare(instance: &Path) -> Prepared {
+    prepare_joining(instance, None, false)
+}
+
+/// [`prepare`] for a launch that joins `host` (a host key, see [`server_host_key`] / [`friend_host_key`]; `None` for a
+/// launch that joins no host) with `join_mod_sync` (the setting; `--join-mod-sync` is passed when true). A host that has
+/// a remote folder in this instance gets `--remote-mods <key>` and a list scoped to it; any other launch gets neither.
+pub fn prepare_joining(instance: &Path, host: Option<&str>, join_mod_sync: bool) -> Prepared {
     let dev = active_dev_folder(&crate::backend::Settings::load());
-    prepare_with(&crate::backend::data_dir(), instance, dev.as_deref())
+    prepare_for(&crate::backend::data_dir(), instance, dev.as_deref(), host, join_mod_sync)
 }
 
 pub fn prepare_in(data: &Path, instance: &Path) -> Prepared {
@@ -676,10 +696,18 @@ pub fn prepare_in(data: &Path, instance: &Path) -> Prepared {
 /// [`active_dev_folder`]). An active folder that is not allowed for this instance ([`validate_dev_folder`]) is not
 /// used: no flag, no watcher, and the reason is shown by [`dev_folder_status`].
 pub fn prepare_with(data: &Path, instance: &Path, dev_folder: Option<&Path>) -> Prepared {
+    prepare_for(data, instance, dev_folder, None, false)
+}
+
+/// [`prepare_with`] for a launch that joins `host` and passes `--join-mod-sync` when `join_mod_sync`.
+pub fn prepare_for(data: &Path, instance: &Path, dev_folder: Option<&Path>, host: Option<&str>, join_mod_sync: bool) -> Prepared {
+    let host = host.filter(|key| join::host_has_folder(instance, key));
     let mut prepared = {
         let _lock = lock();
-        prepare_unlocked(data, instance)
+        prepare_unlocked(data, instance, host)
     };
+    prepared.join_mod_sync = join_mod_sync;
+    prepared.remote_host = host.map(str::to_owned);
     if let (Some(folder), Some(run)) = (dev_folder, prepared.run.as_mut()) {
         match dev::start(data, instance, folder, run.approved_path()) {
             Ok(watcher) => {
@@ -692,16 +720,20 @@ pub fn prepare_with(data: &Path, instance: &Path, dev_folder: Option<&Path>) -> 
     prepared
 }
 
-fn prepare_unlocked(data: &Path, instance: &Path) -> Prepared {
+fn prepare_unlocked(data: &Path, instance: &Path, host: Option<&str>) -> Prepared {
     let result = (|| {
         let control = open_control(data, instance)?;
         let mods = mods_dir(instance);
         let current = current_list(&control, &mods)?;
         let last = load_last(&control, instance);
         let pending = last.diff(&current);
-        let effective = effective_list(&last, &current);
+        let mut effective = effective_list(&last, &current);
+        // MX3JN2: a launch that joins a host with remote mods also passes that host's full-access mods, scoped to it
+        if let Some(key) = host {
+            effective = join::scoped_list(&control, instance, key, effective);
+        }
         let run = new_run_folder(data, &effective)?;
-        Ok::<_, String>(Prepared { passed: effective.entries().len(), run: Some(run), problem: None, pending: (!pending.is_empty()).then_some(pending), dev: false })
+        Ok::<_, String>(Prepared { passed: effective.entries().len(), run: Some(run), problem: None, pending: (!pending.is_empty()).then_some(pending), dev: false, ..Prepared::default() })
     })();
     let prepared = result.unwrap_or_else(|problem| Prepared {
         problem: Some(problem),

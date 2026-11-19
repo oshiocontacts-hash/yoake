@@ -382,6 +382,14 @@ struct Launcher {
     client_run: Option<(String, Instant)>,
     /// The running Yoake game's list of approved full-access mods (a run folder); dropped when the game exits.
     client_full_access: Option<horizon_launcher::full_access::RunFolder>,
+    /// MX3JN2: the game folder of the running Yoake game that was started with `--join-mod-sync`; its exit code 75 means
+    /// "I fetched mods for a host" (`full_access::handle_join_exit`).
+    join_sync_home: Option<std::path::PathBuf>,
+    /// MX3JN2: the host key of the social room the next guest game joins (set by `friends_join_room`).
+    friend_join_host: Option<String>,
+    /// MX3JN2: a friend's host principal whose room the launcher could not rejoin by itself after a sync: the page offers
+    /// "Join again" (`join_again_host`, `join_again`).
+    join_again: Option<String>,
     /// The running game's instance variables, for its post-exit command.
     client_vars: horizon_launcher::launch::Vars,
     /// Settings' Game arguments field: the line, whether it has focus, and its focus handle.
@@ -690,6 +698,9 @@ impl Launcher {
             quick_play: None,
             client_run: None,
             client_full_access: None,
+            join_sync_home: None,
+            friend_join_host: None,
+            join_again: None,
             client_vars: Vec::new(),
             collection: collection::Collection::load(),
             agents: agents_page::AgentsUi::default(),
@@ -1376,11 +1387,20 @@ impl Launcher {
                                 self.client_error = Some(e);
                             }
                         }
+                        // MX3JN2: the host this launch joins, for `--remote-mods` and the host-scoped list
+                        let mut join_host: Option<String> = None;
                         if let Some((flag, value)) = self.quick_play.take() {
+                            if flag == "--server" {
+                                join_host = horizon_launcher::full_access::server_host_key(&value);
+                            }
                             cmd.arg(flag).arg(value);
                         }
+                        let friend_host = self.friend_join_host.take();
                         // A room: the game gets the path of its private file and nothing else.
                         let handoff = self.take_social_handoff();
+                        if matches!(&handoff, Some((_, None))) {
+                            join_host = join_host.or(friend_host);
+                        }
                         if let Some((path, hosting)) = &handoff {
                             cmd.arg(social::handoff::HANDOFF_ARG).arg(path);
                             // The host's game reads the launcher's lines on its stdin.
@@ -1415,8 +1435,16 @@ impl Launcher {
                         horizon_launcher::launch::limit_memory(&mut cmd, &launch);
                         // MX3U1: the approved full-access list for this launch (the problem, if any, is kept for
                         // `full_access::last_launch_problem`).
+                        let mut join_sync: Option<std::path::PathBuf> = None;
                         if yoake {
-                            let prepared = horizon_launcher::full_access::prepare(&instance_home);
+                            let prepared = horizon_launcher::full_access::prepare_joining(
+                                &instance_home,
+                                join_host.as_deref(),
+                                self.settings.join_mod_sync,
+                            );
+                            if prepared.join_mod_sync {
+                                join_sync = Some(instance_home.clone());
+                            }
                             prepared.apply(&mut cmd);
                             self.client_full_access = prepared.run;
                             self.reload_full_access();
@@ -1430,6 +1458,7 @@ impl Launcher {
                         match backend::spawn(Job::Client, cmd, self.tx.clone()) {
                             Ok(r) => {
                                 self.client = Some(r);
+                                self.join_sync_home = join_sync;
                                 self.client_run = run.map(|id| (id, Instant::now()));
                                 self.step_aside(cx);
                                 if let Some(room) = hosting {
@@ -1582,8 +1611,43 @@ impl Launcher {
                         }
                     }
                 }
+                Msg::JoinSync(result) => match result {
+                    Ok(done) => {
+                        self.client_error = None;
+                        self.join_again = None;
+                        match done.rejoin {
+                            horizon_launcher::full_access::Rejoin::Server(address) => {
+                                self.quick_play("--server", address)
+                            }
+                            horizon_launcher::full_access::Rejoin::Friend(principal) => {
+                                self.rejoin_friend(principal)
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        self.client_error = Some(format!("Could not get the host's mods: {e}"));
+                    }
+                },
                 Msg::Exit(job, result) => {
-                    let error = result.err();
+                    let mut error = result.err();
+                    // MX3JN2: exit code 75 of a game started with `--join-mod-sync` is not a crash: install what it
+                    // fetched (a worker thread; the control lock), then join the same host again.
+                    if job == Job::Client {
+                        let home = self.join_sync_home.take();
+                        if let Some(home) = home.filter(|_| {
+                            error
+                                .as_deref()
+                                .is_some_and(horizon_launcher::full_access::is_join_exit_text)
+                        }) {
+                            error = None;
+                            let tx = self.tx.clone();
+                            std::thread::spawn(move || {
+                                let _ = tx.send(Msg::JoinSync(
+                                    horizon_launcher::full_access::handle_join_exit(&home),
+                                ));
+                            });
+                        }
+                    }
                     match job {
                         Job::Prepare => {
                             self.preparing = false;
@@ -4456,10 +4520,29 @@ impl Launcher {
             "globe-02",
             vec![self.proxy_row(n + 4, cx).into_any_element()],
         );
+        let join_sync = switch("join-mod-sync", self.settings.join_mod_sync, &t).on_click(
+            cx.listener(|this, _: &ClickEvent, _, cx| {
+                this.settings.join_mod_sync = !this.settings.join_mod_sync;
+                this.save_settings();
+                cx.notify();
+            }),
+        );
         let game = group(
             "Game",
             "game-controller-01",
-            vec![self.game_args_row(n + 5, cx).into_any_element()],
+            vec![
+                self.game_args_row(n + 5, cx).into_any_element(),
+                index_row(
+                    n + 5,
+                    tr("Get missing mods when joining"),
+                    Some(plain(
+                        "When a host has mods you lack, Yoake fetches them, installs them for that host only and joins again. This includes full-access mods, which get the game's own power: turn it off if you join hosts you do not trust.",
+                    )),
+                    Some(join_sync.into_any_element()),
+                    &t,
+                )
+                .into_any_element(),
+            ],
         );
         let ai = group(
             "AI",
@@ -5141,6 +5224,38 @@ impl Launcher {
             return None;
         }
         Some((handoff.path, handoff.hosting))
+    }
+
+    /// MX3JN2: after a join sync, joins the friend's room again: a fresh grant through the usual room join. When the
+    /// launcher has no room of that host in its list (it may be stale), "Join again" is left for the page
+    /// (`join_again_host`).
+    fn rejoin_friend(&mut self, principal: String) {
+        let room = self
+            .friends
+            .rooms
+            .iter()
+            .find(|room| room.host.principal == principal)
+            .map(|room| room.session_id.clone());
+        match room {
+            Some(session_id) => self.friends_join_room(session_id),
+            None => self.join_again = Some(principal),
+        }
+    }
+
+    /// MX3JN2: the friend host (portal user id) the launcher could not rejoin by itself after fetching its mods: show
+    /// "Join again", whose click calls [`Self::join_again`].
+    pub(crate) fn join_again_host(&self) -> Option<&str> {
+        self.join_again.as_deref()
+    }
+
+    /// MX3JN2: "Join again": the same room join as the automatic rejoin, once the host's room is listed.
+    pub(crate) fn join_again(&mut self) {
+        if let Some(principal) = self.join_again.clone() {
+            if self.friends.rooms.iter().any(|room| room.host.principal == principal) {
+                self.join_again = None;
+                self.rejoin_friend(principal);
+            }
+        }
     }
 
     fn join_friend(&mut self) {

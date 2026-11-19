@@ -5,6 +5,7 @@ mod lifecycle;
 mod local;
 mod full_access;
 mod full_access_dev;
+mod join_sync;
 
 use fixtures::Fixture;
 

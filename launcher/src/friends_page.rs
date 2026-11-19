@@ -1223,6 +1223,13 @@ impl Launcher {
         if self.friends.room_launching() {
             return;
         }
+        // MX3JN2: the host of this room, so the game that starts gets that host's remote mods (and only that host's)
+        self.friend_join_host = self
+            .friends
+            .rooms
+            .iter()
+            .find(|room| room.session_id == session_id)
+            .and_then(|room| horizon_launcher::full_access::friend_host_key(&room.host.principal));
         let folder = social::handoff::folder(&backend::data_dir());
         self.friends_act(FriendAction::JoinRoom, move |api| {
             join_room(api, &folder, &session_id)

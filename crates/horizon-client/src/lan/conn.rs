@@ -1065,6 +1065,15 @@ fn login_and_configure(
             }),
         )?;
     }
+    // MX3JN1: the `.yak` mods this host runs that a joining player may lack, offered on `yoake:mod_transfer` to a
+    // Horizon client over the network, after both sides advertised the channel. A host with nothing to offer, a
+    // memory connection and a client that never answers see no change at all.
+    if brand == "horizon"
+        && !c.is_memory()
+        && let Some((offer, source)) = crate::join_mods::host_offer()
+    {
+        offer_mods(c, offer, source, &mut info)?;
+    }
     // The mods that must be the same on both sides, named when they are not
     // (horizon_protocol::mod_list); the registry hash below only sees ids.
     let server_mods = horizon_protocol::mod_list::local();
@@ -1609,6 +1618,68 @@ fn checked_play(packet: play::Serverbound) -> horizon_protocol::Result<play::Ser
 }
 
 /// A configuration packet as vanilla's decoders read it.
+/// MX3JN1: the host side of `yoake:mod_transfer`: capabilities, the offer, then the files the client asks for, one at a time,
+/// until it says it is done (or goes). Only hashes of the offer are served (`HostSession`).
+fn offer_mods(
+    c: &mut Connection,
+    offer: horizon_protocol::mod_transfer::Offer,
+    source: crate::join_mods::FileSource,
+    info: &mut ClientInformation,
+) -> Result<(), String> {
+    use horizon_protocol::mod_transfer::{self as transfer, HostEvent, HostSession};
+    let e = |e: horizon_protocol::Error| e.to_string();
+    let payload = |data: Vec<u8>| {
+        cfg::Clientbound::CustomPayload(cfg::CustomPayload {
+            channel: transfer::CHANNEL.into(),
+            data,
+        })
+        .encode()
+    };
+    c.send(&payload(transfer::CAPABILITIES.to_vec())).map_err(e)?;
+    c.send(&cfg::Clientbound::Ping(cfg::Ping { id: 4 }).encode()).map_err(e)?;
+    let mut negotiation = transfer::Negotiation::default();
+    loop {
+        let (id, body) = c.recv().map_err(e)?;
+        match decode_config(id, &body).map_err(e)? {
+            cfg::Serverbound::CustomPayload(p) if p.channel == transfer::CHANNEL => {
+                negotiation.receive_capabilities(&p.data);
+            }
+            cfg::Serverbound::Pong(p) if p.id == 4 => break,
+            cfg::Serverbound::ClientInformation(i) => *info = i,
+            _ => {}
+        }
+    }
+    let Some(list) = negotiation.offer_payload(&offer) else {
+        return Ok(());
+    };
+    c.send(&payload(list)).map_err(e)?;
+    let mut session = HostSession::new(offer, source);
+    loop {
+        let (id, body) = c.recv().map_err(e)?;
+        match decode_config(id, &body).map_err(e)? {
+            cfg::Serverbound::CustomPayload(p) if p.channel == transfer::CHANNEL => {
+                match session.handle(&p.data).map_err(e)? {
+                    HostEvent::Reply(replies) => {
+                        for reply in replies {
+                            c.send(&payload(reply)).map_err(e)?;
+                        }
+                    }
+                    HostEvent::Streaming => {
+                        while let Some(chunk) = session.next_chunk() {
+                            c.send(&payload(chunk)).map_err(e)?;
+                        }
+                    }
+                    HostEvent::Finished => break,
+                    HostEvent::Idle => {}
+                }
+            }
+            cfg::Serverbound::ClientInformation(i) => *info = i,
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 fn decode_config(id: i32, payload: &[u8]) -> horizon_protocol::Result<cfg::Serverbound> {
     match cfg::Serverbound::decode(id, payload)? {
         cfg::Serverbound::CustomPayload(p) if p.data.len() > MAX_PAYLOAD => {

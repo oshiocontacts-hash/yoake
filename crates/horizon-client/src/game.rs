@@ -788,6 +788,8 @@ impl Options {
                 "--no-pause" => o.no_pause = true,
                 "--offscreen" => o.offscreen = true,
                 "--no-focus" => o.no_focus = true,
+                // MX3JN1: read from the process arguments (`join_mods`); accepted here so the game starts.
+                "--join-mod-sync" | "--full-access-dev" => {}
                 "--headless" => {
                     o.headless = true;
                     o.offscreen = true;
@@ -853,6 +855,9 @@ impl Options {
                                 o.quick_play = Some(value);
                             }
                             "--game-dir" | "--gameDir" => o.game_dir = Some(value.into()),
+                            // MX3JN1 / MX3L4: the launcher's mod arguments, read from the process arguments by
+                            // `join_mods` and `yoake2_mods`, not through `Options`.
+                            "--remote-mods" | "--full-access-approved" => {}
                             // main has made it the game home already (logging::set_game_home).
                             "--home" => {}
                             // ...and this player's own folder (logging::set_player_dir).

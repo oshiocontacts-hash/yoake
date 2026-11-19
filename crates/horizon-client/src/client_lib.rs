@@ -105,6 +105,7 @@ pub mod music;
 pub mod native_client_hooks;
 pub mod native_data;
 pub mod native_recipe_types;
+pub mod join_mods;
 pub mod net;
 pub mod nether_portal;
 pub mod no_resources;

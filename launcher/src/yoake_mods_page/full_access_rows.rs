@@ -19,6 +19,8 @@ pub(super) struct Snapshot {
     pending: Option<ListDiff>,
     control_problem: Option<String>,
     launch_problem: Option<String>,
+    /// Mods fetched from hosts when joining (MX3JN2), by host.
+    remote: Vec<full_access::RemoteHost>,
 }
 
 /// A finished job: `Some(result)` for a change (its error, if any), `None` for a plain read; then the list after it.
@@ -44,6 +46,7 @@ fn read(home: &Path) -> Snapshot {
         pending: full_access::pending_changes(home).filter(|diff| !diff.is_empty()),
         control_problem: full_access::control_problem(home),
         launch_problem: full_access::last_launch_problem(home),
+        remote: full_access::remote_hosts(home),
     }
 }
 
@@ -208,11 +211,15 @@ impl Launcher {
         let state = &self.yak_mods.full_access;
         let snapshot = &state.snapshot;
         let dev = self.yak_mods.home.as_deref().and_then(|home| self.dev_status(home));
+        let sync = self.yak_mods.home.as_deref().and_then(full_access::last_join_sync_for);
         if snapshot.rows.is_empty()
             && snapshot.pending.is_none()
             && snapshot.control_problem.is_none()
             && snapshot.launch_problem.is_none()
             && dev.is_none()
+            && snapshot.remote.is_empty()
+            && sync.is_none()
+            && self.join_again_host().is_none()
         {
             return None;
         }
@@ -290,6 +297,40 @@ impl Launcher {
         }
         for row in &snapshot.rows {
             section = section.child(self.full_access_row(row, cx));
+        }
+        if let Some(sync) = &sync {
+            section = section.child(match &sync.error {
+                None => shell::text(night::CAPTION, c(theme.night.muted)).child(trf(
+                    "Joining {host}: {count} mod(s) fetched and installed for that host.",
+                    &[("host", &sync.host_display), ("count", &sync.installed.to_string())],
+                )),
+                Some(error) => shell::text(night::CAPTION, c(theme.night.warn)).child(trf(
+                    "Joining {host}: the host's mods could not be installed: {reason}",
+                    &[("host", &sync.host_display), ("reason", error)],
+                )),
+            });
+        }
+        if self.join_again_host().is_some() {
+            section = section.child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.))
+                    .child(shell::text(night::CAPTION, c(theme.night.muted)).child(tr(
+                        "The host's mods are installed. Join again when the host's room shows up.",
+                    )))
+                    .child(
+                        shell::action("fa-join-again", Action::Main, &theme)
+                            .child(shell::label(tr("Join again")))
+                            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                this.join_again();
+                                cx.notify();
+                            })),
+                    ),
+            );
+        }
+        for host in &snapshot.remote {
+            section = section.child(self.remote_host_row(host, cx));
         }
         Some(
             plate::cut(
@@ -419,6 +460,57 @@ impl Launcher {
             .child(div().flex_none().size(px(8.)).bg(state_color))
             .child(details)
             .child(controls)
+    }
+
+    /// Mods one host gave this instance when joining: they run only when joining that host.
+    fn remote_host_row(&self, host: &full_access::RemoteHost, cx: &mut Context<Self>) -> Div {
+        let theme = self.theme;
+        let busy = self.full_access_busy();
+        let mut details = div()
+            .flex_1()
+            .min_w_0()
+            .flex()
+            .flex_col()
+            .gap(px(4.))
+            .child(
+                shell::text(night::UI, c(theme.night.ink))
+                    .child(trf("From {host}", &[("host", &host.display)])),
+            )
+            .child(shell::text(night::CAPTION, c(theme.night.muted)).child(tr(
+                "Runs only when you join this host.",
+            )));
+        for m in &host.mods {
+            let mut line = format!("{} {} · {}", m.id, m.version, m.sha256_short);
+            if m.full_access {
+                line.push_str(" · ");
+                line.push_str(tr("Full access"));
+            }
+            details = details.child(shell::text(night::CAPTION, c(theme.night.muted)).child(line));
+        }
+        let key = host.key.clone();
+        div()
+            .flex()
+            .items_center()
+            .gap(px(14.))
+            .py(px(6.))
+            .child(div().flex_none().size(px(8.)).bg(theme.accent))
+            .child(details)
+            .child(
+                shell::action(
+                    SharedString::from(format!("fa-remote-remove-{}", host.key)),
+                    Action::Quiet,
+                    &theme,
+                )
+                .child(shell::label(tr("Remove all from this host")))
+                .when(busy, |button| button.opacity(theme::DISABLED))
+                .when(!busy, |button| {
+                    button.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        let key = key.clone();
+                        this.full_access_act(move |home| full_access::remove_remote_host(home, &key));
+                        cx.notify();
+                    }))
+                }),
+            )
     }
 
     fn full_access_confirm(&self, row: &FullAccessRow, cx: &mut Context<Self>) -> Div {

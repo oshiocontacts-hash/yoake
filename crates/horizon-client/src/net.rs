@@ -1254,6 +1254,8 @@ fn configure(
     let mut content_verified = false;
     let mut horizon_peer = false;
     let mut native_check = horizon_protocol::mod_list::native::Negotiation::default();
+    // MX3JN1: the host's offer of mods on `yoake:mod_transfer`; idle unless the host speaks it.
+    let mut join_mods = crate::join_mods::ClientJoin::from_process();
     let reply = |p: cfg::Serverbound| -> Result<(), Reason> {
         match writer.lock().unwrap().as_mut() {
             Some(w) => w
@@ -1307,6 +1309,28 @@ fn configure(
                     channel: crate::content_identity::CHANNEL.into(),
                     data: hash.to_vec(),
                 }))?;
+            }
+            // MX3JN1: the host offers mods it runs. Only a Horizon host is listened to, and the capability exchange
+            // comes first; fetching happens only with the launcher's `--join-mod-sync`.
+            cfg::Clientbound::CustomPayload(p) if horizon_peer && p.channel == horizon_protocol::mod_transfer::CHANNEL => {
+                let reaction = join_mods.on_payload(&p.data);
+                for data in reaction.send {
+                    reply(cfg::Serverbound::CustomPayload(cfg::CustomPayload {
+                        channel: horizon_protocol::mod_transfer::CHANNEL.into(),
+                        data,
+                    }))?;
+                }
+                if let Some(text) = &reaction.status {
+                    status(send, text);
+                }
+                if let Some(text) = reaction.fatal {
+                    return Err(Reason::plain(text));
+                }
+                if let Some(code) = reaction.exit {
+                    // the staged files and the request are on disk; the launcher installs them and starts the game again
+                    std::thread::sleep(std::time::Duration::from_millis(400));
+                    crate::join_mods::exit_with(code);
+                }
             }
             cfg::Clientbound::CustomPayload(p)
                 if horizon_peer && p.channel == horizon_protocol::mod_list::native::CHANNEL =>

@@ -10,8 +10,13 @@
 //! * Where a package came from is recorded **when it arrives** in the launcher's `yak-origins.toml` (keyed by the package
 //!   hash; written by [`install_package`]), never guessed from the folder it sits in. A package with no record has an
 //!   unknown origin and is **never** full-access ([`Refusal::UnknownOrigin`]). A package that came from a **server or a
-//!   friend** is never full-access, even if its hash is approved (design 2.5); such packages are stored apart, in
-//!   `<mods>/remote/<origin>/`, which this loader never scans. Only `local` and `catalog` packages can run.
+//!   friend** (MX3JN1: join-time mod sync, docs/yoake2/JOIN-MODS.md) is stored apart, in `<mods>/remote/<host dir>/`, which
+//!   the plain scan never reads, and runs **only** when the launcher's approved list for a launch that joins exactly that
+//!   host names it (`ApprovedList::host` = the `--remote-mods` key, entry origin `server`/`friend`, bytes hashing to the
+//!   entry) and only on the client thread. Every other way a server or friend package could arrive (no list, another
+//!   host's list, a hand-dropped file, a list without a host scope) is still refused ([`Refusal::FromServer`] /
+//!   [`Refusal::FromFriend`]); the MX3L2 rule "never full-access for server/friend origin" now reads "never without the
+//!   launcher's approval for that host". `local` and `catalog` work as before.
 //! * **The game does not read those files** (MX3L4). The launcher verifies them and passes this launch's approved list
 //!   ([`ApprovedList`]: `(id, version, sha256, origin)` entries) in a file named by `--full-access-approved <path>`
 //!   (or `YOAKE_FULL_ACCESS_APPROVED`); the loader turns it into the same allow/origin pair and loads only packages whose
@@ -134,8 +139,8 @@ impl fmt::Display for Refusal {
                 short(sha256),
                 OriginFile::FILE_NAME
             ),
-            Refusal::FromServer => write!(f, "delivered by a server: a server's package is never full-access"),
-            Refusal::FromFriend => write!(f, "delivered by a friend: a friend's package is never full-access"),
+            Refusal::FromServer => write!(f, "delivered by a server and not approved for that server (a server's package runs only when the launcher approved it for this host)"),
+            Refusal::FromFriend => write!(f, "delivered by a friend and not approved for that host (a friend's package runs only when the launcher approved it for this host)"),
             Refusal::DuplicateId { id, others } => {
                 write!(f, "another package has the same id '{id}' ({}): neither is loaded as full-access", others.join(", "))
             }
@@ -151,10 +156,16 @@ impl fmt::Display for Refusal {
 // Policy and loading
 // ---------------------------------------------------------------------------------------------------------------
 
-/// The policy: may a full-access package of this origin run? `approved` is "the player approved this exact
-/// content"; `signed_by_trusted` a signature of a key on the trust list.
+/// The policy: may a full-access package of this origin run? `approved` is "the launcher approved this exact
+/// content" (for a `Local` package, the player did). `signed_by_trusted` a signature of a key on the trust list.
+///
+/// MX3JN1: a `Server` or `Friend` package runs **only when approved**, and approval of such a package exists only in
+/// the approved list of a launch scoped to its host (`ApprovedList::to_remote_files`, which the loader hands only to the
+/// `mods/remote/<host dir>/` folder of the `--remote-mods` host). A signature never replaces that approval.
 pub fn decide(origin: Origin, approved: bool, signed_by_trusted: bool) -> Result<(), Refusal> {
     match origin {
+        Origin::Server if approved => Ok(()),
+        Origin::Friend if approved => Ok(()),
         Origin::Server => Err(Refusal::FromServer),
         Origin::Friend => Err(Refusal::FromFriend),
         // `Dev`: the launcher copied it from the player's own developer folder and approved exactly those bytes
@@ -202,11 +213,10 @@ pub fn load_package_on(side: ThreadSide, bytes: Vec<u8>, origin: Option<Origin>,
         eprintln!("yoake: full-access mod \x27{id}\x27 {refusal}");
         return Err(refusal);
     }
-    // an unknown origin, a server's or a friend's package is refused before anything else looks at it
+    // an unknown origin is refused before anything else looks at it; a server's or friend's package goes through
+    // `decide` like the rest and runs only when approved (MX3JN1)
     let origin = match origin {
         None => return Err(Refusal::UnknownOrigin { sha256 }),
-        Some(Origin::Server) => return Err(Refusal::FromServer),
-        Some(Origin::Friend) => return Err(Refusal::FromFriend),
         Some(origin) => origin,
     };
     let signed = match archive.verify_signature(trusted) {
@@ -353,6 +363,15 @@ pub fn load_dir_on(side: ThreadSide, dir: &Path, origins: &OriginFile, allow: &A
     report
 }
 
+/// MX3JN1: the SHA-256s (lowercase hex) of the full-access packages the server thread runs now, for the connection
+/// threads that offer them to joining players (`join_mods::offer_from`). Replaced at every world start.
+static SERVED: std::sync::Mutex<std::collections::BTreeSet<String>> = std::sync::Mutex::new(std::collections::BTreeSet::new());
+
+/// Whether the server thread runs the full-access package with this SHA-256 (lowercase hex).
+pub fn server_runs_package(sha256_hex: &str) -> bool {
+    SERVED.lock().unwrap_or_else(|e| e.into_inner()).contains(sha256_hex)
+}
+
 thread_local! {
     /// This thread's loaded mods, per [`ThreadSide`] (indexed by `ThreadSide::index`).
     static LOADED: std::cell::RefCell<[Vec<ModId>; 2]> = const { std::cell::RefCell::new([Vec::new(), Vec::new()]) };
@@ -424,7 +443,15 @@ pub fn load_world_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> Load
 /// whose `[wasm] side` is `client` or `both` into this thread's own runtime (separate from the server's, even for a `both`
 /// mod). The same approved list and trust rules; the mods' own `yoake_init` runs here.
 pub fn load_client_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> LoadReport {
-    load_mods_on(ThreadSide::Client, mods_dir, approved)
+    load_client_mods_scoped(mods_dir, approved, horizon_client::join_mods::remote_key().as_deref())
+}
+
+/// MX3JN1: [`load_client_mods`] for a launch that joins the host `remote_key` (`--remote-mods`): besides `mods_dir`, the
+/// packages of `mods_dir/remote/<host dir>/` that the approved list names **for that host** (origin `server`/`friend`,
+/// list scoped to the same key) run on the client thread. Another host's folder is never read, and without a key or a
+/// matching list nothing remote loads. A remote package whose id a local mod already runs is not loaded (the local one wins).
+pub fn load_client_mods_scoped(mods_dir: &Path, approved: Option<&ApprovedList>, remote_key: Option<&str>) -> LoadReport {
+    load_mods_scoped(ThreadSide::Client, mods_dir, approved, remote_key)
 }
 
 /// MX3CL1: the client's session end: unloads this thread's client-side mods. Returns what could not be unloaded.
@@ -444,6 +471,10 @@ pub fn client_mods_loaded() -> bool {
 }
 
 fn load_mods_on(side: ThreadSide, mods_dir: &Path, approved: Option<&ApprovedList>) -> LoadReport {
+    load_mods_scoped(side, mods_dir, approved, None)
+}
+
+fn load_mods_scoped(side: ThreadSide, mods_dir: &Path, approved: Option<&ApprovedList>, remote_key: Option<&str>) -> LoadReport {
     let errors = unload_previous(side);
     if !errors.is_empty() {
         let report = LoadReport { problems: errors, ..LoadReport::default() };
@@ -461,14 +492,40 @@ fn load_mods_on(side: ThreadSide, mods_dir: &Path, approved: Option<&ApprovedLis
     // before any `yoake_init` runs, so `hook_register` can tell each guest the mode of the ids it asks for
     yoake_slice::bridge::set_mode_resolver(Some(hook_mode));
     let mut report = load_dir_on(side, mods_dir, &origins, &allow, &trusted, &ModConfig::full_access());
+    // MX3JN1: the joined host's folder, on the client thread only, with the entries scoped to that exact host
+    if let (ThreadSide::Client, Some(key), Some(list)) = (side, remote_key.filter(|key| horizon_mods::yak::control::valid_host_key(key)), approved) {
+        if let Some(dir) = horizon_mods::yak::control::host_remote_dir(mods_dir, key) {
+            let (remote_allow, remote_origins) = list.to_remote_files(key);
+            let remote = load_dir_on(side, &dir, &remote_origins, &remote_allow, &trusted, &ModConfig::full_access());
+            merge_remote(&mut report, remote);
+        }
+    }
     // the "no list" note is only worth a line when there is a full-access package that it affects
     if approved.is_none() && report.skipped.iter().any(|(_, r)| !matches!(r, Refusal::Sandboxed | Refusal::OtherSide)) {
         report.problems.push(format!("the launcher gave no approved list ({APPROVED_ARG} or {APPROVED_ENV}): no full-access mod will run"));
     }
     LOADED.with(|loaded| loaded.borrow_mut()[side.index()].extend(report.loaded.iter().map(|l| l.module)));
+    if side == ThreadSide::Server {
+        *SERVED.lock().unwrap_or_else(|e| e.into_inner()) = report.loaded.iter().map(|l| l.sha256.clone()).collect();
+    }
     report.unbridged = install_bridges(&report.loaded);
     announce(&report);
     report
+}
+
+/// Folds the report of a host's remote folder into the local one: a remote mod with the id of a loaded local mod is
+/// unloaded again (the local mod wins), the rest is added.
+fn merge_remote(report: &mut LoadReport, remote: LoadReport) {
+    for loaded in remote.loaded {
+        if report.loaded.iter().any(|local| local.id == loaded.id) {
+            let _ = runtime::unload(loaded.module);
+            report.problems.push(format!("remote full-access mod '{}' has the id of one of your own mods: your own mod runs, the host's was not loaded", loaded.id));
+        } else {
+            report.loaded.push(loaded);
+        }
+    }
+    report.skipped.extend(remote.skipped);
+    report.problems.extend(remote.problems);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -582,7 +639,11 @@ pub fn dev_reload_check(enabled: bool, side: ThreadSide, list_path: &Path, mods_
         }
     }
     debug_assert!(!runtime::guest_running());
-    let report = load_mods_on(side, mods_dir, Some(&list));
+    // MX3JN1 x MX3HR1: the reload keeps the host-scoped remote mods right: it uses the new list's host (the launcher
+    // writes the list of a host launch with `with_host`), but never another host than this launch's `--remote-mods`.
+    let process_key = horizon_client::join_mods::remote_key();
+    let remote_key = list.host().filter(|host| process_key.as_deref().is_none_or(|key| key == *host));
+    let report = load_mods_scoped(side, mods_dir, Some(&list), remote_key);
     let refused = report.skipped.iter().filter(|(_, r)| !matches!(r, Refusal::Sandboxed | Refusal::OtherSide)).count();
     let ids: Vec<&str> = report.loaded.iter().map(|l| l.id.as_str()).collect();
     let line = format!("yoake: dev reload ({side:?}) generation {}: {} mod(s) loaded [{}], {refused} refused", list.generation(), ids.len(), ids.join(", "));
