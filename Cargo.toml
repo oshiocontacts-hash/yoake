@@ -23,6 +23,7 @@ members = [
     "crates/horizon-server",
     "crates/horizon-bots",
     "crates/horizon-assets",
+    "crates/horizon-mobmodel",
     "crates/horizon-protocol",
     "crates/horizon-theme",
     "crates/horizon-prepare",

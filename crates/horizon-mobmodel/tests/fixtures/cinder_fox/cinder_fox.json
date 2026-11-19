@@ -1,0 +1,87 @@
+{
+ "controllers": {
+  "locomotion": {
+   "initial": "idle",
+   "states": {
+    "idle": {
+     "animations": [
+      "idle"
+     ],
+     "blend": 0.15,
+     "transitions": [
+      {
+       "to": "walk",
+       "when": "q.ground_speed > 0.05"
+      }
+     ]
+    },
+    "walk": {
+     "animations": [
+      "walk"
+     ],
+     "blend": 0.1,
+     "transitions": [
+      {
+       "to": "run",
+       "when": "q.ground_speed > 0.2"
+      },
+      {
+       "to": "idle",
+       "when": "q.ground_speed < 0.03"
+      }
+     ]
+    },
+    "run": {
+     "animations": [
+      {
+       "name": "run",
+       "speed": "math.clamp(q.ground_speed * 3, 0.8, 2)"
+      }
+     ],
+     "blend": 0.1,
+     "transitions": [
+      {
+       "to": "walk",
+       "when": "q.ground_speed < 0.17"
+      }
+     ]
+    }
+   }
+  },
+  "action": {
+   "weight": 1,
+   "mode": "add",
+   "triggers": {
+    "pounce": "pounce"
+   }
+  },
+  "pose": {
+   "initial": "stand",
+   "states": {
+    "stand": {
+     "animations": [],
+     "inactive": true,
+     "blend": 0.2,
+     "transitions": [
+      {
+       "to": "sit",
+       "when": "q.synced('state') == 1"
+      }
+     ]
+    },
+    "sit": {
+     "animations": [
+      "sit"
+     ],
+     "blend": 0.2,
+     "transitions": [
+      {
+       "to": "stand",
+       "when": "q.synced('state') != 1"
+      }
+     ]
+    }
+   }
+  }
+ }
+}
