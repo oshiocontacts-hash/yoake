@@ -382,3 +382,45 @@ mod inject_tests {
         assert_eq!(check_fn(&g.attrs, &g.sig), Ok(()));
     }
 }
+
+#[cfg(test)]
+mod f1_trait_move_tests {
+    use super::*;
+
+    fn meta(trait_in_scope: bool, impl_src: &str) -> (TraitImplMeta, ItemImpl) {
+        let item: ItemImpl = syn::parse_str(impl_src).unwrap();
+        (TraitImplMeta::from_impl(&item, trait_in_scope), item)
+    }
+
+    fn movable(trait_in_scope: bool, impl_src: &str) -> Result<(), &'static str> {
+        let (m, item) = meta(trait_in_scope, impl_src);
+        let ImplItem::Fn(f) = &item.items[0] else { panic!("first item must be a fn") };
+        check_trait_method_movable(&m, &f.sig, &f.block)
+    }
+
+    #[test]
+    fn a_call_of_a_trait_method_on_another_receiver_needs_the_trait_in_scope() {
+        // `impl Display { fn fmt(..) { e.fmt(f) } }` compiles only inside the impl.
+        let src = "impl std::fmt::Display for E { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { self.0.fmt(f) } }";
+        assert_eq!(movable(false, src), Err("calls trait method without trait in scope"));
+        assert_eq!(movable(true, src), Ok(()));
+    }
+
+    #[test]
+    fn a_path_call_of_a_trait_method_needs_the_trait_in_scope() {
+        let src = "impl FromInjectValue for B { fn from_inject_value(v: Value) -> Option<Self> { u16::from_inject_value(v).map(Self) } }";
+        assert_eq!(movable(false, src), Err("calls trait method without trait in scope"));
+    }
+
+    #[test]
+    fn an_associated_type_of_a_supertrait_in_the_signature_is_refused() {
+        let src = "impl DoubleEndedIterator for It { fn next_back(&mut self) -> Option<Self::Item> { None } }";
+        assert_eq!(movable(true, src), Err("uses trait Self:: item"));
+    }
+
+    #[test]
+    fn enum_variants_through_self_in_the_body_do_not_block_the_move() {
+        let src = "impl Tr for E { fn name(&self) -> u8 { match self { Self::A => 1, Self::B(_) => 2 } } }";
+        assert_eq!(movable(true, src), Ok(()));
+    }
+}

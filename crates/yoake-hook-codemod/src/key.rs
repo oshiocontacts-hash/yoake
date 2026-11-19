@@ -419,6 +419,26 @@ pub fn assign_field_path(left: &Expr) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn trait_helper_names_differ_for_different_generic_trait_arguments() {
+        let a: syn::Path = syn::parse_str("PartialEq").unwrap();
+        let b: syn::Path = syn::parse_str("PartialEq<BTreeMap<String, String>>").unwrap();
+        let c: syn::Path = syn::parse_str("PartialEq<Vec<u8>>").unwrap();
+        let eq: syn::Ident = syn::parse_str("eq").unwrap();
+        let (na, nb, nc) = (
+            super::trait_helper_name(&a, &eq),
+            super::trait_helper_name(&b, &eq),
+            super::trait_helper_name(&c, &eq),
+        );
+        assert_eq!(na, "__yoake_trait_partial_eq_eq", "plain traits keep their old names");
+        assert!(nb.starts_with("__yoake_trait_partial_eq_g") && nb.ends_with("_eq"));
+        assert_ne!(nb, nc);
+        assert_ne!(na, nb);
+        let (fa, fb) = (super::trait_helper_name_full(&b, &eq), super::trait_helper_name_full(&c, &eq));
+        assert_ne!(fa, fb);
+        assert_eq!(nb, super::trait_helper_name(&b, &eq), "stable between runs");
+    }
+
     use super::*;
 
     #[test]
