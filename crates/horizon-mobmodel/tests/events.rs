@@ -476,3 +476,91 @@ fn a_long_stall_is_a_seek() {
     assert!(cur.advance(&clock, 210, 0.0).is_empty());
     assert!(!cur.advance(&clock, 211, 0.0).is_empty());
 }
+
+// ----- high-water marks -----------------------------------------------------------------------------------------
+
+#[test]
+fn rewind_then_forward_does_not_emit_the_hit_again_on_the_client_cursor() {
+    let f = fox();
+    let me = fox_events(&f);
+    let c0 = AnimClock::new(2, 100, 0.0, 1.0);
+    let mut cur = EventCursor::fresh(&c0);
+    assert_eq!(cursor_run(&f, &me, &mut cur, &c0, 100..=112).len(), 3, "the hit plays once");
+    // run backwards (continuous re-anchors) to about 0.05 s, then forward again over 0.35 s
+    let back = c0.reanchor(113, 2, -1.0);
+    assert!(cursor_run(&f, &me, &mut cur, &back, 113..=125).is_empty());
+    let fwd = back.reanchor(126, 2, 1.0);
+    assert!(cursor_run(&f, &me, &mut cur, &fwd, 126..=160).is_empty(), "no second hit");
+}
+
+#[test]
+fn a_new_loop_after_the_mark_fires_again_and_the_rewound_part_does_not() {
+    let rig = rig();
+    let me = events(&rig, "");
+    let run = |cur: &mut EventCursor, clock: &AnimClock, ticks: std::ops::RangeInclusive<i64>| {
+        let mut buf = EventBuf::with_capacity(32);
+        let mut out = Vec::new();
+        for tick in ticks {
+            let w = cur.advance(clock, tick, 0.0);
+            buf.clear();
+            me.animation_window(&rig, EventSide::Client, 0, RigSource::State { state: 0, slot: 0 }, 0, w.c0, w.c1, &mut buf);
+            out.extend(buf.as_slice().iter().filter(|e| matches!(e.kind, MobEventKind::Custom { .. })).map(|e| label(&me, e)));
+        }
+        out
+    };
+    let c0 = AnimClock::new(0, 0, 0.0, 1.0);
+    let mut cur = EventCursor::fresh(&c0);
+    assert_eq!(run(&mut cur, &c0, 0..=24), ["custom:tick", "custom:tock", "custom:tick"]); // 0, 0.5, 1.0
+    let back = c0.reanchor(24, 0, -1.0); // time 1.2 down to 0.2
+    assert!(run(&mut cur, &back, 25..=44).is_empty());
+    let fwd = back.reanchor(44, 0, 1.0);
+    assert!(run(&mut cur, &fwd, 45..=64).is_empty(), "back up to the mark (1.2 s): nothing");
+    // past the mark: the tock at 1.5 is new, and so are the next loop's tick at 2.0 and tock at 2.5
+    assert_eq!(run(&mut cur, &fwd, 65..=91), ["custom:tock", "custom:tick", "custom:tock"]);
+}
+
+#[test]
+fn server_marks_stop_repeated_and_rewound_windows_from_double_hitting() {
+    let f = fox();
+    let me = fox_events(&f);
+    let (layer, trig) = action_pounce(&f);
+    let mut marks = EventMarks::new(&f.rig);
+    let mut buf = EventBuf::with_capacity(16);
+    let w = |c0: f32, c1: f32, marks: &mut EventMarks, buf: &mut EventBuf, side| {
+        buf.clear();
+        me.trigger_window_marked(&f.rig, side, layer, trig, c0, c1, marks, buf);
+        buf.len()
+    };
+    assert_eq!(w(0.30, 0.40, &mut marks, &mut buf, EventSide::Server), 1);
+    assert_eq!(w(0.30, 0.40, &mut marks, &mut buf, EventSide::Server), 0, "the same window again");
+    assert_eq!(w(0.00, 0.40, &mut marks, &mut buf, EventSide::Server), 0, "a rewound, wider window");
+    assert_eq!(w(0.40, 0.80, &mut marks, &mut buf, EventSide::Server), 0);
+    // the trigger is played again: reset, and it fires once more
+    marks.reset_trigger(layer, trig);
+    assert_eq!(w(0.30, 0.40, &mut marks, &mut buf, EventSide::Server), 1);
+    // the client's hit, sound and particle share a keyframe time and all fire together
+    marks.reset_all();
+    assert_eq!(w(0.30, 0.40, &mut marks, &mut buf, EventSide::Client), 3);
+    assert_eq!(w(0.30, 0.40, &mut marks, &mut buf, EventSide::Client), 0);
+}
+
+#[test]
+fn update_marked_gives_the_same_events_as_update_and_never_repeats() {
+    let rig = rig();
+    let me = events(&rig, r#","server_events":["ticker"]"#);
+    let mut dts = vec![0.05f32; 25];
+    dts.extend([0.0f32; 10]);
+    dts.extend([0.05f32; 25]);
+    let plain = run_update(&rig, &me, EventSide::Server, &dts);
+    let mut st = rig.initial_state();
+    let mut inp = ExprInputs::default();
+    let mut marks = EventMarks::new(&rig);
+    let mut buf = EventBuf::with_capacity(64);
+    let mut marked = Vec::new();
+    for (i, dt) in dts.iter().enumerate() {
+        buf.clear();
+        me.update_marked(&rig, EventSide::Server, &mut st, *dt, &mut inp, &mut marks, &mut buf);
+        marked.extend(buf.as_slice().iter().map(|e| (i, label(&me, e), e.loop_index)));
+    }
+    assert_eq!(marked, plain);
+}

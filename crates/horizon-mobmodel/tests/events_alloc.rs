@@ -67,6 +67,7 @@ fn emission_does_not_allocate() {
     bone_matrices_into(&sk, &pose, &mut mats); // sizes the scratch
     let clock = AnimClock::new(0, 0, 0.0, 1.0);
     let mut cur = EventCursor::fresh(&clock);
+    let mut marks = EventMarks::new(&rig);
     // warm up once so any first-use growth happens before the count
     me.update(&rig, EventSide::Client, &mut st, 0.05, &mut inp, &mut buf);
 
@@ -77,6 +78,8 @@ fn emission_does_not_allocate() {
         buf.clear();
         me.update(&rig, EventSide::Client, &mut st, 0.05, &mut inp, &mut buf);
         me.update(&rig, EventSide::Server, &mut st, 0.0, &mut inp, &mut buf);
+        me.update_marked(&rig, EventSide::Server, &mut st, 0.05, &mut inp, &mut marks, &mut buf);
+        me.trigger_window_marked(&rig, EventSide::Server, 1, 0, 0.0, 1.0, &mut marks, &mut buf);
         me.trigger_window(&rig, EventSide::Server, 1, 0, 0.0, 1.0, &mut buf);
         let w = cur.advance(&clock, tick, 0.0);
         me.animation_window(&rig, EventSide::Client, 0, RigSource::State { state: 0, slot: 0 }, 0, w.c0, w.c1, &mut buf);
