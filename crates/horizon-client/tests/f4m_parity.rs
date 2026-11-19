@@ -353,9 +353,8 @@ impl Server {
 }
 
 fn server(root: &Path) -> Server {
-    let sync = Arc::new(
-        SyncData::load(root, &horizon_world::loot::PackOverlay::NONE).expect("sync data"),
-    );
+    let sync =
+        Arc::new(SyncData::load(root, &horizon_world::loot::PackOverlay::NONE).expect("sync data"));
     let lan = Lan::start_with(sync.clone(), NetConfig::lan(0, "Parity - World".into(), 8)).unwrap();
     let biomes: Vec<String> = sync
         .dynamic

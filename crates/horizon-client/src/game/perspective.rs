@@ -163,6 +163,7 @@ fn load_player_type(root: &Path) -> Option<Arc<MobType>> {
     let models = horizon_client::mobs::EntityModelDocument::load(root).ok()?;
     models.model("minecraft:player#main").map(|model| {
         Arc::new(MobType {
+            custom: None,
             id: "minecraft:player".into(),
             // Players render as a humanoid; the species only drives local AI.
             species: horizon_client::mobs::Species::Zombie,

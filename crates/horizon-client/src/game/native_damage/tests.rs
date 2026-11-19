@@ -12,6 +12,7 @@ fn tick(sequence: u64) -> (NativeWorldEpoch, NativeTickId) {
 
 fn mob(armor: f32) -> Mob {
     let kind = Arc::new(MobType {
+        custom: None,
         id: "minecraft:pig".into(),
         species: Species::Pig,
         width: 0.9,

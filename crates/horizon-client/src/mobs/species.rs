@@ -95,6 +95,9 @@ pub enum Species {
     ZombieNautilus,
     SulfurCube,
     Mannequin,
+    /// A mod's fully custom mob (`"template": "yoake:mob"`, FR-F4-MOB). F4M: custom species. Never
+    /// built until a custom type is registered (F4M-3); its rows are neutral defaults.
+    Custom,
 }
 /// Baby bounding boxes (each class's BABY_DIMENSIONS).
 #[derive(Clone, Copy, Debug)]
@@ -1322,8 +1325,24 @@ pub const ALL: &[Def] = &[
     ),
 ];
 pub fn def(s: Species) -> &'static Def {
+    // F4M: custom species. A custom mob has no vanilla row: neutral defaults (no baby form, no
+    // special sounds), which its `CustomType` overrides.
+    if s == Species::Custom {
+        return &CUSTOM;
+    }
     ALL.iter().find(|d| d.species == s).unwrap_or(&ALL[0])
 }
+/// The neutral row of [`Species::Custom`].
+static CUSTOM: Def = Def {
+    species: Species::Custom,
+    name: "custom",
+    model: "",
+    texture: "",
+    anim: A::Humanoid { zombie_arms: false },
+    sounds: ["", "", ""],
+    step_sound: None,
+    baby: Baby::None,
+};
 impl Def {
     /// Model layer families to load for this entity (adult, baby, variants).
     pub fn layer_prefixes(&self) -> Vec<&'static str> {
@@ -1503,7 +1522,8 @@ impl Def {
             // Nautilus.handleAirSupply: it dries out on land.
             needs_water: aquatic || s == S::Nautilus,
             water_sensitive: matches!(s, S::Enderman | S::Blaze | S::SnowGolem | S::Strider),
-            animal: !matches!(s, S::Bat | S::SulfurCube | S::Mannequin)
+            // F4M: custom species are not animals unless their type says so.
+            animal: !matches!(s, S::Bat | S::SulfurCube | S::Mannequin | S::Custom)
                 && !self.hostile_class()
                 && !aquatic
                 && !matches!(

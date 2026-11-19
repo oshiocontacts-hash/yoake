@@ -9085,6 +9085,12 @@
       "path": "motion::native_living_jump",
       "sig": "fn native_living_jump(u32, &str) -> ()",
       "status": "bound"
+    },
+    {
+      "id": 2514,
+      "path": "custom_mobs::__reserved_range_end",
+      "sig": "reserved: ids 1515..=2514 belong to the custom_mobs module (FR-F4-MOB F4M-0)",
+      "status": "unbound"
     }
   ]
 }

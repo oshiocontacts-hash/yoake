@@ -883,6 +883,7 @@ mod tests {
         use crate::mobs::{Anim, Brain, Flags, MobType, Part, Species};
         use std::sync::Arc;
         let kind = Arc::new(MobType {
+            custom: None,
             id: "minecraft:villager".into(),
             species: Species::Villager,
             width: 0.6,
