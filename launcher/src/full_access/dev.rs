@@ -278,7 +278,18 @@ impl DevSync {
         let mods = mods_dir(&self.instance);
         let current = current_list(&control, &mods)?;
         let effective = effective_list(&load_last(&control, &self.instance), &current);
-        let generation = ApprovedList::read(&self.approved).map(|l| l.generation()).unwrap_or(0) + 1;
+        let previous = ApprovedList::read(&self.approved).ok();
+        let generation = previous.as_ref().map_or(0, |l| l.generation()) + 1;
+        // MX3JN2: a launch that joined a host keeps its scope: the host and its entries (origin server/friend) stay in
+        // the rewritten list, so a dev reload does not unload the host's remote mods
+        let effective = match previous.as_ref().and_then(|l| l.host().map(|host| (host.to_owned(), l))) {
+            Some((host, previous)) => {
+                let mut entries = effective.entries().to_vec();
+                entries.extend(previous.entries().iter().filter(|e| !e.origin.can_be_full_access()).cloned());
+                ApprovedList::new(entries, effective.protected().to_vec()).with_host(host)
+            }
+            None => effective,
+        };
         control::write_atomic(&self.approved, effective.with_generation(generation).to_text().as_bytes())
     }
 

@@ -1543,9 +1543,12 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             if let Some(world) = world {
                 cmd.arg("--world").arg(world);
             }
+            // MX3JN2: the host this launch joins: its remote mods load (the CLI never passes --join-mod-sync)
+            let mut join_host = None;
             if let Some(server) = server {
                 let list = server_list::List::load(&instance.home);
                 let ip = server_list::find(&list, &server).map_or(server, |(_, s)| s.ip);
+                join_host = horizon_launcher::full_access::server_host_key(&ip);
                 cmd.arg("--server").arg(ip);
             }
             if creative {
@@ -1563,7 +1566,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             horizon_launcher::launch::limit_memory(&mut cmd, &instance.launch);
             // MX3U1: the approved full-access list for this launch, deleted when the game exits
             let approved = yoake_program.is_some().then(|| {
-                let prepared = horizon_launcher::full_access::prepare(&instance.home);
+                let prepared = horizon_launcher::full_access::prepare_joining(&instance.home, join_host.as_deref(), false);
                 if let Some(problem) = &prepared.problem {
                     eprintln!("Full-access mods are off for this launch: {problem}");
                 }
