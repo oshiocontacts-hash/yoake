@@ -1,0 +1,64 @@
+{
+  "template": "yoake:mob",
+  "format": 1,
+  "category": "creature",
+  "size": { "width": 0.6, "height": 0.7, "eye_height": 0.5 },
+  "hitboxes": [
+    { "name": "body", "size": [0.6, 0.7] },
+    { "name": "head", "size": [0.4, 0.4], "bone": "head", "damage_multiplier": 1.5 }
+  ],
+  "attributes": {
+    "max_health": 14,
+    "movement_speed": 0.3,
+    "sample_mobs:warmth": { "default": 0, "min": 0, "max": 10, "sync": "all" }
+  },
+  "model": {
+    "geo": "sample_mobs:geo/cinder_fox",
+    "textures": { "default": "sample_mobs:entity/cinder_fox" },
+    "animations": ["sample_mobs:animations/cinder_fox"],
+    "controllers": ["sample_mobs:controllers/cinder_fox"],
+    "scale": 1.0,
+    "shadow": { "radius": 0.4, "strength": 0.8 },
+    "cull": { "width": 2.0, "height": 2.0 },
+    "layers": [
+      { "name": "glow", "texture": "sample_mobs:entity/cinder_fox_glowmask", "mode": "emissive" }
+    ],
+    "lod": [
+      { "distance": 24, "mode": "half_rate" },
+      { "distance": 48, "mode": "quarter_rate" },
+      { "distance": 64, "mode": "static" }
+    ],
+    "item_slots": { "mainhand": "mouth" }
+  },
+  "synced": {
+    "state": { "type": "enum", "values": ["idle", "sit", "pounce"], "default": "idle", "persistent": true },
+    "warmth": { "type": "i32", "min": 0, "max": 10, "default": 0, "persistent": true, "sync": "all" }
+  },
+  "ai": {
+    "navigator": "ground",
+    "goals": [
+      { "type": "swim", "priority": 0 },
+      { "type": "script", "id": "pounce", "priority": 2 },
+      { "type": "follow_owner", "priority": 4, "speed": 1.1 },
+      { "type": "sit", "priority": 3 },
+      { "type": "wander", "priority": 6, "speed": 1.0 },
+      { "type": "look_at_player", "priority": 7 },
+      { "type": "random_look", "priority": 8 }
+    ],
+    "targets": [
+      { "type": "nearest_target", "priority": 1, "types": ["minecraft:chicken"] }
+    ],
+    "script_goals": [
+      { "id": "pounce", "priority": 2, "flags": ["move", "look"], "interval": 5 }
+    ]
+  },
+  "spawn": [
+    { "biomes": "#minecraft:is_forest", "weight": 6, "min": 1, "max": 3, "light": "bright" }
+  ],
+  "despawn": { "persistent_by_default": false },
+  "spawn_egg": { "primary": "0xD2691E", "secondary": "0xFFF0A0" },
+  "loot_table": "sample_mobs:entities/cinder_fox",
+  "sounds": { "ambient": "minecraft:entity.fox.ambient", "hurt": "minecraft:entity.fox.hurt", "death": "minecraft:entity.fox.death" },
+  "tameable": { "items": ["minecraft:sweet_berries"], "sits_on_command": true, "follow_owner": true },
+  "proxy": "minecraft:fox"
+}

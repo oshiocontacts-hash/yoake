@@ -1,0 +1,1 @@
+Cinder Fox is an F4M test fixture. Every file here (model, animations, textures) was written for this repository from nothing; none is copied from Minecraft, GeckoLib or any other work. It is a data-only stub: its WASM goal (fox_ai) is added by a later item.
