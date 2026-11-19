@@ -20,7 +20,7 @@ mod files {
                 Ok(()) => "ok".into(),
                 Err(error) => format!("error: {error}"),
             },
-            "host" => match std::fs::read_dir("/host") {
+            "host" => match std::fs::read_dir("/host/c").or_else(|_| std::fs::read_dir("/host/root")) {
                 Ok(entries) => format!("{}", entries.count()),
                 Err(error) => format!("error: {error}"),
             },

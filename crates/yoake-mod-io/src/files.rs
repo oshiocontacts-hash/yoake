@@ -41,6 +41,9 @@ impl FileAccess {
 
     /// Adds the preopens to a WASI context under construction (p1 and p2 share the builder).
     pub fn apply(&self, builder: &mut WasiCtxBuilder) -> Result<(), String> {
+        // File calls run on the calling thread (they are short and synchronous): no hop through a thread pool, whose first use
+        // alone can take longer than a hook's time budget.
+        builder.allow_blocking_current_thread(true);
         let data = self.data_dir()?;
         builder.preopened_dir(&data, "/data", FsPerms::ReadWrite).map_err(|e| format!("/data: {e:#}"))?;
         if self.game_dir.is_dir() {
