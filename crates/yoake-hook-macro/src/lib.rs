@@ -642,7 +642,8 @@ fn expand(
             dead_code,
             clippy::too_many_arguments,
             clippy::type_complexity,
-            clippy::needless_lifetimes
+            clippy::needless_lifetimes,
+            non_snake_case
         )]
         #orig_sig #original_body
 
@@ -655,7 +656,8 @@ fn expand(
             dead_code,
             clippy::too_many_arguments,
             clippy::type_complexity,
-            clippy::needless_lifetimes
+            clippy::needless_lifetimes,
+            non_snake_case
         )]
         fn #call_ident #call_impl_generics (
             __yoake_chain: ::yoake_hook_rt::Snapshot
@@ -682,7 +684,8 @@ fn expand(
             dead_code,
             clippy::too_many_arguments,
             clippy::type_complexity,
-            clippy::needless_lifetimes
+            clippy::needless_lifetimes,
+            non_snake_case
         )]
         fn #dispatch_ident #dispatch_impl_generics (
             __yoake_cb: #callback_type,

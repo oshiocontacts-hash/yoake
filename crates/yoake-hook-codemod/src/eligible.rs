@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use proc_macro2::TokenTree;
 use syn::visit::{self, Visit};
 use syn::{
-    Attribute, Block, Expr, ExprMacro, ExprMethodCall, FnArg, Generics, ImplItem, ItemImpl,
+    Attribute, Block, ExprMacro, ExprMethodCall, FnArg, Generics, ImplItem, ItemImpl,
     Lifetime, Pat, Path, Signature, StmtMacro, Type,
 };
 

@@ -86,6 +86,43 @@ pub fn parse_modules_txt(text: &str) -> Result<Vec<ModuleSpec>, String> {
     Ok(out)
 }
 
+/// W5: `--module '*'` stands for every top-level `mod` of the crate root (not `cfg(test)`, not in `exclude`).
+/// Other arguments pass through. An exclude entry matches a top-level module name exactly.
+pub fn expand_star_modules(
+    crate_root: &Path,
+    crate_name: &str,
+    modules: &[String],
+    exclude: &[String],
+) -> Result<Vec<String>, String> {
+    let mut out = Vec::new();
+    for module in modules {
+        if module != "*" {
+            if !exclude.iter().any(|e| e == module) {
+                out.push(module.clone());
+            }
+            continue;
+        }
+        let root_file = find_crate_root_file(crate_root, crate_name)?;
+        let source = std::fs::read_to_string(&root_file)
+            .map_err(|e| format!("failed to read {}: {e}", root_file.display()))?;
+        let parsed = syn::parse_file(&source)
+            .map_err(|e| format!("failed to parse {}: {e}", root_file.display()))?;
+        for item in &parsed.items {
+            if let Item::Mod(item_mod) = item {
+                let name = item_mod.ident.to_string();
+                if has_cfg_test(&item_mod.attrs)
+                    || name.starts_with("__yoake")
+                    || exclude.iter().any(|e| *e == name)
+                {
+                    continue;
+                }
+                out.push(name);
+            }
+        }
+    }
+    Ok(out)
+}
+
 pub fn normalize_module_arg(raw: &str) -> Result<Vec<String>, String> {
     let trimmed = raw.trim().strip_prefix("::").unwrap_or(raw.trim());
     let trimmed = trimmed.strip_prefix("crate::").unwrap_or(trimmed);

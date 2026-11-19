@@ -44,6 +44,9 @@ pub struct Config {
     pub engine_crates: Option<Vec<String>>,
     pub retire_ineligible: bool,
     pub rustfmt: bool,
+    /// W5: `--exclude-module NAME` (with `--module '*'`), `--min-stmts N`.
+    pub exclude_modules: Vec<String>,
+    pub min_stmts: usize,
 }
 
 pub struct HistoryConfig {
@@ -75,7 +78,8 @@ fn usage() -> &'static str {
      yoake-hook-codemod <apply|check> --crate-root <dir> --crate-name <name> \
      --ledger <dir> --module <mod> [--module <mod>...] [--shallow] [--rename OLD=NEW]... [--tombstone KEY]... \
      [--callsites] [--thir <calls.json>] [--accept-site KEY@FILE:LINE:COL]... [--rename-site OLD=NEW]... [--tombstone-site KEY]... \
-     [--engine-crates LIST]... [--retire-ineligible] [--rustfmt]\n  \
+     [--engine-crates LIST]... [--retire-ineligible] [--rustfmt] \
+     [--exclude-module NAME]... [--min-stmts N] [--stamp-config FILE] (--module '*' = every top-level module)\n  \
      yoake-hook-codemod bridge --crate-root <dir> --crate-name <name> \
      --ledger <dir> --module <mod> [--module <mod>...] [--shallow] [--glue <file>...] [--exclude-file <file>] [--check]\n  \
      yoake-hook-codemod check-history --base <dir> --current <dir>\n  \
@@ -157,6 +161,9 @@ fn parse_args() -> Result<Option<Command>, String> {
     let mut engine_crates: Option<Vec<String>> = None;
     let mut retire_ineligible = false;
     let mut rustfmt = false;
+    let mut exclude_modules: Vec<String> = Vec::new();
+    let mut min_stmts: usize = 0;
+    let mut stamp_config: Option<PathBuf> = None;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -224,6 +231,12 @@ fn parse_args() -> Result<Option<Command>, String> {
             }
             "--retire-ineligible" => retire_ineligible = true,
             "--rustfmt" => rustfmt = true,
+            "--exclude-module" => exclude_modules.push(next_arg(&mut args, "--exclude-module")?),
+            "--min-stmts" => {
+                let raw = next_arg(&mut args, "--min-stmts")?;
+                min_stmts = raw.parse().map_err(|_| format!("--min-stmts expects a number, got '{raw}'"))?;
+            }
+            "--stamp-config" => stamp_config = Some(PathBuf::from(next_arg(&mut args, "--stamp-config")?)),
             other => return Err(format!("unknown argument '{other}'\n{}", usage())),
         }
     }
@@ -231,6 +244,9 @@ fn parse_args() -> Result<Option<Command>, String> {
     let crate_root = crate_root.ok_or_else(|| format!("missing --crate-root\n{}", usage()))?;
     let crate_name = crate_name.ok_or_else(|| format!("missing --crate-name\n{}", usage()))?;
     let ledger = ledger.ok_or_else(|| format!("missing --ledger\n{}", usage()))?;
+    if let Some(path) = &stamp_config {
+        apply_stamp_config(path, &crate_name, &mut modules, &mut exclude_modules, &mut min_stmts)?;
+    }
     if modules.is_empty() {
         return Err(format!("at least one --module is required\n{}", usage()));
     }
@@ -277,7 +293,47 @@ fn parse_args() -> Result<Option<Command>, String> {
         engine_crates,
         retire_ineligible,
         rustfmt,
+        exclude_modules,
+        min_stmts,
     })))
+}
+
+/// W5: `hook-ledger/stamp-config.txt`, one line per crate:
+/// `<crate root> <crate name> <module|*> [exclude=a,b] [min_stmts=N]` (`#` comments). Command-line values win:
+/// `--module` arguments replace the file's module, `--min-stmts` is kept when the file has none.
+fn apply_stamp_config(
+    path: &std::path::Path,
+    crate_name: &str,
+    modules: &mut Vec<String>,
+    exclude: &mut Vec<String>,
+    min_stmts: &mut usize,
+) -> Result<(), String> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+    let wanted = key::normalize_crate_name(crate_name);
+    for raw in text.lines() {
+        let line = raw.split('#').next().unwrap_or("").trim();
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 3 || key::normalize_crate_name(parts[1]) != wanted {
+            continue;
+        }
+        if modules.is_empty() {
+            modules.push(parts[2].to_string());
+        }
+        for flag in &parts[3..] {
+            if let Some(list) = flag.strip_prefix("exclude=") {
+                exclude.extend(list.split(',').filter(|s| !s.is_empty()).map(str::to_string));
+            } else if let Some(n) = flag.strip_prefix("min_stmts=") {
+                if *min_stmts == 0 {
+                    *min_stmts = n.parse().map_err(|_| format!("bad min_stmts in '{line}'"))?;
+                }
+            } else {
+                return Err(format!("unknown stamp-config flag '{flag}' in '{line}'"));
+            }
+        }
+        return Ok(());
+    }
+    Err(format!("no line for crate '{crate_name}' in {}", path.display()))
 }
 
 fn parse_check_history_args(args: &mut std::env::Args) -> Result<Option<Command>, String> {

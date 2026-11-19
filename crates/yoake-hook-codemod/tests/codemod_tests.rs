@@ -1441,3 +1441,91 @@ fn cfg_test_only_skips_test_code_and_test_id_in_engine_module_is_error() {
     let stderr = String::from_utf8_lossy(&chk.stderr);
     assert!(stderr.contains("test_id"), "stderr: {stderr}");
 }
+
+fn w5_fixture(tmp: &TempDir) -> (String, String) {
+    let root = tmp.path();
+    write_fixture(
+        root,
+        &[
+            (
+                "Cargo.toml",
+                "[package]\nname = \"demo-crate\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+            ),
+            ("src/lib.rs", "pub mod alpha;\npub mod beta;\n#[cfg(test)]\nmod tests;\n"),
+            (
+                "src/alpha.rs",
+                "pub fn tiny(x: u32) -> u32 {\n    x + 1\n}\n\n\
+                 pub fn big(x: u32) -> u32 {\n    let a = x + 1;\n    let b = a * 2;\n    let c = b - 1;\n    c + a\n}\n",
+            ),
+            ("src/beta.rs", "pub fn other(x: u32) -> u32 {\n    let a = x;\n    let b = a;\n    let c = b;\n    c + 1\n}\n"),
+        ],
+    );
+    (root.to_string_lossy().into_owned(), root.join("hook-ledger").to_string_lossy().into_owned())
+}
+
+#[test]
+fn star_module_covers_every_top_level_module_and_exclude_module_skips_one() {
+    let tmp = TempDir::new("w5star");
+    let (root_s, ledger_s) = w5_fixture(&tmp);
+    let out = run_codemod(&[
+        "apply", "--crate-root", &root_s, "--crate-name", "demo-crate", "--ledger", &ledger_s,
+        "--module", "*", "--exclude-module", "beta",
+    ]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let shard = read_shard(tmp.path().join("hook-ledger").as_path(), "demo_crate");
+    assert!(entry_id(&shard, "demo_crate::alpha::tiny").is_some());
+    assert!(entry_id(&shard, "demo_crate::alpha::big").is_some());
+    assert!(entry_id(&shard, "demo_crate::beta::other").is_none(), "beta is excluded");
+}
+
+#[test]
+fn min_stmts_excludes_small_bodies_except_allow_listed_and_already_live_keys() {
+    let tmp = TempDir::new("w5size");
+    let (root_s, ledger_s) = w5_fixture(&tmp);
+    let ledger_dir = tmp.path().join("hook-ledger");
+    let args = |extra: &[&'static str]| {
+        let mut v: Vec<String> = ["apply", "--crate-root", &root_s, "--crate-name", "demo-crate", "--ledger", &ledger_s, "--module", "alpha", "--min-stmts", "3"]
+            .iter().map(|s| s.to_string()).collect();
+        v.extend(extra.iter().map(|s| s.to_string()));
+        v
+    };
+    let run = |a: Vec<String>| {
+        let refs: Vec<&str> = a.iter().map(String::as_str).collect();
+        run_codemod(&refs)
+    };
+    let out = run(args(&[]));
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let shard = read_shard(&ledger_dir, "demo_crate");
+    assert!(entry_id(&shard, "demo_crate::alpha::tiny").is_none(), "1 statement is under the size rule");
+    assert!(entry_id(&shard, "demo_crate::alpha::big").is_some(), "4 statements are stamped");
+
+    // allow list: the small fn is stamped on the next run and stays stamped without the list entry
+    std::fs::write(ledger_dir.join("stamp-allow.txt"), "demo_crate::alpha::tiny # a mod needs it\n").unwrap();
+    let out = run(args(&[]));
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let shard = read_shard(&ledger_dir, "demo_crate");
+    assert!(entry_id(&shard, "demo_crate::alpha::tiny").is_some());
+    std::fs::remove_file(ledger_dir.join("stamp-allow.txt")).unwrap();
+    let out = run(args(&[]));
+    assert!(out.status.success(), "a live hook is never retired by the size rule: {}", String::from_utf8_lossy(&out.stderr));
+    let shard = read_shard(&ledger_dir, "demo_crate");
+    assert_eq!(entry_status(&shard, "demo_crate::alpha::tiny"), Some("live"));
+}
+
+#[test]
+fn stamp_config_supplies_modules_exclusions_and_size_rule() {
+    let tmp = TempDir::new("w5cfg");
+    let (root_s, ledger_s) = w5_fixture(&tmp);
+    let cfg = tmp.path().join("stamp-config.txt");
+    std::fs::write(&cfg, format!("# comment\n{root_s} demo-crate * exclude=beta min_stmts=3\n")).unwrap();
+    let cfg_s = cfg.to_string_lossy().into_owned();
+    let out = run_codemod(&[
+        "apply", "--crate-root", &root_s, "--crate-name", "demo-crate", "--ledger", &ledger_s,
+        "--stamp-config", &cfg_s,
+    ]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let shard = read_shard(tmp.path().join("hook-ledger").as_path(), "demo_crate");
+    assert!(entry_id(&shard, "demo_crate::alpha::big").is_some());
+    assert!(entry_id(&shard, "demo_crate::alpha::tiny").is_none());
+    assert!(entry_id(&shard, "demo_crate::beta::other").is_none());
+}
