@@ -34,6 +34,8 @@ pub(super) struct FullAccess {
     confirm: Option<FullAccessRow>,
     /// The result of the last approve / revoke / remove / accept. A plain read keeps it.
     error: Option<String>,
+    /// The dev folder's generation when the rows were last read (a change means the watcher installed something).
+    dev_generation: u64,
 }
 
 fn read(home: &Path) -> Snapshot {
@@ -49,6 +51,7 @@ fn origin_label(origin: &str) -> &'static str {
     match origin {
         "local" => tr("From this PC"),
         "catalog" => tr("From the Yoake catalog"),
+        "dev" => tr("From your dev folder"),
         _ => tr("Unknown origin"),
     }
 }
@@ -57,6 +60,7 @@ fn entry_origin(origin: Origin) -> &'static str {
     match origin {
         Origin::Local => tr("From this PC"),
         Origin::Catalog => tr("From the Yoake catalog"),
+        Origin::Dev => tr("From your dev folder"),
         _ => tr("Unknown origin"),
     }
 }
@@ -132,6 +136,14 @@ impl Launcher {
 
     /// Takes a finished job. Returns whether the page needs a redraw.
     pub(super) fn drain_full_access(&mut self) -> bool {
+        // The dev-folder watcher installed or removed something: read the rows again.
+        if let Some(home) = self.yak_mods.home.clone() {
+            let generation = self.dev_status(&home).map_or(0, |status| status.generation);
+            if generation != self.yak_mods.full_access.dev_generation {
+                self.yak_mods.full_access.dev_generation = generation;
+                self.load_full_access(home);
+            }
+        }
         let Some((home, receiver)) = self.yak_mods.full_access.task.take() else {
             return false;
         };
@@ -183,6 +195,10 @@ impl Launcher {
         }
     }
 
+    fn dev_status(&self, home: &Path) -> Option<full_access::DevStatus> {
+        full_access::status_for(home, full_access::active_dev_folder(&self.settings))
+    }
+
     /// The ids of the full-access packages in the selected instance's `mods/` folder.
     pub(super) fn full_access_ids(&self) -> impl Iterator<Item = &str> {
         self.yak_mods.full_access.snapshot.rows.iter().map(|row| row.id.as_str())
@@ -191,10 +207,12 @@ impl Launcher {
     pub(super) fn full_access_section(&self, cx: &mut Context<Self>) -> Option<Div> {
         let state = &self.yak_mods.full_access;
         let snapshot = &state.snapshot;
+        let dev = self.yak_mods.home.as_deref().and_then(|home| self.dev_status(home));
         if snapshot.rows.is_empty()
             && snapshot.pending.is_none()
             && snapshot.control_problem.is_none()
             && snapshot.launch_problem.is_none()
+            && dev.is_none()
         {
             return None;
         }
@@ -215,6 +233,29 @@ impl Launcher {
                     )),
                 ),
         );
+        if let Some(dev) = &dev {
+            let line = if dev.watching {
+                trf("Dev folder: watching {path}", &[("path", &dev.folder.display().to_string())])
+            } else {
+                trf(
+                    "Dev folder: {path} (watched while the game runs)",
+                    &[("path", &dev.folder.display().to_string())],
+                )
+            };
+            section = section.child(shell::text(night::CAPTION, c(theme.night.muted)).child(line));
+            if let Some(event) = &dev.last_event {
+                section = section.child(
+                    shell::text(night::CAPTION, c(theme.night.muted))
+                        .child(trf("Last change: {event}", &[("event", event)])),
+                );
+            }
+            if let Some(error) = &dev.last_error {
+                section = section.child(
+                    shell::text(night::CAPTION, c(theme.night.warn))
+                        .child(trf("Dev folder problem: {reason}", &[("reason", error)])),
+                );
+            }
+        }
         if let Some(problem) = &snapshot.control_problem {
             section = section.child(shell::text(night::UI, theme.danger).child(trf(
                 "The full-access settings failed their check, so no full-access mod will run: {reason}",
