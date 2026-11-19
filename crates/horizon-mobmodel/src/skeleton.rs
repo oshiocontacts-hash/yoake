@@ -83,6 +83,13 @@ impl Pose {
 /// F4M-1 pins the exact convention with golden tests; F4M-2 uses this to check poses.
 pub fn bone_matrices(skeleton: &Skeleton, pose: &Pose) -> Vec<Mat4> {
     let mut out: Vec<Mat4> = Vec::with_capacity(skeleton.len());
+    bone_matrices_into(skeleton, pose, &mut out);
+    out
+}
+
+/// [`bone_matrices`] into a reusable buffer (cleared first; no allocation once it has the capacity).
+pub fn bone_matrices_into(skeleton: &Skeleton, pose: &Pose, out: &mut Vec<Mat4>) {
+    out.clear();
     for (i, bone) in skeleton.bones.iter().enumerate() {
         let t = pose.bones.get(i).copied().unwrap_or_default();
         let rest = Quat::from_euler(
@@ -98,7 +105,6 @@ pub fn bone_matrices(skeleton: &Skeleton, pose: &Pose) -> Vec<Mat4> {
         let parent = bone.parent.map_or(Mat4::IDENTITY, |p| out[p.index()]);
         out.push(parent * local);
     }
-    out
 }
 
 #[cfg(test)]

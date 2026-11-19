@@ -4,6 +4,7 @@
 //!
 //! - F4M-1 (`model`, `geo`, `bbmodel`, `bake`): `.geo.json` and `.bbmodel` to [`Model`], bone-local baked vertices.
 //! - F4M-2 (`anim`, `expr`, `controller`, `pose`): animations, the expression language, controllers, pose evaluation.
+//! - F4M-9 (`events`): typed animation events (sound, particle, custom), locator binding, client/server sides, exactly-once cursors.
 //! - F4M-8 (`ik`, `procedural`): procedural constraints (look_at, aim, two_bone_ik, spring, follow, counter_rotate) and
 //!   the script pose interface (`BoneWrite`).
 //!
@@ -15,6 +16,7 @@ pub mod bake;
 pub mod bbmodel;
 pub mod clock;
 pub mod controller;
+pub mod events;
 pub mod expr;
 pub mod geo;
 pub mod ik;

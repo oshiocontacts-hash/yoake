@@ -649,6 +649,49 @@ pub struct AnimEvent {
     /// Timeline event name, sound id or particle id.
     pub name: String,
     pub locator: Option<String>,
+    /// Sound volume (`volume` in the effect object, default 1, 0 to 4). Ignored for other kinds.
+    pub volume: f32,
+    /// Sound pitch (`pitch`, default 1, 0.5 to 2). Ignored for other kinds.
+    pub pitch: f32,
+    /// Particle offset in pixels in the locator's frame (`offset`, default 0). Ignored for other kinds.
+    pub offset: [f32; 3],
+}
+
+impl AnimEvent {
+    /// An event with default sound/particle parameters.
+    pub fn new(time: f32, kind: EventKind, name: impl Into<String>, locator: Option<String>) -> Self {
+        AnimEvent { time, kind, name: name.into(), locator, volume: 1.0, pitch: 1.0, offset: [0.0; 3] }
+    }
+}
+
+/// Reads the optional `volume`, `pitch` and `offset` of an effect object (animation.json or bbmodel data point).
+fn effect_params(o: Option<&serde_json::Map<String, Value>>, ev: &mut AnimEvent, ctx: &Ctx) -> Result<(), LoadError> {
+    let Some(o) = o else { return Ok(()) };
+    let num = |k: &str, lo: f32, hi: f32, def: f32| -> Result<f32, LoadError> {
+        match o.get(k) {
+            None => Ok(def),
+            Some(v) => match v.as_f64() {
+                Some(x) if x.is_finite() && (lo as f64..=hi as f64).contains(&x) => Ok(x as f32),
+                _ => Err(ctx.err(format!("{k} of '{}' must be a number from {lo} to {hi}", ev.name))),
+            },
+        }
+    };
+    if ev.kind == EventKind::Sound {
+        ev.volume = num("volume", 0.0, 4.0, 1.0)?;
+        ev.pitch = num("pitch", 0.5, 2.0, 1.0)?;
+    }
+    if ev.kind == EventKind::Particle {
+        if let Some(v) = o.get("offset") {
+            let a = v.as_array().filter(|a| a.len() == 3).map(|a| a.iter().map(|x| x.as_f64()).collect::<Vec<_>>());
+            match a {
+                Some(a) if a.iter().all(|x| x.is_some_and(|x| x.is_finite() && x.abs() <= 1.0e4)) => {
+                    ev.offset = [a[0].unwrap() as f32, a[1].unwrap() as f32, a[2].unwrap() as f32];
+                }
+                _ => return Err(ctx.err(format!("offset of '{}' must be [x, y, z] pixels (|v| <= 10000)", ev.name))),
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Most loop iterations one `emit_events` call walks; a longer stall only emits the last ones.
@@ -709,6 +752,11 @@ impl Animation {
     /// A loop animation repeats its events every loop, once each. Nothing is emitted when the clock did not advance
     /// (a paused animation). Events past a non-looping animation's length never fire.
     pub fn emit_events(&self, c0: f32, c1: f32, mut cb: impl FnMut(&AnimEvent, u32)) {
+        self.emit_events_indexed(c0, c1, |_, ev, k| cb(ev, k));
+    }
+
+    /// Like [`Animation::emit_events`] and also gives the event's index in [`Animation::events`].
+    pub fn emit_events_indexed(&self, c0: f32, c1: f32, mut cb: impl FnMut(usize, &AnimEvent, u32)) {
         if !(c0.is_finite() && c1.is_finite()) || c1 <= c0 || self.events.is_empty() {
             return;
         }
@@ -725,21 +773,21 @@ impl Animation {
             }
             while k <= k_end {
                 let base = k as f32 * l;
-                for ev in &self.events {
+                for (i, ev) in self.events.iter().enumerate() {
                     if ev.time >= l {
                         continue;
                     }
                     let te = base + ev.time;
                     if te >= c0 && te < c1 {
-                        cb(ev, k);
+                        cb(i, ev, k);
                     }
                 }
                 k += 1;
             }
         } else {
-            for ev in &self.events {
+            for (i, ev) in self.events.iter().enumerate() {
                 if ev.time >= c0 && ev.time < c1 && (l <= 0.0 || ev.time <= l) {
-                    cb(ev, 0);
+                    cb(i, ev, 0);
                 }
             }
         }
@@ -962,7 +1010,9 @@ fn parse_events(kind: EventKind, v: &Value, out: &mut Vec<AnimEvent>, ctx: &mut 
                 }
                 _ => return Err(ctx.err(format!("{what} at {key}: expected an object with \"effect\""))),
             };
-            out.push(AnimEvent { time, kind, name, locator });
+            let mut ev = AnimEvent::new(time, kind, name, locator);
+            effect_params(item.as_object(), &mut ev, ctx)?;
+            out.push(ev);
         }
     }
     Ok(())
@@ -1336,7 +1386,9 @@ fn convert_bb_effects(kfs: &[Value], out: &mut Vec<AnimEvent>, ctx: &mut Ctx) ->
                 ctx.warn(format!("effect keyframe at {time}s has no effect name (ignored)"));
                 continue;
             };
-            out.push(AnimEvent { time, kind, name: name.to_string(), locator: text("locator").map(str::to_string) });
+            let mut ev = AnimEvent::new(time, kind, name, text("locator").map(str::to_string));
+            effect_params(p.as_object(), &mut ev, ctx)?;
+            out.push(ev);
         }
     }
     Ok(())

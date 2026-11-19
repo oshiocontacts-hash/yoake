@@ -92,7 +92,20 @@ pub struct RigEvent<'a> {
     /// Index into the animation library.
     pub animation: usize,
     pub event: &'a crate::anim::AnimEvent,
+    /// Index of `event` in the animation's `events`.
+    pub event_index: usize,
     pub loop_index: u32,
+    /// Where the animation runs: a controller state's animation list or a trigger.
+    pub source: RigSource,
+}
+
+/// The slot of a layer an event's animation plays from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RigSource {
+    /// `states[state].animations[slot]` of the layer's controller.
+    State { state: u16, slot: u16 },
+    /// `triggers[trigger]` of the layer's controller.
+    Trigger { trigger: u16 },
 }
 
 /// A skeleton with its animations and controller layers, bound by bone and animation names.
@@ -224,8 +237,15 @@ impl Rig {
             c.update(ls, dt, inputs, &mut |state, slot, old, new| {
                 let Some(a) = c.states.get(state).and_then(|s| s.animations.get(slot)) else { return };
                 if let Some(anim) = self.animations.get(a.index) {
-                    anim.emit_events(old, new, |event, loop_index| {
-                        sink(RigEvent { layer: li, animation: a.index, event, loop_index })
+                    anim.emit_events_indexed(old, new, |event_index, event, loop_index| {
+                        sink(RigEvent {
+                            layer: li,
+                            animation: a.index,
+                            event,
+                            event_index,
+                            loop_index,
+                            source: RigSource::State { state: state as u16, slot: slot as u16 },
+                        })
                     });
                 }
             });
@@ -243,7 +263,16 @@ impl Rig {
     ) {
         let Some(t) = self.controllers.get(layer).and_then(|c| c.triggers.get(trigger)) else { return };
         if let Some(anim) = self.animations.get(t.index) {
-            anim.emit_events(e0, e1, |event, loop_index| sink(RigEvent { layer, animation: t.index, event, loop_index }));
+            anim.emit_events_indexed(e0, e1, |event_index, event, loop_index| {
+                sink(RigEvent {
+                    layer,
+                    animation: t.index,
+                    event,
+                    event_index,
+                    loop_index,
+                    source: RigSource::Trigger { trigger: trigger as u16 },
+                })
+            });
         }
     }
 

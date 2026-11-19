@@ -1,9 +1,11 @@
 {
   "template": "yoake:mob",
   "format": 1,
-  "_comment": "Only the part of the type file (FR-F4-MOBS.md 6.1) that F4M-8 reads: model.procedural. Synced enum state: idle 0, sit 1, pounce 2.",
+  "_comment": "Only the part of the type file (FR-F4-MOBS.md 6.1) that F4M-8 and F4M-9 read: model.procedural, model.particles, model.server_events. Synced enum state: idle 0, sit 1, pounce 2.",
   "synced": { "state": { "type": "enum", "values": ["idle", "sit", "pounce"] } },
   "model": {
+    "particles": { "cinder_fox_embers": "sample_mobs:ember" },
+    "server_events": ["pounce"],
     "procedural": [
       {
         "type": "two_bone_ik", "root": "leg_fl", "mid": "leg_fl_lower", "tip": "leg_fl_lower", "tip_offset": [0, -1, 0],
