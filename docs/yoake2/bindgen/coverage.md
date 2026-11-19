@@ -6,7 +6,7 @@ Functions counted: free functions, inherent methods, and non-derived trait-impl 
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | `items` | 69 | 7 | 13 | **20 (29.0%)** | 15 (21.7%) | 34 (49.3%) | 8 / 21 | 73 / 90 | 9 |
 | `entities` | 163 | 30 | 25 | **55 (33.7%)** | 32 (19.6%) | 76 (46.6%) | 9 / 23 | 85 / 97 | 13 |
-| `mobs` | 131 | 52 | 38 | **90 (68.7%)** | 27 (20.6%) | 14 (10.7%) | 22 / 54 | 359 / 441 | 21 |
+| `mobs` | 131 | 52 | 38 | **90 (68.7%)** | 27 (20.6%) | 14 (10.7%) | 22 / 54 | 359 / 442 | 21 |
 | `motion` | 367 | 35 | 6 | **41 (11.2%)** | 6 (1.6%) | 320 (87.2%) | 2 / 6 | 89 / 110 | 3 |
 | `game_items` | 5 | 5 | 0 | **5 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 0 / 0 | 0 / 0 | 0 |
 | `entity_query` | 20 | 1 | 6 | **7 (35.0%)** | 4 (20.0%) | 9 (45.0%) | 6 / 10 | 14 / 43 | 4 |
@@ -182,7 +182,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 - bound now: **90 of 131** (68.7%): 52 basic + 38 mechanical
 - handle-required, not yet bound: 27 (20.6%)
 - excluded: 14 (10.7%)
-- field accessors (get + set pairs): 359 of 441 fields
+- field accessors (get + set pairs): 359 of 442 fields
 - handle types (receivers of bound methods or owners of bound fields): 21
 
 ### Handle types and how a guest reaches them
@@ -274,6 +274,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | external type `horizon_client_render::camera::AvatarBob` (crate not loaded) | 1 |
 | external type `horizon_client_render::chunk::block_entity::Data` (crate not loaded) | 1 |
 | external type `horizon_client_render::particles::ParticleOptions` (crate not loaded) | 1 |
+| external type `horizon_mods::custom_mob::CustomMobFile` (crate not loaded) | 1 |
 | external type `horizon_protocol::entity_data::Profile` (crate not loaded) | 1 |
 | external type `serde_json::value::Value` (crate not loaded) | 2 |
 | field `0` of `JoinSeq` is private to another module | 1 |
@@ -474,6 +475,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 - `horizon_client_render::mesher::Vertex`
 - `horizon_client_render::particles::ParticleOptions`
 - `horizon_client_render::world::World`
+- `horizon_mods::custom_mob::CustomMobFile`
 - `horizon_protocol::entity_data::Profile`
 - `serde_json::value::Value`
 - `yoake_state::Field`
