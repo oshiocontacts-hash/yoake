@@ -1333,6 +1333,9 @@ impl ClientHost for GameHost {
         package::services(&self.id, horizon_mods::yak::ConfigRuntimeSide::Client)
     }
     fn release_resources(&mut self) {
+        for texture in self.textures.keys() {
+            client_services::unregister_named_texture(&client_services::named_texture_id(&self.id, *texture));
+        }
         self.textures.clear();
         self.resources
             .release(self.streams.drain().map(|(_, stream)| stream).collect());
@@ -1548,6 +1551,7 @@ impl ClientHost for GameHost {
 
     fn gui_texture_drop(&mut self, texture: u64) {
         self.textures.remove(&texture);
+        client_services::unregister_named_texture(&client_services::named_texture_id(&self.id, texture));
     }
 
     fn setting(&mut self, mod_id: &str, key: &str) -> Result<Option<String>, w::HostError> {
@@ -1786,8 +1790,13 @@ impl ClientHost for GameHost {
             return Err(refuse(w::HostError::Invalid));
         }
         service(|invocation| {
-            let host = invocation.host.write().ok_or(w::HostError::Unsupported)?;
-            Ok(host.net_send_to_server(channel, data))
+            // A hook with a shared view of the game (the screen key and mouse hooks) sends through
+            // the shared path: the same checks, caps and queue.
+            if let Some(host) = invocation.host.write() {
+                return Ok(host.net_send_to_server(channel, data));
+            }
+            let host = invocation.host.read().ok_or(w::HostError::Unsupported)?;
+            Ok(host.net_send_to_server_shared(channel, data))
         })
         .map_err(refuse)?
         .map_err(|message| w::SendError {

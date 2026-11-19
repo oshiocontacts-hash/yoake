@@ -223,6 +223,14 @@ impl ServerHost for GameServerHost {
         read_service(|host| host.player_sneaking(uuid))
     }
 
+    fn player_set_food(&mut self, food: i32, player: String, saturation: f32) -> Result<(), String> {
+        let uuid = parse_uuid(&player)?;
+        if !(0..=20).contains(&food) || !saturation.is_finite() || saturation < 0.0 {
+            return Err("food is 0 to 20 and saturation is not negative".into());
+        }
+        server_service(|host| host.player_set_food(uuid, food, saturation))
+    }
+
     fn player_stacks(&mut self, player: String) -> Result<Vec<st::PlayerInventorySlot>, String> {
         let uuid = parse_uuid(&player)?;
         let slots = read_service(|host| {
