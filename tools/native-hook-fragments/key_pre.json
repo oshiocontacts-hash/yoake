@@ -1,0 +1,20 @@
+{
+  "hooks": [
+    {
+      "name": "key_pre",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_key_pre",
+      "neoforge": "InputEvent.Key",
+      "side": "client",
+      "cancellable": true,
+      "mod_api": {
+        "contract": "cancel",
+        "out": "canceled"
+      }
+    }
+  ],
+  "rust_summary": "the in-world key press and release before the game handles it (`native_key_pre`), which a mod can consume.",
+  "doc_summary": "`native_key_pre(key, pressed, repeat, modifiers, canceled)` hears a keyboard key in the world and on the screens that pass keys on to the game's key bindings, before `native_key` and before any key binding sees it. Set `canceled` and the key is consumed: no binding, no `native_key`, no hotbar slot. Cancel a release only when its press was cancelled, or a binding it started may stay held. Bundles need hooks version @API:key_pre@.",
+  "comments": [
+    "crates/horizon-client/src/game/native_hooks.rs"
+  ]
+}

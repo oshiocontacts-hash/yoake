@@ -1301,12 +1301,36 @@ fn apply_result(
     Ok(apply)
 }
 
+/// The WIT record of a `&mut ModBlockEntity` field: the borrowed block entity a tick or a menu
+/// hook is given, whose new contents the guest answers with.
+fn block_entity_wit(shape: &Shape) -> Option<&str> {
+    match shape {
+        Shape::Wrap(inner, WrapKind::Ref) => block_entity_wit(inner),
+        Shape::Named(wit) if wit == "mod-block-entity-fields" => Some(wit),
+        _ => None,
+    }
+}
+
 fn apply_extra(
     emitter: &mut Emitter<'_>,
     apply: &mut String,
     extra: &ExtraPlan,
     assign: &dyn Fn(&str, &str, bool) -> String,
 ) -> Res<()> {
+    // A mod block entity (`&mut ModBlockEntity`) is answered with a whole new
+    // `mod-block-entity-fields`: it replaces the entity's contents through `DerefMut` (which
+    // marks the entity changed), and only when they differ, so a guest that answers with what it
+    // was given changes nothing.
+    if let Some(wit) = block_entity_wit(&extra.shape) {
+        emitter.need_reverse(wit)?;
+        apply.push_str(&format!(
+            "if let Some(v) = r.{field} {{ if let Some(fields) = {reverse}(v) {{ if **event.{name} != fields {{ **event.{name} = fields; }} }} }}",
+            field = snake(&extra.wit_field),
+            reverse = helper_name("fw", wit),
+            name = extra.field
+        ));
+        return Ok(());
+    }
     if let Some(wit) = emitter.inplace(&extra.shape) {
         emitter.need_update(&wit)?;
         apply.push_str(&format!(

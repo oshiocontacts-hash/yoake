@@ -2369,6 +2369,7 @@ impl Game<'_> {
     }
     /// Once a frame, in a world or not, after Horizon's extras.
     pub(super) fn native_frame(&mut self, elapsed: Duration) {
+        self.flush_native_local_sounds();
         let in_world = self.options.execution_role.is_client() && self.title.is_none();
         if let Some(renderer) = &mut self.renderer {
             renderer.native_services.draws.clear();
@@ -10970,6 +10971,52 @@ impl Game<'_> {
         if let Some(page) = row.and_then(|m| m.native.as_mut()) {
             page.buttons = buttons;
         }
+    }
+    /// A keyboard key in the world, before the game handles it
+    /// (`InputEvent.Key`, ahead of the key bindings): `key` is its vanilla name
+    /// (`key.keyboard.z`), `pressed` whether it went down, `repeat` whether it is
+    /// the keyboard's auto-repeat of a key held, and `modifiers` GLFW's bits
+    /// (shift 1, control 2, alt 4, super 8). Set `canceled` and the key is
+    /// consumed: no key binding, no `native_key`, no hotbar slot. Escape is never
+    /// offered, so the pause menu always opens. Cancel a release only when its
+    /// press was cancelled, or a binding it started may stay held. It fires
+    /// while playing with nothing over the world, not on a screen, the title
+    /// screen or a prompt. API @API:key_pre@.
+    pub(super) fn native_key_pre(
+        &mut self,
+        key: &str,
+        pressed: bool,
+        repeat: bool,
+        modifiers: u32,
+        canceled: &mut bool,
+    ) {
+        mod_api::dispatch_key_pre(
+            self,
+            mod_api::mods(),
+            key,
+            pressed,
+            repeat,
+            modifiers,
+            canceled,
+        );
+    }
+    /// A key event for `native_key_pre`: whether a native mod consumed it.
+    pub(super) fn native_key_pre_event(
+        &mut self,
+        key: KeyCode,
+        pressed: bool,
+        repeat: bool,
+    ) -> bool {
+        if key == KeyCode::Escape || self.screen != Screen::Playing || self.title.is_some() {
+            return false;
+        }
+        let Some(name) = keybinds::key_name(key) else {
+            return false;
+        };
+        let mut canceled = false;
+        let modifiers = super::glfw_modifiers(self.modifiers);
+        self.native_key_pre(name, pressed, repeat, modifiers, &mut canceled);
+        canceled
     }
     /// A key event for `native_key`.
     pub(super) fn native_key_event(&mut self, key: KeyCode, pressed: bool, repeat: bool) {

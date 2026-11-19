@@ -1,11 +1,7 @@
 unsupported input_key: the event is a winit KeyEvent that the WIT generator mapped to the ABI key-event record; needs a mapping fix
 unsupported item_model_select: an opaque handle cannot be answered
-partial block_entity_tick: the guest's new `entity` is not applied: a borrowed value cannot be answered; the guest's new `entity` is not applied: a borrowed value cannot be answered
-partial menu_button: the guest's new `entity` is not applied: a borrowed value cannot be answered; the guest's new `entity` is not applied: a borrowed value cannot be answered
-partial menu_button_v2: the guest's new `entity` is not applied: a borrowed value cannot be answered; the guest's new `entity` is not applied: a borrowed value cannot be answered
 partial blocks: the guest's list for `blocks` is not applied: it holds live engine objects; the guest's list for `blocks` is not applied: it holds live engine objects
 partial items: the guest's list for `items` is not applied: it holds live engine objects; the guest's list for `items` is not applied: it holds live engine objects
-partial menu_quick_move: the guest's new `entity` is not applied: a borrowed value cannot be answered
 partial block_behaviors: the guest's list for `behaviors` is not applied: it holds live engine objects; the guest's list for `behaviors` is not applied: it holds live engine objects
 partial capability_providers: the guest's list for `providers` is not applied: it holds live engine objects; the guest's list for `providers` is not applied: it holds live engine objects
 partial item_behaviors: the guest's list for `behaviors` is not applied: it holds live engine objects; the guest's list for `behaviors` is not applied: it holds live engine objects

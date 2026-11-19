@@ -1,10 +1,10 @@
 {
   "generated_by": "horizon-mod-api-gen",
-  "hook_count": 475,
-  "fully_typed": 447,
+  "hook_count": 476,
+  "fully_typed": 448,
   "partial": 13,
   "with_handles": 15,
-  "client_hooks": 210,
+  "client_hooks": 211,
   "server_hooks": 378,
   "named_types": 220,
   "handle_types": [
@@ -4463,6 +4463,16 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "key_pre",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "cancel",
       "fully_typed": true,
       "partial": false,
       "partial_notes": [],

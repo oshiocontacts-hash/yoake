@@ -1,7 +1,7 @@
 {
   "abi_version": 2,
   "world": "client-full",
-  "interface_version": "1.4.0",
+  "interface_version": "1.5.0",
   "status": "active",
   "types": {
     "vec2": {"x":"f32","y":"f32"},
@@ -65,6 +65,11 @@
     {"id":213,"abi":true,"name":"block_sprite_set","arguments":{"texture-id":"string","rgba":"list<u8>","size":"tuple<u32, u32>"},"result":"result<_, string>","side":"client","capability":"service.world-draw"},
     {"id":214,"abi":true,"name":"block_sprite_reset","arguments":{"texture-id":"string"},"result":"result<_, string>","side":"client","capability":"service.world-draw"},
     {"id":215,"abi":true,"name":"item_sprite_pixels","arguments":{"item-id":"string"},"result":"result<tuple<u32, u32, list<u8>>, string>","side":"client","capability":"service.hud"},
-    {"id":216,"abi":true,"name":"block_sprite_pixels","arguments":{"texture-id":"string"},"result":"result<tuple<u32, u32, list<u8>>, string>","side":"client","capability":"service.world-draw"}
+    {"id":216,"abi":true,"name":"block_sprite_pixels","arguments":{"texture-id":"string"},"result":"result<tuple<u32, u32, list<u8>>, string>","side":"client","capability":"service.world-draw"},
+    {"id":221,"abi":true,"name":"screen_carried","arguments":{},"result":"result<option<item-stack>, string>","side":"client","capability":"service.screen"},
+    {"id":222,"abi":true,"name":"local_player_stacks","arguments":{},"result":"result<list<item-stack>, string>","side":"client","capability":"service.client-view"},
+    {"id":223,"abi":true,"name":"play_local_sound","arguments":{"sound-id":"string","volume":"f32","pitch":"f32"},"result":"result<_, string>","side":"client","capability":"service.audio"},
+    {"id":224,"abi":true,"name":"play_local_sound_at","arguments":{"sound-id":"string","position":"vec3","volume":"f32","pitch":"f32"},"result":"result<_, string>","side":"client","capability":"service.audio"},
+    {"id":225,"abi":true,"name":"gui_texture_id","arguments":{"texture":"borrow<gui-texture>"},"result":"result<string, string>","side":"client","capability":"service.hud"}
   ]
 }

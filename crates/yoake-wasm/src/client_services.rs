@@ -29,6 +29,10 @@ macro_rules! client_services {
             fn gui_texture_write(&mut self, _bytes: Vec<u8>, _origin: (u32, u32), _size: (u32, u32), _texture: u64) -> Result<(), String> {
                 Err("unsupported client service".to_owned())
             }
+
+            fn gui_texture_id(&mut self, _texture: u64) -> Result<String, String> {
+                Err("unsupported client service".to_owned())
+            }
         }
 
         impl client_services::Host for ClientContext {
@@ -51,6 +55,11 @@ macro_rules! client_services {
             fn gui_texture_write(&mut self, bytes: Vec<u8>, origin: (u32, u32), size: (u32, u32), texture: Resource<GuiTexture>) -> Result<(), String> {
                 let texture = self.client_texture(&texture)?;
                 self.with_client_services(|host| host.gui_texture_write(bytes, origin, size, texture))
+            }
+
+            fn gui_texture_id(&mut self, texture: Resource<GuiTexture>) -> Result<String, String> {
+                let texture = self.client_texture(&texture)?;
+                self.with_client_services(|host| host.gui_texture_id(texture))
             }
         }
     };
@@ -123,4 +132,8 @@ client_services! {
     block_sprite_reset(texture_id: String) -> ();
     item_sprite_pixels(item_id: String) -> (u32, u32, Vec<u8>);
     block_sprite_pixels(texture_id: String) -> (u32, u32, Vec<u8>);
+    screen_carried() -> Option<ItemStack>;
+    local_player_stacks() -> Vec<ItemStack>;
+    play_local_sound(pitch: f32, sound_id: String, volume: f32) -> ();
+    play_local_sound_at(pitch: f32, position: Vec3, sound_id: String, volume: f32) -> ();
 }

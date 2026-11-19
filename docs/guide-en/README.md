@@ -79,6 +79,10 @@ Read the chapters in order from top to bottom for a complete walkthrough—from 
 - Intercepting engine functions with the `inject-mod` WIT world, injection points (HEAD, RETURN, and overwrite), and the site catalog
 - Value ranges, command and chat interception, ordering, resource limits, and traps
 
+### 11. [Screen, inventory, sound and food services (`11-small-services.md`)](./11-small-services.md)
+- Sending from screen input hooks, turned textures, reading inventories
+- Client-only sound, setting food, block entity write-back, consuming a key
+
 ---
 
 ## Recommended Ways to Read

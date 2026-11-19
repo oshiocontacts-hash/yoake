@@ -73,6 +73,66 @@ pub mod client {
         services::ime_set_cursor_area(h, w, x, y)
     }
 
+    /// The stack on the cursor in the open screen, or `None` when it is empty. Needs
+    /// `service.screen`. (Service 221.)
+    pub fn screen_carried() -> Result<Option<types::ItemStack>, String> {
+        services::screen_carried()
+    }
+
+    /// The local player's stacks as this client sees them: the main inventory (hotbar first),
+    /// the armor and the off hand, without empty slots and without the cursor. Needs
+    /// `service.client-view`. (Service 222.)
+    pub fn local_player_stacks() -> Result<Vec<types::ItemStack>, String> {
+        services::local_player_stacks()
+    }
+
+    /// A UI sound for this client alone: heard as it is, with no position (`sound_id` is
+    /// `namespace:path`, `volume` 0 to 16, `pitch` 0 to 8). It plays when the next frame
+    /// starts, so any hook may call it. Needs `service.audio`. (Service 223.)
+    pub fn play_local_sound(sound_id: &str, volume: f32, pitch: f32) -> Result<(), String> {
+        services::play_local_sound(pitch, sound_id, volume)
+    }
+
+    /// `play_local_sound` at a place in the world (attenuated, this client only). Needs
+    /// `service.audio`. (Service 224.)
+    pub fn play_local_sound_at(
+        position: types::Vec3,
+        sound_id: &str,
+        volume: f32,
+        pitch: f32,
+    ) -> Result<(), String> {
+        services::play_local_sound_at(pitch, position, sound_id, volume)
+    }
+
+    /// The id that names `texture` in the `hud-command`s a hook returns: use it as
+    /// `HudTexture::id`, or as `texture:<id>` in `HudQuad::sprite`. It stays valid until the
+    /// texture is dropped. Needs `service.hud`. (Service 225.)
+    pub fn gui_texture_id(texture: &hud::GuiTexture) -> Result<String, String> {
+        services::gui_texture_id(texture)
+    }
+
+    /// The four corners of the `width` x `height` rectangle with its top left at `(x, y)`,
+    /// turned `degrees` clockwise about `pivot`, in the order a `HudQuad` takes them (round the
+    /// shape from the top left). Pass them as `HudQuad::corners` to draw a turned sprite or
+    /// texture.
+    pub fn rotated_corners(
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        degrees: f32,
+        pivot: (f32, f32),
+    ) -> Vec<(f32, f32)> {
+        let (sin, cos) = degrees.to_radians().sin_cos();
+        [(x, y), (x + width, y), (x + width, y + height), (x, y + height)]
+            .into_iter()
+            .map(|(px, py)| {
+                let (dx, dy) = (px - pivot.0, py - pivot.1);
+                (pivot.0 + dx * cos - dy * sin, pivot.1 + dx * sin + dy * cos)
+            })
+            .collect()
+    }
+
     /// Owned GPU resources and checked command descriptors. Raw imports remain in `gpu_raw`.
     pub mod gpu {
         include!("gpu.rs");
@@ -128,6 +188,12 @@ pub mod server {
 
         pub fn block_pos(x: i32, y: i32, z: i32) -> types::BlockPos {
             types::BlockPos { x, y, z }
+        }
+
+        /// Set a player's food level (0 to 20) and saturation (0 up to the new food level).
+        /// Needs `player-write`. (Service 226.)
+        pub fn set_food(player: &str, food: i32, saturation: f32) -> Result<(), String> {
+            services::player_set_food(food, player, saturation)
         }
 
         pub fn vec3(x: f64, y: f64, z: f64) -> types::Vec3 {
