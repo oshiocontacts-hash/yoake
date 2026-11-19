@@ -13,6 +13,7 @@
 //! (tools/test_natural_spawn_parity.py) run the same code; random draws follow
 //! vanilla's order.
 use super::Species;
+use super::custom;
 use super::spawn_rules::{self, Reason, SpawnLevel};
 use crate::biome::SpawnEntry;
 use crate::fast_hash::FxHashMap;
@@ -294,6 +295,13 @@ pub fn max_cluster_size(s: Species) -> u32 {
 fn spawns_far_from_player(s: Species, category: Category) -> bool {
     matches!(category, Category::Creature | Category::Misc)
         || matches!(s, Species::Pillager | Species::Shulker)
+}
+
+/// The custom type of a picked entry: none for every vanilla species (one comparison).
+fn custom_type(species: Species, entity: &str) -> Option<std::sync::Arc<custom::CustomType>> {
+    (species == Species::Custom)
+        .then(|| custom::get(entity))
+        .flatten()
 }
 
 /// What natural spawning reads from a level beyond the spawn rules.
@@ -1159,11 +1167,20 @@ pub fn spawn_category_for_position<L: NaturalLevel, R: RandomSource>(
             let yaw = random.next_float() * 360.0;
             let bounds = spawn_box(xx, f64::from(y), zz, width, height);
             let despawn = f64::from(type_category.despawn_distance().pow(2));
-            let far = distance > despawn && removed_when_far(species);
-            if far
-                || !mob_spawn_rules(species, l, x, y, z)
-                || !spawn_obstruction(species, l, bounds, Some(&spawned), x, y, z)
-            {
+            // A fully custom mob has its own removal, room and cluster rules.
+            let custom = custom_type(species, &entry.entity);
+            let blocked = match &custom {
+                Some(c) => {
+                    distance > despawn && custom::spawn::removed_when_far(c)
+                        || !custom::spawn::obstruction_ok(c, entry, l, bounds, Some(&spawned))
+                }
+                None => {
+                    distance > despawn && removed_when_far(species)
+                        || !mob_spawn_rules(species, l, x, y, z)
+                        || !spawn_obstruction(species, l, bounds, Some(&spawned), x, y, z)
+                }
+            };
+            if blocked {
                 continue;
             }
             let request = SpawnRequest {
@@ -1186,7 +1203,11 @@ pub fn spawn_category_for_position<L: NaturalLevel, R: RandomSource>(
                 [xx, f64::from(y), zz],
                 yaw,
             ));
-            if cluster >= max_cluster_size(species) {
+            let cluster_size = match &custom {
+                Some(c) => custom::spawn::max_cluster_size(c, entry),
+                None => max_cluster_size(species),
+            };
+            if cluster >= cluster_size {
                 return;
             }
             // TropicalFish.isMaxGroupSizeReached.
@@ -1298,13 +1319,25 @@ fn valid_position_for_type<L: NaturalLevel, R: RandomSource>(
     if hooked && !in_list() {
         return false;
     }
-    if !spawn_rules::is_spawn_position_ok(species, l, x, y, z) {
+    // A fully custom mob has its own placement and rules (`mobs::custom::spawn`).
+    let custom = custom_type(species, &entry.entity);
+    let placed = match &custom {
+        Some(c) => custom::spawn::position_ok(c, entry, l, x, y, z),
+        None => spawn_rules::is_spawn_position_ok(species, l, x, y, z),
+    };
+    if !placed {
         return false;
     }
     if !hooked && !listed && !in_list() {
         return false;
     }
-    if !spawn_rules::check_spawn_rules(species, l, Reason::Natural, random, x, y, z) {
+    let allowed = match &custom {
+        Some(c) => {
+            custom::spawn::rules_ok(c, entry, l, random, Reason::Natural, distance, x, y, z)
+        }
+        None => spawn_rules::check_spawn_rules(species, l, Reason::Natural, random, x, y, z),
+    };
+    if !allowed {
         return false;
     }
     l.no_collision(spawn_aabb(
@@ -1371,7 +1404,12 @@ pub fn spawn_mobs_for_chunk_generation<L: NaturalLevel, R: RandomSource, Q: Rand
                 };
                 let pos = top_non_colliding(l, &entry.entity, x, z);
                 trace(GenEvent::Column(x, z));
-                if spawn_rules::is_spawn_position_ok(species, l, pos[0], pos[1], pos[2]) {
+                let custom = custom_type(species, &entry.entity);
+                let placed = match &custom {
+                    Some(c) => custom::spawn::position_ok(c, &entry, l, pos[0], pos[1], pos[2]),
+                    None => spawn_rules::is_spawn_position_ok(species, l, pos[0], pos[1], pos[2]),
+                };
+                if placed {
                     let fx = f64::from(x).clamp(
                         f64::from(xo) + f64::from(width),
                         f64::from(xo) + 16.0 - f64::from(width),
@@ -1382,8 +1420,19 @@ pub fn spawn_mobs_for_chunk_generation<L: NaturalLevel, R: RandomSource, Q: Rand
                     );
                     let fy = f64::from(pos[1]);
                     let (bx, bz) = (fx.floor() as i32, fz.floor() as i32);
-                    if !l.no_collision(spawn_aabb(species, fx, fy, fz, width, height))
-                        || !spawn_rules::check_spawn_rules(
+                    let allowed = match &custom {
+                        Some(c) => custom::spawn::rules_ok(
+                            c,
+                            &entry,
+                            l,
+                            rules,
+                            Reason::ChunkGeneration,
+                            f64::INFINITY,
+                            bx,
+                            pos[1],
+                            bz,
+                        ),
+                        None => spawn_rules::check_spawn_rules(
                             species,
                             l,
                             Reason::ChunkGeneration,
@@ -1391,15 +1440,21 @@ pub fn spawn_mobs_for_chunk_generation<L: NaturalLevel, R: RandomSource, Q: Rand
                             bx,
                             pos[1],
                             bz,
-                        )
-                    {
+                        ),
+                    };
+                    if !l.no_collision(spawn_aabb(species, fx, fy, fz, width, height)) || !allowed {
                         continue;
                     }
                     let yaw = random.next_float() * 360.0;
                     let bounds = spawn_box(fx, fy, fz, width, height);
-                    if mob_spawn_rules(species, l, bx, pos[1], bz)
-                        && spawn_obstruction(species, l, bounds, None, bx, pos[1], bz)
-                    {
+                    let room = match &custom {
+                        Some(c) => custom::spawn::obstruction_ok(c, &entry, l, bounds, None),
+                        None => {
+                            mob_spawn_rules(species, l, bx, pos[1], bz)
+                                && spawn_obstruction(species, l, bounds, None, bx, pos[1], bz)
+                        }
+                    };
+                    if room {
                         let request = SpawnRequest {
                             entity: &entry.entity,
                             species,

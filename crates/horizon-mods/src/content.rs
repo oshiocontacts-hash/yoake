@@ -575,6 +575,8 @@ pub const FLEE_MOBS: &[&str] = &[
     "mannequin",
 ];
 
+/// The vanilla item a custom mob's generated spawn egg copies.
+pub const GENERATED_EGG_TEMPLATE: &str = "minecraft:pig_spawn_egg";
 /// the file in a content root where the mods' mob types are written, as a
 /// JSON list of [`EntityType`]s with their ids (the mob loader reads it).
 pub const MOBS_FILE: &str = "horizon-mod-mobs.json";
@@ -1278,6 +1280,37 @@ impl Content {
             }
             self.entity_types.push(EntityType { id: kind, ..file });
         }
+        // The generated spawn egg of each custom mob that asks for colours (`spawn_egg:
+        // {primary, secondary}`): an item of the mod named `<id>_spawn_egg`, which looks like its own
+        // model (`item_model`, written by the content root). A mod that declares an item of that
+        // name keeps its own.
+        let eggs: Vec<String> = self
+            .custom_mobs
+            .iter()
+            .filter(|m| {
+                matches!(
+                    m.spawn_egg,
+                    Some(crate::custom_mob::SpawnEgg::Generated { .. })
+                )
+            })
+            .map(|m| crate::custom_mob::spawn_egg_item(&m.id))
+            .collect();
+        for egg in eggs {
+            if !ids.insert(egg.clone()) {
+                continue;
+            }
+            self.items.push(Item {
+                template: GENERATED_EGG_TEMPLATE.to_owned(),
+                max_stack_size: None,
+                rarity: None,
+                components: BTreeMap::from([(
+                    "minecraft:item_model".to_owned(),
+                    serde_json::Value::String(egg.clone()),
+                )]),
+                crafting_remainder: None,
+                id: egg,
+            });
+        }
         for (menu, name) in menus {
             let file: MenuType =
                 serde_json::from_slice(&self.file(&name)?).map_err(|e| format!("{name}: {e}"))?;
@@ -1329,6 +1362,10 @@ impl Content {
                 ));
             }
         }
+        // The files go through the real model loaders (bones, cubes, animations, hitbox bones).
+        let mut reader = self.reader().map_err(|e| format!("{name}: {e}"))?;
+        file.load_model(&mut |path| reader.read(path))
+            .map_err(|e| format!("{name}: {e}"))?;
         if let Some(table) = &file.loot_table
             && !table
                 .split_once(':')

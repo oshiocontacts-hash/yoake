@@ -1186,6 +1186,9 @@ pub struct Extra {
     /// (`LivingEntity.lastEquipmentItems`, empty at first), by
     /// `EquipmentSlot` ordinal: see `Mob::equipment_stacks`.
     pub equipment_heard: Option<Box<[Option<crate::items::ItemStack>; 8]>>,
+    /// A fully custom mob's own state: custom attributes, tracked values (`mobs::custom`).
+    /// `None` for every other mob.
+    pub custom: Option<Box<custom::CustomState>>,
 }
 impl Extra {
     #[yoake_hook_macro::yoake_hook(method, id = 433, key = "horizon_client_lib::mobs::Extra::set_main_hand")]
@@ -2983,6 +2986,12 @@ impl Mob {
     /// `damage` of a blow whose causing entity is `aim` (`SulfurCube.knockback` reads it).
     #[yoake_hook_macro::yoake_hook(method, id = 469, key = "horizon_client_lib::mobs::Mob::damage_aimed")]
     pub fn damage_aimed(&mut self, amount: f32, source: Damage, aim: Option<Aim>) -> bool {
+        // F4M: the part of a custom mob that is hit scales the blow (`damage_multiplier`).
+        let amount = if self.kind.custom.is_some() {
+            custom::hitbox::scale_damage(self, amount, aim)
+        } else {
+            amount
+        };
         self.attacker_aim = aim;
         let hurt = self.damage(amount, source);
         self.attacker_aim = None;

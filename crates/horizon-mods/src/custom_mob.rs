@@ -11,9 +11,10 @@
 //! kept in [`Content::custom_mobs`](crate::content::Content::custom_mobs) without effect.
 //!
 //! Model, animation and expression files are read by the `horizon-mobmodel` crate (F4M-1, F4M-2);
-//! the numeric limits for them are defined here so that one place states them, and
-//! [`ModelInfo`] is the small interface the model loader will implement. (It lives here only
-//! until that crate exists and should move there.)
+//! the numeric limits for them are defined here so that one place states them. [`ModelInfo`] is
+//! the small interface the schema check needs; [`LoadedModel`] implements it over a real
+//! `horizon_mobmodel::Model` (the crate itself has no game or mod dependencies, so the trait stays
+//! on this side) and [`CustomMobFile::load_model`] reads the files through the real loaders.
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -21,6 +22,16 @@ use std::collections::{BTreeMap, BTreeSet};
 pub const TEMPLATE: &str = "yoake:mob";
 /// The accepted value of `format`.
 pub const FORMAT: u32 = 1;
+/// The file the content root keeps the mods' custom mob definitions in (a JSON array of
+/// [`CustomMobFile`] objects, each with its `id`): the game's mob loader reads it, so the client,
+/// the host and a dedicated server agree (as `horizon-mod-mobs.json` does for the template mobs).
+pub const CUSTOM_MOBS_FILE: &str = "horizon-mod-custom-mobs.json";
+
+/// The id of the generated spawn egg item of the custom mob `id` (`<ns>:<path>_spawn_egg`): the
+/// game spawns the mob when an item named `<type>_spawn_egg` is used.
+pub fn spawn_egg_item(id: &str) -> String {
+    format!("{id}_spawn_egg")
+}
 
 /// Limits a custom mob's files must keep (checked at load, never at run time).
 pub mod limits {
@@ -79,6 +90,47 @@ pub trait ModelInfo {
     /// The bone's index (`BoneIndex` in the model crate), or `None`.
     fn bone_index(&self, name: &str) -> Option<u16>;
     fn has_locator(&self, name: &str) -> bool;
+}
+
+/// A model read through the real loaders (`horizon-mobmodel`), with the number of animations its
+/// animation files hold. `model` is `None` when the type declares no `model.geo`.
+#[derive(Debug)]
+pub struct LoadedModel {
+    pub model: Option<horizon_mobmodel::Model>,
+    pub animations: usize,
+}
+
+impl LoadedModel {
+    /// The rest position of bone `name`'s pivot in the model's space (pixels, +X east, +Y up, -Z
+    /// north, the origin at the mob's feet), with the rest rotations of its parents applied.
+    pub fn bone_rest_position(&self, name: &str) -> Option<[f64; 3]> {
+        use horizon_mobmodel::{Pose, skeleton::bone_matrices};
+        let model = self.model.as_ref()?;
+        let index = model.skeleton.find(name)?;
+        let matrices = bone_matrices(&model.skeleton, &Pose::rest(&model.skeleton));
+        let p = matrices[index.index()].transform_point3(model.skeleton.bones[index.index()].pivot);
+        Some([f64::from(p.x), f64::from(p.y), f64::from(p.z)])
+    }
+}
+
+impl ModelInfo for LoadedModel {
+    fn bone_count(&self) -> usize {
+        self.model.as_ref().map_or(0, |m| m.skeleton.len())
+    }
+    fn cube_count(&self) -> usize {
+        self.model.as_ref().map_or(0, |m| m.element_count())
+    }
+    fn animation_count(&self) -> usize {
+        self.animations
+    }
+    fn bone_index(&self, name: &str) -> Option<u16> {
+        self.model.as_ref()?.skeleton.find(name).map(|b| b.0)
+    }
+    fn has_locator(&self, name: &str) -> bool {
+        self.model
+            .as_ref()
+            .is_some_and(|m| m.locators.iter().any(|l| l.name == name))
+    }
 }
 
 /// The mob's categories (`MobCategory`).
@@ -1132,6 +1184,63 @@ impl CustomMobFile {
         Ok(out)
     }
 
+    /// The tracked values' names in slot order (the order of `synced`, which is by name).
+    pub fn synced_names(&self) -> Vec<&str> {
+        self.synced.keys().map(String::as_str).collect()
+    }
+
+    /// Reads the model, animation and controller files through `horizon-mobmodel`'s loaders (`read`
+    /// returns a content file's bytes by its path in the mod, `assets/<ns>/...`), counts the
+    /// animations, then runs [`validate_model`](Self::validate_model) on the result. A type
+    /// without `model.geo` is checked against an empty model, so a hitbox `bone` fails there.
+    pub fn load_model(
+        &self,
+        read: &mut dyn FnMut(&str) -> Result<Vec<u8>, String>,
+    ) -> Result<LoadedModel, String> {
+        use horizon_mobmodel::{anim, controller, expr::Symbols, load_bbmodel, load_geo_json};
+        let file = |id: &str, dir_ext: &str| -> String {
+            let (ns, rest) = id.split_once(':').unwrap_or_default();
+            format!("assets/{ns}/{rest}{dir_ext}")
+        };
+        let model = match &self.model.geo {
+            None => None,
+            Some(geo) => {
+                let json = file(geo, ".geo.json");
+                Some(match read(&json) {
+                    Ok(bytes) => load_geo_json(&json, &bytes).map_err(|e| e.to_string())?,
+                    Err(_) => {
+                        let bb = file(geo, ".bbmodel");
+                        let bytes = read(&bb)?;
+                        load_bbmodel(&bb, &bytes).map_err(|e| e.to_string())?
+                    }
+                })
+            }
+        };
+        let mut syms = Symbols::new(&self.synced_names());
+        for (name, synced) in &self.synced {
+            if synced.kind == "enum" {
+                let values: Vec<&str> = synced.values.iter().map(String::as_str).collect();
+                syms.set_enum_values(name, &values);
+            }
+        }
+        let mut animations = 0;
+        for id in &self.model.animations {
+            let path = file(id, ".animation.json");
+            let text = String::from_utf8(read(&path)?).map_err(|e| format!("{path}: {e}"))?;
+            let parsed =
+                anim::parse_animation_file(&text, &mut syms).map_err(|e| format!("{path}: {e}"))?;
+            animations += parsed.animations.len();
+        }
+        for id in &self.model.controllers {
+            let path = file(id, ".json");
+            let text = String::from_utf8(read(&path)?).map_err(|e| format!("{path}: {e}"))?;
+            controller::parse_controllers(&text, &mut syms).map_err(|e| format!("{path}: {e}"))?;
+        }
+        let loaded = LoadedModel { model, animations };
+        self.validate_model(&loaded)?;
+        Ok(loaded)
+    }
+
     /// The checks that need the loaded model: counts, hitbox bones, locators, layer bones.
     pub fn validate_model(&self, model: &dyn ModelInfo) -> Result<(), String> {
         too_many("bones", model.bone_count(), limits::MAX_BONES)?;
@@ -1367,6 +1476,57 @@ mod tests {
         assert!(moved.validate_model(&Fake).unwrap_err().contains("tail"));
     }
 
+    /// The fixture's real model, animations and controllers go through the real loaders.
+    #[test]
+    fn the_fixture_model_loads_through_the_real_loader() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tools/fixtures/cinder_fox");
+        let mut read = |name: &str| std::fs::read(root.join(name)).map_err(|e| e.to_string());
+        let file = parse(FOX).unwrap();
+        let loaded = file.load_model(&mut read).unwrap();
+        assert!(loaded.bone_count() >= 14, "{}", loaded.bone_count());
+        assert!(loaded.cube_count() > 0);
+        assert!(loaded.animation_count() > 0);
+        assert!(loaded.bone_index("head").is_some());
+        assert!(loaded.has_locator("mouth"));
+        // A hitbox on a bone the model lacks is refused with the real bone table.
+        let moved = with(|v| v["hitboxes"][1]["bone"] = "tail_tip_missing".into()).unwrap();
+        assert!(
+            moved
+                .load_model(&mut read)
+                .unwrap_err()
+                .contains("tail_tip_missing")
+        );
+        // No geo: an empty model (the schema refuses a bone reference without one).
+        let none = with(|v| {
+            v["model"] = serde_json::json!({});
+            v["hitboxes"][1].as_object_mut().unwrap().remove("bone");
+        })
+        .unwrap();
+        let empty = none.load_model(&mut read).unwrap();
+        assert_eq!(empty.bone_count(), 0);
+        // A broken model file is the loader's error.
+        let mut broken = |name: &str| {
+            if name.ends_with(".geo.json") {
+                Ok(b"{ not json".to_vec())
+            } else {
+                read(name)
+            }
+        };
+        assert!(file.load_model(&mut broken).is_err());
+    }
+
+    /// The content root keeps the file as JSON (`CUSTOM_MOBS_FILE`): it reads back the same.
+    #[test]
+    fn the_file_round_trips_through_its_serialization() {
+        let file = parse(FOX).unwrap();
+        let mut v = serde_json::to_value(&file).unwrap();
+        let id = v.as_object_mut().unwrap().remove("id").unwrap();
+        assert_eq!(id, "sample_mobs:cinder_fox");
+        let back = CustomMobFile::parse("sample_mobs:cinder_fox", v.to_string().as_bytes()).unwrap();
+        assert_eq!(back, file);
+    }
+
     #[test]
     fn a_reference_outside_the_mod_is_refused() {
         let file = with(|v| v["model"]["textures"]["default"] = "other:entity/x".into()).unwrap();
@@ -1396,6 +1556,17 @@ mod tests {
         assert_eq!(content.custom_mobs.len(), 1);
         assert_eq!(content.custom_mobs[0].id, "sample_mobs:cinder_fox");
         assert!(content.entity_types.is_empty());
+        // The generated spawn egg is an item of the mod, in the colours' model.
+        let egg = content
+            .items
+            .iter()
+            .find(|i| i.id == spawn_egg_item("sample_mobs:cinder_fox"))
+            .expect("the generated spawn egg");
+        assert_eq!(egg.template, crate::content::GENERATED_EGG_TEMPLATE);
+        assert_eq!(
+            egg.components["minecraft:item_model"],
+            "sample_mobs:cinder_fox_spawn_egg"
+        );
         // The same mod without its model file.
         let scratch = std::env::temp_dir().join(format!("f4m0-fixture-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&scratch);

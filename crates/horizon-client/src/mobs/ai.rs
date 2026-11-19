@@ -1921,6 +1921,10 @@ pub fn requires_custom_persistence(m: &Mob) -> bool {
 /// Mob.checkDespawn, before the tick (players are the only despawn
 /// reference). Returns false when the mob is discarded.
 fn check_despawn(m: &mut Mob, w: &MobWorld) -> bool {
+    // F4M: a fully custom mob has its own despawn distances, age limit and peaceful rule.
+    if let Some(c) = m.kind.custom.clone() {
+        return super::custom::spawn::check_despawn(m, w, &c);
+    }
     // A mannequin is a LivingEntity, which never despawns.
     if m.species() == Species::Mannequin {
         return true;
