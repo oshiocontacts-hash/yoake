@@ -80,7 +80,12 @@ WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔�
 - `inject-mod` の `yak.toml` の書き方、値の範囲と拒否、コマンド・チャットへの割り込み
 - 順番と競合、上限とトラップ、よくある失敗
 
-### 9. [MOD 画面で IME（日本語入力）を使う（`10-ime.md`）](./10-ime.md)
+### 9. [アイテム・ブロックスプライトの動的差し替え（`09-sprites.md`）](./09-sprites.md)
+- `item-sprite-set` / `item-sprite-reset` による共有アトラス矩形の書き換え
+- `block-sprite-set` / `block-sprite-reset` によるブロック層とミップマップの再生成
+- サイズ不一致・他 MOD 上書き・リソースパック再読み込み・アンロード時の挙動
+
+### 10. [MOD 画面で IME（日本語入力）を使う（`10-ime.md`）](./10-ime.md)
 - `IME_PREEDIT` / `IME_COMMIT` の購読と、変換途中文字列の描画
 - OS の IME 有効化と、候補ウィンドウの GUI スケーリング済み座標での配置
 - 既存の文字フックとの二重入力回避、MOD 画面の所有権とライフサイクル

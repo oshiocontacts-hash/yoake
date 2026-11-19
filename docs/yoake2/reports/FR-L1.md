@@ -13,7 +13,7 @@ Branch `yoake-free/l1-ime`, base `yoake-free/merge` (862d10c89). Nothing here wa
   - 201 `ime_set_allowed(allowed: bool)`
   - 202 `ime_set_cursor_area(x, y, w, h)` in GUI-scaled coordinates; finite values, nonnegative size, else `Err`.
   - Both return `Err` unless the calling mod owns the currently open mod screen. Ids 203-206 are unused.
-- **Catalog version**: client catalog `interface_version` 1.2.0 -> 1.3.0 (additive minor, same as ids 199/200).
+- **Catalog version**: client catalog `interface_version` 1.3.0 -> **1.4.0**. L2 (runtime sprites, ids 211–216) landed first in yoake-free/merge as 1.3.0, so L1 is its own additive minor on top; this branch merges L2 and the generated files were regenerated from the merged catalog, so both agree.
 - Not added to the frozen legacy DLL subset (`abi-subset.json`). No `[wasm] permissions` entry is needed for `service.ime`.
 
 ## Routing
@@ -100,3 +100,21 @@ Adding IME there needs, and none of it was half-wired:
 3. Engine-call bindings on the host side for `ime_set_allowed` / `ime_set_cursor_area`.
 4. Guest wire types for a string and an `option<(u32, u32)>` hook argument, which existing fn hooks do not carry.
 5. `MOD-GUIDE.ja.md` plus tests for the new ids.
+
+## Results on LENOVO (2026-11-20, rustc 1.100.0)
+
+Written by Kimi (K3.1, most of the code and docs; its 5-hour quota ran out before the report) and Sonnet (the
+behaviour-preservation fix, the `frame` example, docs and this report); builds, two build fixes (the hook functions
+must live in `native_hooks.rs` for `xtask mod-api`; a one-parameter placeholder is `let _ = text;`) and the merge by
+Claude. This branch merges L2 (`yoake-free/l2-sprites` @854c75419) and regenerates from the merged catalog
+(`interface_version` 1.4.0).
+
+| suite (after merging L2) | result |
+| --- | --- |
+| `xtask mod-api`, then `horizon-mod-api-gen --lib` (after `YOAKE_UPDATE_WIT=1`) | 45 passed |
+| `yoake-wasm --lib --tests` | all passed (incl. `client_services`: the demo guest calls both IME services) |
+| `horizon-client-render --lib` | 1453 passed, 40 ignored |
+| `horizon-client --lib` (incl. the IME decision tests and L2's sprite tests) | 1211 passed, 40 ignored |
+| `examples/ime`, `examples/client-services-demo` (`--release --target wasm32-wasip2`) | build |
+
+No window was opened: everything under "Needs checking" still needs the real game.

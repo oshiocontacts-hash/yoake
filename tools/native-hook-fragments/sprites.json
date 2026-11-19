@@ -1,0 +1,14 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "item_sprite_set", "target": "horizon_client::game::native_sprites::Game<'_>::native_item_sprite_set"},
+    {"name": "item_sprite_reset", "target": "horizon_client::game::native_sprites::Game<'_>::native_item_sprite_reset"},
+    {"name": "block_sprite_set", "target": "horizon_client::game::native_sprites::Game<'_>::native_block_sprite_set"},
+    {"name": "block_sprite_reset", "target": "horizon_client::game::native_sprites::Game<'_>::native_block_sprite_reset"},
+    {"name": "item_sprite_pixels", "target": "horizon_client::game::native_sprites::Game<'_>::native_item_sprite_pixels"},
+    {"name": "block_sprite_pixels", "target": "horizon_client::game::native_sprites::Game<'_>::native_block_sprite_pixels"}
+  ],
+  "rust_summary": "runtime item and block sprite overrides (`item_sprite_set`, `item_sprite_reset`, `block_sprite_set`, `block_sprite_reset`, `item_sprite_pixels`, `block_sprite_pixels`).",
+  "doc_summary": "Overrides an item's shared-atlas sub-rectangle or a block model texture layer at runtime, or resets it back to the active resource pack texture. Wrong dimensions or byte lengths return an error cleanly. item_sprite_pixels and block_sprite_pixels read the current RGBA8 pixels (including mod overrides) from the CPU copies of the atlas, with no GPU readback.",
+  "comments": ["crates/horizon-client/src/game/native_sprites.rs"]
+}
