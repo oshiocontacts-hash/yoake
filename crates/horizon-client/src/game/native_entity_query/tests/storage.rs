@@ -20,6 +20,7 @@ use horizon_world::registry::BlockStateId;
 
 fn mob(id: u32) -> Mob {
     let kind = Arc::new(MobType {
+        custom: None,
         id: "minecraft:pig".into(),
         species: Species::Pig,
         width: 0.9,

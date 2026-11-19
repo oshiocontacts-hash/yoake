@@ -2317,6 +2317,9 @@ pub mod yoake_glue {
             crate::mobs::species::Species::Mannequin => {
                 Encode::encode(&89u32, out);
             }
+            crate::mobs::species::Species::Custom => {
+                Encode::encode(&90u32, out);
+            }
         }
     }
     fn dec_crate__mobs__species__Species(d: &mut Decoder<'_>) -> Result<crate::mobs::species::Species, CallError> {
@@ -2417,6 +2420,7 @@ pub mod yoake_glue {
             87 => Ok(crate::mobs::species::Species::ZombieNautilus),
             88 => Ok(crate::mobs::species::Species::SulfurCube),
             89 => Ok(crate::mobs::species::Species::Mannequin),
+            90 => Ok(crate::mobs::species::Species::Custom),
             n => Err(CallError::InvalidTag("Species", n)),
         }
     }

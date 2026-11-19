@@ -1,0 +1,207 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.cinder_fox.idle": {
+      "loop": true,
+      "animation_length": 2.0,
+      "bones": {
+        "tail_1": {
+          "rotation": {
+            "0.0": [
+              0,
+              0,
+              0
+            ],
+            "1.0": [
+              0,
+              6,
+              0
+            ],
+            "2.0": [
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    "animation.cinder_fox.walk": {
+      "loop": true,
+      "animation_length": 0.8,
+      "bones": {
+        "leg_fl": {
+          "rotation": {
+            "0.0": [
+              25,
+              0,
+              0
+            ],
+            "0.4": [
+              -25,
+              0,
+              0
+            ],
+            "0.8": [
+              25,
+              0,
+              0
+            ]
+          }
+        },
+        "leg_br": {
+          "rotation": {
+            "0.0": [
+              25,
+              0,
+              0
+            ],
+            "0.4": [
+              -25,
+              0,
+              0
+            ],
+            "0.8": [
+              25,
+              0,
+              0
+            ]
+          }
+        },
+        "leg_fr": {
+          "rotation": {
+            "0.0": [
+              -25,
+              0,
+              0
+            ],
+            "0.4": [
+              25,
+              0,
+              0
+            ],
+            "0.8": [
+              -25,
+              0,
+              0
+            ]
+          }
+        },
+        "leg_bl": {
+          "rotation": {
+            "0.0": [
+              -25,
+              0,
+              0
+            ],
+            "0.4": [
+              25,
+              0,
+              0
+            ],
+            "0.8": [
+              -25,
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    "animation.cinder_fox.run": {
+      "loop": true,
+      "animation_length": 0.5,
+      "bones": {
+        "body": {
+          "position": {
+            "0.0": [
+              0,
+              0,
+              0
+            ],
+            "0.25": [
+              0,
+              0.6,
+              0
+            ],
+            "0.5": [
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    "animation.cinder_fox.sit": {
+      "loop": "hold_on_last_frame",
+      "animation_length": 0.5,
+      "bones": {
+        "body": {
+          "rotation": {
+            "0.0": [
+              0,
+              0,
+              0
+            ],
+            "0.5": [
+              -30,
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    "animation.cinder_fox.pounce": {
+      "loop": false,
+      "animation_length": 0.8,
+      "bones": {
+        "body": {
+          "rotation": {
+            "0.0": [
+              0,
+              0,
+              0
+            ],
+            "0.35": [
+              -20,
+              0,
+              0
+            ],
+            "0.8": [
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      },
+      "timeline": {
+        "0.35": [
+          "hit"
+        ]
+      }
+    },
+    "animation.cinder_fox.death": {
+      "loop": "hold_on_last_frame",
+      "animation_length": 0.6,
+      "bones": {
+        "root": {
+          "rotation": {
+            "0.0": [
+              0,
+              0,
+              0
+            ],
+            "0.6": [
+              0,
+              0,
+              90
+            ]
+          }
+        }
+      }
+    }
+  }
+}

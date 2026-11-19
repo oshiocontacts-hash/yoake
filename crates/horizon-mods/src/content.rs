@@ -780,6 +780,9 @@ pub struct Content {
     /// Its creative inventory tabs, by id.
     pub creative_tabs: Vec<CreativeTab>,
     pub entity_types: Vec<EntityType>,
+    /// Its fully custom mobs (`"template": "yoake:mob"`, [`crate::custom_mob`]), checked and
+    /// otherwise without effect until the engine registers them (F4M-3).
+    pub custom_mobs: Vec<crate::custom_mob::CustomMobFile>,
     pub menu_types: Vec<MenuType>,
     /// The namespaces it owns: the mod id, then the manifest's `namespaces`.
     pub namespaces: Vec<String>,
@@ -883,6 +886,7 @@ impl Content {
             effects: Vec::new(),
             creative_tabs: Vec::new(),
             entity_types: Vec::new(),
+            custom_mobs: Vec::new(),
             menu_types: Vec::new(),
             namespaces: manifest.owned_namespaces().map(str::to_owned).collect(),
         };
@@ -901,6 +905,7 @@ impl Content {
             effects: Vec::new(),
             creative_tabs: Vec::new(),
             entity_types: Vec::new(),
+            custom_mobs: Vec::new(),
             menu_types: Vec::new(),
             namespaces: vec![namespace.to_owned()],
         }
@@ -1216,8 +1221,16 @@ impl Content {
             });
         }
         for (kind, name) in types {
+            let bytes = self.file(&name)?;
+            if crate::custom_mob::declares_custom(&bytes) {
+                let file = crate::custom_mob::CustomMobFile::parse(&kind, &bytes)
+                    .map_err(|e| format!("{name}: {e}"))?;
+                self.check_custom_mob(&name, &file)?;
+                self.custom_mobs.push(file);
+                continue;
+            }
             let mut file: EntityType =
-                serde_json::from_slice(&self.file(&name)?).map_err(|e| format!("{name}: {e}"))?;
+                serde_json::from_slice(&bytes).map_err(|e| format!("{name}: {e}"))?;
             if file.is_mob() {
                 self.check_mob(&name, &kind, &mut file, &ids)?;
                 self.entity_types.push(EntityType { id: kind, ..file });
@@ -1292,6 +1305,42 @@ impl Content {
 }
 
 impl Content {
+    /// A custom mob's references: every model, animation, controller and texture file is in the
+    /// mod, and its id is not another entity type's.
+    fn check_custom_mob(
+        &self,
+        name: &str,
+        file: &crate::custom_mob::CustomMobFile,
+    ) -> Result<(), String> {
+        let owns = |ns: &str| self.namespaces.iter().any(|n| n == ns);
+        if self.custom_mobs.iter().any(|m| m.id == file.id)
+            || self.entity_types.iter().any(|t| t.id == file.id)
+        {
+            return Err(format!("{name}: {} is declared twice", file.id));
+        }
+        let wanted = file
+            .referenced_files(owns)
+            .map_err(|e| format!("{name}: {e}"))?;
+        for candidates in wanted {
+            if !candidates.iter().any(|c| self.files.contains(c)) {
+                return Err(format!(
+                    "{name}: no file {} in this mod",
+                    candidates.join(" or ")
+                ));
+            }
+        }
+        if let Some(table) = &file.loot_table
+            && !table
+                .split_once(':')
+                .is_some_and(|(ns, p)| owns(ns) && !p.is_empty())
+        {
+            return Err(format!(
+                "{name}: loot_table {table:?} is a loot table id in this mod's namespaces"
+            ));
+        }
+        Ok(())
+    }
+
     /// A mob type's fields: the texture, size, attributes (stored with bare
     /// names), behaviours, loot table, spawn rule and spawn egg.
     fn check_mob(

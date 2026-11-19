@@ -462,6 +462,7 @@ pub mod types {
         ZombieNautilus,
         SulfurCube,
         Mannequin,
+        Custom,
     }
     #[derive(Clone, Debug, PartialEq)]
     pub enum Pose {
@@ -2627,6 +2628,9 @@ pub mod types {
             types::Species::Mannequin => {
                 Encode::encode(&89u32, out);
             }
+            types::Species::Custom => {
+                Encode::encode(&90u32, out);
+            }
         }
     }
     fn dec_crate__mobs__species__Species(d: &mut Decoder<'_>) -> Result<types::Species, CallError> {
@@ -2727,6 +2731,7 @@ pub mod types {
             87 => Ok(types::Species::ZombieNautilus),
             88 => Ok(types::Species::SulfurCube),
             89 => Ok(types::Species::Mannequin),
+            90 => Ok(types::Species::Custom),
             n => Err(CallError::InvalidTag("Species", n)),
         }
     }

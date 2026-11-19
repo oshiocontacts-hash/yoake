@@ -30,6 +30,7 @@ pub mod copper_golem;
 pub mod creaking;
 pub mod creaking_heart;
 pub mod cube;
+pub mod custom;
 pub mod data;
 pub mod dolphin;
 pub mod doors;
@@ -409,6 +410,9 @@ pub struct MobType {
     pub food: Arc<[String]>,
     /// TemptGoal items when they differ from the food.
     pub tempt: Arc<[String]>,
+    /// A mod's fully custom mob (`yoake:mob`): `None` for every vanilla and template-based type.
+    /// F4M: custom species.
+    pub custom: Option<Arc<custom::CustomType>>,
 }
 impl MobType {
     pub fn layer(&self, key: &str) -> Option<&Arc<Part>> {
@@ -524,6 +528,7 @@ impl MobTypes {
             out.insert(
                 id.clone(),
                 MobType {
+                    custom: None,
                     species: def.species,
                     width: t["width"].as_f64().unwrap_or(0.6),
                     height: t["height"].as_f64().unwrap_or(1.8),
@@ -4209,6 +4214,7 @@ pub(crate) mod sensor_scan_tests {
 
     pub(crate) fn kind() -> Arc<MobType> {
         Arc::new(MobType {
+            custom: None,
             id: "minecraft:cow".into(),
             species: Species::Cow,
             width: 0.9,

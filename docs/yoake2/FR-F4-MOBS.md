@@ -116,7 +116,7 @@ client's behaviour on a modded entity is undefined.
 
 | New | Purpose |
 |---|---|
-| crate `horizon-mobmodel` (no GPU, no game deps) | `.geo.json`, `.bbmodel`, `.animation.json` parsers; internal `Model` and `Animation`; expression compiler and VM; animation controllers; pose evaluation; bake of bone-local vertices. Used by client and server. |
+| crate `horizon-mobmodel` (no GPU, no game deps; name reserved, created in F4M-1) | `.geo.json`, `.bbmodel`, `.animation.json` parsers; internal `Model` and `Animation`; expression compiler and VM; animation controllers; pose evaluation; bake of bone-local vertices. Used by client and server. |
 | `horizon-mods/src/custom_mob.rs` | JSON schema types for `"template": "yoake:mob"` (serde, validation, limits). `content.rs` only dispatches. |
 | `horizon-client/src/mobs/custom/` | `registry.rs` (type table), `build.rs` (`Mob` from `CustomType`), `attrs.rs`, `hitbox.rs`, `spawn.rs`, `persist.rs`, `ai/` (goals, brain, nav, attacks, riding, tame, breed), `anim_sync.rs`, `procedural.rs`. |
 | `horizon-client/src/game/custom_mob_draw.rs` | Client draw path (pose to vertices), layers, items on locators, shadow, LOD, debug overlays. |
@@ -593,8 +593,9 @@ G5 = F4M-15 and optional F4M-16, F4M-17, F4M-18.
 ### F4M-0 (critical): foundations, schema and parity goldens
 * Goal: capture goldens A to C before any engine change; add `Species::Custom`, `MobType.custom`, empty registry,
   `custom_mob.rs` schema types with validation and limits (bones 256, cubes 4096, animations 128 per type, 32 synced
-  values, 256 expression instructions), reserved hook and binding id ranges, the empty `horizon-mobmodel` crate with
-  the skeleton interface (`BoneIndex`, `Pose`), and the Cinder Fox fixture mod directory (data only stubs).
+  values, 256 expression instructions), reserved hook and binding id ranges, the Cinder Fox fixture mod directory (data only stubs). The crate name `horizon-mobmodel` is
+  reserved: it is created by the F4M-1/F4M-2 lane, not by F4M-0 (F4M-0 only puts the small `ModelInfo` trait in
+  `horizon-mods/src/custom_mob.rs`, to move there; see `reports/FR-F4M-0.md`).
 * Files: `species.rs`, `mobs.rs` (constructors only), `horizon-mods/src/custom_mob.rs`, `content.rs` (dispatch),
   new `crates/horizon-mobmodel/`, `tools/fixtures/mob_parity/`, `ids.lock.json` reservation.
 * Depends on: none. Size: M (the variant adds match fallout; land first, keep the branch short).

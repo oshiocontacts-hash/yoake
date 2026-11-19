@@ -890,6 +890,7 @@ mod tests {
             children: Vec::new(),
         };
         let kind = MobType {
+            custom: None,
             id: "minecraft:player".into(),
             species: Species::Zombie,
             width: 0.6,
