@@ -8,6 +8,10 @@
 //! The shared interface between the two is this file: [`BoneIndex`], [`Bone`], [`Skeleton`], [`BoneTransform`] and
 //! [`Pose`]. Change it only in agreement (both branches build on it).
 
+pub mod anim;
+pub mod controller;
+pub mod expr;
+pub mod pose;
 pub mod skeleton;
 
 pub use skeleton::{Bone, BoneIndex, BoneTransform, Pose, Skeleton};
