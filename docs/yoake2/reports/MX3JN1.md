@@ -104,10 +104,49 @@ valid when it is `server:`/`friend:` + `[A-Za-z0-9:._\-\[\]]`, no `..`, at most 
 5. Every later launch that joins that host (the player already has the mods, so no 75) must also pass `--remote-mods <key>` and a list scoped to it; launches that do not join it pass neither.
 6. Files to read: `join-request.json` only. The game writes nothing else outside `mods/remote/.staging/` and `yoake-remote/` (unpacked sandboxed packages, safe to delete).
 
+## Where the code is
+
+- `crates/horizon-protocol/src/mod_transfer.rs` (+ `mod_transfer/tests.rs`): messages, `Offer`, `HostSession` (host state machine, `Source` trait), `ClientSync` (client state machine, `Sink` trait), `Negotiation`.
+- `crates/horizon-client/src/join_mods.rs` (+ `join_mods/tests.rs`), compiled in **horizon-client-lib** (that crate holds `net.rs` and `lan/conn.rs`): args, host identity, staging sink, request file, host offer and file source, `ClientJoin`. The game crate registers what it runs with `join_mods::set_providers` (in `yak_mods::initialize`).
+- `crates/horizon-client/src/lan/conn.rs` (`offer_mods`, host) and `net.rs` (`configure`, client): the wiring. `game/remote.rs` and `game/social_relay.rs` name the host (`set_host`) before a connection.
+- Loader: `horizon-mods/src/yak/control.rs` (`ApprovedList::host`, `with_host`, `to_files` local/catalog only, `to_remote_files`, `valid_host_key`, `host_dir_name`, `host_remote_dir`, `install_remote_package`), `horizon-mods/src/yak.rs` (`Archive::copy_file`), `yoake2_mods.rs` (`decide`, `load_client_mods_scoped`, `server_runs_package`), `yak_mods.rs` (`remote_installed`).
+
 ## Tests
 
-(see the table at the end)
+| Suite | Result |
+|---|---|
+| horizon-protocol (all) | 220 passed (11 new in `mod_transfer`) |
+| horizon-mods, `--features yak` | lib 76 passed (3 new: host-scoped list, host keys, `install_remote_package`), `tests/yak.rs` 41 passed |
+| horizon-client-lib lib, filter `join_mods` | 13 passed (all new) |
+| horizon-client lib, features `yoake2-slice,yoake-hook-bench`, filter `yak_mods` | 21 passed (1 new: `a_hosts_sandboxed_packages_are_installed_for_that_host_only`) |
+| `yoake2_loader` (features `yoake2-slice,yoake-hook-bench`) | 32 passed (1 rewritten, 5 new) |
+| yoake-slice, `--features wasm` | all passed (6, 6, 7, 21, 1) |
+| `cargo check -p horizon-client` (no features) | clean |
+
+The full horizon-client lib suite (about 1200 tests) was **not** run: only the filtered tests above, to save disk and time.
+
+Requested tests and where they are:
+
+- capability negotiation, old peer gives old behaviour: `mod_transfer::tests::capabilities_gate_the_offer_and_old_peers_hear_nothing`; client side `join_mods::tests::the_client_ignores_the_channel_until_the_host_advertised_and_after_it_is_done`; `without_the_flag_or_a_host_identity_...` (setting off: only `done`, no folder written).
+- happy path: `a_transfer_happy_path_streams_chunks_with_a_final_marker` (3 chunks, 256 KiB, last marker) and `join_mods::tests::a_join_with_missing_mods_stages_them_writes_the_request_and_exits_75` (real `.yak` files, host and client in memory).
+- sha256 mismatch, abort and delete: `a_sha256_mismatch_aborts_and_deletes_the_partial_file`, `a_changed_byte_on_the_wire_aborts_the_join_deletes_the_file_and_leaves_no_request`, `a_file_changed_after_the_offer_is_not_served`.
+- non-advertised sha256 refused by the host: `the_host_refuses_a_sha256_it_did_not_offer` (the source is never opened), plus a foreign hash in `the_host_offers_only_what_it_runs_...`.
+- caps: `the_caps_hold_on_both_sides` (64 mods, 64 MiB, 256 MiB plan refused before any request, host `Limit`), `one_transfer_at_a_time_and_the_per_join_limits` (Busy, 64 requests).
+- request file and exit code as functions: `the_request_file_has_exactly_the_contracts_fields`, `finishing_a_join_writes_the_request_and_gives_exit_code_75` (`finish_join` returns 75; `exit_with` is the only part that ends the process and is not called in tests).
+- `--remote-mods` scoping: `remote_key_from` tests; `a_hosts_full_access_package_loads_only_for_the_launch_that_joins_that_host` (other key, no key, invalid key, server thread), `a_remote_folder_of_another_host_is_not_loaded_...`, `a_hosts_sandboxed_packages_are_installed_for_that_host_only`.
+- loader allows Server/Friend only via the approved list: `a_package_from_a_server_or_a_friend_is_not_full_access_unless_approved_for_its_host` (policy table), `a_remote_package_that_the_list_does_not_name_or_that_changed_is_refused`, `an_entry_of_a_host_scope_does_not_make_a_hand_dropped_file_in_the_plain_folder_run`, `a_remote_mod_with_the_id_of_a_local_one_does_not_replace_it`, and `control::tests::a_servers_or_friends_package_is_valid_only_in_a_list_scoped_to_its_host`.
 
 ## 要確認
 
-(see the list at the end)
+1. **Folder name.** The contract says `mods/remote/<host-key>/`; `server:host:port` has colons that Windows folder names cannot hold. I wrote the folder with `:` replaced by `+` (`server+play.example.com+25570`). The launcher must use `host_dir_name` / `host_remote_dir` (exported from `horizon_mods::yak::control`). Confirm or choose another encoding.
+2. **Portal user id.** For social joins I use the `host_principal` of the guest grant as the "portal user id" (`friend:<host_principal>`). Confirm that is the id the launcher and portal know the host by. Old invite-code friend joins (`friend:K7QM-...`) and anything without a known host identity do not sync (the secret code must not become a folder or key).
+3. **Where the approved list carries the host scope.** `ApprovedEntry` is unchanged (the launcher builds it with a struct literal); the scope is a new top-level `host = "<key>"` in the approved list, and entries with origin `server`/`friend` are valid only in a list that has it. Confirm the launcher may write it this way.
+4. **`--full-access-approved` and `--full-access-dev` in `game.rs`.** I could not find them in the option parser (which rejects unknown options), so the game would not start with them; I added accepting arms (the loaders read them from the process arguments). Please check this was not handled somewhere I missed.
+5. **What counts as "already has it".** Full-access: a `.yak` with the same SHA-256 in `mods/` (the player's own, even if not approved) or in this host's folder. Sandboxed: an installed package with the same id and version (an installed tree has no package SHA-256, so a same-version different-bytes mod is not noticed). Entries with `side_client = false` are never fetched.
+6. **Host offer contents.** Offered: top-level `mods/*.yak` that the host actually runs (full-access: loaded on the server thread, hash recorded by `server_runs_package`, and with a client module; sandboxed: `required_on_join` and an installed package with the same id and version). `catalog_id` is always absent for now (the manifest has no such field; the launcher knows the catalog). A sandboxed package the host only has as an unpacked tree (no `.yak` file) cannot be served.
+7. **Read timeout.** Host reads in the configuration phase have a 10 s timeout (`LOGIN_TIMEOUT`). The host waits for the client's first reply after the offer while the client hashes candidate local files (size filter first, so normally milliseconds). A very slow disk with many large same-size files could exceed it. Not changed.
+8. **Verified files stay in staging on a later failure.** On a failure the partial file and the request are deleted; mods already verified earlier in the same join stay in `.staging` for the launcher to clear. Say if they should be deleted too.
+9. **Exit 75 from the net thread.** The game quits with `std::process::exit(75)` from the connection thread after a 400 ms pause for the status text (no world is open at that point). If a quieter shutdown is wanted, the game loop could take `Reaction::exit` instead.
+10. **Remote sandboxed mods are unpacked by the game** into `<game>/yoake-remote/<host dir>/<sha256>/` (new folder, safe to delete). The launcher might prefer to unpack them itself like other sandboxed packages (`yoake-mods/` + `yoake-mods.txt`); both work. Unsigned remote packages still do not run (the sandboxed loader requires a trusted signature).
+11. **`install_package` for Server/Friend** still writes to the old `mods/remote/<origin>/`; the launcher must use `install_remote_package` instead. `install_package` is unchanged (its tests assert that layout).
+12. **Line endings.** Several files were CRLF in the working tree and are now LF; git normalises them (the diff is small).

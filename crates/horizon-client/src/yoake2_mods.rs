@@ -371,15 +371,6 @@ pub fn server_runs_package(sha256_hex: &str) -> bool {
     SERVED.lock().unwrap_or_else(|e| e.into_inner()).contains(sha256_hex)
 }
 
-/// MX3JN1: the SHA-256s (lowercase hex) of the full-access packages the server thread runs now, for the connection
-/// threads that offer them to joining players (`join_mods::offer_from`). Replaced at every world start.
-static SERVED: std::sync::Mutex<std::collections::BTreeSet<String>> = std::sync::Mutex::new(std::collections::BTreeSet::new());
-
-/// Whether the server thread runs the full-access package with this SHA-256 (lowercase hex).
-pub fn server_runs_package(sha256_hex: &str) -> bool {
-    SERVED.lock().unwrap_or_else(|e| e.into_inner()).contains(sha256_hex)
-}
-
 thread_local! {
     /// This thread's loaded mods, per [`ThreadSide`] (indexed by `ThreadSide::index`).
     static LOADED: std::cell::RefCell<[Vec<ModId>; 2]> = const { std::cell::RefCell::new([Vec::new(), Vec::new()]) };
