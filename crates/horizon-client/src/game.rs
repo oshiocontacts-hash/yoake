@@ -15038,7 +15038,7 @@ impl Game<'_> {
             && self.mobs.iter().any(|m| {
                 // `Monster.class` entities that `isPreventingPlayerRest`: a
                 // zombified piglin only while it is angry.
-                horizon_client::mobs::ai::is_monster(m.species())
+                horizon_client::mobs::ai::mob_is_monster(m)
                     && (m.species() != horizon_client::mobs::Species::ZombifiedPiglin
                         || (m.extra.anger > 0 && m.ai.target.is_some()))
                     && m.alive()

@@ -1166,7 +1166,7 @@ impl Mob {
             }
             let at = [self.position.x, self.position.y, self.position.z];
             // Monster.getFallSounds: the hostile pair.
-            let monster = super::ai::is_monster(self.species());
+            let monster = super::ai::mob_is_monster(self);
             let sound = match (monster, damage > 4.0) {
                 (true, true) => "entity.hostile.big_fall",
                 (true, false) => "entity.hostile.small_fall",
@@ -1666,7 +1666,7 @@ impl horizon_world::water_splash::WaterSplashWorld for Splash<'_> {
         Ok(match species {
             Species::Dolphin => "entity.dolphin.splash",
             Species::Axolotl => "entity.axolotl.splash",
-            _ if species == Species::Hoglin || super::ai::is_monster(species) => {
+            _ if species == Species::Hoglin || super::ai::mob_is_monster(&self.mob) => {
                 "entity.hostile.splash"
             }
             _ => "entity.generic.splash",
