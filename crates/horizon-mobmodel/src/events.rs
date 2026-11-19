@@ -18,9 +18,10 @@
 //!   `server_events`; never sounds or particles. Gameplay (the damage frame, a leap impulse) must be driven by the
 //!   server's custom event only; the client's copy of the same name goes to the cosmetic hook `mob-anim-event-client`
 //!   and must not change game state, so nothing is applied twice.
-//! * **Exactly once**: the server drives [`MobEvents::update`] / [`MobEvents::trigger_window`] with its integrated
-//!   clock (`[c0, c1)` windows, once per loop, nothing while `dt = 0`, deterministic: same inputs give the same events in
-//!   the same order). A client that derives time from [`AnimClock`] anchors uses an [`EventCursor`] per clock; see its
+//! * **Exactly once**: the server drives [`MobEvents::update_marked`] / [`MobEvents::trigger_window_marked`] with its
+//!   integrated clock (`[c0, c1)` windows, once per loop, nothing while `dt = 0`, deterministic: same inputs give the
+//!   same events in the same order) and an [`EventMarks`] high-water mark per (layer, slot), so even a repeated or
+//!   rewound window never emits an event twice (no double hits). The unmarked variants are the plain windows. A client that derives time from [`AnimClock`] anchors uses an [`EventCursor`] per clock; see its
 //!   rules (a late joiner never replays the past; a re-anchor that jumps backwards or forwards fires nothing).
 //! * **Positions**: [`locator_position`] gives the model-space position (pixels) of a locator for a pose, from matrices
 //!   computed once per frame with [`crate::skeleton::bone_matrices_into`].
@@ -515,6 +516,208 @@ impl MobEvents {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// High-water marks (server and any window-driven emission)
+// ---------------------------------------------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Debug, Default)]
+struct Mark {
+    has: bool,
+    loop_index: u32,
+    time: f32,
+    p_has: bool,
+    p_loop: u32,
+    p_time: f32,
+}
+
+fn after(l: u32, t: f32, ml: u32, mt: f32) -> bool {
+    l > ml || (l == ml && t > mt)
+}
+
+#[derive(Clone, Debug)]
+struct LayerMarks {
+    /// Offset of each state's first animation slot in `marks`.
+    state_base: Vec<usize>,
+    trig_base: usize,
+    end: usize,
+}
+
+/// Per-mob high-water marks for window-driven emission ([`MobEvents::update_marked`], `trigger_window_marked`,
+/// `animation_window_marked`): for every (layer, state animation slot or trigger) the furthest `(loop_index, keyframe
+/// time)` that has been emitted. An event fires only when it is **past** the mark, so a window that is repeated or
+/// goes back over ground already covered (a rewound trigger clock, a replayed window) never emits an event twice; the
+/// most important user is the server's damage-frame `hit`. A new loop is past the mark and fires again.
+///
+/// Events of one call that share a keyframe time (a `hit` with its sound and particle) are all compared with the mark
+/// as it was before the call, so they fire together. The mark is committed at the end of the call.
+///
+/// Resets: [`EventMarks::reset_layer`] (done automatically by `update_marked` when a layer entered a new state),
+/// [`EventMarks::reset_trigger`] (call it when a trigger animation is **started again**), [`EventMarks::reset_all`]
+/// (a seek, teleport or reload). The allocation happens in [`EventMarks::new`] only.
+#[derive(Clone, Debug)]
+pub struct EventMarks {
+    layers: Vec<LayerMarks>,
+    marks: Vec<Mark>,
+}
+
+impl EventMarks {
+    /// Marks for every state animation slot and trigger of the rig's controllers.
+    pub fn new(rig: &Rig) -> Self {
+        let mut layers = Vec::new();
+        let mut n = 0usize;
+        for c in rig.controllers() {
+            let mut state_base = Vec::with_capacity(c.states.len());
+            for s in &c.states {
+                state_base.push(n);
+                n += s.animations.len();
+            }
+            let trig_base = n;
+            n += c.triggers.len();
+            layers.push(LayerMarks { state_base, trig_base, end: n });
+        }
+        EventMarks { layers, marks: vec![Mark::default(); n] }
+    }
+
+    fn index(&self, layer: usize, source: RigSource) -> Option<usize> {
+        let l = self.layers.get(layer)?;
+        match source {
+            RigSource::State { state, slot } => {
+                let base = *l.state_base.get(state as usize)?;
+                let next = l.state_base.get(state as usize + 1).copied().unwrap_or(l.trig_base);
+                let i = base + slot as usize;
+                (i < next).then_some(i)
+            }
+            RigSource::Trigger { trigger } => {
+                let i = l.trig_base + trigger as usize;
+                (i < l.end).then_some(i)
+            }
+        }
+    }
+
+    /// Whether an event at `(loop_index, time)` is past the mark; records it as pending when it is.
+    fn allow(&mut self, layer: usize, source: RigSource, loop_index: u32, time: f32) -> bool {
+        let Some(i) = self.index(layer, source) else { return true };
+        let m = &mut self.marks[i];
+        let fire = !m.has || after(loop_index, time, m.loop_index, m.time);
+        if fire && (!m.p_has || after(loop_index, time, m.p_loop, m.p_time)) {
+            m.p_has = true;
+            m.p_loop = loop_index;
+            m.p_time = time;
+        }
+        fire
+    }
+
+    fn commit(&mut self) {
+        for m in &mut self.marks {
+            if m.p_has {
+                m.has = true;
+                m.loop_index = m.p_loop;
+                m.time = m.p_time;
+                m.p_has = false;
+            }
+        }
+    }
+
+    /// Forget the marks of one layer (a new state was entered, or a seek).
+    pub fn reset_layer(&mut self, layer: usize) {
+        if let Some(l) = self.layers.get(layer) {
+            let (a, b) = (l.state_base.first().copied().unwrap_or(l.trig_base), l.end);
+            self.marks[a..b].fill(Mark::default());
+        }
+    }
+
+    /// Forget the mark of one trigger: it is being played again from its start.
+    pub fn reset_trigger(&mut self, layer: usize, trigger: usize) {
+        if let Some(i) = self.index(layer, RigSource::Trigger { trigger: trigger as u16 }) {
+            self.marks[i] = Mark::default();
+        }
+    }
+
+    /// Forget everything.
+    pub fn reset_all(&mut self) {
+        self.marks.fill(Mark::default());
+    }
+}
+
+impl MobEvents {
+    /// [`MobEvents::update`] with high-water marks: an event fires only when it is past the mark of its (layer, slot).
+    /// A layer that entered a new state during the call has its marks reset (its clocks restarted).
+    pub fn update_marked(
+        &self,
+        rig: &Rig,
+        side: EventSide,
+        st: &mut RigState,
+        dt: f32,
+        inputs: &mut ExprInputs,
+        marks: &mut EventMarks,
+        buf: &mut EventBuf,
+    ) {
+        rig.update(st, dt, inputs, &mut |ev| {
+            if marks.allow(ev.layer, ev.source, ev.loop_index, ev.event.time) {
+                if let Some(e) = self.resolve(side, ev.layer, &ev) {
+                    buf.push(e);
+                }
+            }
+        });
+        marks.commit();
+        for (li, l) in st.layers.iter().enumerate() {
+            if l.cur.time == 0.0 {
+                marks.reset_layer(li);
+            }
+        }
+    }
+
+    /// [`MobEvents::trigger_window`] with high-water marks (call [`EventMarks::reset_trigger`] when the trigger starts
+    /// again).
+    #[allow(clippy::too_many_arguments)]
+    pub fn trigger_window_marked(
+        &self,
+        rig: &Rig,
+        side: EventSide,
+        layer: usize,
+        trigger: usize,
+        c0: f32,
+        c1: f32,
+        marks: &mut EventMarks,
+        buf: &mut EventBuf,
+    ) {
+        rig.trigger_events(layer, trigger, c0, c1, &mut |ev| {
+            if marks.allow(ev.layer, ev.source, ev.loop_index, ev.event.time) {
+                if let Some(e) = self.resolve(side, ev.layer, &ev) {
+                    buf.push(e);
+                }
+            }
+        });
+        marks.commit();
+    }
+
+    /// [`MobEvents::animation_window`] with high-water marks.
+    #[allow(clippy::too_many_arguments)]
+    pub fn animation_window_marked(
+        &self,
+        rig: &Rig,
+        side: EventSide,
+        layer: usize,
+        source: RigSource,
+        animation: usize,
+        c0: f32,
+        c1: f32,
+        marks: &mut EventMarks,
+        buf: &mut EventBuf,
+    ) {
+        let Some(anim) = rig.animation(animation) else { return };
+        anim.emit_events_indexed(c0, c1, |event_index, event, loop_index| {
+            let ev = RigEvent { layer, animation, event, event_index, loop_index, source };
+            if marks.allow(layer, source, loop_index, event.time) {
+                if let Some(e) = self.resolve(side, layer, &ev) {
+                    buf.push(e);
+                }
+            }
+        });
+        marks.commit();
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Locator positions
 // ---------------------------------------------------------------------------------------------------------------
 
@@ -562,13 +765,17 @@ pub fn event_position(locators: &[Locator], matrices: &[Mat4], ev: &MobAnimEvent
 ///   last observed tick is a **restart** (the server started the animation since we last looked): events from time 0 up
 ///   to now fire, once.
 /// * A step of more than [`MAX_CATCH_UP_SECONDS`] of clock time in one call (a stall, a tick jump) is a seek too.
-/// * Time moving backwards (negative speed) fires nothing and moves the cursor back; moving forward through an event
-///   again fires it again (it is a new pass).
+/// * **High-water mark**: the cursor remembers the furthest clock time it has given events up to. Time moving
+///   backwards (negative speed, a rewind) fires nothing and moves the cursor back, and moving forward again fires
+///   nothing until the clock passes the mark: no event is emitted twice. A new loop (clock time past the mark) fires
+///   again. A seek, a restart and a state change reset the mark.
 /// * Windows are f32 like the animation's event times; a boundary closer than f32 resolution (about 1e-7 s at 1 s)
 ///   counts as equal.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EventCursor {
     last: f64,
+    /// Furthest time events were given out to (the high-water mark).
+    high: f64,
     exclusive: bool,
     prev: AnimClock,
     last_tick: i64,
@@ -589,7 +796,9 @@ impl EventWindow {
     }
 }
 
-/// A step of clock time larger than this (seconds) in one [`EventCursor::advance`] is a seek.
+/// The most clock time (seconds, speed already applied) one [`EventCursor::advance`] call may cover. A larger step (a
+/// frame stall, a tick jump, a long pause of the client) is treated as a **seek**: nothing fires for it and the
+/// high-water mark moves to the new time, so a stall never bursts a pile of sounds and particles.
 pub const MAX_CATCH_UP_SECONDS: f64 = 1.0;
 
 fn f32_next_up(x: f32) -> f32 {
@@ -602,12 +811,13 @@ fn f32_next_up(x: f32) -> f32 {
 impl EventCursor {
     /// Start watching `clock` at `tick`/`partial`: events at or before this moment never fire.
     pub fn joined(clock: &AnimClock, tick: i64, partial: f32) -> Self {
-        EventCursor { last: clock.time_at(tick, partial), exclusive: true, prev: *clock, last_tick: tick }
+        let t = clock.time_at(tick, partial);
+        EventCursor { last: t, high: t, exclusive: true, prev: *clock, last_tick: tick }
     }
 
     /// Start at the clock's anchor: events at the anchor time (0 for a new animation) do fire.
     pub fn fresh(clock: &AnimClock) -> Self {
-        EventCursor { last: clock.anchor_time, exclusive: false, prev: *clock, last_tick: clock.anchor_tick }
+        EventCursor { last: clock.anchor_time, high: clock.anchor_time, exclusive: false, prev: *clock, last_tick: clock.anchor_tick }
     }
 
     /// The time (seconds) up to which events have been given out.
@@ -625,9 +835,11 @@ impl EventCursor {
             if !continuous {
                 if clock.anchor_time == 0.0 && clock.anchor_tick >= self.last_tick && clock.anchor_tick <= tick {
                     self.last = 0.0;
+                    self.high = 0.0;
                     self.exclusive = false;
                 } else {
                     self.last = now;
+                    self.high = now;
                     self.exclusive = true;
                 }
             }
@@ -637,13 +849,21 @@ impl EventCursor {
         if now > self.last {
             if now - self.last > MAX_CATCH_UP_SECONDS {
                 self.last = now;
+                self.high = now;
                 self.exclusive = true;
                 return EventWindow::EMPTY;
             }
-            let c0 = self.last as f32;
-            let c0 = if self.exclusive { f32_next_up(c0) } else { c0 };
+            // Behind the mark (after a rewind) only the part past the mark is new; the mark is an exclusive end of
+            // the previous window, so events exactly at it have not fired yet.
+            let (start, exclusive) = if self.high > self.last { (self.high, false) } else { (self.last, self.exclusive) };
             self.last = now;
             self.exclusive = false;
+            if now <= start {
+                return EventWindow::EMPTY;
+            }
+            self.high = now;
+            let c0 = start as f32;
+            let c0 = if exclusive { f32_next_up(c0) } else { c0 };
             EventWindow { c0, c1: now as f32 }
         } else {
             if now < self.last {

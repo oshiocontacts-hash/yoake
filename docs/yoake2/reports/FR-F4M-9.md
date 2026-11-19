@@ -30,7 +30,7 @@ model, animations and golden poses are untouched (no pose changed). Original cod
   it fire; a **continuous** re-anchor (`AnimClock::reanchor`) changes nothing; a **discontinuous** anchor (backwards, forwards, other state) is a seek: nothing fires
   for the jump, only strictly later events fire afterwards; an anchor at time 0 at or after the last seen tick is a **restart** (fires from 0); a step over
   `MAX_CATCH_UP_SECONDS` (1 s) is a seek; negative speed fires nothing.
-* Server determinism: the server keeps using `Rig::update` / trigger clocks; the same inputs give the same events in the same order (test).
+* Server determinism: the server uses `Rig::update` / trigger clocks through the marked calls; the same inputs give the same events in the same order (test).
 
 ## Tests
 
@@ -49,14 +49,28 @@ server pounce emits exactly one `custom:hit` at tick 7 or 8 and nothing else; th
   (fallback tick count when the type has no event).
 * WIT: `mob-anim-event-client(mob, name)` and `mob-anim-event(mob, name)`, name passed as the string (`MobEvents::string`).
 
-## Open questions
+## Decisions (reviewer, fix round)
 
-1. Where does the `server_events` flag live? Done as `model.server_events` in the type JSON (list, bool or object) because animation.json is Bedrock format; a per-animation
-   key in the animation file is a small change if preferred.
-2. The fox sound has no locator (plays at the mob); a locator on a sound is supported (`"locator"` in the effect object) but not Bedrock-standard.
-3. `MAX_CATCH_UP_SECONDS` = 1 s is a guess; large frame stalls skip cosmetics instead of bursting them.
-4. A client that rewinds by negative speed and plays forward again fires events again (a new pass). Say if a high-water mark is wanted instead.
-5. A client-seen state start is only "fresh" if the engine says so; the engine must call `joined` for a late join (default for safety) - needs a note in the sync code.
+1. **`server_events` lives in the type JSON only** (`model.server_events`), never in animation files: those stay plain Bedrock or Blockbench exports. Write it as the
+   **list of animation names**, `"server_events": ["pounce"]`; `true`, `false` and the object form `{"pounce": true}` are accepted too.
+2. **Sound `locator`** (`"sound_effects": {"0.35": {"effect": "...", "locator": "mouth"}}`) is an optional **Yoake extension**, not part of Bedrock. Without it the sound plays at the mob's position.
+   `volume`, `pitch` (sounds) and `offset` (particles) are extensions in the same way.
+3. **`MAX_CATCH_UP_SECONDS` = 1.0** is a named, documented `pub const` in `events.rs`: a client step larger than this is a seek (nothing fires, the mark moves), so stalls never burst effects.
+4. **High-water marks, no event twice.** `EventMarks` (server and any window-driven emission: `update_marked`, `trigger_window_marked`, `animation_window_marked`) keeps, per (layer, state slot or
+   trigger), the furthest `(loop_index, keyframe time)` emitted; only events past it fire. `EventCursor` keeps the same mark in clock time (which already contains the loop). Events that share
+   a keyframe time fire together (compared with the mark as it was before the call). Resets: seek, restart and state change (cursor); `update_marked` resets a layer that entered a new state;
+   `reset_trigger` when a trigger is played again; `reset_all`. A new loop is past the mark and fires again. All allocation is in `EventMarks::new`; the allocation test covers the marked calls.
+   Tests: rewind (negative speed) then forward gives no second `hit` (cursor), no repeat of the rewound part and a new loop fires again, repeated and rewound server windows give no second `hit`,
+   seek resets (existing re-anchor test), `update_marked` equals `update` on the plain run.
+5. **Rule for the engine sync code (F4M-6): `joined` versus `fresh`.**
+   * Build the client's `EventCursor` with **`joined(clock, tick, partial)`** whenever the client did not see the animation start from its first tick: a late join, a mob entering view or
+     being loaded, a chunk or entity re-sent, a hot reload, anything where the first clock it gets already has `anchor_time` or the tick difference beyond the start. This is the default; it never
+     replays the past and only events strictly after the join moment fire.
+   * Use **`fresh(clock)`** only for a clock the client received at or before its own anchor tick (`now_tick <= anchor_tick`, and `anchor_time == 0`), that is, the start of the animation is still ahead
+     or exactly now. Then events at the anchor time (0) fire.
+   * Later anchors for the same cursor go straight to `advance`; the cursor classifies them (continuous, seek, restart) itself. Never rebuild the cursor per anchor packet.
+   * The server uses `EventMarks` (and calls `reset_trigger` when it starts a trigger), not a cursor.
+   * Hidden mobs: keep advancing the cursor (cheap) or rebuild with `joined` when they become visible again after more than `MAX_CATCH_UP_SECONDS`.
 
 ## Also on this branch (reviewer additions, separate commits)
 
