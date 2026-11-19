@@ -76,7 +76,8 @@ jobs:
         run: cargo build --release --locked --manifest-path launcher/Cargo.toml
 
       - name: Build plain game client
-        run: cargo build --release --locked -p horizon-client --bin horizon-client
+        # Yoake 2.0: full-access WASM mods (engine calls, hooks, dev reload, join-time mod sync).
+        run: cargo build --release --locked -p horizon-client --bin horizon-client --features yoake2-slice
         # Social features are built into the game from these repository variables (values are
         # public keys and host names, set in Settings > Variables). Empty: social is disabled.
         env:
@@ -199,7 +200,8 @@ jobs:
         run: cargo build --release --locked --manifest-path launcher/Cargo.toml
 
       - name: Build plain game client
-        run: cargo build --release --locked -p horizon-client --bin horizon-client
+        # Yoake 2.0: full-access WASM mods (engine calls, hooks, dev reload, join-time mod sync).
+        run: cargo build --release --locked -p horizon-client --bin horizon-client --features yoake2-slice
         # Social features are built into the game from these repository variables (values are
         # public keys and host names, set in Settings > Variables). Empty: social is disabled.
         env:
