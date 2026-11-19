@@ -222,7 +222,8 @@ impl WorldRequest {
             level.dimension = d.clone();
             level.position = None;
         }
-        let dim = Dim::from_id(&level.dimension);
+        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        let dim = Dim::lookup_or_overworld(&level.dimension);
         let shapes = level_shapes(&save_root, res.biomes());
         let shape = shapes.get(dim.id());
         let streaming_step = startup::step("world.make_streaming");

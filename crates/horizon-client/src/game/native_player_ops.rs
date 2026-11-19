@@ -472,12 +472,8 @@ pub(super) fn resolve_native_sound(hub: &horizon_client::lan::hub::Hub, packet: 
 }
 
 fn dimension(name: &str) -> Result<Dim, String> {
-    match name {
-        "minecraft:overworld" => Ok(Dim::Overworld),
-        "minecraft:the_nether" => Ok(Dim::Nether),
-        "minecraft:the_end" => Ok(Dim::End),
-        _ => Err("unknown native player dimension".into()),
-    }
+    // F3-0: only known levels (the three vanilla ones until F3-3 registers more).
+    Dim::lookup(name).ok_or_else(|| "unknown native player dimension".into())
 }
 
 impl Game<'_> {
@@ -519,7 +515,8 @@ impl Game<'_> {
         Ok((
             Target::Guest(guest.conn),
             guest.conn,
-            Dim::from_id(&guest.dimension),
+            // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+            Dim::lookup_or_overworld(&guest.dimension),
         ))
     }
 

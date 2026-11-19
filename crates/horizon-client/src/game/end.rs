@@ -303,6 +303,8 @@ impl Game<'_> {
             Dim::Overworld => self.res.environment(),
             Dim::Nether => self.res.nether_environment(),
             Dim::End => self.res.end_environment(),
+            // F3-4: dimension-type query
+            _ => self.res.environment(),
         }
     }
 

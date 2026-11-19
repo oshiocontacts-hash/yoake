@@ -1417,7 +1417,8 @@ impl Game<'_> {
             .guests
             .iter()
             .filter(|g| g.placed)
-            .map(|g| (g.conn, super::Dim::from_id(&g.dimension)))
+            // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+            .map(|g| (g.conn, super::Dim::lookup_or_overworld(&g.dimension)))
             .collect();
         for (conn, dim) in open {
             if self.enter_level(Some(host), dim).is_ok() {
@@ -1471,7 +1472,8 @@ impl Game<'_> {
             .filter(|g| g.placed && g.dimension == dim && Some(g.uuid) != but)
             .filter_map(|g| g.vehicle)
             .collect();
-        if host && super::Dim::from_id(dim) == self.dim {
+        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        if host && super::Dim::lookup_or_overworld(dim) == self.dim {
             others.extend(self.riding);
         }
         others
@@ -1489,7 +1491,8 @@ impl Game<'_> {
     ) -> Option<(horizon_world::nbt::Tag, [i32; 4])> {
         vehicle?;
         let back = self.dim;
-        let theirs = super::Dim::from_id(dim);
+        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        let theirs = super::Dim::lookup_or_overworld(dim);
         if theirs != back
             && let Err(e) = self.enter_level(host.as_deref_mut(), theirs)
         {
@@ -1997,7 +2000,8 @@ impl Game<'_> {
                     // (`ServerPlayer.disconnect` -> `doCloseContainer`).
                     if guest.placed {
                         let back = self.dim;
-                        let theirs = super::Dim::from_id(&guest.dimension);
+                        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+                        let theirs = super::Dim::lookup_or_overworld(&guest.dimension);
                         if self.enter_level(Some(&mut host), theirs).is_ok() {
                             let conn = guest.conn;
                             let at = host.hub.guests.len();
@@ -2633,7 +2637,8 @@ impl Game<'_> {
         }
         // A server places each player in their own level (`PlayerList.placeNewPlayer`).
         let back = self.dim;
-        let level = super::Dim::from_id(&g.dimension);
+        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        let level = super::Dim::lookup_or_overworld(&g.dimension);
         let elsewhere = level != back;
         if !elsewhere {
             g.dimension = in_place;

@@ -197,7 +197,8 @@ impl Game<'_> {
         let theirs = host
             .hub
             .guest(conn)
-            .map(|g| super::super::Dim::from_id(&g.dimension));
+            // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+            .map(|g| super::super::Dim::lookup_or_overworld(&g.dimension));
         if let Some(dim) = theirs.filter(|d| *d != back)
             && let Err(e) = self.enter_level(Some(&mut host), dim)
         {

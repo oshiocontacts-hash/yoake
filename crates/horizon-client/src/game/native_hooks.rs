@@ -9227,12 +9227,8 @@ impl Game<'_> {
         if self.serving.is_none() && self.options.dedicated.is_none() {
             return None;
         }
-        let dim = match dimension {
-            "minecraft:overworld" => super::Dim::Overworld,
-            "minecraft:the_nether" => super::Dim::Nether,
-            "minecraft:the_end" => super::Dim::End,
-            _ => return None,
-        };
+        // F3-0: only known levels (the three vanilla ones until F3-3 registers more).
+        let dim = super::Dim::lookup(dimension)?;
         if dim == self.dim {
             Some(&mut self.world.random)
         } else {

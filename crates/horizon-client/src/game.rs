@@ -139,6 +139,8 @@ mod friends;
 mod functions;
 mod game_mode;
 mod game_tests;
+#[cfg(test)]
+mod dim_tests;
 mod gamemode_switcher;
 mod ghasts;
 mod glowing;
@@ -3417,26 +3419,78 @@ pub(crate) struct Game<'a> {
     /// The local player as a model (third person, the inventory).
     player_model: Option<Mob>,
 }
+/// A level (dimension) key, interned: the three vanilla ids sit at the fixed
+/// indices 0/1/2 and any other resource id (a pack or mod level) gets the next
+/// free index. The vanilla names stay as associated consts so existing
+/// `Dim::Overworld` uses and patterns keep compiling (F3-0).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-enum Dim {
-    Overworld,
-    Nether,
-    End,
-}
-impl Dim {
-    fn id(self) -> &'static str {
-        match self {
-            Self::Overworld => "minecraft:overworld",
-            Self::Nether => "minecraft:the_nether",
-            Self::End => "minecraft:the_end",
-        }
+struct Dim(u16);
+/// Process-wide interner of dimension ids. Ids are leaked on purpose: the set
+/// of distinct ids is small and bounded by what packs and mods declare.
+mod dim_interner {
+    use std::collections::HashMap;
+    use std::sync::{OnceLock, RwLock};
+    pub(super) const VANILLA: [&str; 3] =
+        ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"];
+    #[derive(Default)]
+    struct Table {
+        ids: Vec<&'static str>,
+        index: HashMap<&'static str, u16>,
     }
-    fn from_id(id: &str) -> Self {
-        match id {
-            "minecraft:the_nether" => Self::Nether,
-            "minecraft:the_end" => Self::End,
-            _ => Self::Overworld,
+    fn table() -> &'static RwLock<Table> {
+        static T: OnceLock<RwLock<Table>> = OnceLock::new();
+        T.get_or_init(|| {
+            let mut t = Table::default();
+            for (i, id) in VANILLA.iter().enumerate() {
+                t.ids.push(id);
+                t.index.insert(id, i as u16);
+            }
+            RwLock::new(t)
+        })
+    }
+    pub(super) fn lookup(id: &str) -> Option<u16> {
+        table().read().unwrap_or_else(|e| e.into_inner()).index.get(id).copied()
+    }
+    pub(super) fn intern(id: &str) -> u16 {
+        if let Some(i) = lookup(id) {
+            return i;
         }
+        let mut t = table().write().unwrap_or_else(|e| e.into_inner());
+        if let Some(&i) = t.index.get(id) {
+            return i;
+        }
+        let i = u16::try_from(t.ids.len()).expect("too many dimensions");
+        let leaked: &'static str = Box::leak(id.to_owned().into_boxed_str());
+        t.ids.push(leaked);
+        t.index.insert(leaked, i);
+        i
+    }
+    pub(super) fn id(index: u16) -> &'static str {
+        table().read().unwrap_or_else(|e| e.into_inner()).ids[index as usize]
+    }
+}
+#[allow(non_upper_case_globals)]
+impl Dim {
+    // Kept in the old enum spelling so call sites and patterns are unchanged.
+    const Overworld: Dim = Dim(0);
+    const Nether: Dim = Dim(1);
+    const End: Dim = Dim(2);
+    fn id(self) -> &'static str {
+        dim_interner::id(self.0)
+    }
+    /// The interned level for a known id (vanilla or already interned).
+    fn lookup(id: &str) -> Option<Self> {
+        dim_interner::lookup(id).map(Self)
+    }
+    /// The level for an id, registering it when new.
+    #[allow(dead_code)] // F3-3 registers pack and mod levels through this.
+    fn intern(id: &str) -> Self {
+        Self(dim_interner::intern(id))
+    }
+    /// Today's behaviour: an unknown id is the Overworld. Every call site that
+    /// uses this says so; F3-3/F3-4 flip them one by one.
+    fn lookup_or_overworld(id: &str) -> Self {
+        Self::lookup(id).unwrap_or(Self::Overworld)
     }
     /// The level's shape in a world of vanilla's dimension types.
     fn shape(self) -> horizon_client::save::LevelShape {
@@ -3445,6 +3499,8 @@ impl Dim {
             Self::Overworld => LevelShape::OVERWORLD,
             Self::Nether => LevelShape::NETHER,
             Self::End => LevelShape::END,
+            // F3-4: dimension-type query
+            _ => LevelShape::OVERWORLD,
         }
     }
 }
@@ -4744,6 +4800,8 @@ impl Game<'_> {
             Dim::Overworld => LevelDimension::Overworld,
             Dim::Nether => LevelDimension::Nether,
             Dim::End => LevelDimension::End,
+            // F3-4: dimension-type query
+            _ => LevelDimension::Overworld,
         };
         let rules = self.level_rules();
         let fire_players: Vec<[f64; 3]> = self
@@ -11429,6 +11487,8 @@ impl Game<'_> {
                 Dim::Nether => 0.1,
                 Dim::End => 0.25,
                 Dim::Overworld => 0.0,
+                // F3-4: dimension-type query
+                _ => 0.0,
             };
             let darken = self.sky_darken();
             let a = alpha;
@@ -12622,7 +12682,8 @@ impl Game<'_> {
             rand_sequences,
             locator,
         } = prepared;
-        let dim = Dim::from_id(&level.dimension);
+        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        let dim = Dim::lookup_or_overworld(&level.dimension);
         self.level_shapes = shapes;
         self.world_root = save_root.clone();
         self.index_saved_attachment_usage(&level);
