@@ -330,3 +330,35 @@ fn block_pixels_give_override_then_shared_layer_then_pack_first_frame() {
     // Pixels dropped from the pack (`finish_without_pixels`) is an error, not a panic.
     assert!(store.block_pixels("mymod:block/a", 16, &layers, &[]).is_err());
 }
+
+#[test]
+fn item_override_rects_follow_set_and_reset() {
+    let (aw, ah) = (64, 64);
+    let mut atlas_pixels = fill_rgba(aw, ah, [10, 20, 30, 255]);
+    let mut sprites = HashMap::new();
+    sprites.insert("item/clock".into(), rect_for(16, 32, 16, 16, aw, ah));
+    let mut store = SpriteOverrideStore::default();
+    // No override: nothing for the HUD animation to skip.
+    assert!(store.item_override_rects(&sprites, aw, ah).is_empty());
+    let mut patches = Vec::new();
+    let red = fill_rgba(16, 16, [255, 0, 0, 255]);
+    store
+        .set_item(
+            "mod_a",
+            "clock",
+            &red,
+            [16, 16],
+            aw,
+            ah,
+            &mut atlas_pixels,
+            &sprites,
+            |_| vec!["item/clock".into()],
+            &mut patches,
+        )
+        .unwrap();
+    assert_eq!(store.item_override_rects(&sprites, aw, ah), vec![[16, 32, 16, 16]]);
+    store
+        .reset_item("clock", aw, &mut atlas_pixels, &sprites, &mut patches)
+        .unwrap();
+    assert!(store.item_override_rects(&sprites, aw, ah).is_empty());
+}

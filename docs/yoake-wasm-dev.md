@@ -650,7 +650,11 @@ Small services of `client-full` / `server-full`. None of them changes anything u
   sub-rectangle in the shared atlas or the changed mipmapped block texture layer, refuse mismatched
   pixel dimensions/byte lengths, allow replacing vanilla or other mods' sprites, re-apply across
   resource-pack reloads (skipping mismatched pack resolutions cleanly with a warning), and reset
-  entries still owned by an unloading WASM mod.
+  entries still owned by an unloading WASM mod. A block's item icon (the block shown in an inventory)
+  is a separate copy in the item atlas: to change both the placed block and its icon, call both
+  `block-sprite-set` and `item-sprite-set`. While an item sprite is overridden, the HUD atlas
+  animation skips that rect (an animated item stays on the mod's image until `item-sprite-reset` or
+  the mod's unload, then resumes).
   The catalog is `crates/horizon-mod-api-gen/abi-subset-client.json` (ABI IDs 163–197, 199–202,
   211–216 and 221–225; the server catalog adds 226). `*-sprite-pixels` return `(width, height, rgba8)` of the current sprite (a mod override
   included, an animated texture as its first frame) from the CPU copies of the atlases, so no GPU
