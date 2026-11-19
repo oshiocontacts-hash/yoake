@@ -4520,10 +4520,29 @@ impl Launcher {
             "globe-02",
             vec![self.proxy_row(n + 4, cx).into_any_element()],
         );
+        let join_sync = switch("join-mod-sync", self.settings.join_mod_sync, &t).on_click(
+            cx.listener(|this, _: &ClickEvent, _, cx| {
+                this.settings.join_mod_sync = !this.settings.join_mod_sync;
+                this.save_settings();
+                cx.notify();
+            }),
+        );
         let game = group(
             "Game",
             "game-controller-01",
-            vec![self.game_args_row(n + 5, cx).into_any_element()],
+            vec![
+                self.game_args_row(n + 5, cx).into_any_element(),
+                index_row(
+                    n + 5,
+                    tr("Get missing mods when joining"),
+                    Some(plain(
+                        "When a host has mods you lack, Yoake fetches them, installs them for that host only and joins again. This includes full-access mods, which get the game's own power: turn it off if you join hosts you do not trust.",
+                    )),
+                    Some(join_sync.into_any_element()),
+                    &t,
+                )
+                .into_any_element(),
+            ],
         );
         let ai = group(
             "AI",
@@ -5225,13 +5244,11 @@ impl Launcher {
 
     /// MX3JN2: the friend host (portal user id) the launcher could not rejoin by itself after fetching its mods: show
     /// "Join again", whose click calls [`Self::join_again`].
-    #[allow(dead_code)] // the page that shows "Join again" is built on this
     pub(crate) fn join_again_host(&self) -> Option<&str> {
         self.join_again.as_deref()
     }
 
     /// MX3JN2: "Join again": the same room join as the automatic rejoin, once the host's room is listed.
-    #[allow(dead_code)] // the page that shows "Join again" is built on this
     pub(crate) fn join_again(&mut self) {
         if let Some(principal) = self.join_again.clone() {
             if self.friends.rooms.iter().any(|room| room.host.principal == principal) {

@@ -1328,5 +1328,14 @@
   "Dev folder: watching {path}": "開発フォルダー：{path} を見張っています",
   "Dev folder: {path} (watched while the game runs)": "開発フォルダー：{path}（ゲームの起動中に見張ります）",
   "Last change: {event}": "最後の変更：{event}",
-  "Dev folder problem: {reason}": "開発フォルダーの問題：{reason}"
+  "Dev folder problem: {reason}": "開発フォルダーの問題：{reason}",
+  "Get missing mods when joining": "参加時に足りない MOD を自動で取得",
+  "When a host has mods you lack, Yoake fetches them, installs them for that host only and joins again. This includes full-access mods, which get the game's own power: turn it off if you join hosts you do not trust.": "参加先のホストに自分の持っていない MOD があると、Yoake が取得して、そのホスト専用に導入し、もう一度参加します。フルアクセス MOD（ゲーム本体と同じ権限を持つ MOD）も含みます。信頼できないホストに参加するときはオフにしてください。",
+  "Joining {host}: {count} mod(s) fetched and installed for that host.": "{host} への参加：MOD を {count} 個取得して、そのホスト用に導入しました。",
+  "Joining {host}: the host's mods could not be installed: {reason}": "{host} への参加：ホストの MOD を導入できませんでした：{reason}",
+  "The host's mods are installed. Join again when the host's room shows up.": "ホストの MOD を導入しました。ホストの部屋が表示されたら、もう一度参加してください。",
+  "Join again": "もう一度参加",
+  "From {host}": "{host} から",
+  "Runs only when you join this host.": "このホストに参加したときだけ動きます。",
+  "Remove all from this host": "このホストの MOD をすべて削除"
 }
