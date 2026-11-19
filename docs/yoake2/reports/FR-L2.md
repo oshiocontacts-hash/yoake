@@ -105,6 +105,24 @@ From the code: held items (`game/hand.rs`), item frames (`game/frames.rs`), `ite
 - Animated items in the HUD atlas: whether `gui.atlas.pixels` always holds the first frame is read from the code, not tested.
 - `item-sprite-pixels` returns only the first layer of a multi-layer item.
 
+## L2b follow-up
+
+- **Bug fixed**: an animated item in the shared HUD atlas was re-written by `HudRenderer::animate_sprites`
+  (`crates/horizon-client-render/src/hud.rs`, called from `Renderer::render` in `gfx.rs` when
+  `animated_textures`), overwriting an `item-sprite-set` override on later ticks. `HudRenderer` now holds
+  `overridden_rects` (texel rects `[x, y, w, h]`); `animate_sprites` skips an animation whose rect is in it.
+  `Game` (`game/native_sprites.rs`, `sync_hud_sprite_overrides`) refreshes the set after `item-sprite-set`,
+  `item-sprite-reset` (which the WASM mod unload also calls) and the pack-reload re-apply. A rect that leaves
+  the set has its last-drawn state forgotten, so its current frame is drawn on the next animate pass.
+  With no override the set is empty: one `is_empty()` check per animated sprite per pass, no allocation.
+- **Tests**: `horizon_client_render::hud::tests::overridden_animation_rects_are_skipped_and_redrawn_on_release`,
+  `horizon_client::game::native_sprites::tests::item_override_rects_follow_set_and_reset`.
+- **In-game check**: override an animated item (e.g. the clock or compass), wait several seconds (it must stay
+  on the mod image and not flicker back to the animation), then `item-sprite-reset`: the animation must resume
+  at the current frame. Also unload the mod while overridden: same resume.
+- **Docs**: `docs/guide-ja/09-sprites.md` and `docs/yoake-wasm-dev.md` now state that a block's item icon is a
+  separate copy in the item atlas (needs both `block-sprite-set` and `item-sprite-set`).
+
 ## Results on LENOVO (2026-11-20, rustc 1.100.0)
 
 Written by agy (Gemini 4 Hydrogen, round 1) and Sonnet (round 2: ids 215/216, version bump, report items) after agy's
