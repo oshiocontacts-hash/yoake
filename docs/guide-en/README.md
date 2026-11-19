@@ -54,7 +54,7 @@ Read the chapters in order from top to bottom for a complete walkthrough—from 
 - The two developer-mode switches (one for Wasm, one for DLL) and the safety precautions that go with them
 
 ### 4. [Exploring the Example Mods (`04-examples.md`)](./04-examples.md)
-- Walkthrough of the 18 examples in the repository, including `hello-std` (`hello`, `hello-std`, `hud-item`, `server-storage`, `config-demo`, `permission-demo`, `full-demo`, `full-services`, `mod-call-pair`, `chest-count`, `item-trade`, `player-vitals`, `content-demo`, `mixin-demo`, `test-demo`, `tested-counter`, `client-services-demo`, and `gpu-demo`)
+- Walkthrough of the 19 examples in the repository, including `hello-std` (`hello`, `hello-std`, `hud-item`, `server-storage`, `config-demo`, `permission-demo`, `full-demo`, `full-services`, `mod-call-pair`, `chest-count`, `item-trade`, `player-vitals`, `content-demo`, `mixin-demo`, `test-demo`, `tested-counter`, `client-services-demo`, `gpu-demo`, and `ime`)
 - Overview of the hooks (`hook`) and host services (`services`) each example uses
 - How to write `[config]`, `[wasm] permissions`, and `[permissions."<node>"]` in `yak.toml`
 

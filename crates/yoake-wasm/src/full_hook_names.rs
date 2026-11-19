@@ -417,6 +417,8 @@ pub const FULL_HOOKS: &[(&str, HookSide)] = &[
     ("explosion_knockback", HookSide::Server),
     ("fluids", HookSide::Both),
     ("hand_drawn", HookSide::Client),
+    ("ime_preedit", HookSide::Client),
+    ("ime_commit", HookSide::Client),
     ("ingredient_test", HookSide::Client),
     ("inventory_background_pre_listened", HookSide::Client),
     ("inventory_background_pre", HookSide::Client),

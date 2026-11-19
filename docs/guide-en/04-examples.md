@@ -1,6 +1,6 @@
 # 4. Exploring the Example Mods
 
-The `crates/yoake-wasm-sdk/examples/` folder contains 18 purpose-built example mods (`hello` and `hello-std` share one row in the table in 4-1).
+The `crates/yoake-wasm-sdk/examples/` folder contains 19 purpose-built example mods (`hello` and `hello-std` share one row in the table in 4-1).
 The fastest way to build your own mod is to open the example closest to what you have in mind and adapt its `yak.toml` and `src/lib.rs`.
 
 ---
@@ -24,8 +24,9 @@ The fastest way to build your own mod is to open the example closest to what you
 | `mixin-demo` | `inject-mod` | Halves fall damage, doubles the bonemeal crop-growth increment, and logs chat (see [8. Getting Started with Yoake Mixin](./08-mixin.md)) | None (Mixin handlers instead of hooks) | None |
 | `test-demo` | `test-mod` | A test module that exercises every call of the test driver, including passing, failing, and trapping tests (see [6. Testing Your Mod Inside the Game Engine](./06-testing.md)) | None | `TestWorld` calls |
 | `tested-counter` | `client-mod` | A small beginner example that pairs a client mod (tick counter on the HUD) with engine tests in the same crate (see [6. Testing Your Mod Inside the Game Engine](./06-testing.md)) | `TICK`, `HUD` | `hud::text`, `TestWorld` calls |
-| `client-services-demo` | `client-full` | Calls client services inside the `hud` hook (registering a key binding and reading its state, drawing a line in the world, registering a post shader, creating a writable GUI texture and writing a region of it), and checks that valid arguments succeed while invalid input (an invalid shader, an out-of-range texture write) returns an error. It is the guest used by the runtime integration tests | `HUD` | `services::register_key_binding`, `services::key_binding_state`, `services::draw_world_line`, `services::register_post_shader`, `hud::GuiTexture::create`, `services::gui_texture_write` |
+| `client-services-demo` | `client-full` | Calls client services inside the `hud` hook (key bindings, a world line, a post shader, writable GUI textures, and IME enablement/candidate placement), and checks both successful calls and validation errors. It is the guest used by the runtime integration tests | `HUD` | `services::register_key_binding`, `services::key_binding_state`, `services::draw_world_line`, `services::register_post_shader`, `hud::GuiTexture::create`, `services::gui_texture_write`, `services::ime_set_allowed`, `services::ime_set_cursor_area` |
 | `gpu-demo` | `client-full` | An example of the GPU surface (the `gpu` module): a textured mesh, a compute-updated particle buffer, and a depth-based tint after the world is drawn. Extra Cargo features `verify` / `reload` / `trap` build variants for testing | `HUD` | `gpu::{Shader, RenderPipeline, ComputePipeline, Buffer, BindGroup}` and more |
+| `ime` | `client-full` | Enables IME on a mod screen, receives preedit text/cursor ranges and commits, and places the OS candidate window in GUI-scaled coordinates (see the Japanese `10-ime.md` chapter) | `SCREEN_INIT_POST`, `FRAME`, `IME_PREEDIT`, `IME_COMMIT` | `services::ime_set_allowed`, `services::ime_set_cursor_area` |
 
 ---
 

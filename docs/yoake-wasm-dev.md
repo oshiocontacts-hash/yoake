@@ -572,13 +572,14 @@ not reserved either. The original `services::hud_place` remains unchanged.
 * Corner reservations and world-stage draws: applied. Client imports forward key bindings, view hits,
   display names and namespace ownership, GUI items, screen kind and slot rectangles, world quads,
   lines and billboards (including `world-pre-post`), post shaders, map tiles and colors, players and
-  entities, camera overrides, writable GUI textures, PCM streams, mob-as-player and HUD placement.
-  The catalog is `crates/horizon-mod-api-gen/abi-subset-client.json` (ABI IDs 163–197 and 199–200).
+  entities, camera overrides, writable GUI textures, PCM streams, mob-as-player, HUD placement and
+  mod-screen IME enablement/candidate areas. The catalog is
+  `crates/horizon-mod-api-gen/abi-subset-client.json` (ABI IDs 163–197 and 199–202).
   Native services run under the calling WASM package's stable identity, so namespace validation and
   native per-mod limits also apply to WASM. Texture resources are instance-owned and capped at 64;
   failed creation does not consume a slot. Unsupported hook context returns an error, not a dummy
-  success. The `client-services-demo` guest exercises real key, line, post-shader and bounded
-  texture-write imports, including error propagation, in the runtime integration tests.
+  success. The `client-services-demo` guest exercises real key, line, post-shader, bounded
+  texture-write and IME imports, including error propagation, in the runtime integration tests.
 * Server services: `server-services` (`crates/horizon-mod-api-gen/abi-subset-server.json`) answer,
   except four (below). Each validates its arguments (finite numbers, sizes, registry ids, UUIDs) and fails
   closed (an `Err` changes nothing). Mods are trusted inside the game: they may change other players'

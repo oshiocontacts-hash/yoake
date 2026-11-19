@@ -1,10 +1,10 @@
 {
   "generated_by": "horizon-mod-api-gen",
-  "hook_count": 473,
-  "fully_typed": 445,
+  "hook_count": 475,
+  "fully_typed": 447,
   "partial": 13,
   "with_handles": 15,
-  "client_hooks": 208,
+  "client_hooks": 210,
   "server_hooks": 378,
   "named_types": 220,
   "handle_types": [
@@ -4238,6 +4238,26 @@
       "partial_notes": [
         "WorldDrawn, HandDrawn, WorldPrePost, OverlayDrawn: wgpu device, encoder and depth access is deliberately not exposed; only whole-frame fills, tints and vignettes"
       ],
+      "handle_params": []
+    },
+    {
+      "name": "ime_preedit",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "ime_commit",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
       "handle_params": []
     },
     {

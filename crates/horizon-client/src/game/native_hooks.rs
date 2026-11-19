@@ -3572,6 +3572,16 @@ impl Game<'_> {
         mod_api::dispatch_screen_init_post(self, mod_api::mods(), screen);
     }
 
+    /// @API:ime@ The live composition on a mod screen. `cursor` is a byte-offset range.
+    pub(super) fn native_ime_preedit(&self, text: &str, cursor: Option<(u32, u32)>) {
+        mod_api::dispatch_ime_preedit(self, mod_api::mods(), text, cursor);
+    }
+
+    /// @API:ime@ Text the input method committed on a mod screen, before character hooks.
+    pub(super) fn native_ime_commit(&self, text: &str) {
+        mod_api::dispatch_ime_commit(self, mod_api::mods(), text);
+    }
+
     /// A screen was observed closing, at most once per frame.
     pub(super) fn native_screen_closing(&self, screen: &NativeScreenView<'_>) {
         mod_api::dispatch_screen_closing(self, mod_api::mods(), screen);
@@ -9807,6 +9817,9 @@ impl Game<'_> {
         }
         self.native_mod_screen = Some(mod_id.to_owned());
         self.screen = Screen::Mod;
+        self.mod_ime_allowed = None;
+        self.mod_ime_area = None;
+        horizon_client::preedit::set_preedit(None);
         self.keys.clear();
         self.left = false;
         self.right = false;
