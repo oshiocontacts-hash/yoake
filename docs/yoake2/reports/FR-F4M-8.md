@@ -129,3 +129,11 @@ ticks), counter_rotate 16; yaw/pitch/max_angle 0..180; weight 0..1; fade 0..10 s
   regenerated from `gen_cinder_fox.py` and equal; `cinder_fox.png` changed only for the hind-leg UV regions. New test `cinder_fox_four_leg_ground_ik` (both routes): all four paws
   reach their ground targets within 1e-3 and the body matrix is unchanged.
 * `ProceduralStats`: see the section below.
+
+### `ProceduralStats`
+
+`ProceduralState::stats()` returns a `ProceduralStats` of running `u64` counters (reset with `take_stats()`, not by `reset()`): `evaluations`, `constraints_evaluated`
+(`EvalReport::applied`), `constraints_skipped` (`inactive`: `when` false and faded out), `constraints_faded` (partly faded, new `EvalReport::faded`), `missing_targets`,
+`spring_substeps` (new `EvalReport::spring_substeps`), `spring_resets`, and for bone writes `writes_applied`, `writes_ignored_unknown`, `writes_dropped` (NaN, infinite,
+out of range, or over the per-call limit), fed by `ProceduralState::record_writes(&WriteReport)`. `EvalReport` stays the source (the counters are its sums, tested); the
+cost is a few integer adds per call, no allocation (`procedural_alloc` still passes). Mismatched or empty evaluations are not counted. No UI.

@@ -57,3 +57,8 @@ server pounce emits exactly one `custom:hit` at tick 7 or 8 and nothing else; th
 3. `MAX_CATCH_UP_SECONDS` = 1 s is a guess; large frame stalls skip cosmetics instead of bursting them.
 4. A client that rewinds by negative speed and plays forward again fires events again (a new pass). Say if a high-water mark is wanted instead.
 5. A client-seen state start is only "fresh" if the engine says so; the engine must call `joined` for a late join (default for safety) - needs a note in the sync code.
+
+## Also on this branch (reviewer additions, separate commits)
+
+* Cinder Fox hind legs split (`leg_bl_lower`, `leg_br_lower`): 18 bones, golden file +360 lines (no old line changed), `cinder_fox_four_leg_ground_ik` test. See `FR-F4M-FOX.md` and `FR-F4M-8.md`.
+* `ProceduralStats` per-mob counters in `procedural.rs`. See `FR-F4M-8.md`.

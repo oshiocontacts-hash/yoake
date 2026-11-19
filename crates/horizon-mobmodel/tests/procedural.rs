@@ -1217,3 +1217,83 @@ fn cinder_fox_four_leg_ground_ik() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// ProceduralStats
+// ---------------------------------------------------------------------------------------------------------------
+
+#[test]
+fn procedural_stats_count_evaluations_fades_substeps_and_writes() {
+    let sk = leg();
+    let s = set(
+        &sk,
+        r#"[
+          {"type":"counter_rotate","bone":"foot","fade":0.5,"when":"q.synced('a') == 1"},
+          {"type":"counter_rotate","bone":"body","fade":0},
+          {"type":"spring","bones":["thigh","shin"],"stiffness":50,"damping":3,"gravity":100,"tip_length":4,"fade":0}
+        ]"#,
+    );
+    let mut st = ProceduralState::new(&s);
+    assert_eq!(*st.stats(), ProceduralStats::default());
+    let mut inputs = ExprInputs::default();
+    let mut sum = EvalReport::default();
+    let mut step = |st: &mut ProceduralState, inputs: &ExprInputs| {
+        let mut pose = Pose::rest(&sk);
+        let r = s.evaluate(&mut pose, st, &ProceduralInputs::new(inputs, 0.05));
+        sum.applied += r.applied;
+        sum.inactive += r.inactive;
+        sum.faded += r.faded;
+        sum.spring_substeps += r.spring_substeps;
+        r
+    };
+    // frame 1: the foot constraint is off by its `when`; body and the (first-frame) spring run, the spring takes no step
+    let r = step(&mut st, &inputs);
+    assert_eq!((r.applied, r.inactive, r.faded, r.spring_substeps), (2, 1, 0, 0), "{r:?}");
+    // frame 2: the spring now runs its fixed steps for 0.05 s (6 steps of 1/120 s, 5 if rounding falls just short)
+    let r = step(&mut st, &inputs);
+    assert_eq!((r.applied, r.inactive, r.faded), (2, 1, 0));
+    assert!((5..=6).contains(&r.spring_substeps), "{r:?}");
+    // frame 3: `when` turns true; the foot fades in over 0.5 s, so after 0.05 s it is at 10 percent: applied and faded
+    inputs.synced[0] = 1.0;
+    let r = step(&mut st, &inputs);
+    assert_eq!((r.applied, r.inactive, r.faded), (3, 0, 1), "{r:?}");
+    let t = *st.stats();
+    assert_eq!(t.evaluations, 3);
+    assert_eq!((t.constraints_evaluated, t.constraints_skipped, t.constraints_faded), (7, 2, 1));
+    assert_eq!(t.constraints_evaluated, sum.applied as u64, "the counters are the sums of the reports");
+    assert_eq!(t.constraints_skipped, sum.inactive as u64);
+    assert_eq!(t.spring_substeps, sum.spring_substeps as u64);
+    assert_eq!((t.missing_targets, t.spring_resets), (0, 0));
+
+    // bone writes: one good, one unknown bone id, one NaN, one infinite
+    let mut good = BoneWrite::new(1, WriteMode::Additive);
+    good.translation = Some(Vec3::Y);
+    let unknown = BoneWrite::new(99, WriteMode::Additive);
+    let mut nan = BoneWrite::new(2, WriteMode::Absolute);
+    nan.translation = Some(Vec3::new(f32::NAN, 0.0, 0.0));
+    let mut inf = BoneWrite::new(2, WriteMode::Additive);
+    inf.scale = Some(Vec3::splat(f32::INFINITY));
+    let mut pose = Pose::rest(&sk);
+    let wr = apply_bone_writes(&mut pose, &[good, unknown, nan, inf]);
+    assert_eq!((wr.applied, wr.ignored_unknown, wr.rejected_invalid), (1, 1, 2));
+    st.record_writes(&wr);
+    let t = *st.stats();
+    assert_eq!((t.writes_applied, t.writes_ignored_unknown, t.writes_dropped), (1, 1, 2));
+    st.record_writes(&wr);
+    assert_eq!(st.stats().writes_applied, 2);
+
+    // reset() keeps the counters; take_stats() hands them over and starts again
+    st.reset();
+    assert_eq!(st.stats().evaluations, 3);
+    let taken = st.take_stats();
+    assert_eq!(taken.evaluations, 3);
+    assert_eq!(*st.stats(), ProceduralStats::default());
+
+    // mismatches and an empty set do not count as evaluations
+    let other = set(&sk, "[]");
+    let mut pose = Pose::rest(&sk);
+    other.evaluate(&mut pose, &mut st, &ProceduralInputs::new(&inputs, 0.05));
+    let mut small = Pose::default();
+    s.evaluate(&mut small, &mut st, &ProceduralInputs::new(&inputs, 0.05));
+    assert_eq!(st.stats().evaluations, 0);
+}

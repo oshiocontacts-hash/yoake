@@ -638,6 +638,7 @@ pub struct ProceduralState {
     n: usize,
     work: Work,
     slots: Vec<Slot>,
+    stats: ProceduralStats,
 }
 
 impl ProceduralState {
@@ -670,7 +671,23 @@ impl ProceduralState {
             n,
             work: Work { mats: vec![Mat4::IDENTITY; n], wrot: vec![Quat::IDENTITY; n], stamp: vec![0; n], cur: 0 },
             slots,
+            stats: ProceduralStats::default(),
         }
+    }
+
+    /// The running counters since creation or the last [`ProceduralState::take_stats`] (not cleared by `reset`).
+    pub fn stats(&self) -> &ProceduralStats {
+        &self.stats
+    }
+
+    /// The counters, reset to zero.
+    pub fn take_stats(&mut self) -> ProceduralStats {
+        std::mem::take(&mut self.stats)
+    }
+
+    /// Add the result of [`apply_bone_writes`] (or the visibility variant) for this mob to the counters.
+    pub fn record_writes(&mut self, report: &WriteReport) {
+        self.stats.add_writes(report);
     }
 
     /// Forget everything (springs restart from the animated pose, histories refill, activations jump).
@@ -738,10 +755,62 @@ pub struct EvalReport {
     pub missing_target: u32,
     /// Spring particles reset because they became non-finite.
     pub non_finite_resets: u32,
+    /// Constraints that are partly faded (activation between 0 and 1) after this call; they also count as applied
+    /// (fading in or out) or inactive.
+    pub faded: u32,
+    /// Fixed spring steps simulated this call, summed over all spring constraints.
+    pub spring_substeps: u32,
     /// The pose has fewer bones than the set: nothing was done.
     pub pose_mismatch: bool,
     /// The state does not belong to the set: nothing was done.
     pub state_mismatch: bool,
+}
+
+/// Running counters of one mob's procedural work, kept in its [`ProceduralState`] (read with
+/// [`ProceduralState::stats`]). Plain integer adds of numbers the evaluation already has, no allocation; nothing happens
+/// unless somebody reads or takes them. [`EvalReport`] (and [`WriteReport`]) stay the source: the counters are their sums.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ProceduralStats {
+    /// [`ProceduralSet::evaluate`] calls that ran (not counting mismatches or an empty set).
+    pub evaluations: u64,
+    /// Constraint evaluations that edited the pose (`EvalReport::applied`).
+    pub constraints_evaluated: u64,
+    /// Constraint evaluations skipped because the constraint was off: its `when` was false and it had faded out
+    /// (`EvalReport::inactive`).
+    pub constraints_skipped: u64,
+    /// Constraint evaluations in which the constraint was partly faded (`EvalReport::faded`).
+    pub constraints_faded: u64,
+    /// Active aiming constraints that had no target.
+    pub missing_targets: u64,
+    /// Fixed spring steps simulated.
+    pub spring_substeps: u64,
+    /// Spring particles reset after becoming non-finite.
+    pub spring_resets: u64,
+    /// Bone writes applied (see [`ProceduralState::record_writes`]).
+    pub writes_applied: u64,
+    /// Bone writes ignored because the bone id does not exist.
+    pub writes_ignored_unknown: u64,
+    /// Bone writes dropped: a NaN, infinite or out-of-range value, or beyond the per-call limit.
+    pub writes_dropped: u64,
+}
+
+impl ProceduralStats {
+    fn add_eval(&mut self, r: &EvalReport) {
+        self.evaluations = self.evaluations.saturating_add(1);
+        self.constraints_evaluated = self.constraints_evaluated.saturating_add(r.applied as u64);
+        self.constraints_skipped = self.constraints_skipped.saturating_add(r.inactive as u64);
+        self.constraints_faded = self.constraints_faded.saturating_add(r.faded as u64);
+        self.missing_targets = self.missing_targets.saturating_add(r.missing_target as u64);
+        self.spring_substeps = self.spring_substeps.saturating_add(r.spring_substeps as u64);
+        self.spring_resets = self.spring_resets.saturating_add(r.non_finite_resets as u64);
+    }
+
+    fn add_writes(&mut self, r: &WriteReport) {
+        self.writes_applied = self.writes_applied.saturating_add(r.applied as u64);
+        self.writes_ignored_unknown = self.writes_ignored_unknown.saturating_add(r.ignored_unknown as u64);
+        self.writes_dropped =
+            self.writes_dropped.saturating_add(r.rejected_invalid as u64).saturating_add(r.dropped_over_limit as u64);
+    }
 }
 
 /// `dt` as the evaluation uses it.
@@ -1011,6 +1080,7 @@ impl ProceduralSet {
                         *acc = (*acc - n as f32 * SPRING_STEP).clamp(0.0, SPRING_STEP);
                         n
                     };
+                    rep.spring_substeps += steps as u32;
                     let k = s.stiffness.clamp(0.0, limits::MAX_STIFFNESS);
                     let decay = (-s.damping.clamp(0.0, limits::MAX_DAMPING) * SPRING_STEP).exp();
                     let g = Vec3::new(0.0, -s.gravity.clamp(-limits::MAX_GRAVITY, limits::MAX_GRAVITY), 0.0);
@@ -1134,6 +1204,8 @@ impl ProceduralSet {
                 }
             }
         }
+        rep.faded = slots.iter().filter(|s| s.activation > 0.0 && s.activation < 1.0).count() as u32;
+        state.stats.add_eval(&rep);
         rep
     }
 
