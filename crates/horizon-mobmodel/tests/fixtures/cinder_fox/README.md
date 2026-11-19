@@ -6,7 +6,7 @@ keyframes and expressions, painted pixels. Nothing comes from GeckoLib or Minecr
 
 | File | What |
 | --- | --- |
-| `cinder_fox.bbmodel` | Blockbench project: 14 groups, 14 cubes, locator `mouth`, 64x64 texture embedded, `animations[]` (Blockbench form) |
+| `cinder_fox.bbmodel` | Blockbench project: 16 groups, 16 cubes, locator `mouth`, 64x64 texture embedded, `animations[]` (Blockbench form) |
 | `cinder_fox.geo.json` | The same model as Bedrock geometry 1.12.0 |
 | `cinder_fox.animation.json` | Bedrock animations: `idle` (loop), `walk` (loop, clock speed from `q.ground_speed`), `run` (loop), `sit` (hold), `pounce` (once, 0.8 s, `hit` event at 0.35 s with sound and particle), `death` (hold) |
 | `cinder_fox.json` | Controller (section 6.1 format): layers `locomotion`, `action` (trigger `pounce`), `pose` (`sit` from `q.synced('state')`) |
@@ -14,9 +14,12 @@ keyframes and expressions, painted pixels. Nothing comes from GeckoLib or Minecr
 | `golden_poses.txt` | 30-frame golden pose table of every animation (bone matrices), checked by `tests/cinder_fox.rs` |
 | `gen_cinder_fox.py` | The generator |
 
-Bones (depth first): `root`, `body`, `head`, `ear_l`, `ear_r`, `snout`, `jaw`, `leg_fl`, `leg_fr`, `leg_bl`, `leg_br`,
-`tail1`, `tail2`, `tail3`. The design list names 13 (root, body, head, ears x2, snout, legs x4, tail x3) and asks for 14;
-`jaw` is the extra one (it opens on the pounce). Rotated bones: both ears, all three tail bones; a rotated cube: `tuft`. Box
+Bones (depth first): `root`, `body`, `head`, `ear_l`, `ear_r`, `snout`, `jaw`, `leg_fl`, `leg_fl_lower`, `leg_fr`, `leg_fr_lower`, `leg_bl`, `leg_br`,
+`tail1`, `tail2`, `tail3` (16). The design list names 13 (root, body, head, ears x2, snout, legs x4, tail x3) and asks for 14;
+`jaw` is the extra one (it opens on the pounce). F4M-8 added `leg_fl_lower` and `leg_fr_lower`: each front leg is now an upper bone
+(`leg_fl`, pivot at the shoulder, animated as before) with a one-pixel-high lower bone (the paw) below it, so `two_bone_ik` has a real
+two-bone chain (shoulder -> paw joint -> paw tip, lengths 2 and 1 px). The hind legs stay single bones. The `idle` and `sit`
+animations scale `body` slightly and non-uniformly (breathing); that is accepted and tests allow for it. Rotated bones: both ears, all three tail bones; a rotated cube: `tuft`. Box
 UV on most cubes, per-face UV (with a UV rotation and the up/down flip) on `snout` and the tail tip, and a mirrored box UV on
 `ear_r` and the right legs.
 

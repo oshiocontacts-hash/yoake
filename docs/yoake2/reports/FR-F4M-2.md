@@ -73,13 +73,19 @@ swing it to -Z (`tests/pose_rig.rs`).
 expr    := or ( '?' expr ( ':' expr )? )?       a ? b means a ? b : 0; right-associative
 or      := and ( '||' and )*
 and     := equal ( '&&' equal )*
-equal   := rel ( ('==' | '!=') rel )*
+equal   := rel ( ('==' | '!=') rel )*   plus the enum forms below
 rel     := add ( ('<' | '<=' | '>' | '>=') add )*
 add     := mul ( ('+' | '-') mul )*
 mul     := unary ( ('*' | '/' | '%') unary )*
 unary   := ('-' | '+' | '!') unary | primary
 primary := number | true | false | '(' expr ')' | math.f(args) | math.pi | query.NAME | query.synced('name') | variable.NAME
+enum    := query.synced('name') ('==' | '!=') 'value'    |    'value' ('==' | '!=') query.synced('name')
 ```
+The only strings are the synced name and, as the other operand of `==` / `!=` against a bare `query.synced('name')`, an enum value
+name (`q.synced('state') == 'sit'`). The compiler resolves it to the value's index (position in the type's `values` list, matched
+case-insensitively; declared with `Symbols::set_enum_values`), so it costs the same as `q.synced('state') == 1` and the index
+form keeps working. An unknown value, or a synced value with no declared enum values, is `UnknownEnumValue` with the column of the
+string; a string anywhere else stays `Unsupported`.
 Aliases `q.`, `v.`, `m.`; names are case-insensitive; one trailing `;` is accepted.
 Functions: sin cos tan asin acos atan (degrees), abs floor ceil round sqrt trunc sign exp ln, min max pow mod atan2 random,
 clamp lerp. Queries: anim_time life_time ground_speed vertical_speed yaw_speed head_x_rotation head_y_rotation
@@ -93,7 +99,7 @@ body_y_rotation health max_health is_on_ground is_in_water is_baby hurt_time dea
   folded at compile time (`1+2*3` is one instruction).
 * Errors carry a 1-based column. Kinds: `Syntax`, `Unsupported` (unknown math/query name, assignment `=`, `->`, `??`,
   strings other than the synced name, `loop`, `return`, `temp.`/`context.`, nested names, several statements),
-  `UnknownSynced`, `Limit`. Loaders turn `Unsupported` into a `Warning` (with the animation or controller name) and use
+  `UnknownSynced`, `UnknownEnumValue`, `Limit`. Loaders turn `Unsupported` into a `Warning` (with the animation or controller name) and use
   the constant 0; everything else is a load error with context and column.
 * Limits: 256 instructions (`limits::MAX_EXPR_INSTRUCTIONS`), 2048 source characters, nesting 48, 64 `variable.*` slots,
   32 synced slots, 8 animations per state, 255 states, 16 layers, 128 animations. No panic is possible from any input:

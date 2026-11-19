@@ -7,8 +7,9 @@ Branch `yoake-free/f4m-fox` (F4M-2 merged with F4M-1). Test and fixture work onl
 All under `crates/horizon-mobmodel/tests/fixtures/cinder_fox/` unless noted.
 
 * `gen_cinder_fox.py`: the generator (deterministic, run twice gives identical bytes; one description, all outputs derived).
-* `cinder_fox.bbmodel` and `cinder_fox.geo.json`: the same model. 14 bones (the 13 of the design plus `jaw`; the design list
-  adds up to 13 although it says 14), 14 cubes, locator `mouth` on `head`, rest rotations on ears and tail bones, one rotated cube
+* `cinder_fox.bbmodel` and `cinder_fox.geo.json`: the same model. 16 bones (the 13 of the design plus `jaw`; the design list
+  adds up to 13 although it says 14; since F4M-8 also `leg_fl_lower` and `leg_fr_lower`, the paws of the front legs, so IK has a real two-bone
+  chain), 16 cubes, locator `mouth` on `head`, rest rotations on ears and tail bones, one rotated cube
   (`tuft`), box UV, mirrored box UV, per-face UV with a UV rotation (`snout`, tail tip). Texture 64x64 embedded in the bbmodel.
 * `cinder_fox.png`, `cinder_fox_glowmask.png`: generated pixels; the mask has 2 eye texels and the six 3x3 faces of the tail tip.
 * `cinder_fox.animation.json` (Bedrock): `idle` (loop 3 s), `walk` (loop 0.8 s, clock speed from ground speed through
@@ -20,7 +21,7 @@ All under `crates/horizon-mobmodel/tests/fixtures/cinder_fox/` unless noted.
 * `cinder_fox.json`: controller. `locomotion` idle -> walk (`q.ground_speed > 0.05`) -> run (`> 0.2`) and back with hysteresis,
   `run` plays at speed `clamp(q.ground_speed * 3, 0.8, 2)`; `action` (mode `add`, trigger `pounce`); `pose` (`stand` -> `sit` while
   `q.synced('state') == 1`).
-* `golden_poses.txt`: 6 animations x 30 frames x 14 bones, 2520 lines (285 KB), 12 numbers per line (the three axis columns and the
+* `golden_poses.txt`: 6 animations x 30 frames x 16 bones, 2880 lines (F4M-8: the 360 new lines are the two lower leg bones; every earlier line is unchanged), 12 numbers per line (the three axis columns and the
   translation of the model-space bone matrix, 5 decimals; the last row is asserted to be 0 0 0 1).
 * `README.md`: what the fox is and how to regenerate.
 * `crates/horizon-mobmodel/tests/cinder_fox.rs`: 13 tests.

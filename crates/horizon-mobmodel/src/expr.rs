@@ -13,6 +13,7 @@
 //! unary   := ('-' | '+' | '!') unary | primary
 //! primary := number | 'true' | 'false' | '(' expr ')' | math.NAME '(' args ')' | math.pi
 //!          | query.NAME | query.synced '(' string ')' | variable.NAME
+//! enum    := query.synced '(' string ')' ('==' | '!=') string     (and the string first)
 //! ```
 //!
 //! `q.`, `v.` and `m.` are aliases of `query.`, `variable.` and `math.`. A single trailing `;` is accepted.
@@ -27,6 +28,10 @@
 //!   position of the call: the same on server and client, stable within a frame, and the caller advances the epoch
 //!   to get new numbers.
 //! * Both branches of a ternary are always evaluated (there are no jumps; cost is exactly the instruction count).
+//!
+//! Enum names: after `Symbols::set_enum_values`, `query.synced('state') == 'sit'` (also `!=`, also string first) compiles to a
+//! comparison with the value's index (its position in the list given), so scripts and JSON can say what they mean. An
+//! unknown value name is [`ExprErrorKind::UnknownEnumValue`]. Strings anywhere else are still unsupported.
 //!
 //! Unsupported Molang constructs (unknown functions or queries, assignment, strings other than the synced name,
 //! `loop`, `return`, structs, several statements) give [`ExprErrorKind::Unsupported`]; loaders turn those into
@@ -159,6 +164,8 @@ impl ExprInputs {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Symbols {
     synced: Vec<String>,
+    /// Per synced slot: the names of an enum's values, in index order (empty for non-enums).
+    enums: Vec<Vec<String>>,
     variables: Vec<String>,
 }
 
@@ -168,7 +175,21 @@ impl Symbols {
     pub fn new(synced_names: &[&str]) -> Self {
         Self {
             synced: synced_names.iter().take(MAX_SYNCED).map(|s| s.to_ascii_lowercase()).collect(),
+            enums: vec![Vec::new(); synced_names.len().min(MAX_SYNCED)],
             variables: Vec::new(),
+        }
+    }
+
+    /// Declare that the synced value `synced_name` is an enum with these value names (index = position). Afterwards
+    /// `query.synced('name') == 'value'` (or `!=`, either operand order) compiles to a comparison with the index.
+    /// Returns false if the synced name is unknown.
+    pub fn set_enum_values(&mut self, synced_name: &str, values: &[&str]) -> bool {
+        match self.synced_slot(synced_name) {
+            Some(slot) => {
+                self.enums[slot] = values.iter().map(|v| v.to_ascii_lowercase()).collect();
+                true
+            }
+            None => false,
         }
     }
 
@@ -209,6 +230,8 @@ pub enum ExprErrorKind {
     UnknownSynced,
     /// Too many instructions, too long, too deep, too many variables.
     Limit,
+    /// `query.synced('state') == 'nope'`: the enum has no such value (or the synced value is not an enum).
+    UnknownEnumValue,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -841,7 +864,21 @@ impl Parser<'_> {
     }
 
     fn equal(&mut self) -> Result<(), ExprError> {
-        self.rel()?;
+        let start = self.ops.len();
+        // `'sit' == query.synced('state')`: the string comes first.
+        if let (Some(TokKind::Str(name)), Some(Tok { kind: TokKind::EqEq | TokKind::Ne, .. })) =
+            (self.peek().cloned(), self.toks.get(self.pos + 1))
+        {
+            let scol = self.col();
+            self.pos += 1;
+            let op = if matches!(self.peek(), Some(TokKind::EqEq)) { Op::Eq } else { Op::Ne };
+            self.pos += 1;
+            self.rel()?;
+            self.push_enum_value(start, &name, scol)?;
+            self.emit(op)?;
+        } else {
+            self.rel()?;
+        }
         loop {
             let op = match self.peek() {
                 Some(TokKind::EqEq) => Op::Eq,
@@ -849,8 +886,41 @@ impl Parser<'_> {
                 _ => return Ok(()),
             };
             self.pos += 1;
-            self.rel()?;
+            let left_synced = (self.ops.len() == start + 1).then(|| self.ops.last().copied()).flatten();
+            if let (Some(Op::Synced(_)), Some(TokKind::Str(name))) = (left_synced, self.peek().cloned()) {
+                let col = self.col();
+                self.pos += 1;
+                self.push_enum_value(start, &name, col)?;
+            } else {
+                self.rel()?;
+            }
             self.emit(op)?;
+        }
+    }
+
+    /// The previous operand (ops from `start`) must be exactly one `Synced` op: push the index of enum value `name`.
+    fn push_enum_value(&mut self, start: usize, name: &str, col: usize) -> Result<(), ExprError> {
+        let slot = match (self.ops.len() == start + 1, self.ops.last()) {
+            (true, Some(Op::Synced(slot))) => *slot as usize,
+            _ => {
+                return err(
+                    ExprErrorKind::Unsupported,
+                    col,
+                    "strings are only allowed in query.synced('name') and as the other operand of == / != against it",
+                )
+            }
+        };
+        let lower = name.to_ascii_lowercase();
+        match self.syms.enums.get(slot).and_then(|v| v.iter().position(|x| *x == lower)) {
+            Some(i) => self.emit(Op::Push(i as f32)),
+            None => {
+                let known = self.syms.enums.get(slot).map(|v| v.join(", ")).unwrap_or_default();
+                err(
+                    ExprErrorKind::UnknownEnumValue,
+                    col,
+                    format!("unknown enum value '{name}' for synced value '{}' (values: {known})", self.syms.synced[slot]),
+                )
+            }
         }
     }
 
@@ -940,7 +1010,7 @@ impl Parser<'_> {
                 self.expect(&TokKind::RParen, "')'")
             }
             TokKind::Ident(name) => self.name(&name, col),
-            TokKind::Str(_) => err(ExprErrorKind::Unsupported, col, "strings are only allowed in query.synced('name')"),
+            TokKind::Str(_) => err(ExprErrorKind::Unsupported, col, "strings are only allowed in query.synced('name') and as the other operand of == / != against a synced enum"),
             other => err(ExprErrorKind::Syntax, col, format!("unexpected {}", describe(&other))),
         }
     }
@@ -1193,6 +1263,42 @@ mod tests {
         assert_eq!(eval("math.mod(7, 4)"), 3.0);
         assert!((eval("math.atan2(1, 1)") - 45.0).abs() < 1e-4);
         assert!((eval("math.pi") - std::f32::consts::PI).abs() < 1e-7);
+    }
+
+    #[test]
+    fn enum_names_compare_against_synced_values() {
+        let mut s = Symbols::new(&["state", "n"]);
+        assert!(s.set_enum_values("state", &["idle", "sit", "pounce"]));
+        assert!(!s.set_enum_values("nope", &["a"]));
+        let mut inp = ExprInputs::default();
+        inp.synced[0] = 1.0;
+        let run = |src: &str, s: &mut Symbols, inp: &ExprInputs| compile(src, s).unwrap_or_else(|e| panic!("{src}: {e}")).eval(inp);
+        assert_eq!(run("q.synced('state') == 'sit'", &mut s, &inp), 1.0);
+        assert_eq!(run("'sit' == q.synced('state')", &mut s, &inp), 1.0);
+        assert_eq!(run("query.synced('STATE') == 'SIT'", &mut s, &inp), 1.0);
+        assert_eq!(run("q.synced('state') != 'sit'", &mut s, &inp), 0.0);
+        assert_eq!(run("q.synced('state') == 'pounce'", &mut s, &inp), 0.0);
+        assert_eq!(run("q.synced('state') == 'idle' || q.synced('state') == 'sit'", &mut s, &inp), 1.0);
+        // the index form still works
+        assert_eq!(run("q.synced('state') == 1", &mut s, &inp), 1.0);
+        // the string is just the index: same bytecode length as the index form
+        assert_eq!(
+            compile("q.synced('state') == 'sit'", &mut s).unwrap().len(),
+            compile("q.synced('state') == 1", &mut s).unwrap().len()
+        );
+        // errors carry a column
+        let e = compile("q.synced('state') == 'nope'", &mut s).unwrap_err();
+        assert_eq!(e.kind, ExprErrorKind::UnknownEnumValue);
+        assert_eq!(e.column, 22);
+        assert!(e.message.contains("nope") && e.message.contains("idle, sit, pounce"), "{e}");
+        // not an enum
+        let e = compile("q.synced('n') == 'sit'", &mut s).unwrap_err();
+        assert_eq!(e.kind, ExprErrorKind::UnknownEnumValue);
+        // strings anywhere else stay unsupported
+        for bad in ["'sit'", "q.synced('state') + 1 == 'sit'", "q.synced('state') < 'sit'", "'sit' == 1", "1 == 'sit'", "q.health == 'sit'"] {
+            let e = compile(bad, &mut s).unwrap_err();
+            assert_eq!(e.kind, ExprErrorKind::Unsupported, "{bad}: {e}");
+        }
     }
 
     #[test]

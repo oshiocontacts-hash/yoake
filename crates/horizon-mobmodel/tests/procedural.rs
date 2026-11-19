@@ -913,6 +913,8 @@ fn fox_rig(model: &horizon_mobmodel::Model) -> Rig {
 fn fox_set(model: &horizon_mobmodel::Model) -> ProceduralSet {
     let ty: serde_json::Value = serde_json::from_str(TYPE_JSON).unwrap();
     let mut syms = Symbols::new(&["state"]);
+    let values: Vec<&str> = ty["synced"]["state"]["values"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    assert!(syms.set_enum_values("state", &values));
     parse_procedural("cinder_fox_type.json", "model.procedural", &ty["model"]["procedural"], &model.skeleton, &model.locators, &mut syms)
         .unwrap_or_else(|e| panic!("{e}"))
 }
@@ -928,7 +930,7 @@ fn cinder_fox_look_at_head_and_front_leg_ik() {
         let set = fox_set(&model);
         assert_eq!(set.constraints().len(), 4);
         let idx = |n: &str| sk.find(n).unwrap().index();
-        let (head, body, leg_fr) = (idx("head"), idx("body"), idx("leg_fr"));
+        let (head, body) = (idx("head"), idx("body"));
 
         // --- standing, idle animation: the head follows a viewer to the right and above the fox
         let mut inputs = ExprInputs::default();
@@ -985,10 +987,12 @@ fn cinder_fox_look_at_head_and_front_leg_ik() {
         }
         let mut sitting = Pose::default();
         rig.evaluate(&sit_state, &[], &mut inputs, &mut Scratch::default(), None, &mut sitting);
-        let a = joint(sk, &sitting, body);
-        // a reachable paw target for each leg, 6 px from the body joint (limb reach is 2.1 .. 8.1)
-        let t_fr = a + Vec3::new(2.0, -3.0, -5.0).normalize() * 6.0;
-        let t_fl = a + Vec3::new(-2.0, -3.0, -5.0).normalize() * 6.0;
+        let (up_fl, up_fr) = (idx("leg_fl"), idx("leg_fr"));
+        let (low_fl, low_fr) = (idx("leg_fl_lower"), idx("leg_fr_lower"));
+        // The IK chains are rooted at the shoulders (the upper leg bones); a reachable paw target for each leg, 2.4 px
+        // from its shoulder (upper 2 px, lower 1 px: reach 1 to 3).
+        let t_fl = joint(sk, &sitting, up_fl) + Vec3::new(0.5, -2.0, -1.2).normalize() * 2.4;
+        let t_fr = joint(sk, &sitting, up_fr) + Vec3::new(-0.5, -2.0, -1.2).normalize() * 2.4;
         let mut pst3 = ProceduralState::new(&set);
         let mut pose = sitting.clone();
         let inp = ProceduralInputs::new(&inputs, 0.05)
@@ -997,25 +1001,169 @@ fn cinder_fox_look_at_head_and_front_leg_ik() {
             .with_target(TargetSource::View, eye0 + Vec3::new(0.0, 0.0, -50.0));
         let rep = set.evaluate(&mut pose, &mut pst3, &inp);
         assert_eq!(rep.applied, 4, "everything is active while sitting: {rep:?}");
-        // both legs share `body` as the IK root, so the second solve moves the first leg again: the last one is exact
-        let paw_fr = bone_matrices(sk, &pose)[leg_fr].transform_point3(sk.bones[leg_fr].pivot + Vec3::new(0.0, -3.0, 0.0));
-        assert!((paw_fr - t_fr).length() < 1e-3, "{route}: front-right paw {paw_fr} target {t_fr}; rep {rep:?}");
-        // Bone lengths: the sitting fox's body is squashed a little (non-uniform scale on `body`), which makes the limb
-        // lengths depend slightly on direction, so compare with the lengths before the IK, within 0.15 px.
         let j = bone_matrices(sk, &pose);
         let j0 = bone_matrices(sk, &sitting);
-        let end = |m: &[Mat4]| {
-            let a = m[body].transform_point3(sk.bones[body].pivot);
-            let b = m[leg_fr].transform_point3(sk.bones[leg_fr].pivot);
-            let c = m[leg_fr].transform_point3(sk.bones[leg_fr].pivot + Vec3::new(0.0, -3.0, 0.0));
-            (a, b, c)
-        };
-        let (a2, b2, _) = end(&j);
-        let (a0, b0, c0) = end(&j0);
-        assert!(((b2 - a2).length() - (b0 - a0).length()).abs() < 0.15);
-        assert!(((paw_fr - b2).length() - (c0 - b0).length()).abs() < 0.15);
-        let line = (paw_fr - a2).normalize();
-        let bend = (b2 - a2) - line * (b2 - a2).dot(line);
-        assert!(bend.dot(Vec3::NEG_Z) > 0.0, "bend {bend}");
+        // the body no longer tilts: IK only moves the leg bones (the head's look_at and the tail springs are below it)
+        assert!(j[body].abs_diff_eq(j0[body], 1e-6), "{route}: the body matrix is unchanged by the IK");
+        // both feet reach their targets
+        let paw = |m: &[Mat4], low: usize| m[low].transform_point3(sk.bones[low].pivot + Vec3::new(0.0, -1.0, 0.0));
+        assert!((paw(&j, low_fl) - t_fl).length() < 1e-3, "{route}: front-left paw {} target {t_fl}", paw(&j, low_fl));
+        assert!((paw(&j, low_fr) - t_fr).length() < 1e-3, "{route}: front-right paw {} target {t_fr}", paw(&j, low_fr));
+        // Bone lengths: the sitting fox's body is squashed a little (non-uniform scale on `body`, the idle/sit breathing),
+        // which makes the limb lengths depend slightly on direction, so compare with the lengths before the IK.
+        for (up, low) in [(up_fl, low_fl), (up_fr, low_fr)] {
+            let a2 = j[up].transform_point3(sk.bones[up].pivot);
+            let b2 = j[low].transform_point3(sk.bones[low].pivot);
+            let a0 = j0[up].transform_point3(sk.bones[up].pivot);
+            let b0 = j0[low].transform_point3(sk.bones[low].pivot);
+            assert!(((b2 - a2).length() - (b0 - a0).length()).abs() < 0.05);
+            assert!(((paw(&j, low) - b2).length() - (paw(&j0, low) - b0).length()).abs() < 0.05);
+            // the pole (-Z) bends the knee forward of the shoulder-to-paw line
+            let line = (paw(&j, low) - a2).normalize();
+            let bend = (b2 - a2) - line * (b2 - a2).dot(line);
+            assert!(bend.dot(Vec3::NEG_Z) > 0.0, "bend {bend}");
+        }
     }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Fix round: enum names in `when`, follow channels, spring in a pitched and rolled model frame
+// ---------------------------------------------------------------------------------------------------------------
+
+#[test]
+fn when_accepts_enum_names_and_reports_unknown_ones_with_file_and_path() {
+    let sk = leg();
+    let json = |when: &str| {
+        format!(r#"[{{"type":"counter_rotate","bone":"foot","fade":0}},{{"type":"counter_rotate","bone":"foot","fade":0,"when":"{when}"}}]"#)
+    };
+    let mut syms = Symbols::new(&["state"]);
+    syms.set_enum_values("state", &["idle", "sit", "pounce"]);
+    let s = parse_procedural_str("fox.json", &json("q.synced('state') == 'sit'"), &sk, &[], &mut syms).unwrap();
+    let mut e = ExprInputs::default();
+    let mut st = ProceduralState::new(&s);
+    for (value, active) in [(0.0, 1), (1.0, 2), (2.0, 1)] {
+        e.synced[0] = value;
+        let mut p = Pose::rest(&sk);
+        p.bones[0].rotation = euler_deg_to_quat(Vec3::new(0.0, 0.0, 30.0));
+        let rep = run(&s, &mut st, &mut p, &ProceduralInputs::new(&e, 0.0));
+        assert_eq!(rep.applied, active, "state {value}");
+    }
+    // the index form still works and means the same
+    let by_index = parse_procedural_str("fox.json", &json("q.synced('state') == 1"), &sk, &[], &mut syms).unwrap();
+    for value in [0.0, 1.0, 2.0] {
+        e.synced[0] = value;
+        let (a, b) = (s.constraints()[1].when.as_ref().unwrap(), by_index.constraints()[1].when.as_ref().unwrap());
+        assert_eq!(a.eval(&e), b.eval(&e));
+        assert_eq!(a.len(), b.len());
+    }
+    // unknown name: file, JSON path and column
+    let err = parse_procedural_str("fox.json", &json("q.synced('state') == 'fly'"), &sk, &[], &mut syms).unwrap_err().to_string();
+    assert!(err.starts_with("fox.json: procedural[1].when: expression: column 22: unknown enum value 'fly'"), "{err}");
+    assert!(err.contains("idle, sit, pounce"), "{err}");
+    // a synced value that is not an enum
+    let mut plain = Symbols::new(&["state"]);
+    let err = parse_procedural_str("fox.json", &json("q.synced('state') == 'sit'"), &sk, &[], &mut plain).unwrap_err().to_string();
+    assert!(err.contains("procedural[1].when") && err.contains("unknown enum value"), "{err}");
+}
+
+#[test]
+fn follow_channels_copy_position_and_scale() {
+    let sk = pair();
+    let e = ExprInputs::default();
+    let rot90 = euler_deg_to_quat(Vec3::new(0.0, 0.0, 90.0));
+    let pose_with_source = || {
+        let mut p = Pose::rest(&sk);
+        p.bones[1].rotation = rot90;
+        p.bones[1].translation = Vec3::new(0.0, 4.0, 0.0);
+        p.bones[1].scale = Vec3::new(2.0, 1.0, 3.0);
+        p
+    };
+    let cases = [
+        (r#""channels":["position"]"#, false, true, false),
+        (r#""channels":["scale"]"#, false, false, true),
+        (r#""channels":["rotation","scale"]"#, true, false, true),
+        (r#""channels":["position","rotation","scale"]"#, true, true, true),
+        (r#""delay_ticks":0"#, true, false, false), // the default is rotation only
+    ];
+    for (extra, rot, pos, scale) in cases {
+        let s = set(&sk, &format!(r#"[{{"type":"follow","bone":"dst","source":"src","fade":0,{extra}}}]"#));
+        let mut st = ProceduralState::new(&s);
+        let mut pose = pose_with_source();
+        run(&s, &mut st, &mut pose, &ProceduralInputs::new(&e, 0.05));
+        let d = pose.bones[2];
+        assert_eq!(d.rotation.abs_diff_eq(rot90, 1e-5), rot, "{extra}");
+        assert_eq!(d.translation == Vec3::new(0.0, 4.0, 0.0), pos, "{extra}");
+        assert_eq!(d.scale == Vec3::new(2.0, 1.0, 3.0), scale, "{extra}");
+    }
+    // delayed position, weight 0.5 blends linearly from the bone's own value
+    let s = set(&sk, r#"[{"type":"follow","bone":"dst","source":"src","fade":0,"delay_ticks":2,"weight":0.5,"channels":["position"]}]"#);
+    let mut st = ProceduralState::new(&s);
+    let mut out = vec![];
+    for f in 0..8 {
+        let mut pose = Pose::rest(&sk);
+        pose.bones[1].translation = Vec3::new(0.0, if f >= 2 { 10.0 } else { 0.0 }, 0.0);
+        pose.bones[2].translation = Vec3::new(1.0, 0.0, 0.0);
+        run(&s, &mut st, &mut pose, &ProceduralInputs::new(&e, 0.05));
+        out.push(pose.bones[2].translation);
+    }
+    assert!(out[..4].iter().all(|t| t.abs_diff_eq(Vec3::new(0.5, 0.0, 0.0), 1e-4)), "{out:?}");
+    assert!(out[4..].iter().all(|t| t.abs_diff_eq(Vec3::new(0.5, 5.0, 0.0), 1e-4)), "{out:?}");
+}
+
+#[test]
+fn follow_channel_errors() {
+    let sk = pair();
+    let err = |ch: &str| {
+        let mut syms = Symbols::new(&[]);
+        parse_procedural_str(
+            "f.json",
+            &format!(r#"[{{"type":"follow","bone":"dst","source":"src","channels":{ch}}}]"#),
+            &sk,
+            &[],
+            &mut syms,
+        )
+        .unwrap_err()
+        .to_string()
+    };
+    assert!(err(r#"["tilt"]"#).contains("f.json: procedural[0].channels[0]: unknown channel 'tilt'"));
+    assert!(err("[]").contains("procedural[0].channels: expected a non-empty array"));
+    assert!(err(r#""rotation""#).contains("procedural[0].channels: expected a non-empty array"));
+    assert!(err(r#"["scale","scale"]"#).contains("channels[1]: channel listed twice"));
+    assert!(err("[1]").contains("channels[0]: expected a string"));
+}
+
+#[test]
+fn spring_gravity_follows_a_pitched_and_rolled_model_frame() {
+    // The frame is the full transform of the mob (yaw, pitch and roll), not only its heading: gravity is world down,
+    // so a mob rolled over lets its tail hang toward world down, which is some other direction in model space.
+    let sk = tail();
+    let s = set(&sk, &spring_json(400.0, 12.0, 60.0, 90.0));
+    let e = ExprInputs::default();
+    let settle = |m2w: Mat4| {
+        let mut st = ProceduralState::new(&s);
+        let mut pose = Pose::rest(&sk);
+        for _ in 0..600 {
+            pose = Pose::rest(&sk);
+            let mut inp = ProceduralInputs::new(&e, 1.0 / 60.0);
+            inp.model_to_world = m2w;
+            run(&s, &mut st, &mut pose, &inp);
+        }
+        tail_tip(&sk, &pose) - Vec3::new(0.0, 10.0, 16.0)
+    };
+    // identity: the tip sags along model -Y, nothing sideways
+    let d0 = settle(Mat4::IDENTITY);
+    assert!(d0.y < -0.1 && d0.x.abs() < 1e-3, "{d0}");
+    // a transform with yaw 20, pitch 35, roll 70 and a translation
+    let rot = Quat::from_euler(glam::EulerRot::YXZ, 20f32.to_radians(), 35f32.to_radians(), 70f32.to_radians());
+    let m2w = Mat4::from_rotation_translation(rot, Vec3::new(100.0, 50.0, -30.0));
+    let down_in_model = rot.inverse() * Vec3::NEG_Y;
+    let d = settle(m2w);
+    // the sag is the part of model-space "down" perpendicular to the tail axis (+Z), small angle
+    let want = Vec3::new(down_in_model.x, down_in_model.y, 0.0).normalize();
+    let got = Vec3::new(d.x, d.y, 0.0).normalize();
+    assert!(got.dot(want) > 0.99, "sag direction {got} want {want} (tip offset {d})");
+    assert!(d.length() > 0.1);
+    // rolled 90 degrees about the tail axis: the sag goes sideways in model space
+    let rolled = settle(Mat4::from_quat(Quat::from_rotation_z(90f32.to_radians())));
+    assert!(rolled.x.abs() > 0.1 && rolled.y.abs() < 1e-3, "rolled 90 degrees: {rolled}");
 }

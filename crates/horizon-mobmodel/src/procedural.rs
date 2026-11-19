@@ -10,7 +10,7 @@
 //! # Conventions
 //!
 //! * **Space**: model space, pixels (1/16 block), Blockbench axes (+X east/right, +Y up, -Z forward). All points the
-//!   caller passes in (look-at targets, IK targets, `model_to_world`) are in this space. A bone's *pivot position*
+//!   caller passes in (look-at targets, IK targets) are in this space. A bone's *pivot position*
 //!   is where the bone's joint is in the posed model (`bone_matrices[i] * pivot`; it does not depend on the bone's own
 //!   rotation). A bone's *frame* is the geometry frame (the axes the cubes were authored in, before the bone's rest
 //!   rotation); `forward`/`axis` options of `look_at`/`aim`/`counter_rotate` are expressed in that frame.
@@ -23,9 +23,10 @@
 //!   the per-frame [`ExprInputs`]) and a `fade` time in seconds (default 0.15; 0 = instant): the constraint's strength is
 //!   `weight * activation`, activation moving linearly toward 1 (condition true) or 0 (false). The first frame of a
 //!   mob starts at its target value (no fade-in at spawn). With activation 0 a constraint costs one expression
-//!   evaluation. Synced enum values are plain numbers in expressions: the **index of the value in the type's `synced`
-//!   `values` list**, so the fox's "sitting" is `q.synced('state') == 1` (`idle` 0, `sit` 1, `pounce` 2). The expression
-//!   language has no enum-name literals.
+//!   evaluation. Synced enum values are numbers in expressions: the **index of the value in the type's `synced` `values`
+//!   list**, and the value *names* work too when the caller declared them with `Symbols::set_enum_values`: the fox's
+//!   "sitting" is `q.synced('state') == 'sit'` or `== 1` (`idle` 0, `sit` 1, `pounce` 2). An unknown name is a load error
+//!   with file, JSON path (`...[i].when`) and column.
 //! * **Time**: `dt` seconds per frame, sanitised: NaN, infinite or negative become 0; values above [`MAX_DT`] (0.1 s)
 //!   are clamped to it (a stalled frame loses time instead of exploding the simulation).
 //!
@@ -42,7 +43,7 @@
 //!   "target": {"input": 0}, "pole": {"dir": [0,0,-1]} }
 //! { "type": "spring", "bones": ["tail1","tail2","tail3"], "stiffness": 60, "damping": 4, "gravity": 160,
 //!   "max_angle": 60, "tip_length": 6, "tip_dir": [0,0,1] }
-//! { "type": "follow", "bone": "ear_r", "source": "ear_l", "delay_ticks": 3 }
+//! { "type": "follow", "bone": "ear_r", "source": "ear_l", "delay_ticks": 3, "channels": ["rotation"] }
 //! { "type": "counter_rotate", "bone": "head", "axis": [0,1,0], "up": [0,1,0] }
 //! ```
 //!
@@ -66,7 +67,9 @@
 //!   last target it had.
 //! * `spring` simulates the tip of every chain bone as a damped spring particle and swings the bone toward it (see
 //!   [`SpringSpec`]). The chain `bones` must each be a descendant of the one before.
-//! * `follow` copies the *local rotation* of `source` into `bone`, `delay_ticks` game ticks (0.05 s) late.
+//! * `follow` copies local channels of `source` into `bone`, `delay_ticks` game ticks (0.05 s) late. `channels` is a
+//!   non-empty list of `"rotation"` (the default), `"position"` (local translation) and `"scale"`; with weight < 1 each
+//!   channel blends from the bone's own value (rotation by slerp, the others linearly).
 //! * `counter_rotate` swings the bone (minimal arc) until its `axis` points along the model-space direction `up`.
 //!
 //! # Limits
@@ -243,6 +246,24 @@ pub struct FollowSpec {
     pub bone: BoneIndex,
     pub source: BoneIndex,
     pub delay_ticks: u32,
+    /// Which local channels are copied (default: rotation only).
+    pub channels: FollowChannels,
+}
+
+/// The channels a `follow` constraint copies (JSON `channels`: `"rotation"`, `"position"`, `"scale"`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FollowChannels {
+    pub rotation: bool,
+    pub position: bool,
+    pub scale: bool,
+}
+
+impl FollowChannels {
+    pub const ROTATION: FollowChannels = FollowChannels { rotation: true, position: false, scale: false };
+
+    fn any(self) -> bool {
+        self.rotation || self.position || self.scale
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -497,6 +518,9 @@ impl ProceduralSet {
                     if b == src {
                         return Err(berr("follow: bone and source are the same".into()));
                     }
+                    if !s.channels.any() {
+                        return Err(berr("follow: channels must name at least one channel".into()));
+                    }
                     if s.delay_ticks > limits::MAX_FOLLOW_DELAY_TICKS {
                         return Err(berr(format!(
                             "follow delay_ticks {} (at most {})",
@@ -554,6 +578,31 @@ impl ProceduralSet {
 // State and inputs
 // ---------------------------------------------------------------------------------------------------------------
 
+/// A source bone's local channels at one instant (the history of `follow`).
+#[derive(Clone, Copy, Debug)]
+struct FollowSample {
+    rot: Quat,
+    pos: Vec3,
+    scale: Vec3,
+}
+
+impl FollowSample {
+    const REST: FollowSample = FollowSample { rot: Quat::IDENTITY, pos: Vec3::ZERO, scale: Vec3::ONE };
+
+    fn lerp(a: FollowSample, b: FollowSample, t: f32) -> FollowSample {
+        let t = t.clamp(0.0, 1.0);
+        FollowSample { rot: slerp_short(a.rot, b.rot, t), pos: a.pos.lerp(b.pos, t), scale: a.scale.lerp(b.scale, t) }
+    }
+}
+
+fn finite_or(v: Vec3, d: Vec3) -> Vec3 {
+    if v.is_finite() {
+        v
+    } else {
+        d
+    }
+}
+
 #[derive(Clone, Debug)]
 enum SlotData {
     None,
@@ -561,7 +610,7 @@ enum SlotData {
     Aim { dir: Vec3 },
     Ik { last_target: Option<Vec3> },
     Spring { acc: f32, p: Vec<Vec3>, v: Vec<Vec3> },
-    Follow { acc: f32, primed: bool, prev: Quat, hist: Vec<Quat> },
+    Follow { acc: f32, primed: bool, prev: FollowSample, hist: Vec<FollowSample> },
 }
 
 #[derive(Clone, Debug)]
@@ -611,7 +660,7 @@ impl ProceduralState {
                         SlotData::Spring { acc: 0.0, p: vec![Vec3::ZERO; k], v: vec![Vec3::ZERO; k] }
                     }
                     ConstraintKind::Follow(f) => {
-                        SlotData::Follow { acc: 0.0, primed: false, prev: Quat::IDENTITY, hist: vec![Quat::IDENTITY; f.delay_ticks as usize + 2] }
+                        SlotData::Follow { acc: 0.0, primed: false, prev: FollowSample::REST, hist: vec![FollowSample::REST; f.delay_ticks as usize + 2] }
                     }
                     ConstraintKind::CounterRotate(_) => SlotData::None,
                 },
@@ -657,9 +706,11 @@ pub struct ProceduralInputs<'a> {
     pub expr: &'a ExprInputs,
     /// Target points in model space, by [`TargetSource::slot`]; `None` = unavailable.
     pub targets: [Option<Vec3>; TARGET_SLOTS],
-    /// Maps model space (pixels) to the frame the springs simulate in (also pixels, gravity along its -Y). Identity
-    /// makes springs react only to the animation; pass the mob's real transform times 16 to get inertia when it moves
-    /// and turns. A singular or non-finite matrix is replaced by identity.
+    /// Maps model space (pixels) to the frame the springs simulate in (also pixels, gravity along its -Y). It is the
+    /// mob's **full transform**: translation and the whole rotation (yaw, pitch and roll, so a mob that tilts, rolls or
+    /// is ridden upside down lets its tail hang toward world down), scaled by 16 (blocks to pixels). Identity makes
+    /// springs react only to the animation and gravity act along model -Y. A singular or non-finite matrix is replaced
+    /// by identity.
     pub model_to_world: Mat4,
 }
 
@@ -1012,7 +1063,12 @@ impl ProceduralSet {
                     step_activation(slot, cond, c.fade, dt);
                     let w = c.weight * slot.activation;
                     let SlotData::Follow { acc, primed, prev, hist } = &mut slot.data else { continue };
-                    let src = safe_quat(pose.bones[s.source.index()].rotation);
+                    let sb = pose.bones[s.source.index()];
+                    let src = FollowSample {
+                        rot: safe_quat(sb.rotation),
+                        pos: finite_or(sb.translation, Vec3::ZERO),
+                        scale: finite_or(sb.scale, Vec3::ONE),
+                    };
                     if !*primed {
                         hist.iter_mut().for_each(|h| *h = src);
                         *prev = src;
@@ -1028,7 +1084,7 @@ impl ProceduralSet {
                         *acc -= TICK_SECONDS;
                         let f = if dt > 0.0 { (t_into / dt).clamp(0.0, 1.0) } else { 1.0 };
                         hist.rotate_right(1);
-                        hist[0] = slerp_short(*prev, src, f);
+                        hist[0] = FollowSample::lerp(*prev, src, f);
                         t_into += TICK_SECONDS;
                         ticks += 1;
                     }
@@ -1044,11 +1100,22 @@ impl ProceduralSet {
                     } else {
                         let u = d as f32 - *acc / TICK_SECONDS;
                         let i0 = (u.floor().max(0.0) as usize).min(d);
-                        slerp_short(hist[i0], hist[i0 + 1], u - i0 as f32)
+                        FollowSample::lerp(hist[i0], hist[i0 + 1], u - i0 as f32)
                     };
                     let b = s.bone.index();
-                    let own = pose.bones[b].rotation;
-                    work.set_local(self, pose, b, slerp_short(own, delayed, w));
+                    let own = pose.bones[b];
+                    if s.channels.position {
+                        pose.bones[b].translation = own.translation.lerp(delayed.pos, w.clamp(0.0, 1.0));
+                    }
+                    if s.channels.scale {
+                        pose.bones[b].scale = own.scale.lerp(delayed.scale, w.clamp(0.0, 1.0));
+                    }
+                    if s.channels.rotation {
+                        pose.bones[b].rotation = slerp_short(own.rotation, delayed.rot, w);
+                    }
+                    if s.channels.any() {
+                        work.recompute_from(self, pose, b);
+                    }
                     rep.applied += 1;
                 }
                 ConstraintKind::CounterRotate(s) => {
@@ -1257,7 +1324,7 @@ impl Parser<'_> {
             "aim" => &["bone", "target", "axis", "max_angle", "speed", "offset"],
             "two_bone_ik" => &["root", "mid", "tip", "tip_offset", "tip_locator", "target", "pole"],
             "spring" => &["bones", "stiffness", "damping", "gravity", "max_angle", "tip_length", "tip_dir"],
-            "follow" => &["bone", "source", "delay_ticks"],
+            "follow" => &["bone", "source", "delay_ticks", "channels"],
             "counter_rotate" => &["bone", "axis", "up"],
             other => {
                 return Err(self.err(
@@ -1387,10 +1454,37 @@ impl Parser<'_> {
                 if d.fract() != 0.0 {
                     return Err(self.err(&format!("{path}.delay_ticks"), "expected a whole number of ticks"));
                 }
+                let channels = match m.get("channels") {
+                    None => FollowChannels::ROTATION,
+                    Some(c) => {
+                        let cp = format!("{path}.channels");
+                        let arr = c.as_array().filter(|a| !a.is_empty()).ok_or_else(|| {
+                            self.err(&cp, "expected a non-empty array of \"rotation\", \"position\", \"scale\"")
+                        })?;
+                        let mut ch = FollowChannels { rotation: false, position: false, scale: false };
+                        for (i, v) in arr.iter().enumerate() {
+                            let ip = format!("{cp}[{i}]");
+                            let flag = match self.string(v, &ip)? {
+                                "rotation" => &mut ch.rotation,
+                                "position" => &mut ch.position,
+                                "scale" => &mut ch.scale,
+                                other => {
+                                    return Err(self.err(&ip, format!("unknown channel '{other}' (rotation, position, scale)")))
+                                }
+                            };
+                            if *flag {
+                                return Err(self.err(&ip, "channel listed twice"));
+                            }
+                            *flag = true;
+                        }
+                        ch
+                    }
+                };
                 ConstraintKind::Follow(FollowSpec {
                     bone: self.req_bone(m, "bone", path)?,
                     source: self.req_bone(m, "source", path)?,
                     delay_ticks: d as u32,
+                    channels,
                 })
             }
             _ => ConstraintKind::CounterRotate(CounterRotateSpec {
@@ -1673,6 +1767,7 @@ mod tests {
             bone: BoneIndex(2),
             source: BoneIndex(1),
             delay_ticks: 0,
+            channels: FollowChannels::ROTATION,
         }))])
         .unwrap();
         let mut pose = Pose::rest(&s);

@@ -6,12 +6,12 @@
   "model": {
     "procedural": [
       {
-        "type": "two_bone_ik", "root": "body", "mid": "leg_fl", "tip": "leg_fl", "tip_offset": [0, -3, 0],
-        "target": { "input": 0 }, "pole": { "dir": [0, 0, -1] }, "when": "q.synced('state') == 1", "fade": 0.2
+        "type": "two_bone_ik", "root": "leg_fl", "mid": "leg_fl_lower", "tip": "leg_fl_lower", "tip_offset": [0, -1, 0],
+        "target": { "input": 0 }, "pole": { "dir": [0, 0, -1] }, "when": "q.synced('state') == 'sit'", "fade": 0.2
       },
       {
-        "type": "two_bone_ik", "root": "body", "mid": "leg_fr", "tip": "leg_fr", "tip_offset": [0, -3, 0],
-        "target": { "input": 1 }, "pole": { "dir": [0, 0, -1] }, "when": "q.synced('state') == 1", "fade": 0.2
+        "type": "two_bone_ik", "root": "leg_fr", "mid": "leg_fr_lower", "tip": "leg_fr_lower", "tip_offset": [0, -1, 0],
+        "target": { "input": 1 }, "pole": { "dir": [0, 0, -1] }, "when": "q.synced('state') == 'sit'", "fade": 0.2
       },
       { "type": "look_at", "bone": "head", "target": "view", "yaw": 60, "pitch": 40, "speed": 360 },
       {

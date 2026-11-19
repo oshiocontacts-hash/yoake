@@ -20,8 +20,8 @@ and a doc bullet. `anim.rs`, `controller.rs`, `pose.rs` and the fox fixtures are
     (`file: path: message`, e.g. `fox.json: model.procedural[2].yaw: 400 is out of range (0 to 180)`); unknown fields, bones,
     locators, target kinds, bad expressions (with column) and every limit are hard errors.
   * `BoneWrite` / `apply_bone_writes(pose, writes)` / `apply_bone_writes_with_visibility` + `BoneVisibility` bitset + `WriteReport`.
-* Tests: 31 in `tests/procedural.rs`, 1 in `tests/procedural_alloc.rs`, 6 unit tests in `ik.rs` and `procedural.rs`. Whole crate:
-  153 tests (59 lib, 13 cinder_fox, 1 expr_alloc, 4 expr_props, 6 fuzz, 25 model, 13 pose_rig, 31 procedural, 1 procedural_alloc), all green;
+* Tests: 35 in `tests/procedural.rs`, 1 in `tests/procedural_alloc.rs`, 6 unit tests in `ik.rs` and `procedural.rs`. Whole crate:
+  162 tests (60 lib, 13 cinder_fox, 1 expr_alloc, 4 expr_props, 6 fuzz, 25 model, 17 pose_rig, 35 procedural, 1 procedural_alloc), all green;
   `clippy --all-targets` has no warning in the crate.
 
 ## Conventions (all documented in the `procedural.rs` module header, pinned by tests)
@@ -49,7 +49,7 @@ and a doc bullet. `anim.rs`, `controller.rs`, `pose.rs` and the fox fixtures are
   every frame (lengths never change) and the swing is limited by `max_angle`. A particle more than 2 bone lengths from its rest tip
   (teleport) is pulled back with zero velocity. Non-finite particles are reset to the animated tip. A deactivated spring restarts from the
   animated pose when it re-activates.
-* `follow`: copies the source bone's local rotation `delay_ticks` ticks (0.05 s) late, with a per-constraint ring buffer of
+* `follow`: copies the source bone's local rotation (and optionally position and scale, see `channels`) `delay_ticks` ticks (0.05 s) late, with a per-constraint ring buffer of
   `delay_ticks + 2` quaternions, sampled at tick boundaries by interpolating inside the frame, so any frame length gives the same lag. History keeps
   recording while the constraint is inactive.
 * `counter_rotate`: minimal swing so the bone's `axis` (default +Y) points along model-space `up` (default +Y); the bone's own twist about it survives.
@@ -72,14 +72,19 @@ ticks), counter_rotate 16; yaw/pitch/max_angle 0..180; weight 0..1; fade 0..10 s
   limits are wide (no shortest-way wrap).
 * No collision for springs (the design says collision off).
 
-## Findings about the fixtures
+## Findings about the fixtures (fix round)
 
-* The Cinder Fox has single-bone legs, so there is no real two-bone chain on it. The fox test and fixture JSON use `root: body, mid: leg_fl|fr, tip_offset (0,-3,0)`
-  to exercise the real files; it works, but both front legs share `body` as root (the second solve moves the first leg again, only the last is exact) and it
-  tilts the whole body. A proper fox needs `leg_fl_upper`/`leg_fl_lower` style bones (a model change, not done: the fox fixtures are being edited on another branch).
-* `idle`/`sit` scale the `body` bone non-uniformly (about 1.5 to 3 percent).
-* The type JSON for the fox is not in the repo yet; `tests/fixtures/procedural/cinder_fox_type.json` holds only `synced` and `model.procedural` (look_at head 60/40,
-  tail springs, two IKs on `when q.synced('state') == 1`) as the design in section 10 describes.
+* The Cinder Fox front legs are now two bones (`leg_fl` upper, pivot at the shoulder, and `leg_fl_lower`, the paw; same for `leg_fr`), so
+  `two_bone_ik` is a real two-bone chain rooted at the shoulder. The hind legs stay single bones (not needed for the sit pose). The fox now has
+  **16 bones and 16 cubes** (was 14); `golden_poses.txt` gained exactly 360 lines (6 animations x 30 frames x the 2 new bones), no earlier line changed
+  (the animations still drive the upper bones by their old names, the lower bones inherit). Both formats were regenerated from `gen_cinder_fox.py`
+  and stay equal. The front leg cubes shrank to 2 px (upper) and 1 px (paw) with the paw's box UV at `[0, 34]`; the texture changed accordingly
+  (`cinder_fox.png` only; the glow mask is the same).
+* The fox IK test now roots the chains at the shoulders: the body matrix is unchanged by the IK (asserted to 1e-6) and both paws reach their targets within 1e-3.
+* `idle` and `sit` still scale `body` non-uniformly (1.5 to 3 percent, breathing). Accepted: limb lengths follow it by a few hundredths of a pixel
+  (the test allows 0.05 px), and the IK iterates to hit the target anyway.
+* `tests/fixtures/procedural/cinder_fox_type.json` holds only `synced` and `model.procedural` (look_at head 60/40, tail springs, two IKs on
+  `when q.synced('state') == 'sit'`), as section 10 describes.
 
 ## What remains for the engine side (not done here)
 
@@ -94,12 +99,25 @@ ticks), counter_rotate 16; yaw/pitch/max_angle 0..180; weight 0..1; fade 0..10 s
 4. F4M-6 dependency: needs the type loader, synced values table and the client mob state (position, yaw, view point); nothing here blocks it.
 5. Optional: expose `EvalReport` / `WriteReport` counters in the debug overlay.
 
-## Open questions
+## Reviewer decisions (fix round)
 
-1. Is the rotation in `bone-write` Euler degrees (Blockbench-friendly), quaternion, or both (as `WriteRotation` now)?
-2. Additive rotation order: `old * delta` (delta in the bone's own frame) was chosen; scripts used to Euler channel addition may expect the sum. They agree for single-axis deltas.
-3. Should `look_at`'s `view` target be per player (each client sees the mob look at its own camera) or a game-wide point? The library does not care; it is the engine's choice.
-4. Spring inertia needs the mob's world transform each frame (`model_to_world`); if the client only has an interpolated position, is the 16x pixel scale and yaw enough, or is the body's pitch/roll needed too?
-5. Enum names in `when` (`q.synced('state') == 'sit'`) would be nicer than indices; that is an `expr` change (F4M-2 owner), not done.
-6. Should a `follow` constraint also support copying translation or scale? Only rotation is implemented.
-7. The fox needs upper/lower leg bones (or a different IK demo) to be a convincing two-bone case; who owns the fixture change?
+1. Bone-write rotation: both Euler degrees (Blockbench order) and quaternion stay. The SDK helpers (guest side) should default to Euler.
+2. Additive writes are `old * delta` in bone-local space, exactly how additive animation layers combine rotations in `pose.rs` (a delta in the bone's own frame),
+   so a script's additive write and an additive layer agree. Translation adds, scale multiplies.
+3. The `view` target is per client and cosmetic: the engine resolves it on each client from that client's camera, never stores it in server state or syncs it.
+   Do not use it for gameplay; servers evaluate no procedural constraints.
+4. `model_to_world` is the mob's full transform (yaw, pitch and roll, translation, times 16). Docs and API say so. `spring_gravity_follows_a_pitched_and_rolled_model_frame`
+   settles a tail in a yaw 20 / pitch 35 / roll 70 frame and checks the sag follows model-space down (cos > 0.99), and in a 90 degree roll that it goes sideways.
+5. Enum names in `when`: `q.synced('state') == 'sit'` (also `!=`, string first) compiles to the value's index. `Symbols::set_enum_values(synced_name, values)` declares
+   the values (the type loader calls it from the type's `synced` enum lists); strings are accepted only as the other operand of `==`/`!=` against a bare `query.synced(..)`.
+   Unknown name = `ExprErrorKind::UnknownEnumValue` (message lists the known values, column of the string); through `parse_procedural` it is
+   `file: path[i].when: expression: column N: unknown enum value ...`. FR-F4M-2.md's grammar is updated. The engine loader must call `set_enum_values`
+   for every enum before compiling controllers and constraints.
+6. `follow` has `channels`: a non-empty list of `"rotation"` (default), `"position"`, `"scale"`. Position (local translation) and scale copy with the same delay;
+   with weight < 1 each channel blends from the bone's own value (rotation slerp, others linear). Errors: unknown or duplicate channel, empty list.
+7. See the fixture findings above.
+
+## Open questions (remaining)
+
+1. Hind legs are single bones; split them the same way if a hind-leg IK demo is wanted.
+2. Does the engine want `EvalReport` / `WriteReport` counters in a debug overlay?
