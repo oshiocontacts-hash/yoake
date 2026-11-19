@@ -49,6 +49,9 @@ const REQUEST_FILE: &str = "join-request.json";
 pub const MAX_MODS: usize = 64;
 pub const MAX_MOD_BYTES: u64 = 64 * 1024 * 1024;
 pub const MAX_JOIN_BYTES: u64 = 256 * 1024 * 1024;
+/// M2: what one host's folder (`mods/remote/<host dir>`) may hold in total, however many joins filled it.
+pub const MAX_HOST_BYTES: u64 = 512 * 1024 * 1024;
+pub const MAX_HOST_MODS: usize = 64;
 const MAX_REQUEST_BYTES: u64 = 1 << 20;
 const MAX_TEXT: usize = 64;
 const MAX_ADDRESS: usize = control::MAX_HOST_KEY;
@@ -91,7 +94,7 @@ fn server_host(address: &str) -> Option<(String, String)> {
 
 /// The host key of a social join: `friend:<portal user id>` (the host principal of the grant).
 pub fn friend_host_key(portal_user_id: &str) -> Option<String> {
-    let key = format!("friend:{portal_user_id}");
+    let key = format!("friend:{}", portal_user_id.to_ascii_lowercase());
     valid_host_key(&key).then_some(key)
 }
 
@@ -186,7 +189,12 @@ pub fn parse_request(text: &str) -> Result<JoinRequest, String> {
     };
     let address = field(host, "address").filter(|a| !a.is_empty() && a.len() <= MAX_ADDRESS && !a.chars().any(char::is_control)).ok_or("join request: bad host address")?;
     let key = field(host, "key").filter(|k| valid_host_key(k)).ok_or("join request: the host key is not a host key")?;
-    if key != format!("{}:{address}", kind.as_str()) {
+    // S2: the key must be exactly the canonical (lowercase) form recomputed from the address, never the host's own spelling
+    let canonical = match kind {
+        Origin::Server => server_host(&address).filter(|(_, rejoin)| *rejoin == address).map(|(key, _)| key),
+        _ => friend_host_key(&address),
+    };
+    if canonical.as_deref() != Some(key.as_str()) {
         return Err("join request: the host key does not match its kind and address".into());
     }
     let rejoin_text = field(&root, "rejoin").ok_or("join request: no rejoin")?;
@@ -419,6 +427,21 @@ pub fn handle_exit_in(data: &Path, instance: &Path) -> Result<JoinSyncDone, Stri
     result
 }
 
+/// M2: a game that **the launcher itself restarted after a join sync** exited with 75 again. At most one automatic
+/// rejoin follows a join the player started, so a host that keeps asking (a loop that would add mods every round) is
+/// stopped here: nothing is read from the request or installed, the staging folder is emptied, and the status says why.
+pub fn refuse_repeated_exit(instance: &Path) -> Result<JoinSyncDone, String> {
+    let _lock = lock();
+    let host = read_request(&staging_dir(instance)).ok().map(|request| request.host.address);
+    clear_staging(instance);
+    let error = format!(
+        "{} asked for mods again right after they were installed, so the join was stopped (a host may only make the launcher restart the game once per join). Nothing more was installed. Join again yourself if you trust this host.",
+        host.as_deref().unwrap_or("the host")
+    );
+    note(instance, JoinSyncStatus { host_display: host.unwrap_or_else(|| "(unknown host)".to_owned()), installed: 0, error: Some(error.clone()) });
+    Err(error)
+}
+
 /// Returns the host's display text when the request got that far, and the outcome.
 fn apply(data: &Path, instance: &Path) -> (Option<String>, Result<JoinSyncDone, String>) {
     let staging = staging_dir(instance);
@@ -475,7 +498,7 @@ fn verify(staging: &Path, entry: &RequestMod) -> Result<Vec<u8>, String> {
         return Err(format!("{} does not match the SHA-256 the host announced", entry.id));
     }
     // the package itself: valid, and what the request says it is
-    let archive = Archive::new(Cursor::new(bytes.clone())).map_err(|e| format!("{}: {e}", entry.id))?;
+    let archive = Archive::new(Cursor::new(bytes.as_slice())).map_err(|e| format!("{}: {e}", entry.id))?;
     let manifest = archive.manifest();
     if manifest.id != entry.id || manifest.version.to_string() != entry.version {
         return Err(format!("{} is not the mod {} {} the request names", entry.file, entry.id, entry.version));
@@ -495,6 +518,45 @@ fn install_request(data: &Path, instance: &Path, staging: &Path, request: &JoinR
     let mut checked = Vec::new();
     for entry in &request.mods {
         checked.push(Checked { bytes: verify(staging, entry)?, entry: entry.clone() });
+    }
+    // 1b. M2: the host's folder stays within its caps once this request is in (nothing from the request is installed
+    // otherwise). Files of the same hash are already there; files this request replaces (same id, other bytes) go away.
+    {
+        let record = read_record(&control, instance, key);
+        let request_hashes: Vec<&str> = request.mods.iter().map(|m| m.sha256.as_str()).collect();
+        let replaced_hashes: Vec<&str> = record
+            .mods
+            .iter()
+            .filter(|old| request.mods.iter().any(|m| m.id == old.id) && !request_hashes.contains(&old.sha256.as_str()))
+            .map(|old| old.sha256.as_str())
+            .collect();
+        let (mut count, mut bytes) = (0usize, 0u64);
+        let mut present: Vec<String> = Vec::new();
+        if let Ok(read) = std::fs::read_dir(&dir) {
+            for item in read.flatten() {
+                let name = item.file_name().to_string_lossy().into_owned();
+                let Some(hash) = name.strip_suffix(".yak") else { continue };
+                if replaced_hashes.contains(&hash) {
+                    continue;
+                }
+                count += 1;
+                bytes += item.metadata().map_or(0, |m| m.len());
+                present.push(hash.to_owned());
+            }
+        }
+        for entry in &request.mods {
+            if !present.contains(&entry.sha256) {
+                count += 1;
+                bytes += entry.size;
+            }
+        }
+        if count > MAX_HOST_MODS || bytes > MAX_HOST_BYTES {
+            return Err(format!(
+                "this host's mods would be {count} files and {} MiB, over the limit of {MAX_HOST_MODS} files and {} MiB per host; nothing was installed (remove its mods on the Mods page first)",
+                bytes / (1024 * 1024),
+                MAX_HOST_BYTES / (1024 * 1024)
+            ));
+        }
     }
     // 2. install; a failure takes back what this request added
     let folder_was_there = dir.exists();
@@ -522,7 +584,7 @@ fn install_request(data: &Path, instance: &Path, staging: &Path, request: &JoinR
         record.host = key.clone();
         record.display = request.host.address.clone();
         for item in &checked {
-            for old in record.mods.iter().filter(|m| m.id == item.entry.id && m.sha256 != item.entry.sha256) {
+            for old in record.mods.iter().filter(|m| m.id == item.entry.id && m.sha256 != item.entry.sha256 && !checked.iter().any(|other| other.entry.sha256 == m.sha256)) {
                 replaced.push(dir.join(format!("{}.yak", old.sha256)));
             }
             record.mods.retain(|m| m.id != item.entry.id);

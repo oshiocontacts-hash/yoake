@@ -430,3 +430,142 @@ fn what_the_player_already_has_is_not_fetched() {
     assert!(!has_local(&player, Some("server:other.example.com:25565"), &[], sandboxed));
     assert!(!has_local(&player, None, &[], sandboxed));
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// MX3RF1: the review's fixes
+// ---------------------------------------------------------------------------------------------------------------
+
+#[test]
+fn m1_the_remote_scope_exists_only_while_connected_to_the_launchs_host() {
+    let h = server();
+    let key = Some(h.key.as_str());
+    // joining H with H's key
+    assert_eq!(session_remote_key_for(key, Some(&h)), Some(h.key.clone()));
+    // single player / replay / a pseudo-address after H: no host identity
+    assert_eq!(session_remote_key_for(key, None), None);
+    // another server in the same process
+    let other = server_host("other.example.com").unwrap();
+    assert_eq!(session_remote_key_for(key, Some(&other)), None);
+    // a friend is not a server of the same name
+    assert_eq!(session_remote_key_for(key, friend_host("play.example.com").as_ref()), None);
+    // no `--remote-mods` or an invalid one: nothing, whatever the host
+    assert_eq!(session_remote_key_for(None, Some(&h)), None);
+    assert_eq!(session_remote_key_for(Some("server:Play.Example.COM:25570"), Some(&h)), None);
+    // the friend flow
+    let friend = friend_host("User_7").unwrap();
+    assert_eq!(friend.key, "friend:user_7");
+    assert_eq!(session_remote_key_for(Some("friend:user_7"), Some(&friend)), Some("friend:user_7".into()));
+    assert_eq!(session_remote_key_for(Some("friend:user_8"), Some(&friend)), None);
+}
+
+#[test]
+fn m1_the_launchs_server_argument_decides_which_remote_packages_a_start_may_read() {
+    let args = |list: &[&str]| list.iter().map(|text| text.to_string()).collect::<Vec<_>>();
+    let key = "server:play.example.com:25570";
+    assert!(launch_may_use_remote_from(key, args(&["--server", "Play.Example.COM:25570", "--remote-mods", key])));
+    assert!(!launch_may_use_remote_from(key, args(&["--remote-mods", key])), "no --server: not a join of that server");
+    assert!(!launch_may_use_remote_from(key, args(&["--server", "other.example.com", "--remote-mods", key])));
+    assert!(launch_may_use_remote_from("friend:user_7", args(&["--remote-mods", "friend:user_7"])));
+    assert!(!launch_may_use_remote_from("friend:User_7", args(&[])), "not a (lowercase) key");
+}
+
+fn wants(reaction_send: &[Vec<u8>], hash: &[u8; 32]) -> bool {
+    reaction_send.iter().any(|payload| matches!(Message::decode(payload), Ok(Message::Request(found)) if found == *hash))
+}
+
+#[test]
+fn m1_another_hosts_folder_does_not_count_as_already_there() {
+    let host = host_game("m1_host");
+    let (offer, _source) = running(&host);
+    let player = scratch("m1_player");
+    // the player has all of H's mods from an earlier join
+    let h_key = server().key;
+    std::fs::create_dir_all(host_dir(&player, &h_key)).unwrap();
+    for path in [&host.sandboxed, &host.full] {
+        std::fs::copy(path, host_dir(&player, &h_key).join(format!("{}.yak", transfer::hex(&sha_of(path))))).unwrap();
+    }
+    let requests = |sent: &[Vec<u8>]| sent.iter().filter(|payload| matches!(Message::decode(payload), Ok(Message::Request(_)))).count();
+    // a process started for H, now joining H: nothing to fetch
+    let mut again = ClientJoin::new(player.clone(), Some(server()), true, Some(h_key.clone()), Vec::new());
+    again.on_payload(transfer::CAPABILITIES);
+    assert_eq!(requests(&again.on_payload(&offer.encode()).send), 0, "H's own folder counts for H");
+    // the same process now joins S: H's files are not loaded there, so they must not count
+    let other = server_host("other.example.com").unwrap();
+    let mut elsewhere = ClientJoin::new(player.clone(), Some(other), true, Some(h_key), Vec::new());
+    elsewhere.on_payload(transfer::CAPABILITIES);
+    assert_eq!(requests(&elsewhere.on_payload(&offer.encode()).send), 1, "another host's folder does not count");
+}
+
+#[test]
+fn s3_a_sync_starts_with_an_empty_staging_folder() {
+    let host = host_game("s3_host");
+    let (offer, source) = running(&host);
+    let mut session = HostSession::new(offer, source);
+    let player = scratch("s3_player");
+    let staging = staging_dir(&player);
+    std::fs::create_dir_all(staging.join("sub")).unwrap();
+    std::fs::write(staging.join("sub").join("junk.bin"), b"left by a hostile run").unwrap();
+    std::fs::write(staging.join("old.yak"), b"old").unwrap();
+    std::fs::write(staging.join("old.part"), b"old").unwrap();
+    write_request(&staging, &server(), &[]).unwrap();
+    let mut join = client(&player, true, Some(server()));
+    run_join(&mut join, &mut session, |payload| payload);
+    let mut names: Vec<_> = std::fs::read_dir(&staging).unwrap().flatten().map(|item| item.file_name().to_string_lossy().into_owned()).collect();
+    names.sort();
+    assert!(!names.iter().any(|n| n == "sub" || n == "old.yak" || n == "old.part"), "{names:?}");
+    assert!(names.contains(&"join-request.json".to_owned()), "the new request is there: {names:?}");
+}
+
+#[test]
+fn s4_at_most_two_transfers_run_at_once() {
+    let counter = std::sync::atomic::AtomicUsize::new(0);
+    assert!(take_place(&counter, MAX_TRANSFERS));
+    assert!(take_place(&counter, MAX_TRANSFERS));
+    assert!(!take_place(&counter, MAX_TRANSFERS), "a third is Busy");
+    assert_eq!(MAX_TRANSFERS, 2);
+}
+
+/// A source that is always full (what a host with two running transfers answers).
+struct Full;
+
+impl Source for Full {
+    fn admit(&mut self) -> bool {
+        false
+    }
+    fn open(&mut self, _: &OfferEntry) -> std::io::Result<()> {
+        panic!("a refused transfer is never opened")
+    }
+    fn read_at(&mut self, _: u64, _: &mut [u8]) -> std::io::Result<usize> {
+        Ok(0)
+    }
+    fn close(&mut self) {}
+}
+
+#[test]
+fn s4_a_transfer_beyond_the_limit_is_answered_busy() {
+    let game = host_game("s4_busy");
+    let (offer, _) = running(&game);
+    let entry = offer.entries()[0].clone();
+    let mut session = HostSession::new(offer, Full);
+    let HostEvent::Reply(replies) = session.handle(&transfer::request(&entry.sha256)).unwrap() else { panic!("expected a refusal") };
+    assert!(matches!(Message::decode(&replies[0]), Ok(Message::Refuse { reason: transfer::RefuseReason::Busy, .. })), "{replies:?}");
+    assert!(!session.transferring());
+}
+
+#[test]
+fn s4_a_file_that_did_not_change_is_hashed_once_and_read_from_the_hashed_handle() {
+    let game = host_game("s4_cache");
+    let (offer, mut source) = running(&game);
+    let entry = offer.entries().iter().find(|entry| entry.id == "sand_mod").unwrap().clone();
+    source.open(&entry).unwrap();
+    source.close();
+    let meta = std::fs::metadata(&game.sandboxed).unwrap();
+    let key: HashKey = (meta.len(), meta.modified().ok());
+    assert_eq!(cached_hash(&game.sandboxed, key), Some(entry.sha256), "the hash is remembered by path, length and mtime");
+    assert_eq!(cached_hash(&game.sandboxed, (key.0 + 1, key.1)), None, "another length is a miss");
+    source.open(&entry).unwrap();
+    let mut buf = vec![0u8; entry.size as usize + 4];
+    let read = source.read_at(0, &mut buf).unwrap();
+    assert_eq!(Sha256::digest(&buf[..read]).as_slice(), entry.sha256);
+    source.close();
+}

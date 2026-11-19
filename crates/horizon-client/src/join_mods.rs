@@ -66,6 +66,41 @@ pub fn remote_key() -> Option<String> {
     remote_key_from(std::env::args().skip(1))
 }
 
+/// M1: the host key whose remote mods may run **in this session**: the process's `--remote-mods` key, but only while
+/// the connection the player is in goes to exactly that host (`host`, [`HostId::key`]). Single player, a replay, any
+/// other server and a connection without a host identity get `None`, so a host's mods never outlive the connection
+/// that earned them, even when the player leaves for another world in the same process.
+pub fn session_remote_key_for(process_key: Option<&str>, host: Option<&HostId>) -> Option<String> {
+    let (process_key, host) = (process_key?, host?);
+    (valid_host_key(process_key) && host.key == process_key).then(|| process_key.to_owned())
+}
+
+/// [`session_remote_key_for`] for this process (`--remote-mods`) and the host the game connected to last.
+pub fn session_remote_key() -> Option<String> {
+    session_remote_key_for(remote_key().as_deref(), host().as_ref())
+}
+
+/// The host key a `--server <address>` of the launch arguments names (the same canonical form as the game's own host
+/// identity); a launch that joins a friend by the launcher's social hand-off has none.
+pub fn launch_server_key_from<I: IntoIterator<Item = String>>(args: I) -> Option<String> {
+    let args: Vec<String> = args.into_iter().collect();
+    let position = args.iter().rposition(|argument| argument == "--server")?;
+    server_host(args.get(position + 1)?).map(|host| host.key)
+}
+
+/// M1, for the sandboxed packages that are read once at start: whether a launch with these arguments may use the remote
+/// folder of `key`. A direct join (`server:` key) must be a launch that really joins that server (`--server`); a social
+/// join has no address on the command line (the launcher hands the grant over in a private file), so only the key counts.
+pub fn launch_may_use_remote_from<I: IntoIterator<Item = String>>(key: &str, args: I) -> bool {
+    if !valid_host_key(key) {
+        return false;
+    }
+    if key.starts_with("server:") {
+        return launch_server_key_from(args).as_deref() == Some(key);
+    }
+    true
+}
+
 pub use horizon_mods::yak::control::{MAX_HOST_KEY as MAX_KEY, host_dir_name, valid_host_key};
 
 /// `<game dir>/mods/remote/<host dir>` (see `control::host_dir_name`).
@@ -137,7 +172,7 @@ pub fn server_host(address: &str) -> Option<HostId> {
 
 /// A social/relay host by its portal user id.
 pub fn friend_host(portal_user_id: &str) -> Option<HostId> {
-    let key = format!("friend:{portal_user_id}");
+    let key = format!("friend:{}", portal_user_id.to_ascii_lowercase());
     valid_host_key(&key).then(|| HostId { kind: HostKind::Friend, address: portal_user_id.to_owned(), rejoin: key.clone(), key })
 }
 
@@ -262,6 +297,17 @@ pub fn clear_request(staging: &Path) {
     let _ = std::fs::remove_file(staging.join(REQUEST_FILE));
 }
 
+/// S3: empties the whole staging folder at the start of a sync (every file, part file and folder left by an earlier or
+/// hostile run; links are removed, not followed). The folder itself stays if it exists.
+pub fn clear_staging(staging: &Path) {
+    let Ok(read) = std::fs::read_dir(staging) else { return };
+    for item in read.flatten() {
+        let path = item.path();
+        let is_dir = item.file_type().is_ok_and(|kind| kind.is_dir() && !kind.is_symlink());
+        let _ = if is_dir { std::fs::remove_dir_all(&path) } else { std::fs::remove_file(&path).or_else(|_| std::fs::remove_dir(&path)) };
+    }
+}
+
 /// What the game does once every file is staged: the request file, then the exit code. Pure apart from the file, so
 /// a test can check both without ending the process.
 pub fn finish_join(staging: &Path, host: &HostId, staged: &[OfferEntry]) -> Result<i32, String> {
@@ -307,7 +353,10 @@ pub fn has_local(game_root: &Path, host_key: Option<&str>, installed: &[(String,
 }
 
 fn hash_file(path: &Path) -> std::io::Result<[u8; 32]> {
-    let mut file = File::open(path)?;
+    hash_reader(&mut File::open(path)?)
+}
+
+fn hash_reader(file: &mut File) -> std::io::Result<[u8; 32]> {
     let mut hasher = Sha256::new();
     let mut buf = vec![0u8; 64 * 1024];
     loop {
@@ -424,7 +473,7 @@ pub fn offer_from(game_root: &Path, running: &Running<'_>) -> Option<(Offer, Fil
         return None;
     }
     match Offer::new(entries) {
-        Ok(offer) => Some((offer, FileSource { files, open: None })),
+        Ok(offer) => Some((offer, FileSource { files, open: None, permit: false })),
         Err(error) => {
             log::warn!("join mods: not offering the host's mods: {error}");
             None
@@ -440,22 +489,101 @@ pub fn host_offer() -> Option<(Offer, FileSource)> {
     offer_from(&game_root(), &Running { full_access_hashes: &runs, installed: &installed })
 }
 
-/// The host's file source: only the files of its own offer, found by SHA-256, opened and re-hashed when a transfer
-/// starts (a file changed since the offer is refused), read lazily in chunks.
+/// At most this many transfers run at once across all connections of a host (more get `Busy`).
+pub const MAX_TRANSFERS: usize = 2;
+static ACTIVE_TRANSFERS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// Takes one of the `limit` places of `counter`, or says there is none.
+fn take_place(counter: &std::sync::atomic::AtomicUsize, limit: usize) -> bool {
+    use std::sync::atomic::Ordering;
+    counter.fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).is_ok()
+}
+
+/// Hashes of files served before, by (path, length, modified time): a file that did not change is not read through again
+/// for every request.
+type HashKey = (u64, Option<SystemTime>);
+type Hashed = HashMap<PathBuf, (HashKey, [u8; 32])>;
+static HASHED: Mutex<Option<Hashed>> = Mutex::new(None);
+
+fn cached_hash(path: &Path, key: HashKey) -> Option<[u8; 32]> {
+    if let Some((cached, hash)) = HASHED.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|map| map.get(path)) {
+        if *cached == key {
+            return Some(*hash);
+        }
+    }
+    // the offer's own scan hashed it too
+    let scanned = SCANNED.lock().unwrap_or_else(|e| e.into_inner());
+    let (cached, scanned) = scanned.as_ref()?.get(path)?;
+    if *cached == key { scanned.as_ref().map(|s| s.sha256) } else { None }
+}
+
+/// The host's file source: only the files of its own offer, found by SHA-256. A transfer opens the file once, checks
+/// (by cached hash, or by hashing **that same handle**) that it is still the offered bytes, and reads from that handle in
+/// chunks. At most [`MAX_TRANSFERS`] transfers run at once in the process.
 pub struct FileSource {
     files: HashMap<[u8; 32], PathBuf>,
     open: Option<File>,
+    permit: bool,
+}
+
+impl FileSource {
+    fn release(&mut self) {
+        self.open = None;
+        if std::mem::take(&mut self.permit) {
+            ACTIVE_TRANSFERS.fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
+        }
+    }
+
+    /// For tests: a source over these files (by hash).
+    #[cfg(test)]
+    fn for_test(files: HashMap<[u8; 32], PathBuf>) -> Self {
+        Self { files, open: None, permit: false }
+    }
+}
+
+impl Drop for FileSource {
+    fn drop(&mut self) {
+        self.release();
+    }
 }
 
 impl Source for FileSource {
+    fn admit(&mut self) -> bool {
+        if self.permit {
+            return true;
+        }
+        // (the unit tests run many joins at once in one process: no limit there; the limit itself is tested on `take_place`)
+        let limit = if cfg!(test) { usize::MAX } else { MAX_TRANSFERS };
+        self.permit = take_place(&ACTIVE_TRANSFERS, limit);
+        self.permit
+    }
+
     fn open(&mut self, entry: &OfferEntry) -> std::io::Result<()> {
         // CHECK: a path is only ever looked up by a hash that is in the offer, never built from the request.
         let path = self.files.get(&entry.sha256).ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))?;
-        let meta = std::fs::symlink_metadata(path)?;
-        if !meta.is_file() || meta.len() != entry.size || hash_file(path)? != entry.sha256 {
-            return Err(std::io::Error::other("the file is no longer the offered one"));
+        let changed = || std::io::Error::other("the file is no longer the offered one");
+        if !std::fs::symlink_metadata(path)?.is_file() {
+            return Err(changed());
         }
-        self.open = Some(File::open(path)?);
+        let mut file = File::open(path)?;
+        let meta = file.metadata()?;
+        if !meta.is_file() || meta.len() != entry.size {
+            return Err(changed());
+        }
+        let key: HashKey = (meta.len(), meta.modified().ok());
+        let hash = match cached_hash(path, key) {
+            Some(hash) => hash,
+            None => {
+                let hash = hash_reader(&mut file)?;
+                file.seek(SeekFrom::Start(0))?;
+                HASHED.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert_with(HashMap::new).insert(path.clone(), (key, hash));
+                hash
+            }
+        };
+        if hash != entry.sha256 {
+            return Err(changed());
+        }
+        self.open = Some(file);
         Ok(())
     }
 
@@ -466,7 +594,7 @@ impl Source for FileSource {
     }
 
     fn close(&mut self) {
-        self.open = None;
+        self.release();
     }
 }
 
@@ -537,6 +665,8 @@ impl ClientJoin {
     }
 
     pub fn new(game_root: PathBuf, host: Option<HostId>, enabled: bool, remote_key: Option<String>, installed: Vec<(String, String)>) -> Self {
+        // M1: the host's folder counts as "already have" only for a join of that very host
+        let remote_key = session_remote_key_for(remote_key.as_deref(), host.as_ref());
         Self { negotiation: transfer::Negotiation::default(), sync: None, finished: false, game_root, host, enabled, remote_key, installed }
     }
 
@@ -553,8 +683,8 @@ impl ClientJoin {
             Some(sync) => sync.on_message(data),
             None => {
                 let staging = staging_dir(&self.game_root);
-                // a request of an earlier, abandoned join must never be taken for this one
-                clear_request(&staging);
+                // a request (or leftover files) of an earlier, abandoned join must never be taken for this one
+                clear_staging(&staging);
                 // CHECK: without a host identity (single player, an invite code) nothing is fetched.
                 let enabled = self.enabled && self.host.is_some();
                 let (root, key, installed) = (self.game_root.clone(), self.remote_key.clone(), self.installed.clone());

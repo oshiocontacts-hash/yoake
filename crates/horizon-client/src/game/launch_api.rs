@@ -81,6 +81,26 @@ pub const OPTIONS: &[LaunchOption] = &[
         "Joins this server at start.",
     ),
     option(
+        "--full-access-approved",
+        Some("FILE"),
+        "Yoake 2.0: the launcher's list of the full-access mods this launch may run (written by the launcher; the game reads it once). Without it no full-access mod runs. A launcher passes it only to a game that lists it here.",
+    ),
+    option(
+        "--full-access-dev",
+        None,
+        "Yoake 2.0, developers: re-read the `--full-access-approved` list while running and reload the mods when it changes.",
+    ),
+    option(
+        "--join-mod-sync",
+        None,
+        "Yoake 2.0: when joining a host that runs `.yak` mods the player lacks, fetch them (hash-checked) into `mods/remote/.staging/`, write `join-request.json` and exit with code 75 so the launcher can install them and start the game again. Without it a mismatch is refused as before.",
+    ),
+    option(
+        "--remote-mods",
+        Some("KEY"),
+        "Yoake 2.0: this launch joins the host with this key (`server:<host>:<port>` or `friend:<id>`, lowercase), so the mods installed from that host (`mods/remote/<key>/`) may run, only while connected to it.",
+    ),
+    option(
         "--launch-api",
         None,
         "Prints the reply below and exits 0, before anything else runs.",

@@ -5,6 +5,7 @@ use super::*;
 use crate::full_access::{self as fa, Rejoin, DevSync};
 use horizon_mods::yak::control::{self, ApprovedList, Origin, APPROVED_ARG};
 use serde_json::json;
+use std::process::Command;
 use std::time::{Duration, Instant};
 
 const SERVER: &str = "server:play.example.com:25565";
@@ -478,4 +479,144 @@ fn request_parsing_host_keys_and_the_exit_text() {
     let again = twice["mods"][0].clone();
     twice["mods"].as_array_mut().unwrap().push(again);
     assert!(fa::parse_join_request(&twice.to_string()).is_err());
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// MX3RF1: the review's fixes
+// ---------------------------------------------------------------------------------------------------------------
+
+/// M2: fills the host's folder with fake `.yak` files (never opened by the installer's cap check) and returns its path.
+/// The first file has `first_bytes` bytes (sparse), the others one byte.
+fn fill_host_folder(fixture: &Fixture, count: usize, first_bytes: u64) -> PathBuf {
+    let dir = remote(fixture).join(SERVER_DIR);
+    std::fs::create_dir_all(&dir).unwrap();
+    for n in 0..count {
+        let name = format!("{:064x}.yak", n + 1);
+        let file = std::fs::File::create(dir.join(name)).unwrap();
+        file.set_len(if n == 0 { first_bytes } else { 1 }).unwrap();
+    }
+    dir
+}
+
+#[test]
+fn m2_a_host_folder_is_capped_at_64_mods() {
+    assert_eq!((fa::MAX_HOST_MODS, fa::MAX_HOST_BYTES), (64, 512 * 1024 * 1024));
+    let fixture = Fixture::new();
+    let dir = fill_host_folder(&fixture, fa::MAX_HOST_MODS, 1);
+    let before = names(&dir);
+    let mut staged = Staged::new(&fixture);
+    staged.add(&fixture, "one-too-many", "1.0.0", false);
+    staged.write_server(&fixture);
+    let error = fa::handle_join_exit_in(&data(&fixture), &fixture.home).unwrap_err();
+    assert!(error.contains("nothing was installed") && error.contains("64"), "{error}");
+    assert_eq!(names(&dir), before, "nothing from the request was installed");
+    assert!(names(&staging(&fixture)).is_empty());
+    assert!(fa::last_join_sync_for(&fixture.home).unwrap().error.is_some());
+    // one place left: the same request fits
+    std::fs::remove_file(dir.join(&before[0])).unwrap();
+    let mut staged = Staged::new(&fixture);
+    staged.add(&fixture, "fits", "1.0.0", false);
+    staged.write_server(&fixture);
+    assert_eq!(fa::handle_join_exit_in(&data(&fixture), &fixture.home).unwrap().installed, 1);
+}
+
+#[test]
+fn m2_a_host_folder_is_capped_at_512_mib() {
+    let fixture = Fixture::new();
+    // a (sparse) file that leaves less room than the request needs
+    let dir = fill_host_folder(&fixture, 1, fa::MAX_HOST_BYTES - 16);
+    let before = names(&dir);
+    let mut staged = Staged::new(&fixture);
+    let package = staged.add(&fixture, "too-big-together", "1.0.0", false);
+    assert!(package.bytes.len() > 16);
+    staged.write_server(&fixture);
+    let error = fa::handle_join_exit_in(&data(&fixture), &fixture.home).unwrap_err();
+    assert!(error.contains("nothing was installed") && error.contains("512"), "{error}");
+    assert_eq!(names(&dir), before);
+    // the same bytes already in the folder cost nothing more
+    let fixture = Fixture::new();
+    let mut staged = Staged::new(&fixture);
+    staged.add(&fixture, "again", "1.0.0", false);
+    staged.write_server(&fixture);
+    fa::handle_join_exit_in(&data(&fixture), &fixture.home).unwrap();
+    let mut staged = Staged::new(&fixture);
+    staged.add(&fixture, "again", "1.0.0", false);
+    staged.write_server(&fixture);
+    assert_eq!(fa::handle_join_exit_in(&data(&fixture), &fixture.home).unwrap().installed, 1);
+}
+
+#[test]
+fn m2_a_game_the_launcher_restarted_that_asks_again_installs_nothing() {
+    let fixture = Fixture::new();
+    let mut staged = Staged::new(&fixture);
+    staged.add(&fixture, "loop-mod", "1.0.0", true);
+    staged.write_server(&fixture);
+    let error = fa::refuse_repeated_join_exit(&fixture.home).unwrap_err();
+    assert!(error.contains("play.example.com:25565") && error.contains("asked for mods again"), "{error}");
+    nothing_installed(&fixture);
+    let status = fa::last_join_sync_for(&fixture.home).unwrap();
+    assert_eq!(status.host_display, "play.example.com:25565");
+    assert!(status.error.unwrap().contains("asked for mods again"));
+    // without any request it still refuses and says so
+    assert!(fa::refuse_repeated_join_exit(&fixture.home).is_err());
+}
+
+#[test]
+fn s1_an_old_game_gets_none_of_the_new_arguments() {
+    let fixture = Fixture::new();
+    let mut staged = Staged::new(&fixture);
+    staged.add(&fixture, "host-fa", "2.0.0", true);
+    staged.write_server(&fixture);
+    let done = fa::handle_join_exit_in(&data(&fixture), &fixture.home).unwrap();
+    let prepared = fa::prepare_for(&data(&fixture), &fixture.home, None, Some(&done.host_key), true);
+    assert!(prepared.run.is_some() && prepared.join_mod_sync && prepared.remote_host.is_some());
+    let strings = |support: fa::GameSupport| prepared.args_for(support).iter().map(|a| a.to_string_lossy().into_owned()).collect::<Vec<_>>();
+    // a 1.0 game: no `--launch-api` options at all
+    assert!(strings(fa::GameSupport::NONE).is_empty());
+    assert_eq!(fa::GameSupport::from_reply("{\"launch_api\":\"0.1.0\",\"options\":[{\"name\":\"--width\",\"value\":\"N\"},{\"name\":\"--server\",\"value\":\"X\"}]}"), fa::GameSupport::NONE);
+    assert_eq!(fa::GameSupport::from_reply("not json"), fa::GameSupport::NONE);
+    let mut cmd = Command::new("game");
+    prepared.apply_for(&mut cmd, fa::GameSupport::NONE);
+    assert_eq!(cmd.get_args().count(), 0);
+    // a new game lists all four
+    let reply = "{\"launch_api\":\"0.1.0\",\"options\":[{\"name\":\"--full-access-approved\",\"value\":\"FILE\"},{\"name\":\"--full-access-dev\",\"value\":null},{\"name\":\"--join-mod-sync\",\"value\":null},{\"name\":\"--remote-mods\",\"value\":\"KEY\"}]}";
+    let support = fa::GameSupport::from_reply(reply);
+    assert_eq!(support, fa::GameSupport::ALL);
+    let all = strings(support);
+    for flag in ["--full-access-approved", "--join-mod-sync", "--remote-mods"] {
+        assert!(all.iter().any(|a| a == flag), "{flag} in {all:?}");
+    }
+    // a game that knows only some of them gets only those
+    let partial = fa::GameSupport::from_reply("{\"options\":[{\"name\":\"--full-access-approved\",\"value\":\"FILE\"}]}");
+    let some = strings(partial);
+    assert_eq!(some.len(), 2, "{some:?}");
+    assert!(!some.iter().any(|a| a == "--join-mod-sync" || a == "--remote-mods"));
+    // a missing executable cannot be asked: no new arguments
+    assert_eq!(fa::GameSupport::detect(Path::new("no-such-game.exe")), fa::GameSupport::NONE);
+}
+
+fn sample_mod() -> serde_json::Value {
+    let hash = "a".repeat(64);
+    json!({"id": "x", "version": "1.0.0", "sha256": hash, "size": 10, "full_access": false, "file": format!("{hash}.yak")})
+}
+
+#[test]
+fn s2_a_host_key_is_lowercase_and_must_be_the_one_computed_from_the_address() {
+    for bad in ["server:Play.Example.com:25565", "friend:User_7"] {
+        assert!(!control::valid_host_key(bad), "{bad}");
+    }
+    assert_eq!(fa::friend_host_key("User_7"), Some("friend:user_7".into()));
+    let ok = |host: serde_json::Value, rejoin: &str| {
+        let staged = Staged { mods: vec![sample_mod()] };
+        fa::parse_join_request(&staged.request(host, rejoin).to_string())
+    };
+    // the canonical forms pass; a friend's address keeps its spelling, its key is the lowercase of it
+    assert!(ok(json!({"kind": "server", "address": "play.example.com:25565", "key": SERVER}), "play.example.com:25565").is_ok());
+    assert!(ok(json!({"kind": "friend", "address": "User_7", "key": "friend:user_7"}), "friend:user_7").is_ok());
+    // a key with capitals, a host that spells its own key, an address that is not the canonical `host:port`
+    assert!(ok(json!({"kind": "server", "address": "Play.Example.com:25565", "key": "server:Play.Example.com:25565"}), "Play.Example.com:25565").is_err());
+    assert!(ok(json!({"kind": "server", "address": "Play.Example.com:25565", "key": SERVER}), "Play.Example.com:25565").is_err());
+    assert!(ok(json!({"kind": "server", "address": "play.example.com", "key": SERVER}), "play.example.com").is_err(), "the port is part of the address");
+    assert!(ok(json!({"kind": "friend", "address": "User_7", "key": "friend:User_7"}), "friend:User_7").is_err());
+    assert!(ok(json!({"kind": "friend", "address": "user_7", "key": "friend:user_8"}), "friend:user_7").is_err());
 }

@@ -42,11 +42,13 @@ use std::sync::Mutex;
 
 mod dev;
 mod join;
+mod support;
+pub use support::GameSupport;
 pub use join::{
-    friend_host_key, handle_exit as handle_join_exit, handle_exit_in as handle_join_exit_in, is_exit_text as is_join_exit_text,
+    friend_host_key, refuse_repeated_exit as refuse_repeated_join_exit, handle_exit as handle_join_exit, handle_exit_in as handle_join_exit_in, is_exit_text as is_join_exit_text,
     last_join_sync, last_join_sync_for, parse_request as parse_join_request, remote_hosts, remote_hosts_in, remove_remote_host,
     remove_remote_host_in, server_host_key, JoinRequest, JoinSyncDone, JoinSyncStatus, Rejoin, RemoteHost, RemoteMod,
-    EXIT_CODE as JOIN_EXIT_CODE, REMOTE_ARG, SYNC_ARG as JOIN_SYNC_ARG,
+    EXIT_CODE as JOIN_EXIT_CODE, MAX_HOST_BYTES, MAX_HOST_MODS, REMOTE_ARG, SYNC_ARG as JOIN_SYNC_ARG,
 };
 pub use dev::{
     active_dev_folder, dev_folder_status, set_dev_folder, status_for, validate_dev_folder, DevStatus, DevSync, DEV_ARG,
@@ -224,6 +226,16 @@ fn unchecked_list(control: &Control, mods: &Path) -> Result<ApprovedList, String
         entries.push(ApprovedEntry { id: entry.id.clone(), version: entry.version.clone(), sha256: item.sha256.clone(), origin });
     }
     Ok(ApprovedList::new(entries, vec![control.dir().to_path_buf(), control.checksum_path()]))
+}
+
+/// S5: `list` without its dev-origin entries (the host scope, if any, and the protected paths stay).
+fn without_dev(list: &ApprovedList) -> ApprovedList {
+    let entries = list.entries().iter().filter(|e| e.origin != Origin::Dev).cloned().collect();
+    let kept = ApprovedList::new(entries, list.protected().to_vec());
+    match list.host() {
+        Some(host) => kept.with_host(host),
+        None => kept,
+    }
 }
 
 /// The list a launch passes: the entries of `current` that the player accepted (equal entry in `last`).
@@ -616,20 +628,31 @@ impl Prepared {
         cmd.args(self.args());
     }
 
-    /// The argument pair, for callers that build their own command line.
+    /// [`Prepared::apply`] for a game that takes only the arguments `support` says (S1).
+    pub fn apply_for(&self, cmd: &mut Command, support: GameSupport) {
+        cmd.args(self.args_for(support));
+    }
+
+    /// The argument list, for callers that build their own command line (all four arguments).
     pub fn args(&self) -> Vec<std::ffi::OsString> {
+        self.args_for(GameSupport::ALL)
+    }
+
+    /// The arguments this launch passes to a game with `support`: a new argument is left out when the game does not
+    /// list it in `--launch-api` (it would refuse to start).
+    pub fn args_for(&self, support: GameSupport) -> Vec<std::ffi::OsString> {
         let mut args: Vec<std::ffi::OsString> = Vec::new();
-        if let Some(run) = &self.run {
+        if let Some(run) = self.run.as_ref().filter(|_| support.approved) {
             args.push(APPROVED_ARG.into());
             args.push(run.approved_path().as_os_str().to_owned());
-            if self.dev {
+            if self.dev && support.dev {
                 args.push(DEV_ARG.into());
             }
         }
-        if self.join_mod_sync {
+        if self.join_mod_sync && support.join_sync {
             args.push(JOIN_SYNC_ARG.into());
         }
-        if let Some(host) = &self.remote_host {
+        if let Some(host) = self.remote_host.as_ref().filter(|_| support.remote) {
             args.push(REMOTE_ARG.into());
             args.push(host.into());
         }
@@ -704,7 +727,8 @@ pub fn prepare_for(data: &Path, instance: &Path, dev_folder: Option<&Path>, host
     let host = host.filter(|key| join::host_has_folder(instance, key));
     let mut prepared = {
         let _lock = lock();
-        prepare_unlocked(data, instance, host)
+        // S5: dev-origin approvals only go to a launch whose dev folder is active
+        prepare_unlocked(data, instance, host, dev_folder.is_some())
     };
     prepared.join_mod_sync = join_mod_sync;
     prepared.remote_host = host.map(str::to_owned);
@@ -714,13 +738,24 @@ pub fn prepare_for(data: &Path, instance: &Path, dev_folder: Option<&Path>, host
                 run.dev = Some(watcher);
                 prepared.dev = true;
             }
-            Err(error) => dev::note_start_failed(instance, folder, &error),
+            Err(error) => {
+                dev::note_start_failed(instance, folder, &error);
+                // S5: the dev folder is not active after all: the list loses its dev-origin entries
+                if let Some(run) = prepared.run.as_ref() {
+                    if let Ok(list) = ApprovedList::read(run.approved_path()) {
+                        let kept = without_dev(&list);
+                        if kept.entries().len() != list.entries().len() && std::fs::remove_file(run.approved_path()).is_ok() && kept.write_for_launch(run.dir()).is_ok() {
+                            prepared.passed = kept.entries().len();
+                        }
+                    }
+                }
+            }
         }
     }
     prepared
 }
 
-fn prepare_unlocked(data: &Path, instance: &Path, host: Option<&str>) -> Prepared {
+fn prepare_unlocked(data: &Path, instance: &Path, host: Option<&str>, dev_active: bool) -> Prepared {
     let result = (|| {
         let control = open_control(data, instance)?;
         let mods = mods_dir(instance);
@@ -728,6 +763,9 @@ fn prepare_unlocked(data: &Path, instance: &Path, host: Option<&str>) -> Prepare
         let last = load_last(&control, instance);
         let pending = last.diff(&current);
         let mut effective = effective_list(&last, &current);
+        if !dev_active {
+            effective = without_dev(&effective);
+        }
         // MX3JN2: a launch that joins a host with remote mods also passes that host's full-access mods, scoped to it
         if let Some(key) = host {
             effective = join::scoped_list(&control, instance, key, effective);

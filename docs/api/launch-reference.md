@@ -20,6 +20,10 @@ Any other option is refused with exit code 2, so ask `--launch-api` before passi
 | `--session-stdin` | The same JSON on standard input, so it never touches the disk. |
 | `--quickPlaySingleplayer WORLD` | Opens this world of `saves/` at start, only if it exists (else the title screen). WORLD is one folder name: a path is refused. |
 | `--quickPlayMultiplayer HOST[:PORT]` | Joins this server at start. |
+| `--full-access-approved FILE` | Yoake 2.0: the launcher's list of the full-access mods this launch may run (written by the launcher; the game reads it once). Without it no full-access mod runs. A launcher passes it only to a game that lists it here. |
+| `--full-access-dev` | Yoake 2.0, developers: re-read the `--full-access-approved` list while running and reload the mods when it changes. |
+| `--join-mod-sync` | Yoake 2.0: when joining a host that runs `.yak` mods the player lacks, fetch them (hash-checked) into `mods/remote/.staging/`, write `join-request.json` and exit with code 75 so the launcher can install them and start the game again. Without it a mismatch is refused as before. |
+| `--remote-mods KEY` | Yoake 2.0: this launch joins the host with this key (`server:<host>:<port>` or `friend:<id>`, lowercase), so the mods installed from that host (`mods/remote/<key>/`) may run, only while connected to it. |
 | `--launch-api` | Prints the reply below and exits 0, before anything else runs. |
 
 ## `--launch-api`
@@ -82,6 +86,22 @@ Prints one JSON object on stdout and exits 0. `horizon` is the build's version; 
     {
       "name": "--quickPlayMultiplayer",
       "value": "HOST[:PORT]"
+    },
+    {
+      "name": "--full-access-approved",
+      "value": "FILE"
+    },
+    {
+      "name": "--full-access-dev",
+      "value": null
+    },
+    {
+      "name": "--join-mod-sync",
+      "value": null
+    },
+    {
+      "name": "--remote-mods",
+      "value": "KEY"
     },
     {
       "name": "--launch-api",

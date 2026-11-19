@@ -220,7 +220,7 @@ impl RefuseReason {
     pub fn text(self) -> &'static str {
         match self {
             RefuseReason::NotOffered => "the host does not offer that file",
-            RefuseReason::Busy => "the host is still sending another file",
+            RefuseReason::Busy => "the host is busy sending files (to you or to other players)",
             RefuseReason::Unavailable => "the host could not read the file",
             RefuseReason::Limit => "the host's transfer limit for one join was reached",
         }
@@ -325,6 +325,11 @@ impl Negotiation {
 
 /// Where the host's bytes come from. Read lazily; the host names only hashes of its own offer.
 pub trait Source {
+    /// Whether this source may start another transfer now (a host serving several joiners limits them all together).
+    /// `false` makes the host answer `Busy`. A transfer that was admitted ends with [`Source::close`].
+    fn admit(&mut self) -> bool {
+        true
+    }
     /// Opens the file of the offered `entry` for reading and checks it is still the offered bytes (size and
     /// SHA-256). `Err` when it is not, or cannot be read.
     fn open(&mut self, entry: &OfferEntry) -> std::io::Result<()>;
@@ -395,6 +400,9 @@ impl<S: Source> HostSession<S> {
         };
         if self.requests >= MAX_MODS || self.promised + entry.size > MAX_JOIN_BYTES {
             return HostEvent::Reply(vec![refuse(sha256, RefuseReason::Limit)]);
+        }
+        if !self.source.admit() {
+            return HostEvent::Reply(vec![refuse(sha256, RefuseReason::Busy)]);
         }
         if self.source.open(&entry).is_err() {
             self.source.close();

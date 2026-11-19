@@ -1618,6 +1618,9 @@ fn checked_play(packet: play::Serverbound) -> horizon_protocol::Result<play::Ser
 }
 
 /// A configuration packet as vanilla's decoders read it.
+/// S4: how long the offer's exchange waits for the client's next word on `yoake:mod_transfer`.
+const MOD_TRANSFER_IDLE: Duration = Duration::from_secs(60);
+
 /// MX3JN1: the host side of `yoake:mod_transfer`: capabilities, the offer, then the files the client asks for, one at a time,
 /// until it says it is done (or goes). Only hashes of the offer are served (`HostSession`).
 fn offer_mods(
@@ -1654,10 +1657,17 @@ fn offer_mods(
     };
     c.send(&payload(list)).map_err(e)?;
     let mut session = HostSession::new(offer, source);
+    // S4: a client that keeps the connection alive with other packets but never asks for anything nor says `done`
+    // cannot hold the configuration (and a transfer place) for ever: no word on the channel for this long ends it.
+    let mut last_word = Instant::now();
     loop {
         let (id, body) = c.recv().map_err(e)?;
+        if last_word.elapsed() > MOD_TRANSFER_IDLE {
+            return Err("mod transfer: the client was idle too long".into());
+        }
         match decode_config(id, &body).map_err(e)? {
             cfg::Serverbound::CustomPayload(p) if p.channel == transfer::CHANNEL => {
+                last_word = Instant::now();
                 match session.handle(&p.data).map_err(e)? {
                     HostEvent::Reply(replies) => {
                         for reply in replies {

@@ -316,3 +316,31 @@ fn the_worker_thread_picks_a_file_up_by_itself_and_stops_with_the_run() {
     drop(prepared);
     assert!(!status(&fixture).watching);
 }
+
+/// S5: a dev-origin approval rides along only in a launch whose dev folder is active.
+#[test]
+fn dev_origin_approvals_are_passed_only_when_the_dev_folder_is_active() {
+    let fixture = Fixture::new();
+    let mut run = Run::new(&fixture);
+    let one = fixture.package(fixture.full_access("dev-mod", "1.0.0"), false);
+    run.put("dev-mod.yak", &one);
+    run.settle();
+    assert_eq!(run.list().entries().len(), 1);
+    drop(run);
+    // a launch without the dev folder (developer mode off, folder unset): the dev approval is not passed
+    let plain = fa::prepare_in(&data(&fixture), &fixture.home);
+    assert_eq!(ApprovedList::read(plain.run.as_ref().unwrap().approved_path()).unwrap().entries().len(), 0);
+    assert_eq!(plain.passed, 0);
+    drop(plain);
+    // with the folder active it is
+    let folder = dev_folder(&fixture);
+    let active = fa::prepare_with(&data(&fixture), &fixture.home, Some(&folder));
+    assert!(active.dev);
+    let list = ApprovedList::read(active.run.as_ref().unwrap().approved_path()).unwrap();
+    assert_eq!(list.entries().iter().map(|e| (e.id.as_str(), e.origin)).collect::<Vec<_>>(), [("dev-mod", Origin::Dev)]);
+    drop(active);
+    // a folder that is refused (not a usable dev folder) is "not active" too: no dev entry, no flag
+    let refused = fa::prepare_with(&data(&fixture), &fixture.home, Some(&mods(&fixture).join("sub")));
+    assert!(!refused.dev);
+    assert_eq!(ApprovedList::read(refused.run.as_ref().unwrap().approved_path()).unwrap().entries().len(), 0);
+}

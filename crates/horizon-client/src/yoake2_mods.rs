@@ -180,6 +180,8 @@ pub fn decide(origin: Origin, approved: bool, signed_by_trusted: bool) -> Result
 pub struct Loaded {
     /// The manifest's id.
     pub id: String,
+    /// The manifest's version.
+    pub version: String,
     pub module: ModId,
     /// The package's SHA-256.
     pub sha256: String,
@@ -201,6 +203,7 @@ pub fn load_package_on(side: ThreadSide, bytes: Vec<u8>, origin: Option<Origin>,
     let sha256 = sha256_hex(&bytes);
     let mut archive = Archive::new(Cursor::new(bytes)).map_err(Refusal::Package)?;
     let id = archive.manifest().id.clone();
+    let version = archive.manifest().version.to_string();
     match archive.manifest().wasm.as_ref().filter(|wasm| wasm.full_access()) {
         None => return Err(Refusal::Sandboxed),
         Some(wasm) if !side.runs(wasm) => return Err(Refusal::OtherSide),
@@ -250,7 +253,7 @@ pub fn load_package_on(side: ThreadSide, bytes: Vec<u8>, origin: Option<Origin>,
         return Err(Refusal::Abi(why));
     }
     let module = runtime::load(&module, cfg, &id).map_err(|e| Refusal::Init(format!("{e:#}")))?;
-    Ok(Loaded { id, module, sha256, abi })
+    Ok(Loaded { id, version, module, sha256, abi })
 }
 
 /// What a folder scan did.
@@ -374,19 +377,23 @@ pub fn server_runs_package(sha256_hex: &str) -> bool {
 
 thread_local! {
     /// This thread's loaded mods, per [`ThreadSide`] (indexed by `ThreadSide::index`).
-    static LOADED: std::cell::RefCell<[Vec<ModId>; 2]> = const { std::cell::RefCell::new([Vec::new(), Vec::new()]) };
+    static LOADED: std::cell::RefCell<[Vec<(ModId, String)>; 2]> = const { std::cell::RefCell::new([Vec::new(), Vec::new()]) };
 }
 
 /// Unloads the mods of the previous world; returns what could not be unloaded (those stay in the list).
 fn unload_previous(side: ThreadSide) -> Vec<String> {
     LOADED.with(|loaded| {
         let mut errors = Vec::new();
-        let mut still = Vec::new();
-        for id in loaded.borrow_mut()[side.index()].drain(..) {
+        let mut still: Vec<(ModId, String)> = Vec::new();
+        for (id, hash) in loaded.borrow_mut()[side.index()].drain(..) {
             if let Err(e) = runtime::unload(id) {
                 errors.push(format!("could not unload mod {id:?} of the previous world: {e:#}"));
-                still.push(id);
+                still.push((id, hash));
             }
+        }
+        // S7: what is offered to joining players is what still runs (the mods that were unloaded no longer do)
+        if side == ThreadSide::Server && !errors.is_empty() {
+            *SERVED.lock().unwrap_or_else(|e| e.into_inner()) = still.iter().map(|(_, hash)| hash.clone()).collect();
         }
         loaded.borrow_mut()[side.index()].extend(still);
         errors
@@ -439,11 +446,12 @@ pub fn load_world_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> Load
     load_mods_on(ThreadSide::Server, mods_dir, approved)
 }
 
-/// MX3CL1: the client's session start: [`load_world_mods`] for the window's thread. Loads the approved full-access mods
+/// MX3CL1: the client's session start: [`load_world_mods`] for the window's thread. M1: the joined host's mods load only
+/// when the connection of this session goes to the host the launch was made for (`join_mods::session_remote_key`). Loads the approved full-access mods
 /// whose `[wasm] side` is `client` or `both` into this thread's own runtime (separate from the server's, even for a `both`
 /// mod). The same approved list and trust rules; the mods' own `yoake_init` runs here.
 pub fn load_client_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> LoadReport {
-    load_client_mods_scoped(mods_dir, approved, horizon_client::join_mods::remote_key().as_deref())
+    load_client_mods_scoped(mods_dir, approved, horizon_client::join_mods::session_remote_key().as_deref())
 }
 
 /// MX3JN1: [`load_client_mods`] for a launch that joins the host `remote_key` (`--remote-mods`): besides `mods_dir`, the
@@ -452,6 +460,13 @@ pub fn load_client_mods(mods_dir: &Path, approved: Option<&ApprovedList>) -> Loa
 /// matching list nothing remote loads. A remote package whose id a local mod already runs is not loaded (the local one wins).
 pub fn load_client_mods_scoped(mods_dir: &Path, approved: Option<&ApprovedList>, remote_key: Option<&str>) -> LoadReport {
     load_mods_scoped(ThreadSide::Client, mods_dir, approved, remote_key)
+}
+
+/// M1: [`load_client_mods`] for a session of this process with `process_key` (`--remote-mods`) that is connected to `host`
+/// (None: single player, a replay, a pseudo-address): the host's folder loads only when they are the same host.
+pub fn load_client_mods_for_host(mods_dir: &Path, approved: Option<&ApprovedList>, process_key: Option<&str>, host: Option<&horizon_client::join_mods::HostId>) -> LoadReport {
+    let key = horizon_client::join_mods::session_remote_key_for(process_key, host);
+    load_client_mods_scoped(mods_dir, approved, key.as_deref())
 }
 
 /// MX3CL1: the client's session end: unloads this thread's client-side mods. Returns what could not be unloaded.
@@ -504,12 +519,13 @@ fn load_mods_scoped(side: ThreadSide, mods_dir: &Path, approved: Option<&Approve
     if approved.is_none() && report.skipped.iter().any(|(_, r)| !matches!(r, Refusal::Sandboxed | Refusal::OtherSide)) {
         report.problems.push(format!("the launcher gave no approved list ({APPROVED_ARG} or {APPROVED_ENV}): no full-access mod will run"));
     }
-    LOADED.with(|loaded| loaded.borrow_mut()[side.index()].extend(report.loaded.iter().map(|l| l.module)));
+    LOADED.with(|loaded| loaded.borrow_mut()[side.index()].extend(report.loaded.iter().map(|l| (l.module, l.sha256.clone()))));
     if side == ThreadSide::Server {
         *SERVED.lock().unwrap_or_else(|e| e.into_inner()) = report.loaded.iter().map(|l| l.sha256.clone()).collect();
     }
     report.unbridged = install_bridges(&report.loaded);
     announce(&report);
+    announce_loaded(side, &report);
     report
 }
 
@@ -583,6 +599,11 @@ pub fn dev_reload_tick(side: ThreadSide) -> Option<DevReload> {
     dev_reload_check(true, side, &path, &root.join("mods"), std::time::Instant::now())
 }
 
+/// The remote scope a dev reload keeps: the list's host, and only when it is the host of this session.
+pub fn dev_remote_key<'a>(list_host: Option<&'a str>, session_key: Option<&str>) -> Option<&'a str> {
+    list_host.filter(|host| session_key == Some(*host))
+}
+
 /// **Dev reload** for `side` of the calling thread. `enabled` is `--full-access-dev` (false: nothing happens, the file is
 /// not even looked at). At most once per [`DEV_CHECK_INTERVAL`] it compares the list file's mtime and size with the last
 /// read; a changed file is read and parsed, and when its `generation` is higher than the one this side runs with, and no
@@ -641,9 +662,20 @@ pub fn dev_reload_check(enabled: bool, side: ThreadSide, list_path: &Path, mods_
     debug_assert!(!runtime::guest_running());
     // MX3JN1 x MX3HR1: the reload keeps the host-scoped remote mods right: it uses the new list's host (the launcher
     // writes the list of a host launch with `with_host`), but never another host than this launch's `--remote-mods`.
-    let process_key = horizon_client::join_mods::remote_key();
-    let remote_key = list.host().filter(|host| process_key.as_deref().is_none_or(|key| key == *host));
+    // S6/M1: a remote scope is kept only when this session really is a join of that host (the process's key equal to the
+    // list's host AND the connection going there); a launch without `--remote-mods` never gets one.
+    let session_key = horizon_client::join_mods::session_remote_key();
+    let remote_key = dev_remote_key(list.host(), session_key.as_deref());
     let report = load_mods_scoped(side, mods_dir, Some(&list), remote_key);
+    // S7: an unload that failed halfway left the old mods (the report says so): the stamp goes back, so the next check
+    // reads the list again and tries once more
+    if DEV_SIDES.with(|sides| sides.borrow()[side.index()].loaded_generation) != list.generation() {
+        DEV_SIDES.with(|sides| sides.borrow_mut()[side.index()].stamp = last_stamp);
+        let line = format!("yoake: dev reload ({side:?}) generation {} did not run ({}); it is tried again at the next check", list.generation(), report.problems.join("; "));
+        log::warn!("{line}");
+        eprintln!("{line}");
+        return None;
+    }
     let refused = report.skipped.iter().filter(|(_, r)| !matches!(r, Refusal::Sandboxed | Refusal::OtherSide)).count();
     let ids: Vec<&str> = report.loaded.iter().map(|l| l.id.as_str()).collect();
     let line = format!("yoake: dev reload ({side:?}) generation {}: {} mod(s) loaded [{}], {refused} refused", list.generation(), ids.len(), ids.join(", "));
@@ -712,6 +744,23 @@ pub fn install_bridges(loaded: &[Loaded]) -> Vec<(String, Vec<(u32, String)>)> {
     out
 }
 
+/// R2: one line per loaded full-access mod (id, version, side, hooks registered) and one summary per load.
+fn announce_loaded(side: ThreadSide, report: &LoadReport) {
+    if report.loaded.is_empty() {
+        return;
+    }
+    for loaded in &report.loaded {
+        let hooks = runtime::stats_of(loaded.module).map_or(0, |stats| stats.registered.len());
+        let line = format!("full-access mod '{}' {} loaded ({side:?} side, {hooks} hook(s) registered)", loaded.id, loaded.version);
+        log::info!("yoake: {line}");
+        eprintln!("yoake: {line}");
+    }
+    let refused = report.skipped.iter().filter(|(_, r)| !matches!(r, Refusal::Sandboxed | Refusal::OtherSide)).count();
+    let line = format!("{side:?}: {} full-access mod(s) loaded, {refused} refused", report.loaded.len());
+    log::info!("yoake: {line}");
+    eprintln!("yoake: {line}");
+}
+
 fn announce(report: &LoadReport) {
     for line in report.messages() {
         log::warn!("yoake: {line}");
@@ -740,6 +789,16 @@ pub fn dispatch_hud_render() {
 
 #[cfg(test)]
 mod tests {
+    /// S6: a dev reload keeps a remote scope only for the host of this very session.
+    #[test]
+    fn a_dev_reload_keeps_the_remote_scope_only_for_the_sessions_host() {
+        let h = "server:play.example.com:25565";
+        assert_eq!(super::dev_remote_key(Some(h), Some(h)), Some(h));
+        assert_eq!(super::dev_remote_key(Some(h), None), None, "single player or a launch without --remote-mods: none");
+        assert_eq!(super::dev_remote_key(Some(h), Some("server:other.example.com:25565")), None);
+        assert_eq!(super::dev_remote_key(None, Some(h)), None);
+    }
+
     /// `yoake_slice::bridge::install_once` keys by hook id alone: two bridge modules must never claim one id (the
     /// ledger makes ids unique across crates; this checks the generated bridges agree), and no bridge may claim an
     /// engine-dispatched id.
