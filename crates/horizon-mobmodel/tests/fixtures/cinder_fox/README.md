@@ -35,10 +35,10 @@ Blockbench or GeckoLib output. Review its diff whenever you regenerate it.
 ## Both routes
 
 The animations are written once, in Bedrock space; the bbmodel `animations[]` is derived from them by the inverse of the
-loader's conversion (position x and rotation x, y negated, expressions wrapped as `-(...)`). The tests check that the two
-routes give the same pose tables **except on the leaf bones that use `easing`**: Blockbench's bbmodel keyframe has no
-easing or `easingArgs`, so the bbmodel copy drops them (listed in `FR-F4M-FOX.md`). Events at the same time come out in a
-different order in the two routes.
+loader's conversion (position x and rotation x, y negated, expressions wrapped as `-(...)`, easing written as keyframe
+`easing` / `easingArgs`). The tests check that the two routes give equal pose tables for every bone and the same event order.
+The `pose` layer's `stand` state is `inactive` ("no state"), so `sit` fades in and out. `walk` uses `anim_time_update`, which
+is stateless: a ground-speed change while walking jumps the phase (accepted).
 
 ## Sync fixtures
 

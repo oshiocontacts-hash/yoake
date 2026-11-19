@@ -312,15 +312,25 @@ impl Rig {
         for (li, (c, ls)) in self.controllers.iter().zip(st.layers.iter()).enumerate() {
             cur.fill(Slot::REST);
             self.apply_state(c, &ls.cur, inputs, cur, needed);
+            // Fade of the whole layer when one side of a blend is the "no state" (inactive) state.
+            let mut fade = 1.0f32;
             if let Some(p) = &ls.prev {
                 prev.fill(Slot::REST);
                 self.apply_state(c, p, inputs, prev, needed);
                 let alpha = c.blend_alpha(ls);
-                for (i, (cs, ps)) in cur.iter_mut().zip(prev.iter()).enumerate() {
-                    if needed.is_some_and(|nd| !nd[i]) {
-                        continue;
+                let inactive = |r: &StateRun| c.states.get(r.state).is_some_and(|s| s.inactive);
+                if inactive(&ls.cur) {
+                    cur.copy_from_slice(prev);
+                    fade = 1.0 - alpha;
+                } else if inactive(p) {
+                    fade = alpha;
+                } else {
+                    for (i, (cs, ps)) in cur.iter_mut().zip(prev.iter()).enumerate() {
+                        if needed.is_some_and(|nd| !nd[i]) {
+                            continue;
+                        }
+                        *cs = lerp_slot(ps, cs, alpha);
                     }
-                    *cs = lerp_slot(ps, cs, alpha);
                 }
             }
             for tp in triggers.iter().filter(|t| t.layer as usize == li) {
@@ -329,7 +339,7 @@ impl Rig {
                 }
             }
             inputs.set(Query::AnimTime, 0.0);
-            let lw = c.weight.eval(inputs).max(0.0);
+            let lw = c.weight.eval(inputs).max(0.0) * fade;
             if lw <= 0.0 {
                 continue;
             }

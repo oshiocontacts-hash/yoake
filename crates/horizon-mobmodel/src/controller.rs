@@ -33,6 +33,9 @@
 //! * `on_enter` assigns `variable.*` slots when the state is entered (evaluated in order).
 //! * A layer without states is allowed: it has one implicit empty state and exists for its `triggers`
 //!   (one-shot animations: trigger name to animation name; the trigger id is its position in the file).
+//! * A state with `"inactive": true` is "no state": it plays nothing and the layer is off while it is current. Blending
+//!   into it fades the layer's weight from 1 to 0 over the blend time (the layer then stays off); blending out of it
+//!   fades the weight in. With blend 0 the switch is instant.
 //! * At most [`MAX_STATE_ANIMS`] animations per state, [`MAX_STATES`] states and [`MAX_LAYERS`] layers.
 
 use crate::clock::AnimClock;
@@ -74,6 +77,9 @@ pub struct State {
     pub blend: f32,
     /// `(variable slot, value)` assignments on entry.
     pub on_enter: Vec<(usize, Expr)>,
+    /// "No state": the layer contributes nothing while this state is current. A blend into it fades the layer's weight
+    /// to 0 (and a blend out of it fades the weight in) instead of lerping towards the rest pose. Blend 0 is instant.
+    pub inactive: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -185,6 +191,7 @@ fn parse_layer(name: &str, raw: RawLayer, ctx: &mut Ctx) -> Result<Controller, L
             transitions: Vec::new(),
             blend: 0.0,
             on_enter: Vec::new(),
+            inactive: false,
         });
     }
     let initial = match &raw.initial {
@@ -224,6 +231,7 @@ fn parse_state(name: &str, v: &Value, names: &[&str], ctx: &mut Ctx) -> Result<S
         transitions: Vec::new(),
         blend: 0.0,
         on_enter: Vec::new(),
+        inactive: false,
     };
     for (key, val) in obj {
         let what = format!("state '{name}' {key}");
@@ -243,6 +251,10 @@ fn parse_state(name: &str, v: &Value, names: &[&str], ctx: &mut Ctx) -> Result<S
                     st.transitions.push(parse_transition(item, name, names, ctx)?);
                 }
             }
+            "inactive" => match val.as_bool() {
+                Some(b) => st.inactive = b,
+                None => return Err(ctx.err(format!("{what} must be true or false"))),
+            },
             "blend" | "blend_transition" => st.blend = blend_seconds(val, &what, ctx)?,
             "speed" => st.speed = Some(ctx.scalar(val, &what)?),
             "on_enter" => {

@@ -305,3 +305,126 @@ fn degenerate_inputs_never_panic() {
     let p = eval(&e, &e.initial_state(), &[], &mut inp);
     assert!(p.bones.is_empty());
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Fix round: layer fade to "no state", bbmodel easing, deterministic event order
+// ---------------------------------------------------------------------------------------------------------------
+
+fn fade_rig(blend: f32) -> Rig {
+    rig(&format!(
+        r#"{{"controllers":{{"l":{{"initial":"off","states":{{
+  "off":{{"inactive":true,"blend":{blend},"transitions":[{{"to":"on","when":"q.ground_speed > 0.5"}}]}},
+  "on":{{"animations":["walk"],"blend":{blend},"transitions":[{{"to":"off","when":"q.ground_speed < 0.5"}}]}}}}}}}}}}"#
+    ))
+}
+
+#[test]
+fn layer_fades_in_and_out_through_an_inactive_state() {
+    let r = fade_rig(1.0);
+    let mut st = r.initial_state();
+    let mut inp = ExprInputs::default();
+    let head_y = |st: &RigState, inp: &mut ExprInputs| eval(&r, st, &[], inp).bones[3].translation.y;
+    r.update(&mut st, 0.1, &mut inp, &mut no_events);
+    assert_eq!(head_y(&st, &mut inp), 0.0, "an inactive layer contributes nothing");
+    inp.set(Query::GroundSpeed, 1.0);
+    r.update(&mut st, 0.0, &mut inp, &mut no_events); // off -> on, 1 s fade-in of the weight
+    assert!((head_y(&st, &mut inp) - 0.0).abs() < 1e-4);
+    r.update(&mut st, 0.5, &mut inp, &mut no_events);
+    assert!((head_y(&st, &mut inp) - 5.0).abs() < 1e-4);
+    r.update(&mut st, 0.5, &mut inp, &mut no_events);
+    assert!((head_y(&st, &mut inp) - 10.0).abs() < 1e-4);
+    inp.set(Query::GroundSpeed, 0.0);
+    r.update(&mut st, 0.0, &mut inp, &mut no_events); // on -> off: fade out, the old state keeps playing
+    assert!((head_y(&st, &mut inp) - 10.0).abs() < 1e-4, "no jump at the start");
+    r.update(&mut st, 0.25, &mut inp, &mut no_events);
+    assert!((head_y(&st, &mut inp) - 7.5).abs() < 1e-4);
+    r.update(&mut st, 0.5, &mut inp, &mut no_events);
+    assert!((head_y(&st, &mut inp) - 2.5).abs() < 1e-4);
+    r.update(&mut st, 0.5, &mut inp, &mut no_events);
+    assert!(st.layers[0].prev.is_none());
+    assert_eq!(head_y(&st, &mut inp), 0.0, "layer inactive after the fade");
+    assert_eq!(eval(&r, &st, &[], &mut inp), Pose::rest(&r.skeleton));
+}
+
+#[test]
+fn inactive_switch_with_blend_zero_is_instant() {
+    let r = fade_rig(0.0);
+    let mut st = r.initial_state();
+    let mut inp = ExprInputs::default();
+    inp.set(Query::GroundSpeed, 1.0);
+    r.update(&mut st, 0.05, &mut inp, &mut no_events);
+    assert!((eval(&r, &st, &[], &mut inp).bones[3].translation.y - 10.0).abs() < 1e-4);
+    inp.set(Query::GroundSpeed, 0.0);
+    r.update(&mut st, 0.05, &mut inp, &mut no_events);
+    assert_eq!(eval(&r, &st, &[], &mut inp).bones[3].translation.y, 0.0);
+}
+
+fn bb_anim(v: &str) -> horizon_mobmodel::anim::Animation {
+    let v: serde_json::Value = serde_json::from_str(v).unwrap();
+    animations_from_bbmodel(&v, &mut Symbols::new(&[])).unwrap().animations.remove(0)
+}
+
+fn rot_x(a: &horizon_mobmodel::anim::Animation, t: f32) -> f32 {
+    a.bones[0].rotation.as_ref().unwrap().sample(t, &ExprInputs::default()).x
+}
+
+#[test]
+fn bbmodel_keyframe_easing_shapes_the_segment_ending_at_the_key() {
+    let kf = |t: f32, x: &str, extra: &str| {
+        format!(r#"{{"channel":"rotation","time":{t},"data_points":[{{"x":"{x}","y":"0","z":"0"}}]{extra}}}"#)
+    };
+    let mk = |k1: String| {
+        bb_anim(&format!(
+            r#"[{{"name":"a","length":1,"loop":"once","animators":{{"u":{{"name":"b","keyframes":[{},{}]}}}}}}]"#,
+            kf(0.0, "0", ""),
+            k1
+        ))
+    };
+    let plain = mk(kf(1.0, "100", ""));
+    assert!((rot_x(&plain, 0.5) - 50.0).abs() < 1e-4);
+    let quad = mk(kf(1.0, "100", r#","easing":"easeInQuad""#));
+    assert!((rot_x(&quad, 0.5) - 25.0).abs() < 1e-4);
+    let back_a = mk(kf(1.0, "100", r#","easing":"easeOutBack","easingArgs":[3.0]"#));
+    let back_b = mk(kf(1.0, "100", r#","easing":{"type":"easeOutBack","args":[3.0]}"#));
+    let back_def = mk(kf(1.0, "100", r#","easing":"easeOutBack""#));
+    assert!((rot_x(&back_a, 0.5) - rot_x(&back_b, 0.5)).abs() < 1e-5, "nested form equals the flat form");
+    assert!((rot_x(&back_a, 0.5) - rot_x(&back_def, 0.5)).abs() > 1.0, "easingArgs is used");
+    // the easing of the START key does not apply to the segment that starts there
+    let start = bb_anim(
+        r#"[{"name":"a","length":1,"animators":{"u":{"name":"b","keyframes":[
+        {"channel":"rotation","time":0,"easing":"easeInQuad","data_points":[{"x":"0","y":"0","z":"0"}]},
+        {"channel":"rotation","time":1,"data_points":[{"x":"100","y":"0","z":"0"}]}]}}}]"#,
+    );
+    assert!((rot_x(&start, 0.5) - 50.0).abs() < 1e-4);
+}
+
+#[test]
+fn same_time_events_have_one_order_in_both_formats() {
+    use horizon_mobmodel::anim::EventKind::*;
+    let bed = parse_animation_file(
+        r#"{"animations":{"a":{"animation_length":1,
+        "particle_effects":{"0.5":[{"effect":"p1"},{"effect":"p2"}]},
+        "sound_effects":{"0.5":{"effect":"s"},"0.2":{"effect":"s0"}},
+        "timeline":{"0.5":["t1","t2"]}}}}"#,
+        &mut Symbols::new(&[]),
+    )
+    .unwrap()
+    .animations
+    .remove(0);
+    let bb = bb_anim(
+        r#"[{"name":"a","length":1,"animators":{"e":{"type":"effect","name":"E","keyframes":[
+        {"channel":"particle","time":0.5,"data_points":[{"effect":"p1"},{"effect":"p2"}]},
+        {"channel":"sound","time":0.2,"data_points":[{"effect":"s0"}]},
+        {"channel":"sound","time":0.5,"data_points":[{"effect":"s"}]},
+        {"channel":"timeline","time":0.5,"data_points":[{"script":"t1"},{"script":"t2"}]}]}}}]"#,
+    );
+    let key = |a: &horizon_mobmodel::anim::Animation| {
+        a.events.iter().map(|e| (e.kind, e.name.clone())).collect::<Vec<_>>()
+    };
+    let want: Vec<_> = [(Sound, "s0"), (Timeline, "t1"), (Timeline, "t2"), (Sound, "s"), (Particle, "p1"), (Particle, "p2")]
+        .iter()
+        .map(|(k, n)| (*k, n.to_string()))
+        .collect();
+    assert_eq!(key(&bed), want);
+    assert_eq!(key(&bb), want);
+}

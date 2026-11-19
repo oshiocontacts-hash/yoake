@@ -630,6 +630,17 @@ pub enum EventKind {
     Particle,
 }
 
+/// Deterministic event order for both formats: by time, then kind (timeline, sound, particle), then declaration order
+/// within the source (the sort is stable).
+fn sort_events(events: &mut [AnimEvent]) {
+    let rank = |k: EventKind| match k {
+        EventKind::Timeline => 0,
+        EventKind::Sound => 1,
+        EventKind::Particle => 2,
+    };
+    events.sort_by(|a, b| a.time.total_cmp(&b.time).then(rank(a.kind).cmp(&rank(b.kind))));
+}
+
 /// A timeline, sound or particle event at a time in the animation.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AnimEvent {
@@ -898,7 +909,7 @@ fn parse_animation(name: &str, v: &Value, ctx: &mut Ctx) -> Result<Animation, Lo
         Some(l) => l,
         None => derived_length(&anim),
     };
-    anim.events.sort_by(|a, b| a.time.total_cmp(&b.time));
+    sort_events(&mut anim.events);
     check_events(&mut anim, ctx);
     Ok(anim)
 }
@@ -1186,7 +1197,7 @@ fn convert_bb_animation(name: &str, v: &Value, ctx: &mut Ctx) -> Result<Animatio
         }
     }
     anim.length = explicit_length.map_or_else(|| derived_length(&anim), |l| l as f32);
-    anim.events.sort_by(|a, b| a.time.total_cmp(&b.time));
+    sort_events(&mut anim.events);
     check_events(&mut anim, ctx);
     Ok(anim)
 }
@@ -1253,7 +1264,8 @@ fn convert_bb_bone(bone: &str, kfs: &[Value], ctx: &mut Ctx) -> Result<Option<Bo
                 right_time: bb_vec3(k, "bezier_right_time", d.right_time, &what, ctx)?,
                 right_value: bb_vec3(k, "bezier_right_value", d.right_value, &what, ctx)?,
             };
-            keys.push(Keyframe { time, pre, post, lerp, easing: Easing::Linear, easing_args: None, bezier });
+            let (easing, easing_args) = bb_easing(k, &what, time, ctx);
+            keys.push(Keyframe { time, pre, post, lerp, easing, easing_args, bezier });
         }
         if keys.is_empty() {
             continue;
@@ -1270,6 +1282,36 @@ fn convert_bb_bone(bone: &str, kfs: &[Value], ctx: &mut Ctx) -> Result<Option<Bo
         return Ok(None);
     }
     Ok(Some(b))
+}
+
+/// GeckoLib-plugin keyframe easing: `easing` (a name such as `easeOutBack`) and `easingArgs` (list of numbers) on the
+/// keyframe object. Also accepted, because the exact plugin layout is unverified: `easing_args` / `easingargs`, a single
+/// number for the args, and a nested object `"easing": {"type"|"name"|"id": ..., "args"|"easingArgs": [...]}`. Missing or
+/// unknown easing is linear (unknown names warn). Like animation.json, easing shapes the segment ENDING at this key.
+fn bb_easing(k: &Value, what: &str, time: f32, ctx: &mut Ctx) -> (Easing, Option<f32>) {
+    let num = |v: &Value| match v {
+        Value::Array(a) => a.first().and_then(Value::as_f64).map(|x| x as f32),
+        other => other.as_f64().map(|x| x as f32),
+    };
+    let mut args = ["easingArgs", "easing_args", "easingargs"].iter().find_map(|f| k.get(*f)).and_then(num);
+    let name_val = match k.get("easing") {
+        Some(Value::Object(o)) => {
+            if let Some(a) = ["args", "easingArgs", "easing_args"].iter().find_map(|f| o.get(*f)).and_then(num) {
+                args = Some(a);
+            }
+            ["type", "name", "id", "easing"].iter().find_map(|f| o.get(*f)).and_then(Value::as_str)
+        }
+        Some(v) => v.as_str(),
+        None => None,
+    };
+    let Some(name) = name_val else { return (Easing::Linear, args) };
+    match Easing::parse(name) {
+        Some(e) => (e, args),
+        None => {
+            ctx.warn(format!("{what} at {time}: unknown easing '{name}', using linear"));
+            (Easing::Linear, args)
+        }
+    }
 }
 
 fn convert_bb_effects(kfs: &[Value], out: &mut Vec<AnimEvent>, ctx: &mut Ctx) -> Result<(), LoadError> {

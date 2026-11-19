@@ -143,3 +143,15 @@ with the paused tick, as in section 3.5.
    could be added if the Cinder Fox needs it.
 8. The Cinder Fox golden pose tables ("Done" in the work item) need F4M-1's real model and animation files; everything here
    is verified on synthetic skeletons only.
+
+## Fix round additions (F4M-FOX)
+
+* **bbmodel keyframe easing** (GeckoLib plugin): `animations_from_bbmodel` reads `easing` (name such as `easeOutBack`) and `easingArgs`
+  (list; first value used) on the keyframe object. I could not verify the plugin's exact field names from documentation, so it also
+  accepts `easing_args` / `easingargs`, a bare number for the args, and a nested `"easing": {"type"|"name"|"id": ..., "args"|"easingArgs": [...]}`.
+  Same rule as animation.json: easing shapes the segment ENDING at that key. Unknown names warn and mean linear. To be confirmed
+  with a real GeckoLib-format bbmodel.
+* **Event order**: both loaders order events by time, then kind (timeline, sound, particle), then declaration order in the source.
+* **Inactive state**: controller state field `"inactive": true` ("no state"). A blend into it fades the layer weight to 0, a blend out
+  fades it in, blend 0 is instant (see FR-F4M-FOX.md). Open question 7 above (blend-out of one-shots) is answered for state layers.
+* **`anim_time_update` phase jump** when speed changes is accepted behaviour (stateless by design).

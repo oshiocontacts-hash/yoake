@@ -277,16 +277,14 @@ fn animation_properties_match_the_spec() {
     assert_eq!(get("death").loop_mode, LoopMode::Hold);
     assert_eq!(get("pounce").length, 0.8);
     assert!(get("walk").anim_time_update.is_some(), "walk speed comes from an expression");
-    // Events at the same time come out in a route-dependent order (Bedrock: the key order of serde_json's sorted object,
-    // bbmodel: keyframe order), so compare them sorted.
-    let mut ev: Vec<_> = get("pounce").events.iter().map(|e| (e.time, format!("{:?}", e.kind), e.name.as_str(), e.locator.as_deref())).collect();
-    ev.sort_by(|a, b| a.1.cmp(&b.1));
+    // One deterministic order: by time, then kind (timeline, sound, particle).
+    let ev: Vec<_> = get("pounce").events.iter().map(|e| (e.time, e.kind, e.name.as_str(), e.locator.as_deref())).collect();
     assert_eq!(
         ev,
         [
-            (0.35, "Particle".to_string(), "cinder_fox_embers", Some("mouth")),
-            (0.35, "Sound".to_string(), "cinder_fox_pounce", None),
-            (0.35, "Timeline".to_string(), "hit", None),
+            (0.35, EventKind::Timeline, "hit", None),
+            (0.35, EventKind::Sound, "cinder_fox_pounce", None),
+            (0.35, EventKind::Particle, "cinder_fox_embers", Some("mouth")),
         ]
     );
     // several interpolation modes and easings with an argument are really present
@@ -342,75 +340,54 @@ fn hold_animations_hold_and_the_one_shot_ends() {
 // (c) geo route == bbmodel route
 // ---------------------------------------------------------------------------------------------------------------
 
-/// Bones whose channels use an `easing`: Blockbench's bbmodel cannot hold it, so on these the bbmodel route differs. They
-/// are all leaves, so nothing else moves with them.
-fn eased_bones(rig: &Rig, anim: &str) -> Vec<usize> {
-    let a = rig.animation(rig.find_animation(anim).unwrap()).unwrap();
-    let mut out = Vec::new();
-    for b in &a.bones {
-        let eased = [&b.rotation, &b.position, &b.scale].into_iter().flatten().any(|c| {
-            matches!(c, Channel::Keys(keys) if keys.iter().any(|k| k.easing != Easing::Linear))
-        });
-        if eased {
-            out.push(rig.skeleton.find(&b.bone).unwrap().index());
-        }
-    }
-    out
-}
-
 #[test]
 fn geo_route_and_bbmodel_route_give_the_same_pose_tables() {
     let (g, b) = (fox(Route::Geo), fox(Route::Bb));
     let mut compared = 0;
     for name in ANIMATIONS {
-        let skip = eased_bones(&g.rig, name);
-        for s in &skip {
-            let has_child = g.rig.skeleton.bones.iter().any(|x| x.parent.is_some_and(|p| p.index() == *s));
-            assert!(!has_child, "{name}: eased bone {} must be a leaf", g.rig.skeleton.bones[*s].name);
-        }
         let (tg, tb) = (pose_table(&g.rig, name), pose_table(&b.rig, name));
         for (f, (fg, fb)) in tg.iter().zip(&tb).enumerate() {
             for (i, (x, y)) in fg.iter().zip(fb).enumerate() {
-                if skip.contains(&i) {
-                    continue;
-                }
                 compared += 1;
-                assert!(x.abs_diff_eq(*y, TOL), "{name} frame {f} bone {}:\n{x:?}\n{y:?}", g.rig.skeleton.bones[i].name);
+                assert!(x.abs_diff_eq(*y, TOL), "{name} frame {f} bone {}:
+{x:?}
+{y:?}", g.rig.skeleton.bones[i].name);
             }
         }
-        // events, length, loop mode
+        // events (same order, no sorting), length, loop mode
         let (ag, ab) = (
             g.rig.animation(g.rig.find_animation(name).unwrap()).unwrap(),
             b.rig.animation(b.rig.find_animation(name).unwrap()).unwrap(),
         );
-        let sorted = |a: &horizon_mobmodel::anim::Animation| {
-            let mut v: Vec<_> = a.events.iter().map(|e| (e.time.to_bits(), format!("{:?}", e.kind), e.name.clone(), e.locator.clone())).collect();
-            v.sort();
-            v
-        };
-        assert_eq!(sorted(ag), sorted(ab), "{name} events (same time: order differs between the routes)");
+        assert_eq!(ag.events, ab.events, "{name} events");
         assert_eq!((ag.length, ag.loop_mode), (ab.length, ab.loop_mode), "{name} length and loop");
         assert_eq!(ag.anim_time_update.is_some(), ab.anim_time_update.is_some());
     }
-    assert!(compared > 2000, "{compared}");
+    assert_eq!(compared, ANIMATIONS.len() * FRAMES * 14);
 }
 
 #[test]
-fn the_documented_difference_is_exactly_the_eased_leaf_bones() {
-    // Dropping easing in the bbmodel copy is a known limit: prove the difference is real on every eased bone, so the
-    // documentation (README, report) cannot go stale unnoticed.
-    let (g, b) = (fox(Route::Geo), fox(Route::Bb));
-    let mut total = 0;
-    for name in ANIMATIONS {
-        let (tg, tb) = (pose_table(&g.rig, name), pose_table(&b.rig, name));
-        for bone in eased_bones(&g.rig, name) {
-            total += 1;
-            let worst = tg.iter().zip(&tb).map(|(x, y)| (x[bone].to_cols_array().iter().zip(y[bone].to_cols_array()))
-                .map(|(p, q)| (p - q).abs()).fold(0.0f32, f32::max)).fold(0.0f32, f32::max);
-            assert!(worst > 1e-3, "{name} {}: easing should make a difference, worst {worst}", g.rig.skeleton.bones[bone].name);
+fn the_bbmodel_route_really_carries_the_easing() {
+    // Equality above would also hold if neither route had easing: count the eased keys (with arguments) on both.
+    let count = |rig: &Rig| {
+        let (mut eased, mut args) = (0, 0);
+        for i in 0..ANIMATIONS.len() {
+            for bone in &rig.animation(i).unwrap().bones {
+                for ch in [&bone.rotation, &bone.position, &bone.scale].into_iter().flatten() {
+                    if let Channel::Keys(keys) = ch {
+                        for k in keys {
+                            eased += usize::from(k.easing != Easing::Linear);
+                            args += usize::from(k.easing_args.is_some());
+                        }
+                    }
+                }
+            }
         }
-    }
-    assert!(total >= 10, "{total}");
+        (eased, args)
+    };
+    let (g, b) = (count(&fox(Route::Geo).rig), count(&fox(Route::Bb).rig));
+    assert_eq!(g, b);
+    assert!(g.0 >= 12 && g.1 >= 5, "{g:?}");
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -558,12 +535,31 @@ fn sit_follows_the_synced_state_and_holds() {
     assert!(later.bones[body].translation.abs_diff_eq(last.bones[body].translation, 1e-4), "body stays at the sit height");
     assert!((later.bones[body].translation.y + 2.0).abs() < 1e-4);
 
-    // standing up again is a cut back to locomotion
+    // standing up again fades the layer out over 0.2 s (no pop): halfway the body is between sit and locomotion
+    let loco_only = {
+        let mut st2 = rig.initial_state();
+        let mut inp2 = ExprInputs::default();
+        for _ in 0..(2 + 40 + 200 + 1) {
+            rig.update(&mut st2, TICK, &mut inp2, &mut |_| {});
+        }
+        eval(&rig, &st2, &[], &mut inp2)
+    };
+    let sit_y = later.bones[body].translation.y;
     inp.synced[slot] = 0.0;
     rig.update(&mut st, TICK, &mut inp, &mut |_| {});
     assert_eq!(state_name(&rig, &st, pose_layer), "stand");
+    let start = eval(&rig, &st, &[], &mut inp).bones[body].translation.y;
+    assert!((start - sit_y).abs() < 1e-3, "no jump at the start of the fade: {start} vs {sit_y}");
+    rig.update(&mut st, TICK * 2.0, &mut inp, &mut |_| {}); // half of 0.2 s
+    let mid = eval(&rig, &st, &[], &mut inp).bones[body].translation.y;
+    let end_y = loco_only.bones[body].translation.y;
+    assert!(mid < end_y - 0.5 && mid > sit_y + 0.5, "mid {mid} between {sit_y} and {end_y}");
+    for _ in 0..4 {
+        rig.update(&mut st, TICK, &mut inp, &mut |_| {});
+    }
     let up = eval(&rig, &st, &[], &mut inp);
-    assert!(up.bones[body].translation.y > -0.5);
+    assert!(up.bones[body].translation.abs_diff_eq(loco_only.bones[body].translation, 0.35), "back to locomotion");
+    assert!(st.layers[pose_layer].prev.is_none());
 }
 
 // ---------------------------------------------------------------------------------------------------------------
