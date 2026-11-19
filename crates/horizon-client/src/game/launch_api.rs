@@ -216,6 +216,20 @@ mod tests {
         }
     }
 
+    /// The launcher's Yoake 2.0 mod arguments must not stop the game (they are read from the process arguments).
+    #[test]
+    fn launcher_mod_arguments_are_accepted() {
+        let o = parse(&[
+            "--full-access-approved",
+            "run/approved.toml",
+            "--full-access-dev",
+            "--join-mod-sync",
+            "--remote-mods",
+            "server:example.org:25565",
+        ]);
+        assert!(o.is_ok(), "{:?}", o.err());
+    }
+
     #[test]
     fn launch_api_flags_are_read() {
         let o = parse(&["--fullscreen", "--game-dir", "g", "--session-stdin"])
