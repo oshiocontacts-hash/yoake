@@ -1397,7 +1397,7 @@ impl Game<'_> {
         if let Some(g) = host.hub.guests.iter().find(|g| g.uuid == owner && g.placed) {
             let conn = g.conn;
             // Commands.performCommand runs in the player's level.
-            // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+            // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
             let (back, theirs) = (self.dim, super::Dim::lookup_or_overworld(&g.dimension));
             let entered = theirs == back || self.enter_level(Some(&mut host), theirs).is_ok();
             if entered && let Some(swap) = self.enter_guest(&mut host, conn) {
@@ -1455,7 +1455,7 @@ impl Game<'_> {
         let owner = self.serving.as_ref().map(|s| s.owner);
         let dim = self.lan.as_ref().and_then(|h| {
             let g = h.hub.guests.iter().find(|g| Some(g.uuid) == owner)?;
-            // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+            // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
             Some(super::Dim::lookup_or_overworld(&g.dimension))
         });
         let back = dim.and_then(|d| self.enter_command_level(d));

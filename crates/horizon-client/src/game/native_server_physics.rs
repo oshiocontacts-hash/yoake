@@ -212,8 +212,10 @@ impl Game<'_> {
     }
 
     fn native_physics_world(&self, dimension: &str) -> Result<&World, String> {
-        // F3-0: only known levels (the three vanilla ones until F3-3 registers more).
-        let dim = Dim::lookup(dimension).ok_or("unknown native collision dimension")?;
+        // F3-3: the levels of the world's registry.
+        let dim = self
+            .level_dim(dimension)
+            .ok_or("unknown native collision dimension")?;
         if dim == self.dim {
             Ok(&self.world)
         } else {

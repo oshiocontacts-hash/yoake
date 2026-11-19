@@ -2273,7 +2273,7 @@ impl Game<'_> {
             dimension.has_skylight,
             dimension.has_ceiling,
         )
-        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
         .unwrap_or_else(|_| super::Dim::lookup_or_overworld(&dimension.name).shape());
         // handleRespawn keeps the ClientLevel only for the same level key:
         // two levels sharing a dimension type are still two levels.
@@ -2301,7 +2301,7 @@ impl Game<'_> {
         r.position_sender = Default::default();
         r.predictions.clear();
         self.set_mode_id(spawn.game_type);
-        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
         self.dim = Dim::lookup_or_overworld(&spawn.dimension);
         self.audio.set_world(&spawn.dimension);
         // ClientPacketListener.handleLogin / handleRespawn: the server's
@@ -3349,7 +3349,7 @@ impl Game<'_> {
                         r.own_on_fire = false;
                     }
                 }
-                // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+                // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
                 let dimension_changed = self.dim != Dim::lookup_or_overworld(&p.spawn.dimension);
                 let died = self.screen == Screen::Dead
                     || self

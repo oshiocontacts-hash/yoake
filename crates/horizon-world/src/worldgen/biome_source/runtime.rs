@@ -1,7 +1,7 @@
 //! World-bound biome sources and per-worker resolver state.
 use super::{
     BiomeSourceDefinition, CheckerboardBiomeSource, CheckerboardError, EndBiomeSource,
-    FixedBiomeSource,
+    FixedBiomeSource, GridBiomeSource, GridError,
 };
 use crate::worldgen::{
     DecodeError,
@@ -16,6 +16,7 @@ pub enum BiomeSourceError {
     Decode(DecodeError),
     Biome(BiomeError),
     Checkerboard(CheckerboardError),
+    Grid(GridError),
     Sample(SampleError),
     MissingPreset,
 }
@@ -40,6 +41,11 @@ impl From<CheckerboardError> for BiomeSourceError {
         Self::Checkerboard(e)
     }
 }
+impl From<GridError> for BiomeSourceError {
+    fn from(e: GridError) -> Self {
+        Self::Grid(e)
+    }
+}
 impl From<SampleError> for BiomeSourceError {
     fn from(e: SampleError) -> Self {
         Self::Sample(e)
@@ -52,6 +58,7 @@ pub enum ResolvedBiomeSource {
     Checkerboard(CheckerboardBiomeSource<String>),
     End(EndBiomeSource<String>),
     MultiNoise(MultiNoiseBiomeSource),
+    Grid(GridBiomeSource),
 }
 impl BiomeSourceDefinition {
     /// Resolve a decoded definition using immutable, authenticated quantized
@@ -77,6 +84,17 @@ impl BiomeSourceDefinition {
             Self::MultiNoise(entries) => {
                 ResolvedBiomeSource::MultiNoise(MultiNoiseBiomeSource::new(entries.clone())?)
             }
+            Self::Grid {
+                cell_size,
+                origin,
+                width,
+                depth,
+                cells,
+                outside,
+                ..
+            } => ResolvedBiomeSource::Grid(GridBiomeSource::new(
+                *cell_size, *origin, *width, *depth, cells, outside,
+            )?),
             Self::Preset { name, .. } => {
                 ResolvedBiomeSource::MultiNoise(MultiNoiseBiomeSource::from_quantized_json(
                     presets.get(name).ok_or(BiomeSourceError::MissingPreset)?,
@@ -98,6 +116,7 @@ impl ResolvedBiomeSource {
                 source.barrens.as_str(),
             ]
             .into(),
+            Self::Grid(source) => source.possible_biomes(),
             Self::MultiNoise(source) => source
                 .parameters()
                 .entries()
@@ -118,6 +137,7 @@ impl ResolvedBiomeSource {
             Self::Checkerboard(source) => BiomeSourceResolver::Checkerboard(source),
             Self::End(source) => BiomeSourceResolver::End(source, erosion),
             Self::MultiNoise(source) => BiomeSourceResolver::MultiNoise(source.resolver(climate)),
+            Self::Grid(source) => BiomeSourceResolver::Grid(source),
         }
     }
 }
@@ -127,6 +147,7 @@ pub enum BiomeSourceResolver<'a> {
     Checkerboard(&'a CheckerboardBiomeSource<String>),
     End(&'a EndBiomeSource<String>, &'a dyn DensitySampler),
     MultiNoise(BiomeResolver<'a>),
+    Grid(&'a GridBiomeSource),
 }
 impl<'a> BiomeSourceResolver<'a> {
     pub fn sample(
@@ -139,6 +160,7 @@ impl<'a> BiomeSourceResolver<'a> {
             Self::Checkerboard(source) => source.noise_biome(quart)?.as_str(),
             Self::End(source, erosion) => source.noise_biome(quart, *erosion, context)?.as_str(),
             Self::MultiNoise(source) => source.sample(context, quart)?,
+            Self::Grid(source) => source.noise_biome(quart),
         })
     }
     /// Native fixed/checkerboard/End sources do not pre-sample a climate volume.

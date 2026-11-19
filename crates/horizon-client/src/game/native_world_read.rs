@@ -102,8 +102,10 @@ impl Game<'_> {
         if !self.native_lifecycle.permits_read(context) {
             return Err(NativeBlockReadError::InactiveContext);
         }
-        // F3-0: only known levels (the three vanilla ones until F3-3 registers more).
-        let dim = Dim::lookup(dimension).ok_or(NativeBlockReadError::UnavailableDimension)?;
+        // F3-3: the levels of the world's registry.
+        let dim = self
+            .level_dim(dimension)
+            .ok_or(NativeBlockReadError::UnavailableDimension)?;
         let world = if dim == self.dim {
             Some(&self.world)
         } else {

@@ -471,10 +471,6 @@ pub(super) fn resolve_native_sound(hub: &horizon_client::lan::hub::Hub, packet: 
     });
 }
 
-fn dimension(name: &str) -> Result<Dim, String> {
-    // F3-0: only known levels (the three vanilla ones until F3-3 registers more).
-    Dim::lookup(name).ok_or_else(|| "unknown native player dimension".into())
-}
 
 impl Game<'_> {
     fn native_player_ops_reserve(&mut self, operation: Operation) -> Result<usize, String> {
@@ -515,7 +511,7 @@ impl Game<'_> {
         Ok((
             Target::Guest(guest.conn),
             guest.conn,
-            // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+            // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
             Dim::lookup_or_overworld(&guest.dimension),
         ))
     }
@@ -707,7 +703,10 @@ impl Game<'_> {
         pitch: f32,
     ) -> Result<NativeTeleportTicket, String> {
         let owner = self.native_player_ops_reserve(Operation::Teleport)?;
-        let destination = dimension(dimension_name)?;
+        // F3-3: any level of the world's registry, not only the three vanilla ones.
+        let destination = self
+            .level_dim(dimension_name)
+            .ok_or("unknown native player dimension")?;
         if !pos
             .into_iter()
             .all(|value| value.is_finite() && value.abs() <= 30_000_000.0)

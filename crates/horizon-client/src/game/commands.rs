@@ -482,7 +482,7 @@ impl Game<'_> {
             _ => None,
         };
         conn.and_then(|c| self.command_guest(c))
-            // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+            // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
             .map_or(self.dim, |g| Dim::lookup_or_overworld(&g.dimension))
     }
     pub(super) fn target_position(&self, t: Target) -> Option<[f64; 3]> {

@@ -41,7 +41,7 @@ impl Game<'_> {
             let guests = &host.hub.guests;
             far.retain(|c| guests.iter().any(|g| g.conn == c));
         }
-        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
+        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
         let dim = Dim::lookup_or_overworld(&guest.dimension);
         let source = self.lod_source_in(dim);
         let now = std::time::Instant::now();

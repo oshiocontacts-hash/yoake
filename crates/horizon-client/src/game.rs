@@ -141,6 +141,8 @@ mod game_mode;
 mod game_tests;
 #[cfg(test)]
 mod dim_tests;
+#[cfg(test)]
+mod level_registry_tests;
 mod gamemode_switcher;
 mod ghasts;
 mod glowing;
@@ -3211,6 +3213,9 @@ pub(crate) struct Game<'a> {
     integrated: Option<integrated::Integrated>,
     /// The shapes of the open world's levels, from its dimension types.
     level_shapes: horizon_client::chunk::LevelShapes,
+    /// The open world's levels: the three vanilla ones, the saved and data pack level
+    /// stems and the mods' (F3-3); each level's type, generator stem and save folder.
+    level_registry: horizon_client::level_registry::LevelRegistry,
     /// This game is that server thread's (game/integrated.rs).
     serving: Option<integrated::Serving>,
     /// The open world is shared behind an invite code (game/friends.rs).
@@ -3499,7 +3504,6 @@ impl Dim {
         dim_interner::lookup(id).map(Self)
     }
     /// The level for an id, registering it when new.
-    #[allow(dead_code)] // F3-3 registers pack and mod levels through this.
     fn intern(id: &str) -> Self {
         Self(dim_interner::intern(id))
     }
@@ -12690,6 +12694,7 @@ impl Game<'_> {
         let world_loading::PreparedWorld {
             save_root,
             shapes,
+            registry,
             level,
             world,
             streaming,
@@ -12698,8 +12703,13 @@ impl Game<'_> {
             rand_sequences,
             locator,
         } = prepared;
-        // F3-0: unknown level id falls back to the Overworld, as before; F3-4/F3-3 may flip it.
-        let dim = Dim::lookup_or_overworld(&level.dimension);
+        // F3-3: the level the world was prepared in is one of its registered levels
+        // (`prepare_world` fell back to the Overworld for one it does not have).
+        let dim = registry
+            .contains(&level.dimension)
+            .then(|| Dim::intern(&level.dimension))
+            .unwrap_or(Dim::Overworld);
+        self.level_registry = registry;
         self.level_shapes = shapes;
         self.world_root = save_root.clone();
         self.index_saved_attachment_usage(&level);
@@ -19873,6 +19883,7 @@ impl<'a> Game<'a> {
             lan: None,
             integrated: None,
             level_shapes: Default::default(),
+            level_registry: Default::default(),
             serving: None,
             world_options: None,
             options_to_world_options: false,

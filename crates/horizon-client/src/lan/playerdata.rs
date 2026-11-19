@@ -176,8 +176,10 @@ pub fn apply(guest: &mut Guest, level: &Level) {
     });
     guest.saved_vehicle = level.root_vehicle;
     guest.recipe_book = level.recipe_book.clone();
+    // F3-3: a saved player keeps any well-formed level id (a data pack's or a mod's level); the
+    // game checks it against the world's registry when it places the player (`game/lan.rs`).
     guest.dimension = match level.dimension.as_str() {
-        d @ ("minecraft:the_nether" | "minecraft:the_end") => d.to_owned(),
+        d if crate::level_registry::check_level_id(d).is_ok() => d.to_owned(),
         _ => "minecraft:overworld".to_owned(),
     };
     if level.ender_items.len() == 27 {
