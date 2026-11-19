@@ -4,8 +4,10 @@
 //!
 //! - F4M-1 (`model`, `geo`, `bbmodel`, `bake`): `.geo.json` and `.bbmodel` to [`Model`], bone-local baked vertices.
 //! - F4M-2 (`anim`, `expr`, `controller`, `pose`): animations, the expression language, controllers, pose evaluation.
+//! - F4M-8 (`ik`, `procedural`): procedural constraints (look_at, aim, two_bone_ik, spring, follow, counter_rotate) and
+//!   the script pose interface (`BoneWrite`).
 //!
-//! The shared interface between the two is this file: [`BoneIndex`], [`Bone`], [`Skeleton`], [`BoneTransform`] and
+//! The shared interface between the first two is this file: [`BoneIndex`], [`Bone`], [`Skeleton`], [`BoneTransform`] and
 //! [`Pose`]. Change it only in agreement (both branches build on it).
 
 pub mod anim;
@@ -15,8 +17,10 @@ pub mod clock;
 pub mod controller;
 pub mod expr;
 pub mod geo;
+pub mod ik;
 pub mod model;
 pub mod pose;
+pub mod procedural;
 pub mod skeleton;
 
 pub use bake::{bake, BakedBone, BakedModel, BakedVertex};

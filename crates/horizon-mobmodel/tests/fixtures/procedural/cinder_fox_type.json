@@ -1,0 +1,23 @@
+{
+  "template": "yoake:mob",
+  "format": 1,
+  "_comment": "Only the part of the type file (FR-F4-MOBS.md 6.1) that F4M-8 reads: model.procedural. Synced enum state: idle 0, sit 1, pounce 2.",
+  "synced": { "state": { "type": "enum", "values": ["idle", "sit", "pounce"] } },
+  "model": {
+    "procedural": [
+      {
+        "type": "two_bone_ik", "root": "body", "mid": "leg_fl", "tip": "leg_fl", "tip_offset": [0, -3, 0],
+        "target": { "input": 0 }, "pole": { "dir": [0, 0, -1] }, "when": "q.synced('state') == 1", "fade": 0.2
+      },
+      {
+        "type": "two_bone_ik", "root": "body", "mid": "leg_fr", "tip": "leg_fr", "tip_offset": [0, -3, 0],
+        "target": { "input": 1 }, "pole": { "dir": [0, 0, -1] }, "when": "q.synced('state') == 1", "fade": 0.2
+      },
+      { "type": "look_at", "bone": "head", "target": "view", "yaw": 60, "pitch": 40, "speed": 360 },
+      {
+        "type": "spring", "bones": ["tail1", "tail2", "tail3"], "stiffness": 50, "damping": 3, "gravity": 120,
+        "max_angle": 50, "tip_length": 6
+      }
+    ]
+  }
+}
