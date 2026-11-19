@@ -70,3 +70,18 @@ pub fn game_items_game_painting_handle(root: Handle, id: u32) -> Result<Handle, 
     Ok(Handle(crate::decode::<u64>(&result)?))
 }
 
+/// `game_items::Game.mob#handle`: a path handle to the `horizon_client_lib::mobs::Mob` with this id, valid inside this activation.
+pub fn game_items_game_mob_handle(root: Handle, id: u32) -> Result<Handle, Error> {
+    let mut args: Vec<u8> = Vec::new();
+    Encode::encode(&id, &mut args);
+    let result = call(root, 462, &args)?;
+    Ok(Handle(crate::decode::<u64>(&result)?))
+}
+
+/// `game_items::Game.player_motion#handle`: a path handle to the `horizon_client_lib::motion::PlayerMotion`, valid inside this activation.
+pub fn game_items_game_player_motion_handle(root: Handle) -> Result<Handle, Error> {
+    let args: Vec<u8> = Vec::new();
+    let result = call(root, 463, &args)?;
+    Ok(Handle(crate::decode::<u64>(&result)?))
+}
+

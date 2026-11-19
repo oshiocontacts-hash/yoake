@@ -2767,6 +2767,6324 @@
       "path": "game_items::Game::yoake2_world_start_hook",
       "sig": "fn yoake2_world_start_hook(&mut Self) -> ()",
       "status": "bound"
+    },
+    {
+      "id": 462,
+      "path": "game_items::Game.mob#handle",
+      "sig": "handle horizon_client_lib::mobs::Mob by id: u32 at Game.mobs",
+      "status": "bound"
+    },
+    {
+      "id": 463,
+      "path": "game_items::Game.player_motion#handle",
+      "sig": "handle horizon_client_lib::motion::PlayerMotion at Game.player",
+      "status": "bound"
+    },
+    {
+      "id": 464,
+      "path": "mobs::<Aim as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 465,
+      "path": "mobs::<Aim as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 466,
+      "path": "mobs::<Attrs as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 467,
+      "path": "mobs::<Brain as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 468,
+      "path": "mobs::<Brain as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 469,
+      "path": "mobs::<Damage as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 470,
+      "path": "mobs::<DamageKind as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 471,
+      "path": "mobs::<DamageKind as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 472,
+      "path": "mobs::<ElytraAnimation as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 473,
+      "path": "mobs::<ElytraAnimation as Default>::default",
+      "sig": "fn default() -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 474,
+      "path": "mobs::<Flags as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 475,
+      "path": "mobs::<Flags as Default>::default",
+      "sig": "fn default() -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 476,
+      "path": "mobs::<MannequinDescription as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 477,
+      "path": "mobs::<MannequinDescription as Default>::default",
+      "sig": "fn default() -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 478,
+      "path": "mobs::<MannequinDescription as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 479,
+      "path": "mobs::<Mob as EntityRules>::is_no_gravity",
+      "sig": "fn is_no_gravity(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 480,
+      "path": "mobs::<Mob as State>::type_name",
+      "sig": "fn type_name() -> &str",
+      "status": "bound"
+    },
+    {
+      "id": 481,
+      "path": "mobs::<Part as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 482,
+      "path": "mobs::<PendingPushes as Default>::default",
+      "sig": "fn default() -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 483,
+      "path": "mobs::<Polygon as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 484,
+      "path": "mobs::<SpawnSetup as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 485,
+      "path": "mobs::<SpawnSetup as Default>::default",
+      "sig": "fn default() -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 486,
+      "path": "mobs::<SwimAnimation as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 487,
+      "path": "mobs::<SwimAnimation as Default>::default",
+      "sig": "fn default() -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 488,
+      "path": "mobs::Aim.eye#get",
+      "sig": "get eye: [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 489,
+      "path": "mobs::Aim.eye#set",
+      "sig": "set eye: [f64; 3]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 490,
+      "path": "mobs::Aim.feet#get",
+      "sig": "get feet: [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 491,
+      "path": "mobs::Aim.feet#set",
+      "sig": "set feet: [f64; 3]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 492,
+      "path": "mobs::Aim.look#get",
+      "sig": "get look: [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 493,
+      "path": "mobs::Aim.look#set",
+      "sig": "set look: [f64; 3]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 494,
+      "path": "mobs::Attrs.attack_damage#get",
+      "sig": "get attack_damage: f32",
+      "status": "bound"
+    },
+    {
+      "id": 495,
+      "path": "mobs::Attrs.attack_damage#set",
+      "sig": "set attack_damage: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 496,
+      "path": "mobs::Attrs.attack_knockback#get",
+      "sig": "get attack_knockback: f64",
+      "status": "bound"
+    },
+    {
+      "id": 497,
+      "path": "mobs::Attrs.attack_knockback#set",
+      "sig": "set attack_knockback: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 498,
+      "path": "mobs::Attrs.follow_range#get",
+      "sig": "get follow_range: f64",
+      "status": "bound"
+    },
+    {
+      "id": 499,
+      "path": "mobs::Attrs.follow_range#set",
+      "sig": "set follow_range: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 500,
+      "path": "mobs::Attrs.jump_strength#get",
+      "sig": "get jump_strength: f64",
+      "status": "bound"
+    },
+    {
+      "id": 501,
+      "path": "mobs::Attrs.jump_strength#set",
+      "sig": "set jump_strength: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 502,
+      "path": "mobs::Attrs.knockback_resistance#get",
+      "sig": "get knockback_resistance: f64",
+      "status": "bound"
+    },
+    {
+      "id": 503,
+      "path": "mobs::Attrs.knockback_resistance#set",
+      "sig": "set knockback_resistance: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 504,
+      "path": "mobs::Attrs.max_health#get",
+      "sig": "get max_health: f32",
+      "status": "bound"
+    },
+    {
+      "id": 505,
+      "path": "mobs::Attrs.max_health#set",
+      "sig": "set max_health: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 506,
+      "path": "mobs::Attrs.spawn_reinforcements#get",
+      "sig": "get spawn_reinforcements: f64",
+      "status": "bound"
+    },
+    {
+      "id": 507,
+      "path": "mobs::Attrs.spawn_reinforcements#set",
+      "sig": "set spawn_reinforcements: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 508,
+      "path": "mobs::Attrs.speed#get",
+      "sig": "get speed: f64",
+      "status": "bound"
+    },
+    {
+      "id": 509,
+      "path": "mobs::Attrs.speed#set",
+      "sig": "set speed: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 510,
+      "path": "mobs::Damage.attacker#get",
+      "sig": "get attacker: Option<Who>",
+      "status": "bound"
+    },
+    {
+      "id": 511,
+      "path": "mobs::Damage.attacker#set",
+      "sig": "set attacker: Option<Who>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 512,
+      "path": "mobs::Damage.from#get",
+      "sig": "get from: Option<[f64; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 513,
+      "path": "mobs::Damage.from#set",
+      "sig": "set from: Option<[f64; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 514,
+      "path": "mobs::Damage.kind#get",
+      "sig": "get kind: DamageKind",
+      "status": "bound"
+    },
+    {
+      "id": 515,
+      "path": "mobs::Damage.kind#set",
+      "sig": "set kind: DamageKind",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 516,
+      "path": "mobs::Damage::bypasses_armor",
+      "sig": "fn bypasses_armor(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 517,
+      "path": "mobs::Damage::causes_panic",
+      "sig": "fn causes_panic(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 518,
+      "path": "mobs::Damage::fall",
+      "sig": "fn fall() -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 519,
+      "path": "mobs::Damage::fireworks",
+      "sig": "fn fireworks(Option<Who>, [f64; 3]) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 520,
+      "path": "mobs::Damage::indirect_magic",
+      "sig": "fn indirect_magic(Option<Who>, [f64; 3]) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 521,
+      "path": "mobs::Damage::is_fire",
+      "sig": "fn is_fire(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 522,
+      "path": "mobs::Damage::is_projectile",
+      "sig": "fn is_projectile(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 523,
+      "path": "mobs::Damage::mace",
+      "sig": "fn mace([f64; 3]) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 524,
+      "path": "mobs::Damage::mob",
+      "sig": "fn mob(u32, [f64; 3]) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 525,
+      "path": "mobs::Damage::no_knockback",
+      "sig": "fn no_knockback(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 526,
+      "path": "mobs::Damage::of",
+      "sig": "fn of(DamageKind) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 527,
+      "path": "mobs::Damage::player",
+      "sig": "fn player([f64; 3]) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 528,
+      "path": "mobs::Damage::spear",
+      "sig": "fn spear([f64; 3]) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 529,
+      "path": "mobs::DamageKind::bypasses_effects",
+      "sig": "fn bypasses_effects(Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 530,
+      "path": "mobs::DamageKind::bypasses_invulnerability",
+      "sig": "fn bypasses_invulnerability(Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 531,
+      "path": "mobs::DamageKind::bypasses_resistance",
+      "sig": "fn bypasses_resistance(Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 532,
+      "path": "mobs::ElytraAnimation.angles#get",
+      "sig": "get angles: [f32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 533,
+      "path": "mobs::ElytraAnimation.angles#set",
+      "sig": "set angles: [f32; 3]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 534,
+      "path": "mobs::ElytraAnimation.old#get",
+      "sig": "get old: [f32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 535,
+      "path": "mobs::ElytraAnimation.old#set",
+      "sig": "set old: [f32; 3]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 536,
+      "path": "mobs::ElytraAnimation::angles",
+      "sig": "fn angles(&Self, f32) -> [f32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 537,
+      "path": "mobs::ElytraAnimation::tick",
+      "sig": "fn tick(&mut Self, bool, bool, horizon_core::geometry::Vec3) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 538,
+      "path": "mobs::EntityModelDocument::model",
+      "sig": "fn model(&Self, &str) -> Option<Part>",
+      "status": "bound"
+    },
+    {
+      "id": 539,
+      "path": "mobs::Extra.age#get",
+      "sig": "get age: i32",
+      "status": "bound"
+    },
+    {
+      "id": 540,
+      "path": "mobs::Extra.age#set",
+      "sig": "set age: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 541,
+      "path": "mobs::Extra.age_lock_particle_timer#get",
+      "sig": "get age_lock_particle_timer: i32",
+      "status": "bound"
+    },
+    {
+      "id": 542,
+      "path": "mobs::Extra.age_lock_particle_timer#set",
+      "sig": "set age_lock_particle_timer: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 543,
+      "path": "mobs::Extra.age_locked#get",
+      "sig": "get age_locked: bool",
+      "status": "bound"
+    },
+    {
+      "id": 544,
+      "path": "mobs::Extra.age_locked#set",
+      "sig": "set age_locked: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 545,
+      "path": "mobs::Extra.anger#get",
+      "sig": "get anger: i32",
+      "status": "bound"
+    },
+    {
+      "id": 546,
+      "path": "mobs::Extra.anger#set",
+      "sig": "set anger: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 547,
+      "path": "mobs::Extra.anger_end#get",
+      "sig": "get anger_end: i64",
+      "status": "bound"
+    },
+    {
+      "id": 548,
+      "path": "mobs::Extra.anger_end#set",
+      "sig": "set anger_end: i64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 549,
+      "path": "mobs::Extra.angry_at#get",
+      "sig": "get angry_at: Option<Who>",
+      "status": "bound"
+    },
+    {
+      "id": 550,
+      "path": "mobs::Extra.angry_at#set",
+      "sig": "set angry_at: Option<Who>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 551,
+      "path": "mobs::Extra.anim_ticks#get",
+      "sig": "get anim_ticks: i32",
+      "status": "bound"
+    },
+    {
+      "id": 552,
+      "path": "mobs::Extra.anim_ticks#set",
+      "sig": "set anim_ticks: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 553,
+      "path": "mobs::Extra.armor#get",
+      "sig": "get armor: [Option<crate::items::ItemStack>; 4]",
+      "status": "bound"
+    },
+    {
+      "id": 554,
+      "path": "mobs::Extra.armor#set",
+      "sig": "set armor: [Option<crate::items::ItemStack>; 4]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 555,
+      "path": "mobs::Extra.arrow_count#get",
+      "sig": "get arrow_count: i32",
+      "status": "bound"
+    },
+    {
+      "id": 556,
+      "path": "mobs::Extra.arrow_count#set",
+      "sig": "set arrow_count: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 557,
+      "path": "mobs::Extra.auto_spin_attack#get",
+      "sig": "get auto_spin_attack: bool",
+      "status": "bound"
+    },
+    {
+      "id": 558,
+      "path": "mobs::Extra.auto_spin_attack#set",
+      "sig": "set auto_spin_attack: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 559,
+      "path": "mobs::Extra.avatar_pose#get",
+      "sig": "get avatar_pose: crate::pose::Pose",
+      "status": "bound"
+    },
+    {
+      "id": 560,
+      "path": "mobs::Extra.avatar_pose#set",
+      "sig": "set avatar_pose: crate::pose::Pose",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 561,
+      "path": "mobs::Extra.bed#get",
+      "sig": "get bed: Option<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 562,
+      "path": "mobs::Extra.bed#set",
+      "sig": "set bed: Option<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 563,
+      "path": "mobs::Extra.bee#get",
+      "sig": "get bee: Option<Box<bee::Bee>>",
+      "status": "bound"
+    },
+    {
+      "id": 564,
+      "path": "mobs::Extra.bee#set",
+      "sig": "set bee: Option<Box<bee::Bee>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 565,
+      "path": "mobs::Extra.blocking#get",
+      "sig": "get blocking: bool",
+      "status": "bound"
+    },
+    {
+      "id": 566,
+      "path": "mobs::Extra.blocking#set",
+      "sig": "set blocking: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 567,
+      "path": "mobs::Extra.boarding_cooldown#get",
+      "sig": "get boarding_cooldown: i32",
+      "status": "bound"
+    },
+    {
+      "id": 568,
+      "path": "mobs::Extra.boarding_cooldown#set",
+      "sig": "set boarding_cooldown: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 569,
+      "path": "mobs::Extra.body#get",
+      "sig": "get body: Option<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 570,
+      "path": "mobs::Extra.body#set",
+      "sig": "set body: Option<std::sync::Arc<str>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 571,
+      "path": "mobs::Extra.body_damage#get",
+      "sig": "get body_damage: i32",
+      "status": "bound"
+    },
+    {
+      "id": 572,
+      "path": "mobs::Extra.body_damage#set",
+      "sig": "set body_damage: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 573,
+      "path": "mobs::Extra.bred#get",
+      "sig": "get bred: bool",
+      "status": "bound"
+    },
+    {
+      "id": 574,
+      "path": "mobs::Extra.bred#set",
+      "sig": "set bred: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 575,
+      "path": "mobs::Extra.camel_sitting#get",
+      "sig": "get camel_sitting: bool",
+      "status": "bound"
+    },
+    {
+      "id": 576,
+      "path": "mobs::Extra.camel_sitting#set",
+      "sig": "set camel_sitting: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 577,
+      "path": "mobs::Extra.can_break_doors#get",
+      "sig": "get can_break_doors: bool",
+      "status": "bound"
+    },
+    {
+      "id": 578,
+      "path": "mobs::Extra.can_break_doors#set",
+      "sig": "set can_break_doors: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 579,
+      "path": "mobs::Extra.carried#get",
+      "sig": "get carried: Option<horizon_world::registry::BlockStateId>",
+      "status": "bound"
+    },
+    {
+      "id": 580,
+      "path": "mobs::Extra.carried#set",
+      "sig": "set carried: Option<horizon_world::registry::BlockStateId>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 581,
+      "path": "mobs::Extra.charged#get",
+      "sig": "get charged: bool",
+      "status": "bound"
+    },
+    {
+      "id": 582,
+      "path": "mobs::Extra.charged#set",
+      "sig": "set charged: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 583,
+      "path": "mobs::Extra.chest#get",
+      "sig": "get chest: Option<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 584,
+      "path": "mobs::Extra.chest#set",
+      "sig": "set chest: Option<std::sync::Arc<str>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 585,
+      "path": "mobs::Extra.chested#get",
+      "sig": "get chested: bool",
+      "status": "bound"
+    },
+    {
+      "id": 586,
+      "path": "mobs::Extra.chested#set",
+      "sig": "set chested: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 587,
+      "path": "mobs::Extra.color#get",
+      "sig": "get color: u8",
+      "status": "bound"
+    },
+    {
+      "id": 588,
+      "path": "mobs::Extra.color#set",
+      "sig": "set color: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 589,
+      "path": "mobs::Extra.counter#get",
+      "sig": "get counter: i32",
+      "status": "bound"
+    },
+    {
+      "id": 590,
+      "path": "mobs::Extra.counter#set",
+      "sig": "set counter: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 591,
+      "path": "mobs::Extra.counter2#get",
+      "sig": "get counter2: i32",
+      "status": "bound"
+    },
+    {
+      "id": 592,
+      "path": "mobs::Extra.counter2#set",
+      "sig": "set counter2: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 593,
+      "path": "mobs::Extra.crouching#get",
+      "sig": "get crouching: bool",
+      "status": "bound"
+    },
+    {
+      "id": 594,
+      "path": "mobs::Extra.crouching#set",
+      "sig": "set crouching: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 595,
+      "path": "mobs::Extra.death_loot_seed#get",
+      "sig": "get death_loot_seed: i64",
+      "status": "bound"
+    },
+    {
+      "id": 596,
+      "path": "mobs::Extra.death_loot_seed#set",
+      "sig": "set death_loot_seed: i64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 597,
+      "path": "mobs::Extra.death_loot_table#get",
+      "sig": "get death_loot_table: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 598,
+      "path": "mobs::Extra.death_loot_table#set",
+      "sig": "set death_loot_table: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 599,
+      "path": "mobs::Extra.description#get",
+      "sig": "get description: MannequinDescription",
+      "status": "bound"
+    },
+    {
+      "id": 600,
+      "path": "mobs::Extra.description#set",
+      "sig": "set description: MannequinDescription",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 601,
+      "path": "mobs::Extra.drop_chances#get",
+      "sig": "get drop_chances: Option<Box<[f32; 8]>>",
+      "status": "bound"
+    },
+    {
+      "id": 602,
+      "path": "mobs::Extra.drop_chances#set",
+      "sig": "set drop_chances: Option<Box<[f32; 8]>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 603,
+      "path": "mobs::Extra.effect_ambient#get",
+      "sig": "get effect_ambient: bool",
+      "status": "bound"
+    },
+    {
+      "id": 604,
+      "path": "mobs::Extra.effect_ambient#set",
+      "sig": "set effect_ambient: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 605,
+      "path": "mobs::Extra.egg_time#get",
+      "sig": "get egg_time: i32",
+      "status": "bound"
+    },
+    {
+      "id": 606,
+      "path": "mobs::Extra.egg_time#set",
+      "sig": "set egg_time: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 607,
+      "path": "mobs::Extra.elytra#get",
+      "sig": "get elytra: ElytraAnimation",
+      "status": "bound"
+    },
+    {
+      "id": 608,
+      "path": "mobs::Extra.elytra#set",
+      "sig": "set elytra: ElytraAnimation",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 609,
+      "path": "mobs::Extra.equipment_heard#get",
+      "sig": "get equipment_heard: Option<Box<[Option<crate::items::ItemStack>; 8]>>",
+      "status": "bound"
+    },
+    {
+      "id": 610,
+      "path": "mobs::Extra.equipment_heard#set",
+      "sig": "set equipment_heard: Option<Box<[Option<crate::items::ItemStack>; 8]>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 611,
+      "path": "mobs::Extra.fall_fly_ticks#get",
+      "sig": "get fall_fly_ticks: i32",
+      "status": "bound"
+    },
+    {
+      "id": 612,
+      "path": "mobs::Extra.fall_fly_ticks#set",
+      "sig": "set fall_fly_ticks: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 613,
+      "path": "mobs::Extra.fall_flying#get",
+      "sig": "get fall_flying: bool",
+      "status": "bound"
+    },
+    {
+      "id": 614,
+      "path": "mobs::Extra.fall_flying#set",
+      "sig": "set fall_flying: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 615,
+      "path": "mobs::Extra.feet#get",
+      "sig": "get feet: Option<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 616,
+      "path": "mobs::Extra.feet#set",
+      "sig": "set feet: Option<std::sync::Arc<str>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 617,
+      "path": "mobs::Extra.flag#get",
+      "sig": "get flag: bool",
+      "status": "bound"
+    },
+    {
+      "id": 618,
+      "path": "mobs::Extra.flag#set",
+      "sig": "set flag: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 619,
+      "path": "mobs::Extra.flag2#get",
+      "sig": "get flag2: bool",
+      "status": "bound"
+    },
+    {
+      "id": 620,
+      "path": "mobs::Extra.flag2#set",
+      "sig": "set flag2: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 621,
+      "path": "mobs::Extra.followers#get",
+      "sig": "get followers: i32",
+      "status": "bound"
+    },
+    {
+      "id": 622,
+      "path": "mobs::Extra.followers#set",
+      "sig": "set followers: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 623,
+      "path": "mobs::Extra.forced_age#get",
+      "sig": "get forced_age: i32",
+      "status": "bound"
+    },
+    {
+      "id": 624,
+      "path": "mobs::Extra.forced_age#set",
+      "sig": "set forced_age: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 625,
+      "path": "mobs::Extra.forced_age_timer#get",
+      "sig": "get forced_age_timer: i32",
+      "status": "bound"
+    },
+    {
+      "id": 626,
+      "path": "mobs::Extra.forced_age_timer#set",
+      "sig": "set forced_age_timer: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 627,
+      "path": "mobs::Extra.from_bucket#get",
+      "sig": "get from_bucket: bool",
+      "status": "bound"
+    },
+    {
+      "id": 628,
+      "path": "mobs::Extra.from_bucket#set",
+      "sig": "set from_bucket: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 629,
+      "path": "mobs::Extra.gear#get",
+      "sig": "get gear: Option<Box<gear::Gear>>",
+      "status": "bound"
+    },
+    {
+      "id": 630,
+      "path": "mobs::Extra.gear#set",
+      "sig": "set gear: Option<Box<gear::Gear>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 631,
+      "path": "mobs::Extra.head#get",
+      "sig": "get head: Option<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 632,
+      "path": "mobs::Extra.head#set",
+      "sig": "set head: Option<std::sync::Arc<str>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 633,
+      "path": "mobs::Extra.hidden_model_parts#get",
+      "sig": "get hidden_model_parts: u8",
+      "status": "bound"
+    },
+    {
+      "id": 634,
+      "path": "mobs::Extra.hidden_model_parts#set",
+      "sig": "set hidden_model_parts: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 635,
+      "path": "mobs::Extra.home#get",
+      "sig": "get home: Option<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 636,
+      "path": "mobs::Extra.home#set",
+      "sig": "set home: Option<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 637,
+      "path": "mobs::Extra.illusions#get",
+      "sig": "get illusions: Option<illusioner::Illusions>",
+      "status": "bound"
+    },
+    {
+      "id": 638,
+      "path": "mobs::Extra.illusions#set",
+      "sig": "set illusions: Option<illusioner::Illusions>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 639,
+      "path": "mobs::Extra.immovable#get",
+      "sig": "get immovable: bool",
+      "status": "bound"
+    },
+    {
+      "id": 640,
+      "path": "mobs::Extra.immovable#set",
+      "sig": "set immovable: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 641,
+      "path": "mobs::Extra.in_love#get",
+      "sig": "get in_love: i32",
+      "status": "bound"
+    },
+    {
+      "id": 642,
+      "path": "mobs::Extra.in_love#set",
+      "sig": "set in_love: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 643,
+      "path": "mobs::Extra.ints#get",
+      "sig": "get ints: [i32; 6]",
+      "status": "bound"
+    },
+    {
+      "id": 644,
+      "path": "mobs::Extra.ints#set",
+      "sig": "set ints: [i32; 6]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 645,
+      "path": "mobs::Extra.inventory#get",
+      "sig": "get inventory: Vec<crate::items::ItemStack>",
+      "status": "bound"
+    },
+    {
+      "id": 646,
+      "path": "mobs::Extra.inventory#set",
+      "sig": "set inventory: Vec<crate::items::ItemStack>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 647,
+      "path": "mobs::Extra.items#get",
+      "sig": "get items: Vec<Option<crate::items::ItemStack>>",
+      "status": "bound"
+    },
+    {
+      "id": 648,
+      "path": "mobs::Extra.items#set",
+      "sig": "set items: Vec<Option<crate::items::ItemStack>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 649,
+      "path": "mobs::Extra.jockey#get",
+      "sig": "get jockey: bool",
+      "status": "bound"
+    },
+    {
+      "id": 650,
+      "path": "mobs::Extra.jockey#set",
+      "sig": "set jockey: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 651,
+      "path": "mobs::Extra.leader#get",
+      "sig": "get leader: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 652,
+      "path": "mobs::Extra.leader#set",
+      "sig": "set leader: Option<u32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 653,
+      "path": "mobs::Extra.leash#get",
+      "sig": "get leash: Option<leash::Holder>",
+      "status": "bound"
+    },
+    {
+      "id": 654,
+      "path": "mobs::Extra.leash#set",
+      "sig": "set leash: Option<leash::Holder>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 655,
+      "path": "mobs::Extra.leash_pending#get",
+      "sig": "get leash_pending: Option<leash::Pending>",
+      "status": "bound"
+    },
+    {
+      "id": 656,
+      "path": "mobs::Extra.leash_pending#set",
+      "sig": "set leash_pending: Option<leash::Pending>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 657,
+      "path": "mobs::Extra.leash_player#get",
+      "sig": "get leash_player: Option<[i32; 4]>",
+      "status": "bound"
+    },
+    {
+      "id": 658,
+      "path": "mobs::Extra.leash_player#set",
+      "sig": "set leash_player: Option<[i32; 4]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 659,
+      "path": "mobs::Extra.leash_spin#get",
+      "sig": "get leash_spin: f64",
+      "status": "bound"
+    },
+    {
+      "id": 660,
+      "path": "mobs::Extra.leash_spin#set",
+      "sig": "set leash_spin: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 661,
+      "path": "mobs::Extra.left_handed#get",
+      "sig": "get left_handed: bool",
+      "status": "bound"
+    },
+    {
+      "id": 662,
+      "path": "mobs::Extra.left_handed#set",
+      "sig": "set left_handed: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 663,
+      "path": "mobs::Extra.legs#get",
+      "sig": "get legs: Option<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 664,
+      "path": "mobs::Extra.legs#set",
+      "sig": "set legs: Option<std::sync::Arc<str>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 665,
+      "path": "mobs::Extra.lone#get",
+      "sig": "get lone: bool",
+      "status": "bound"
+    },
+    {
+      "id": 666,
+      "path": "mobs::Extra.lone#set",
+      "sig": "set lone: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 667,
+      "path": "mobs::Extra.lost_horns#get",
+      "sig": "get lost_horns: [bool; 2]",
+      "status": "bound"
+    },
+    {
+      "id": 668,
+      "path": "mobs::Extra.lost_horns#set",
+      "sig": "set lost_horns: [bool; 2]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 669,
+      "path": "mobs::Extra.love_cause#get",
+      "sig": "get love_cause: Option<[i32; 4]>",
+      "status": "bound"
+    },
+    {
+      "id": 670,
+      "path": "mobs::Extra.love_cause#set",
+      "sig": "set love_cause: Option<[i32; 4]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 671,
+      "path": "mobs::Extra.love_player#get",
+      "sig": "get love_player: bool",
+      "status": "bound"
+    },
+    {
+      "id": 672,
+      "path": "mobs::Extra.love_player#set",
+      "sig": "set love_player: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 673,
+      "path": "mobs::Extra.main_hand#get",
+      "sig": "get main_hand: Option<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 674,
+      "path": "mobs::Extra.main_hand#set",
+      "sig": "set main_hand: Option<std::sync::Arc<str>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 675,
+      "path": "mobs::Extra.main_hand_left#get",
+      "sig": "get main_hand_left: bool",
+      "status": "bound"
+    },
+    {
+      "id": 676,
+      "path": "mobs::Extra.main_hand_left#set",
+      "sig": "set main_hand_left: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 677,
+      "path": "mobs::Extra.main_hand_stack#get",
+      "sig": "get main_hand_stack: Option<crate::items::ItemStack>",
+      "status": "bound"
+    },
+    {
+      "id": 678,
+      "path": "mobs::Extra.main_hand_stack#set",
+      "sig": "set main_hand_stack: Option<crate::items::ItemStack>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 679,
+      "path": "mobs::Extra.meeting#get",
+      "sig": "get meeting: Option<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 680,
+      "path": "mobs::Extra.meeting#set",
+      "sig": "set meeting: Option<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 681,
+      "path": "mobs::Extra.model_scale#get",
+      "sig": "get model_scale: f32",
+      "status": "bound"
+    },
+    {
+      "id": 682,
+      "path": "mobs::Extra.model_scale#set",
+      "sig": "set model_scale: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 683,
+      "path": "mobs::Extra.more_carrot_ticks#get",
+      "sig": "get more_carrot_ticks: i32",
+      "status": "bound"
+    },
+    {
+      "id": 684,
+      "path": "mobs::Extra.more_carrot_ticks#set",
+      "sig": "set more_carrot_ticks: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 685,
+      "path": "mobs::Extra.mount#get",
+      "sig": "get mount: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 686,
+      "path": "mobs::Extra.mount#set",
+      "sig": "set mount: Option<u32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 687,
+      "path": "mobs::Extra.off_hand#get",
+      "sig": "get off_hand: Option<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 688,
+      "path": "mobs::Extra.off_hand#set",
+      "sig": "set off_hand: Option<std::sync::Arc<str>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 689,
+      "path": "mobs::Extra.on_sleeper#get",
+      "sig": "get on_sleeper: bool",
+      "status": "bound"
+    },
+    {
+      "id": 690,
+      "path": "mobs::Extra.on_sleeper#set",
+      "sig": "set on_sleeper: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 691,
+      "path": "mobs::Extra.opened_chest#get",
+      "sig": "get opened_chest: Option<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 692,
+      "path": "mobs::Extra.opened_chest#set",
+      "sig": "set opened_chest: Option<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 693,
+      "path": "mobs::Extra.owner#get",
+      "sig": "get owner: Option<[i32; 4]>",
+      "status": "bound"
+    },
+    {
+      "id": 694,
+      "path": "mobs::Extra.owner#set",
+      "sig": "set owner: Option<[i32; 4]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 695,
+      "path": "mobs::Extra.party_jukebox#get",
+      "sig": "get party_jukebox: Option<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 696,
+      "path": "mobs::Extra.party_jukebox#set",
+      "sig": "set party_jukebox: Option<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 697,
+      "path": "mobs::Extra.passenger#get",
+      "sig": "get passenger: bool",
+      "status": "bound"
+    },
+    {
+      "id": 698,
+      "path": "mobs::Extra.passenger#set",
+      "sig": "set passenger: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 699,
+      "path": "mobs::Extra.pick_up_loot#get",
+      "sig": "get pick_up_loot: bool",
+      "status": "bound"
+    },
+    {
+      "id": 700,
+      "path": "mobs::Extra.pick_up_loot#set",
+      "sig": "set pick_up_loot: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 701,
+      "path": "mobs::Extra.player_created#get",
+      "sig": "get player_created: bool",
+      "status": "bound"
+    },
+    {
+      "id": 702,
+      "path": "mobs::Extra.player_created#set",
+      "sig": "set player_created: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 703,
+      "path": "mobs::Extra.point#get",
+      "sig": "get point: Option<[f64; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 704,
+      "path": "mobs::Extra.point#set",
+      "sig": "set point: Option<[f64; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 705,
+      "path": "mobs::Extra.pose#get",
+      "sig": "get pose: u8",
+      "status": "bound"
+    },
+    {
+      "id": 706,
+      "path": "mobs::Extra.pose#set",
+      "sig": "set pose: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 707,
+      "path": "mobs::Extra.pose_change_tick#get",
+      "sig": "get pose_change_tick: i64",
+      "status": "bound"
+    },
+    {
+      "id": 708,
+      "path": "mobs::Extra.pose_change_tick#set",
+      "sig": "set pose_change_tick: i64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 709,
+      "path": "mobs::Extra.positions#get",
+      "sig": "get positions: Vec<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 710,
+      "path": "mobs::Extra.positions#set",
+      "sig": "set positions: Vec<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 711,
+      "path": "mobs::Extra.previous_velocity#get",
+      "sig": "get previous_velocity: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 712,
+      "path": "mobs::Extra.previous_velocity#set",
+      "sig": "set previous_velocity: horizon_core::Vec3",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 713,
+      "path": "mobs::Extra.raider#get",
+      "sig": "get raider: Option<Box<raider::State>>",
+      "status": "bound"
+    },
+    {
+      "id": 714,
+      "path": "mobs::Extra.raider#set",
+      "sig": "set raider: Option<Box<raider::State>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 715,
+      "path": "mobs::Extra.relax_one#get",
+      "sig": "get relax_one: bool",
+      "status": "bound"
+    },
+    {
+      "id": 716,
+      "path": "mobs::Extra.relax_one#set",
+      "sig": "set relax_one: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 717,
+      "path": "mobs::Extra.repellent#get",
+      "sig": "get repellent: Option<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 718,
+      "path": "mobs::Extra.repellent#set",
+      "sig": "set repellent: Option<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 719,
+      "path": "mobs::Extra.rider#get",
+      "sig": "get rider: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 720,
+      "path": "mobs::Extra.rider#set",
+      "sig": "set rider: Option<u32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 721,
+      "path": "mobs::Extra.saddle_stack#get",
+      "sig": "get saddle_stack: Option<crate::items::ItemStack>",
+      "status": "bound"
+    },
+    {
+      "id": 722,
+      "path": "mobs::Extra.saddle_stack#set",
+      "sig": "set saddle_stack: Option<crate::items::ItemStack>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 723,
+      "path": "mobs::Extra.saddled#get",
+      "sig": "get saddled: bool",
+      "status": "bound"
+    },
+    {
+      "id": 724,
+      "path": "mobs::Extra.saddled#set",
+      "sig": "set saddled: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 725,
+      "path": "mobs::Extra.scratch#get",
+      "sig": "get scratch: [i32; 4]",
+      "status": "bound"
+    },
+    {
+      "id": 726,
+      "path": "mobs::Extra.scratch#set",
+      "sig": "set scratch: [i32; 4]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 727,
+      "path": "mobs::Extra.screaming#get",
+      "sig": "get screaming: bool",
+      "status": "bound"
+    },
+    {
+      "id": 728,
+      "path": "mobs::Extra.screaming#set",
+      "sig": "set screaming: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 729,
+      "path": "mobs::Extra.section#get",
+      "sig": "get section: [i32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 730,
+      "path": "mobs::Extra.section#set",
+      "sig": "set section: [i32; 3]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 731,
+      "path": "mobs::Extra.section_seq#get",
+      "sig": "get section_seq: u64",
+      "status": "bound"
+    },
+    {
+      "id": 732,
+      "path": "mobs::Extra.section_seq#set",
+      "sig": "set section_seq: u64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 733,
+      "path": "mobs::Extra.sheared#get",
+      "sig": "get sheared: bool",
+      "status": "bound"
+    },
+    {
+      "id": 734,
+      "path": "mobs::Extra.sheared#set",
+      "sig": "set sheared: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 735,
+      "path": "mobs::Extra.shoulder_parrots#get",
+      "sig": "get shoulder_parrots: [Option<i32>; 2]",
+      "status": "bound"
+    },
+    {
+      "id": 736,
+      "path": "mobs::Extra.shoulder_parrots#set",
+      "sig": "set shoulder_parrots: [Option<i32>; 2]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 737,
+      "path": "mobs::Extra.sitting#get",
+      "sig": "get sitting: bool",
+      "status": "bound"
+    },
+    {
+      "id": 738,
+      "path": "mobs::Extra.sitting#set",
+      "sig": "set sitting: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 739,
+      "path": "mobs::Extra.size#get",
+      "sig": "get size: i32",
+      "status": "bound"
+    },
+    {
+      "id": 740,
+      "path": "mobs::Extra.size#set",
+      "sig": "set size: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 741,
+      "path": "mobs::Extra.sound_variant#get",
+      "sig": "get sound_variant: Option<u8>",
+      "status": "bound"
+    },
+    {
+      "id": 742,
+      "path": "mobs::Extra.sound_variant#set",
+      "sig": "set sound_variant: Option<u8>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 743,
+      "path": "mobs::Extra.spectator#get",
+      "sig": "get spectator: bool",
+      "status": "bound"
+    },
+    {
+      "id": 744,
+      "path": "mobs::Extra.spectator#set",
+      "sig": "set spectator: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 745,
+      "path": "mobs::Extra.sprinting#get",
+      "sig": "get sprinting: bool",
+      "status": "bound"
+    },
+    {
+      "id": 746,
+      "path": "mobs::Extra.sprinting#set",
+      "sig": "set sprinting: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 747,
+      "path": "mobs::Extra.stabbed#get",
+      "sig": "get stabbed: Option<Vec<(Who, i64)>>",
+      "status": "bound"
+    },
+    {
+      "id": 748,
+      "path": "mobs::Extra.stabbed#set",
+      "sig": "set stabbed: Option<Vec<(Who, i64)>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 749,
+      "path": "mobs::Extra.stand_sliding#get",
+      "sig": "get stand_sliding: bool",
+      "status": "bound"
+    },
+    {
+      "id": 750,
+      "path": "mobs::Extra.stand_sliding#set",
+      "sig": "set stand_sliding: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 751,
+      "path": "mobs::Extra.stew_effects#get",
+      "sig": "get stew_effects: Option<Vec<(std::sync::Arc<str>, i32)>>",
+      "status": "bound"
+    },
+    {
+      "id": 752,
+      "path": "mobs::Extra.stew_effects#set",
+      "sig": "set stew_effects: Option<Vec<(std::sync::Arc<str>, i32)>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 753,
+      "path": "mobs::Extra.stinger_count#get",
+      "sig": "get stinger_count: i32",
+      "status": "bound"
+    },
+    {
+      "id": 754,
+      "path": "mobs::Extra.stinger_count#set",
+      "sig": "set stinger_count: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 755,
+      "path": "mobs::Extra.swim#get",
+      "sig": "get swim: SwimAnimation",
+      "status": "bound"
+    },
+    {
+      "id": 756,
+      "path": "mobs::Extra.swim#set",
+      "sig": "set swim: SwimAnimation",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 757,
+      "path": "mobs::Extra.swing_right_arm#get",
+      "sig": "get swing_right_arm: Option<bool>",
+      "status": "bound"
+    },
+    {
+      "id": 758,
+      "path": "mobs::Extra.swing_right_arm#set",
+      "sig": "set swing_right_arm: Option<bool>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 759,
+      "path": "mobs::Extra.swing_stab#get",
+      "sig": "get swing_stab: bool",
+      "status": "bound"
+    },
+    {
+      "id": 760,
+      "path": "mobs::Extra.swing_stab#set",
+      "sig": "set swing_stab: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 761,
+      "path": "mobs::Extra.synced_pose#get",
+      "sig": "get synced_pose: u8",
+      "status": "bound"
+    },
+    {
+      "id": 762,
+      "path": "mobs::Extra.synced_pose#set",
+      "sig": "set synced_pose: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 763,
+      "path": "mobs::Extra.tame#get",
+      "sig": "get tame: bool",
+      "status": "bound"
+    },
+    {
+      "id": 764,
+      "path": "mobs::Extra.tame#set",
+      "sig": "set tame: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 765,
+      "path": "mobs::Extra.trade#get",
+      "sig": "get trade: Option<Box<crate::merchant::Trader>>",
+      "status": "bound"
+    },
+    {
+      "id": 766,
+      "path": "mobs::Extra.trade#set",
+      "sig": "set trade: Option<Box<crate::merchant::Trader>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 767,
+      "path": "mobs::Extra.trap#get",
+      "sig": "get trap: bool",
+      "status": "bound"
+    },
+    {
+      "id": 768,
+      "path": "mobs::Extra.trap#set",
+      "sig": "set trap: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 769,
+      "path": "mobs::Extra.trap_time#get",
+      "sig": "get trap_time: i32",
+      "status": "bound"
+    },
+    {
+      "id": 770,
+      "path": "mobs::Extra.trap_time#set",
+      "sig": "set trap_time: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 771,
+      "path": "mobs::Extra.trusted#get",
+      "sig": "get trusted: [Option<[i32; 4]>; 2]",
+      "status": "bound"
+    },
+    {
+      "id": 772,
+      "path": "mobs::Extra.trusted#set",
+      "sig": "set trusted: [Option<[i32; 4]>; 2]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 773,
+      "path": "mobs::Extra.trusting#get",
+      "sig": "get trusting: bool",
+      "status": "bound"
+    },
+    {
+      "id": 774,
+      "path": "mobs::Extra.trusting#set",
+      "sig": "set trusting: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 775,
+      "path": "mobs::Extra.using_item#get",
+      "sig": "get using_item: i32",
+      "status": "bound"
+    },
+    {
+      "id": 776,
+      "path": "mobs::Extra.using_item#set",
+      "sig": "set using_item: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 777,
+      "path": "mobs::Extra.using_off_hand#get",
+      "sig": "get using_off_hand: bool",
+      "status": "bound"
+    },
+    {
+      "id": 778,
+      "path": "mobs::Extra.using_off_hand#set",
+      "sig": "set using_off_hand: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 779,
+      "path": "mobs::Extra.variant#get",
+      "sig": "get variant: u8",
+      "status": "bound"
+    },
+    {
+      "id": 780,
+      "path": "mobs::Extra.variant#set",
+      "sig": "set variant: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 781,
+      "path": "mobs::Extra.variant2#get",
+      "sig": "get variant2: u8",
+      "status": "bound"
+    },
+    {
+      "id": 782,
+      "path": "mobs::Extra.variant2#set",
+      "sig": "set variant2: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 783,
+      "path": "mobs::Extra.variant3#get",
+      "sig": "get variant3: u8",
+      "status": "bound"
+    },
+    {
+      "id": 784,
+      "path": "mobs::Extra.variant3#set",
+      "sig": "set variant3: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 785,
+      "path": "mobs::Extra.vector#get",
+      "sig": "get vector: [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 786,
+      "path": "mobs::Extra.vector#set",
+      "sig": "set vector: [f64; 3]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 787,
+      "path": "mobs::Extra::set_main_hand",
+      "sig": "fn set_main_hand(&mut Self, Option<Arc<str>>) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 788,
+      "path": "mobs::Extra::set_main_hand_stack",
+      "sig": "fn set_main_hand_stack(&mut Self, Option<crate::items::ItemStack>) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 789,
+      "path": "mobs::Extra::take_main_hand",
+      "sig": "fn take_main_hand(&mut Self) -> Option<Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 790,
+      "path": "mobs::Flags.animal#get",
+      "sig": "get animal: bool",
+      "status": "bound"
+    },
+    {
+      "id": 791,
+      "path": "mobs::Flags.animal#set",
+      "sig": "set animal: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 792,
+      "path": "mobs::Flags.aquatic_swimmer#get",
+      "sig": "get aquatic_swimmer: bool",
+      "status": "bound"
+    },
+    {
+      "id": 793,
+      "path": "mobs::Flags.aquatic_swimmer#set",
+      "sig": "set aquatic_swimmer: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 794,
+      "path": "mobs::Flags.breathes_water#get",
+      "sig": "get breathes_water: bool",
+      "status": "bound"
+    },
+    {
+      "id": 795,
+      "path": "mobs::Flags.breathes_water#set",
+      "sig": "set breathes_water: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 796,
+      "path": "mobs::Flags.burns_in_day#get",
+      "sig": "get burns_in_day: bool",
+      "status": "bound"
+    },
+    {
+      "id": 797,
+      "path": "mobs::Flags.burns_in_day#set",
+      "sig": "set burns_in_day: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 798,
+      "path": "mobs::Flags.climber#get",
+      "sig": "get climber: bool",
+      "status": "bound"
+    },
+    {
+      "id": 799,
+      "path": "mobs::Flags.climber#set",
+      "sig": "set climber: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 800,
+      "path": "mobs::Flags.fall_immune#get",
+      "sig": "get fall_immune: bool",
+      "status": "bound"
+    },
+    {
+      "id": 801,
+      "path": "mobs::Flags.fall_immune#set",
+      "sig": "set fall_immune: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 802,
+      "path": "mobs::Flags.fire_immune#get",
+      "sig": "get fire_immune: bool",
+      "status": "bound"
+    },
+    {
+      "id": 803,
+      "path": "mobs::Flags.fire_immune#set",
+      "sig": "set fire_immune: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 804,
+      "path": "mobs::Flags.flying#get",
+      "sig": "get flying: bool",
+      "status": "bound"
+    },
+    {
+      "id": 805,
+      "path": "mobs::Flags.flying#set",
+      "sig": "set flying: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 806,
+      "path": "mobs::Flags.lava_walker#get",
+      "sig": "get lava_walker: bool",
+      "status": "bound"
+    },
+    {
+      "id": 807,
+      "path": "mobs::Flags.lava_walker#set",
+      "sig": "set lava_walker: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 808,
+      "path": "mobs::Flags.needs_water#get",
+      "sig": "get needs_water: bool",
+      "status": "bound"
+    },
+    {
+      "id": 809,
+      "path": "mobs::Flags.needs_water#set",
+      "sig": "set needs_water: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 810,
+      "path": "mobs::Flags.omnidirectional#get",
+      "sig": "get omnidirectional: bool",
+      "status": "bound"
+    },
+    {
+      "id": 811,
+      "path": "mobs::Flags.omnidirectional#set",
+      "sig": "set omnidirectional: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 812,
+      "path": "mobs::Flags.undead#get",
+      "sig": "get undead: bool",
+      "status": "bound"
+    },
+    {
+      "id": 813,
+      "path": "mobs::Flags.undead#set",
+      "sig": "set undead: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 814,
+      "path": "mobs::Flags.water_sensitive#get",
+      "sig": "get water_sensitive: bool",
+      "status": "bound"
+    },
+    {
+      "id": 815,
+      "path": "mobs::Flags.water_sensitive#set",
+      "sig": "set water_sensitive: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 816,
+      "path": "mobs::MannequinDescription::component",
+      "sig": "fn component(&Self) -> Option<horizon_world::nbt::Tag>",
+      "status": "bound"
+    },
+    {
+      "id": 817,
+      "path": "mobs::MannequinDescription::from_component",
+      "sig": "fn from_component(Option<&horizon_world::nbt::Tag>) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 818,
+      "path": "mobs::Mob.absorption#get",
+      "sig": "get absorption: f32",
+      "status": "bound"
+    },
+    {
+      "id": 819,
+      "path": "mobs::Mob.absorption#set",
+      "sig": "set absorption: f32",
+      "status": "bound"
+    },
+    {
+      "id": 820,
+      "path": "mobs::Mob.age#get",
+      "sig": "get age: u32",
+      "status": "bound"
+    },
+    {
+      "id": 821,
+      "path": "mobs::Mob.age#set",
+      "sig": "set age: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 822,
+      "path": "mobs::Mob.air#get",
+      "sig": "get air: i32",
+      "status": "bound"
+    },
+    {
+      "id": 823,
+      "path": "mobs::Mob.air#set",
+      "sig": "set air: i32",
+      "status": "bound"
+    },
+    {
+      "id": 824,
+      "path": "mobs::Mob.ambient_timer#get",
+      "sig": "get ambient_timer: i32",
+      "status": "bound"
+    },
+    {
+      "id": 825,
+      "path": "mobs::Mob.ambient_timer#set",
+      "sig": "set ambient_timer: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 826,
+      "path": "mobs::Mob.anim#get",
+      "sig": "get anim: anim::AnimState",
+      "status": "bound"
+    },
+    {
+      "id": 827,
+      "path": "mobs::Mob.anim#set",
+      "sig": "set anim: anim::AnimState",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 828,
+      "path": "mobs::Mob.attacker_aim#get",
+      "sig": "get attacker_aim: Option<Aim>",
+      "status": "bound"
+    },
+    {
+      "id": 829,
+      "path": "mobs::Mob.attacker_aim#set",
+      "sig": "set attacker_aim: Option<Aim>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 830,
+      "path": "mobs::Mob.attrs#get",
+      "sig": "get attrs: Attrs",
+      "status": "bound"
+    },
+    {
+      "id": 831,
+      "path": "mobs::Mob.attrs#set",
+      "sig": "set attrs: Attrs",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 832,
+      "path": "mobs::Mob.body_yaw#get",
+      "sig": "get body_yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 833,
+      "path": "mobs::Mob.body_yaw#set",
+      "sig": "set body_yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 834,
+      "path": "mobs::Mob.cape#get",
+      "sig": "get cape: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 835,
+      "path": "mobs::Mob.cape#set",
+      "sig": "set cape: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 836,
+      "path": "mobs::Mob.climbing#get",
+      "sig": "get climbing: bool",
+      "status": "bound"
+    },
+    {
+      "id": 837,
+      "path": "mobs::Mob.climbing#set",
+      "sig": "set climbing: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 838,
+      "path": "mobs::Mob.custom_name#get",
+      "sig": "get custom_name: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 839,
+      "path": "mobs::Mob.custom_name#set",
+      "sig": "set custom_name: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 840,
+      "path": "mobs::Mob.death_time#get",
+      "sig": "get death_time: i32",
+      "status": "bound"
+    },
+    {
+      "id": 841,
+      "path": "mobs::Mob.death_time#set",
+      "sig": "set death_time: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 842,
+      "path": "mobs::Mob.fall_distance#get",
+      "sig": "get fall_distance: f64",
+      "status": "bound"
+    },
+    {
+      "id": 843,
+      "path": "mobs::Mob.fall_distance#set",
+      "sig": "set fall_distance: f64",
+      "status": "bound"
+    },
+    {
+      "id": 844,
+      "path": "mobs::Mob.fire_ticks#get",
+      "sig": "get fire_ticks: i32",
+      "status": "bound"
+    },
+    {
+      "id": 845,
+      "path": "mobs::Mob.fire_ticks#set",
+      "sig": "set fire_ticks: i32",
+      "status": "bound"
+    },
+    {
+      "id": 846,
+      "path": "mobs::Mob.first_tick#get",
+      "sig": "get first_tick: bool",
+      "status": "bound"
+    },
+    {
+      "id": 847,
+      "path": "mobs::Mob.first_tick#set",
+      "sig": "set first_tick: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 848,
+      "path": "mobs::Mob.fluids#get",
+      "sig": "get fluids: living::Fluids",
+      "status": "bound"
+    },
+    {
+      "id": 849,
+      "path": "mobs::Mob.fluids#set",
+      "sig": "set fluids: living::Fluids",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 850,
+      "path": "mobs::Mob.gear_knockback_resistance#get",
+      "sig": "get gear_knockback_resistance: Option<f64>",
+      "status": "bound"
+    },
+    {
+      "id": 851,
+      "path": "mobs::Mob.gear_knockback_resistance#set",
+      "sig": "set gear_knockback_resistance: Option<f64>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 852,
+      "path": "mobs::Mob.glowing#get",
+      "sig": "get glowing: bool",
+      "status": "bound"
+    },
+    {
+      "id": 853,
+      "path": "mobs::Mob.glowing#set",
+      "sig": "set glowing: bool",
+      "status": "bound"
+    },
+    {
+      "id": 854,
+      "path": "mobs::Mob.head_pitch#get",
+      "sig": "get head_pitch: f32",
+      "status": "bound"
+    },
+    {
+      "id": 855,
+      "path": "mobs::Mob.head_pitch#set",
+      "sig": "set head_pitch: f32",
+      "status": "bound"
+    },
+    {
+      "id": 856,
+      "path": "mobs::Mob.head_yaw#get",
+      "sig": "get head_yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 857,
+      "path": "mobs::Mob.head_yaw#set",
+      "sig": "set head_yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 858,
+      "path": "mobs::Mob.health#get",
+      "sig": "get health: f32",
+      "status": "bound"
+    },
+    {
+      "id": 859,
+      "path": "mobs::Mob.health#set",
+      "sig": "set health: f32",
+      "status": "bound"
+    },
+    {
+      "id": 860,
+      "path": "mobs::Mob.horizontal_collision#get",
+      "sig": "get horizontal_collision: bool",
+      "status": "bound"
+    },
+    {
+      "id": 861,
+      "path": "mobs::Mob.horizontal_collision#set",
+      "sig": "set horizontal_collision: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 862,
+      "path": "mobs::Mob.hurt_time#get",
+      "sig": "get hurt_time: i32",
+      "status": "bound"
+    },
+    {
+      "id": 863,
+      "path": "mobs::Mob.hurt_time#set",
+      "sig": "set hurt_time: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 864,
+      "path": "mobs::Mob.id#get",
+      "sig": "get id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 865,
+      "path": "mobs::Mob.id#set",
+      "sig": "set id: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 866,
+      "path": "mobs::Mob.invisible#get",
+      "sig": "get invisible: bool",
+      "status": "bound"
+    },
+    {
+      "id": 867,
+      "path": "mobs::Mob.invisible#set",
+      "sig": "set invisible: bool",
+      "status": "bound"
+    },
+    {
+      "id": 868,
+      "path": "mobs::Mob.invulnerable#get",
+      "sig": "get invulnerable: i32",
+      "status": "bound"
+    },
+    {
+      "id": 869,
+      "path": "mobs::Mob.invulnerable#set",
+      "sig": "set invulnerable: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 870,
+      "path": "mobs::Mob.invulnerable_flag#get",
+      "sig": "get invulnerable_flag: bool",
+      "status": "bound"
+    },
+    {
+      "id": 871,
+      "path": "mobs::Mob.invulnerable_flag#set",
+      "sig": "set invulnerable_flag: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 872,
+      "path": "mobs::Mob.last_damage#get",
+      "sig": "get last_damage: Option<(Damage, i64)>",
+      "status": "bound"
+    },
+    {
+      "id": 873,
+      "path": "mobs::Mob.last_damage#set",
+      "sig": "set last_damage: Option<(Damage, i64)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 874,
+      "path": "mobs::Mob.last_hurt#get",
+      "sig": "get last_hurt: f32",
+      "status": "bound"
+    },
+    {
+      "id": 875,
+      "path": "mobs::Mob.last_hurt#set",
+      "sig": "set last_hurt: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 876,
+      "path": "mobs::Mob.limb_position#get",
+      "sig": "get limb_position: f32",
+      "status": "bound"
+    },
+    {
+      "id": 877,
+      "path": "mobs::Mob.limb_position#set",
+      "sig": "set limb_position: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 878,
+      "path": "mobs::Mob.limb_speed#get",
+      "sig": "get limb_speed: f32",
+      "status": "bound"
+    },
+    {
+      "id": 879,
+      "path": "mobs::Mob.limb_speed#set",
+      "sig": "set limb_speed: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 880,
+      "path": "mobs::Mob.max_swell#get",
+      "sig": "get max_swell: i32",
+      "status": "bound"
+    },
+    {
+      "id": 881,
+      "path": "mobs::Mob.max_swell#set",
+      "sig": "set max_swell: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 882,
+      "path": "mobs::Mob.name_visible#get",
+      "sig": "get name_visible: bool",
+      "status": "bound"
+    },
+    {
+      "id": 883,
+      "path": "mobs::Mob.name_visible#set",
+      "sig": "set name_visible: bool",
+      "status": "bound"
+    },
+    {
+      "id": 884,
+      "path": "mobs::Mob.native_control#get",
+      "sig": "get native_control: Option<Box<native_control::NativeMobControl>>",
+      "status": "bound"
+    },
+    {
+      "id": 885,
+      "path": "mobs::Mob.native_control#set",
+      "sig": "set native_control: Option<Box<native_control::NativeMobControl>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 886,
+      "path": "mobs::Mob.native_damage_immune#get",
+      "sig": "get native_damage_immune: bool",
+      "status": "bound"
+    },
+    {
+      "id": 887,
+      "path": "mobs::Mob.native_damage_immune#set",
+      "sig": "set native_damage_immune: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 888,
+      "path": "mobs::Mob.native_last_player_attacker#get",
+      "sig": "get native_last_player_attacker: u32",
+      "status": "bound"
+    },
+    {
+      "id": 889,
+      "path": "mobs::Mob.native_last_player_attacker#set",
+      "sig": "set native_last_player_attacker: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 890,
+      "path": "mobs::Mob.needs_sync#get",
+      "sig": "get needs_sync: bool",
+      "status": "bound"
+    },
+    {
+      "id": 891,
+      "path": "mobs::Mob.needs_sync#set",
+      "sig": "set needs_sync: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 892,
+      "path": "mobs::Mob.no_ai#get",
+      "sig": "get no_ai: bool",
+      "status": "bound"
+    },
+    {
+      "id": 893,
+      "path": "mobs::Mob.no_ai#set",
+      "sig": "set no_ai: bool",
+      "status": "bound"
+    },
+    {
+      "id": 894,
+      "path": "mobs::Mob.no_gravity#get",
+      "sig": "get no_gravity: bool",
+      "status": "bound"
+    },
+    {
+      "id": 895,
+      "path": "mobs::Mob.no_gravity#set",
+      "sig": "set no_gravity: bool",
+      "status": "bound"
+    },
+    {
+      "id": 896,
+      "path": "mobs::Mob.on_ground#get",
+      "sig": "get on_ground: bool",
+      "status": "bound"
+    },
+    {
+      "id": 897,
+      "path": "mobs::Mob.on_ground#set",
+      "sig": "set on_ground: bool",
+      "status": "bound"
+    },
+    {
+      "id": 898,
+      "path": "mobs::Mob.persistent#get",
+      "sig": "get persistent: bool",
+      "status": "bound"
+    },
+    {
+      "id": 899,
+      "path": "mobs::Mob.persistent#set",
+      "sig": "set persistent: bool",
+      "status": "bound"
+    },
+    {
+      "id": 900,
+      "path": "mobs::Mob.piston#get",
+      "sig": "get piston: horizon_world::piston_movement::PistonMovement",
+      "status": "bound"
+    },
+    {
+      "id": 901,
+      "path": "mobs::Mob.piston#set",
+      "sig": "set piston: horizon_world::piston_movement::PistonMovement",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 902,
+      "path": "mobs::Mob.position#get",
+      "sig": "get position: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 903,
+      "path": "mobs::Mob.position#set",
+      "sig": "set position: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 904,
+      "path": "mobs::Mob.previous#get",
+      "sig": "get previous: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 905,
+      "path": "mobs::Mob.previous#set",
+      "sig": "set previous: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 906,
+      "path": "mobs::Mob.previous_body_yaw#get",
+      "sig": "get previous_body_yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 907,
+      "path": "mobs::Mob.previous_body_yaw#set",
+      "sig": "set previous_body_yaw: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 908,
+      "path": "mobs::Mob.previous_head_pitch#get",
+      "sig": "get previous_head_pitch: f32",
+      "status": "bound"
+    },
+    {
+      "id": 909,
+      "path": "mobs::Mob.previous_head_pitch#set",
+      "sig": "set previous_head_pitch: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 910,
+      "path": "mobs::Mob.previous_head_yaw#get",
+      "sig": "get previous_head_yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 911,
+      "path": "mobs::Mob.previous_head_yaw#set",
+      "sig": "set previous_head_yaw: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 912,
+      "path": "mobs::Mob.previous_limb_speed#get",
+      "sig": "get previous_limb_speed: f32",
+      "status": "bound"
+    },
+    {
+      "id": 913,
+      "path": "mobs::Mob.previous_limb_speed#set",
+      "sig": "set previous_limb_speed: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 914,
+      "path": "mobs::Mob.previous_swell#get",
+      "sig": "get previous_swell: i32",
+      "status": "bound"
+    },
+    {
+      "id": 915,
+      "path": "mobs::Mob.previous_swell#set",
+      "sig": "set previous_swell: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 916,
+      "path": "mobs::Mob.previous_yaw#get",
+      "sig": "get previous_yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 917,
+      "path": "mobs::Mob.previous_yaw#set",
+      "sig": "set previous_yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 918,
+      "path": "mobs::Mob.projectile_motion#get",
+      "sig": "get projectile_motion: Option<[f64; 2]>",
+      "status": "bound"
+    },
+    {
+      "id": 919,
+      "path": "mobs::Mob.projectile_motion#set",
+      "sig": "set projectile_motion: Option<[f64; 2]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 920,
+      "path": "mobs::Mob.removed#get",
+      "sig": "get removed: bool",
+      "status": "bound"
+    },
+    {
+      "id": 921,
+      "path": "mobs::Mob.removed#set",
+      "sig": "set removed: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 922,
+      "path": "mobs::Mob.rider#get",
+      "sig": "get rider: Option<equine::Rider>",
+      "status": "bound"
+    },
+    {
+      "id": 923,
+      "path": "mobs::Mob.rider#set",
+      "sig": "set rider: Option<equine::Rider>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 924,
+      "path": "mobs::Mob.silent#get",
+      "sig": "get silent: bool",
+      "status": "bound"
+    },
+    {
+      "id": 925,
+      "path": "mobs::Mob.silent#set",
+      "sig": "set silent: bool",
+      "status": "bound"
+    },
+    {
+      "id": 926,
+      "path": "mobs::Mob.skin#get",
+      "sig": "get skin: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 927,
+      "path": "mobs::Mob.skin#set",
+      "sig": "set skin: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 928,
+      "path": "mobs::Mob.slim#get",
+      "sig": "get slim: bool",
+      "status": "bound"
+    },
+    {
+      "id": 929,
+      "path": "mobs::Mob.slim#set",
+      "sig": "set slim: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 930,
+      "path": "mobs::Mob.standing_on#get",
+      "sig": "get standing_on: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 931,
+      "path": "mobs::Mob.standing_on#set",
+      "sig": "set standing_on: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 932,
+      "path": "mobs::Mob.stuck_multiplier#get",
+      "sig": "get stuck_multiplier: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 933,
+      "path": "mobs::Mob.stuck_multiplier#set",
+      "sig": "set stuck_multiplier: horizon_core::Vec3",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 934,
+      "path": "mobs::Mob.supporting#get",
+      "sig": "get supporting: Option<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 935,
+      "path": "mobs::Mob.supporting#set",
+      "sig": "set supporting: Option<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 936,
+      "path": "mobs::Mob.swell#get",
+      "sig": "get swell: i32",
+      "status": "bound"
+    },
+    {
+      "id": 937,
+      "path": "mobs::Mob.swell#set",
+      "sig": "set swell: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 938,
+      "path": "mobs::Mob.ticks_frozen#get",
+      "sig": "get ticks_frozen: i32",
+      "status": "bound"
+    },
+    {
+      "id": 939,
+      "path": "mobs::Mob.ticks_frozen#set",
+      "sig": "set ticks_frozen: i32",
+      "status": "bound"
+    },
+    {
+      "id": 940,
+      "path": "mobs::Mob.velocity#get",
+      "sig": "get velocity: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 941,
+      "path": "mobs::Mob.velocity#set",
+      "sig": "set velocity: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 942,
+      "path": "mobs::Mob.vertical_collision_below#get",
+      "sig": "get vertical_collision_below: bool",
+      "status": "bound"
+    },
+    {
+      "id": 943,
+      "path": "mobs::Mob.vertical_collision_below#set",
+      "sig": "set vertical_collision_below: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 944,
+      "path": "mobs::Mob.was_eye_in_water#get",
+      "sig": "get was_eye_in_water: bool",
+      "status": "bound"
+    },
+    {
+      "id": 945,
+      "path": "mobs::Mob.was_eye_in_water#set",
+      "sig": "set was_eye_in_water: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 946,
+      "path": "mobs::Mob.yaw#get",
+      "sig": "get yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 947,
+      "path": "mobs::Mob.yaw#set",
+      "sig": "set yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 948,
+      "path": "mobs::Mob::alive",
+      "sig": "fn alive(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 949,
+      "path": "mobs::Mob::ambient_interval",
+      "sig": "fn ambient_interval(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 950,
+      "path": "mobs::Mob::apply_heal_or_harm",
+      "sig": "fn apply_heal_or_harm(&mut Self, bool, bool, i32, f64) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 951,
+      "path": "mobs::Mob::burning_time",
+      "sig": "fn burning_time(&Self) -> f64",
+      "status": "bound"
+    },
+    {
+      "id": 952,
+      "path": "mobs::Mob::can_pick_up_loot",
+      "sig": "fn can_pick_up_loot(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 953,
+      "path": "mobs::Mob::category",
+      "sig": "fn category(&Self) -> &str",
+      "status": "bound"
+    },
+    {
+      "id": 954,
+      "path": "mobs::Mob::center",
+      "sig": "fn center(&Self) -> [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 955,
+      "path": "mobs::Mob::damage",
+      "sig": "fn damage(&mut Self, f32, Damage) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 956,
+      "path": "mobs::Mob::damage_aimed",
+      "sig": "fn damage_aimed(&mut Self, f32, Damage, Option<Aim>) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 957,
+      "path": "mobs::Mob::damage_projectile",
+      "sig": "fn damage_projectile(&mut Self, f32, Damage, Option<Aim>, [f64; 2]) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 958,
+      "path": "mobs::Mob::distance_sqr",
+      "sig": "fn distance_sqr(&Self, Vec3) -> f64",
+      "status": "bound"
+    },
+    {
+      "id": 959,
+      "path": "mobs::Mob::distance_to",
+      "sig": "fn distance_to(&Self, [f64; 3]) -> f64",
+      "status": "bound"
+    },
+    {
+      "id": 960,
+      "path": "mobs::Mob::equipment_stacks",
+      "sig": "fn equipment_stacks(&Self) -> [Option<crate::items::ItemStack>; 8]",
+      "status": "bound"
+    },
+    {
+      "id": 961,
+      "path": "mobs::Mob::extinguish_fire",
+      "sig": "fn extinguish_fire(&mut Self) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 962,
+      "path": "mobs::Mob::has_effect",
+      "sig": "fn has_effect(&Self, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 963,
+      "path": "mobs::Mob::heal",
+      "sig": "fn heal(&mut Self, f32) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 964,
+      "path": "mobs::Mob::hostile",
+      "sig": "fn hostile(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 965,
+      "path": "mobs::Mob::hurt_wolf_armor",
+      "sig": "fn hurt_wolf_armor(&mut Self, f32) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 966,
+      "path": "mobs::Mob::ignite_for_ticks",
+      "sig": "fn ignite_for_ticks(&mut Self, i32) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 967,
+      "path": "mobs::Mob::is_currently_glowing",
+      "sig": "fn is_currently_glowing(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 968,
+      "path": "mobs::Mob::is_fully_frozen",
+      "sig": "fn is_fully_frozen(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 969,
+      "path": "mobs::Mob::is_invisible",
+      "sig": "fn is_invisible(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 970,
+      "path": "mobs::Mob::is_on_fire",
+      "sig": "fn is_on_fire(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 971,
+      "path": "mobs::Mob::knockback",
+      "sig": "fn knockback(&mut Self, f64, f64, f64, &Damage) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 972,
+      "path": "mobs::Mob::knockback_by",
+      "sig": "fn knockback_by(&mut Self, f64, f64, f64, &Damage, Option<f32>) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 973,
+      "path": "mobs::Mob::knockback_effect",
+      "sig": "fn knockback_effect(&mut Self, f64, f64, f64, &Damage, f32) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 974,
+      "path": "mobs::Mob::knockback_resistance",
+      "sig": "fn knockback_resistance(&Self) -> f64",
+      "status": "bound"
+    },
+    {
+      "id": 975,
+      "path": "mobs::Mob::main_arm_left",
+      "sig": "fn main_arm_left(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 976,
+      "path": "mobs::Mob::movement_speed",
+      "sig": "fn movement_speed(&Self) -> f64",
+      "status": "bound"
+    },
+    {
+      "id": 977,
+      "path": "mobs::Mob::potion_harm",
+      "sig": "fn potion_harm(&Self, f32) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 978,
+      "path": "mobs::Mob::record_damage",
+      "sig": "fn record_damage(&mut Self, Damage, f32) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 979,
+      "path": "mobs::Mob::refuses_damage",
+      "sig": "fn refuses_damage(&Self, &Damage) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 980,
+      "path": "mobs::Mob::saddle_item",
+      "sig": "fn saddle_item(&Self) -> Option<crate::items::ItemStack>",
+      "status": "bound"
+    },
+    {
+      "id": 981,
+      "path": "mobs::Mob::set_saddle",
+      "sig": "fn set_saddle(&mut Self, Option<crate::items::ItemStack>) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 982,
+      "path": "mobs::Mob::soak_absorption",
+      "sig": "fn soak_absorption(&mut Self, f32) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 983,
+      "path": "mobs::Mob::species",
+      "sig": "fn species(&Self) -> Species",
+      "status": "bound"
+    },
+    {
+      "id": 984,
+      "path": "mobs::Mob::speed_bonus",
+      "sig": "fn speed_bonus(&Self) -> f64",
+      "status": "bound"
+    },
+    {
+      "id": 985,
+      "path": "mobs::Mob::tick_avatar_pose",
+      "sig": "fn tick_avatar_pose(&mut Self, bool) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 986,
+      "path": "mobs::Mob::track_section",
+      "sig": "fn track_section(&mut Self) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 987,
+      "path": "mobs::Mob::use_death_protection",
+      "sig": "fn use_death_protection(&mut Self, &Damage) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 988,
+      "path": "mobs::Mob::voice_pitch",
+      "sig": "fn voice_pitch(&mut Self) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 989,
+      "path": "mobs::Mob::wolf_armor_absorbs",
+      "sig": "fn wolf_armor_absorbs(&Self, &Damage) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 990,
+      "path": "mobs::Mob::worn_armor",
+      "sig": "fn worn_armor(&Self) -> (f32, f32)",
+      "status": "bound"
+    },
+    {
+      "id": 991,
+      "path": "mobs::Mob::yoake_state_absorption",
+      "sig": "fn yoake_state_absorption(&Self) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 992,
+      "path": "mobs::Mob::yoake_state_air",
+      "sig": "fn yoake_state_air(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 993,
+      "path": "mobs::Mob::yoake_state_fire_ticks",
+      "sig": "fn yoake_state_fire_ticks(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 994,
+      "path": "mobs::Mob::yoake_state_glowing",
+      "sig": "fn yoake_state_glowing(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 995,
+      "path": "mobs::Mob::yoake_state_health",
+      "sig": "fn yoake_state_health(&Self) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 996,
+      "path": "mobs::Mob::yoake_state_invulnerable_flag",
+      "sig": "fn yoake_state_invulnerable_flag(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 997,
+      "path": "mobs::Mob::yoake_state_no_ai",
+      "sig": "fn yoake_state_no_ai(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 998,
+      "path": "mobs::Mob::yoake_state_no_gravity",
+      "sig": "fn yoake_state_no_gravity(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 999,
+      "path": "mobs::Mob::yoake_state_removed",
+      "sig": "fn yoake_state_removed(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1000,
+      "path": "mobs::Mob::yoake_state_silent",
+      "sig": "fn yoake_state_silent(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1001,
+      "path": "mobs::Mob::yoake_state_ticks_frozen",
+      "sig": "fn yoake_state_ticks_frozen(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 1002,
+      "path": "mobs::MobType.air_speed#get",
+      "sig": "get air_speed: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1003,
+      "path": "mobs::MobType.air_speed#set",
+      "sig": "set air_speed: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1004,
+      "path": "mobs::MobType.ambient_interval#get",
+      "sig": "get ambient_interval: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1005,
+      "path": "mobs::MobType.ambient_interval#set",
+      "sig": "set ambient_interval: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1006,
+      "path": "mobs::MobType.anim#get",
+      "sig": "get anim: Anim",
+      "status": "bound"
+    },
+    {
+      "id": 1007,
+      "path": "mobs::MobType.anim#set",
+      "sig": "set anim: Anim",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1008,
+      "path": "mobs::MobType.armor#get",
+      "sig": "get armor: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1009,
+      "path": "mobs::MobType.armor#set",
+      "sig": "set armor: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1010,
+      "path": "mobs::MobType.armor_toughness#get",
+      "sig": "get armor_toughness: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1011,
+      "path": "mobs::MobType.armor_toughness#set",
+      "sig": "set armor_toughness: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1012,
+      "path": "mobs::MobType.attack_damage#get",
+      "sig": "get attack_damage: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1013,
+      "path": "mobs::MobType.attack_damage#set",
+      "sig": "set attack_damage: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1014,
+      "path": "mobs::MobType.attack_knockback#get",
+      "sig": "get attack_knockback: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1015,
+      "path": "mobs::MobType.attack_knockback#set",
+      "sig": "set attack_knockback: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1016,
+      "path": "mobs::MobType.attributes#get",
+      "sig": "get attributes: std::sync::Arc<std::collections::HashMap<String, f64>>",
+      "status": "bound"
+    },
+    {
+      "id": 1017,
+      "path": "mobs::MobType.attributes#set",
+      "sig": "set attributes: std::sync::Arc<std::collections::HashMap<String, f64>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1018,
+      "path": "mobs::MobType.baby_scale#get",
+      "sig": "get baby_scale: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1019,
+      "path": "mobs::MobType.baby_scale#set",
+      "sig": "set baby_scale: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1020,
+      "path": "mobs::MobType.brain#get",
+      "sig": "get brain: Brain",
+      "status": "bound"
+    },
+    {
+      "id": 1021,
+      "path": "mobs::MobType.brain#set",
+      "sig": "set brain: Brain",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1022,
+      "path": "mobs::MobType.category#get",
+      "sig": "get category: String",
+      "status": "bound"
+    },
+    {
+      "id": 1023,
+      "path": "mobs::MobType.category#set",
+      "sig": "set category: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1024,
+      "path": "mobs::MobType.eye_height#get",
+      "sig": "get eye_height: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1025,
+      "path": "mobs::MobType.eye_height#set",
+      "sig": "set eye_height: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1026,
+      "path": "mobs::MobType.fall_damage_multiplier#get",
+      "sig": "get fall_damage_multiplier: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1027,
+      "path": "mobs::MobType.fall_damage_multiplier#set",
+      "sig": "set fall_damage_multiplier: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1028,
+      "path": "mobs::MobType.flags#get",
+      "sig": "get flags: Flags",
+      "status": "bound"
+    },
+    {
+      "id": 1029,
+      "path": "mobs::MobType.flags#set",
+      "sig": "set flags: Flags",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1030,
+      "path": "mobs::MobType.flying_speed#get",
+      "sig": "get flying_speed: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1031,
+      "path": "mobs::MobType.flying_speed#set",
+      "sig": "set flying_speed: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1032,
+      "path": "mobs::MobType.follow_range#get",
+      "sig": "get follow_range: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1033,
+      "path": "mobs::MobType.follow_range#set",
+      "sig": "set follow_range: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1034,
+      "path": "mobs::MobType.food#get",
+      "sig": "get food: std::sync::Arc<[String]>",
+      "status": "bound"
+    },
+    {
+      "id": 1035,
+      "path": "mobs::MobType.food#set",
+      "sig": "set food: std::sync::Arc<[String]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1036,
+      "path": "mobs::MobType.gravity#get",
+      "sig": "get gravity: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1037,
+      "path": "mobs::MobType.gravity#set",
+      "sig": "set gravity: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1038,
+      "path": "mobs::MobType.head_rot_speed#get",
+      "sig": "get head_rot_speed: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1039,
+      "path": "mobs::MobType.head_rot_speed#set",
+      "sig": "set head_rot_speed: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1040,
+      "path": "mobs::MobType.height#get",
+      "sig": "get height: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1041,
+      "path": "mobs::MobType.height#set",
+      "sig": "set height: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1042,
+      "path": "mobs::MobType.id#get",
+      "sig": "get id: String",
+      "status": "bound"
+    },
+    {
+      "id": 1043,
+      "path": "mobs::MobType.id#set",
+      "sig": "set id: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1044,
+      "path": "mobs::MobType.jump_strength#get",
+      "sig": "get jump_strength: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1045,
+      "path": "mobs::MobType.jump_strength#set",
+      "sig": "set jump_strength: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1046,
+      "path": "mobs::MobType.knockback_resistance#get",
+      "sig": "get knockback_resistance: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1047,
+      "path": "mobs::MobType.knockback_resistance#set",
+      "sig": "set knockback_resistance: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1048,
+      "path": "mobs::MobType.layers#get",
+      "sig": "get layers: crate::fast_hash::FxHashMap<String, std::sync::Arc<Part>>",
+      "status": "bound"
+    },
+    {
+      "id": 1049,
+      "path": "mobs::MobType.layers#set",
+      "sig": "set layers: crate::fast_hash::FxHashMap<String, std::sync::Arc<Part>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1050,
+      "path": "mobs::MobType.max_head_x_rot#get",
+      "sig": "get max_head_x_rot: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1051,
+      "path": "mobs::MobType.max_head_x_rot#set",
+      "sig": "set max_head_x_rot: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1052,
+      "path": "mobs::MobType.max_head_y_rot#get",
+      "sig": "get max_head_y_rot: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1053,
+      "path": "mobs::MobType.max_head_y_rot#set",
+      "sig": "set max_head_y_rot: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1054,
+      "path": "mobs::MobType.max_health#get",
+      "sig": "get max_health: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1055,
+      "path": "mobs::MobType.max_health#set",
+      "sig": "set max_health: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1056,
+      "path": "mobs::MobType.model#get",
+      "sig": "get model: std::sync::Arc<Part>",
+      "status": "bound"
+    },
+    {
+      "id": 1057,
+      "path": "mobs::MobType.model#set",
+      "sig": "set model: std::sync::Arc<Part>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1058,
+      "path": "mobs::MobType.safe_fall_distance#get",
+      "sig": "get safe_fall_distance: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1059,
+      "path": "mobs::MobType.safe_fall_distance#set",
+      "sig": "set safe_fall_distance: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1060,
+      "path": "mobs::MobType.species#get",
+      "sig": "get species: Species",
+      "status": "bound"
+    },
+    {
+      "id": 1061,
+      "path": "mobs::MobType.species#set",
+      "sig": "set species: Species",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1062,
+      "path": "mobs::MobType.speed#get",
+      "sig": "get speed: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1063,
+      "path": "mobs::MobType.speed#set",
+      "sig": "set speed: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1064,
+      "path": "mobs::MobType.step_height#get",
+      "sig": "get step_height: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1065,
+      "path": "mobs::MobType.step_height#set",
+      "sig": "set step_height: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1066,
+      "path": "mobs::MobType.tempt#get",
+      "sig": "get tempt: std::sync::Arc<[String]>",
+      "status": "bound"
+    },
+    {
+      "id": 1067,
+      "path": "mobs::MobType.tempt#set",
+      "sig": "set tempt: std::sync::Arc<[String]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1068,
+      "path": "mobs::MobType.texture#get",
+      "sig": "get texture: String",
+      "status": "bound"
+    },
+    {
+      "id": 1069,
+      "path": "mobs::MobType.texture#set",
+      "sig": "set texture: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1070,
+      "path": "mobs::MobType.water_efficiency#get",
+      "sig": "get water_efficiency: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1071,
+      "path": "mobs::MobType.water_efficiency#set",
+      "sig": "set water_efficiency: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1072,
+      "path": "mobs::MobType.water_slowdown#get",
+      "sig": "get water_slowdown: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1073,
+      "path": "mobs::MobType.water_slowdown#set",
+      "sig": "set water_slowdown: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1074,
+      "path": "mobs::MobType.width#get",
+      "sig": "get width: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1075,
+      "path": "mobs::MobType.width#set",
+      "sig": "set width: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1076,
+      "path": "mobs::ModelNormals.trusted#get",
+      "sig": "get trusted: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1077,
+      "path": "mobs::ModelNormals.trusted#set",
+      "sig": "set trusted: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1078,
+      "path": "mobs::Part.children#get",
+      "sig": "get children: Vec<Part>",
+      "status": "bound"
+    },
+    {
+      "id": 1079,
+      "path": "mobs::Part.children#set",
+      "sig": "set children: Vec<Part>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1080,
+      "path": "mobs::Part.name#get",
+      "sig": "get name: String",
+      "status": "bound"
+    },
+    {
+      "id": 1081,
+      "path": "mobs::Part.name#set",
+      "sig": "set name: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1082,
+      "path": "mobs::Part.polygons#get",
+      "sig": "get polygons: Vec<Polygon>",
+      "status": "bound"
+    },
+    {
+      "id": 1083,
+      "path": "mobs::Part.polygons#set",
+      "sig": "set polygons: Vec<Polygon>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1084,
+      "path": "mobs::Part.pose#get",
+      "sig": "get pose: [f32; 9]",
+      "status": "bound"
+    },
+    {
+      "id": 1085,
+      "path": "mobs::Part.pose#set",
+      "sig": "set pose: [f32; 9]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1086,
+      "path": "mobs::Part::set_cull_back",
+      "sig": "fn set_cull_back(&mut Self) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 1087,
+      "path": "mobs::PendingPushes.by_mob#get",
+      "sig": "get by_mob: crate::fast_hash::FxHashMap<u32, Vec<horizon_core::Vec3>>",
+      "status": "bound"
+    },
+    {
+      "id": 1088,
+      "path": "mobs::PendingPushes.by_mob#set",
+      "sig": "set by_mob: crate::fast_hash::FxHashMap<u32, Vec<horizon_core::Vec3>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1089,
+      "path": "mobs::PendingPushes.list#get",
+      "sig": "get list: Vec<(u32, horizon_core::Vec3)>",
+      "status": "bound"
+    },
+    {
+      "id": 1090,
+      "path": "mobs::PendingPushes.list#set",
+      "sig": "set list: Vec<(u32, horizon_core::Vec3)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1091,
+      "path": "mobs::PendingPushes::push",
+      "sig": "fn push(&mut Self, u32, Vec3) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 1092,
+      "path": "mobs::PlayerView.alive#get",
+      "sig": "get alive: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1093,
+      "path": "mobs::PlayerView.alive#set",
+      "sig": "set alive: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1094,
+      "path": "mobs::PlayerView.allies#get",
+      "sig": "get allies: std::sync::Arc<std::collections::HashSet<u32>>",
+      "status": "bound"
+    },
+    {
+      "id": 1095,
+      "path": "mobs::PlayerView.allies#set",
+      "sig": "set allies: std::sync::Arc<std::collections::HashSet<u32>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1096,
+      "path": "mobs::PlayerView.armor_cover#get",
+      "sig": "get armor_cover: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1097,
+      "path": "mobs::PlayerView.armor_cover#set",
+      "sig": "set armor_cover: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1098,
+      "path": "mobs::PlayerView.creative#get",
+      "sig": "get creative: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1099,
+      "path": "mobs::PlayerView.creative#set",
+      "sig": "set creative: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1100,
+      "path": "mobs::PlayerView.eye#get",
+      "sig": "get eye: [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 1101,
+      "path": "mobs::PlayerView.eye#set",
+      "sig": "set eye: [f64; 3]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1102,
+      "path": "mobs::PlayerView.gold_armor#get",
+      "sig": "get gold_armor: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1103,
+      "path": "mobs::PlayerView.gold_armor#set",
+      "sig": "set gold_armor: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1104,
+      "path": "mobs::PlayerView.head#get",
+      "sig": "get head: Option<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 1105,
+      "path": "mobs::PlayerView.head#set",
+      "sig": "set head: Option<std::sync::Arc<str>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1106,
+      "path": "mobs::PlayerView.hero#get",
+      "sig": "get hero: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1107,
+      "path": "mobs::PlayerView.hero#set",
+      "sig": "set hero: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1108,
+      "path": "mobs::PlayerView.hurt_by#get",
+      "sig": "get hurt_by: Option<(Who, i64)>",
+      "status": "bound"
+    },
+    {
+      "id": 1109,
+      "path": "mobs::PlayerView.hurt_by#set",
+      "sig": "set hurt_by: Option<(Who, i64)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1110,
+      "path": "mobs::PlayerView.invisible#get",
+      "sig": "get invisible: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1111,
+      "path": "mobs::PlayerView.invisible#set",
+      "sig": "set invisible: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1112,
+      "path": "mobs::PlayerView.last_hurt#get",
+      "sig": "get last_hurt: Option<(Who, i64)>",
+      "status": "bound"
+    },
+    {
+      "id": 1113,
+      "path": "mobs::PlayerView.last_hurt#set",
+      "sig": "set last_hurt: Option<(Who, i64)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1114,
+      "path": "mobs::PlayerView.look#get",
+      "sig": "get look: [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 1115,
+      "path": "mobs::PlayerView.look#set",
+      "sig": "set look: [f64; 3]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1116,
+      "path": "mobs::PlayerView.main_hand#get",
+      "sig": "get main_hand: Option<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 1117,
+      "path": "mobs::PlayerView.main_hand#set",
+      "sig": "set main_hand: Option<std::sync::Arc<str>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1118,
+      "path": "mobs::PlayerView.off_hand#get",
+      "sig": "get off_hand: Option<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 1119,
+      "path": "mobs::PlayerView.off_hand#set",
+      "sig": "set off_hand: Option<std::sync::Arc<str>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1120,
+      "path": "mobs::PlayerView.passenger#get",
+      "sig": "get passenger: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1121,
+      "path": "mobs::PlayerView.passenger#set",
+      "sig": "set passenger: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1122,
+      "path": "mobs::PlayerView.position#get",
+      "sig": "get position: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 1123,
+      "path": "mobs::PlayerView.position#set",
+      "sig": "set position: horizon_core::Vec3",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1124,
+      "path": "mobs::PlayerView.remote#get",
+      "sig": "get remote: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1125,
+      "path": "mobs::PlayerView.remote#set",
+      "sig": "set remote: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1126,
+      "path": "mobs::PlayerView.riding#get",
+      "sig": "get riding: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1127,
+      "path": "mobs::PlayerView.riding#set",
+      "sig": "set riding: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1128,
+      "path": "mobs::PlayerView.sleep_timer#get",
+      "sig": "get sleep_timer: u32",
+      "status": "bound"
+    },
+    {
+      "id": 1129,
+      "path": "mobs::PlayerView.sleep_timer#set",
+      "sig": "set sleep_timer: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1130,
+      "path": "mobs::PlayerView.sleeping#get",
+      "sig": "get sleeping: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1131,
+      "path": "mobs::PlayerView.sleeping#set",
+      "sig": "set sleeping: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1132,
+      "path": "mobs::PlayerView.sneaking#get",
+      "sig": "get sneaking: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1133,
+      "path": "mobs::PlayerView.sneaking#set",
+      "sig": "set sneaking: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1134,
+      "path": "mobs::PlayerView.spectator#get",
+      "sig": "get spectator: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1135,
+      "path": "mobs::PlayerView.spectator#set",
+      "sig": "set spectator: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1136,
+      "path": "mobs::PlayerView.sprinting#get",
+      "sig": "get sprinting: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1137,
+      "path": "mobs::PlayerView.sprinting#set",
+      "sig": "set sprinting: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1138,
+      "path": "mobs::PlayerView.swimming#get",
+      "sig": "get swimming: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1139,
+      "path": "mobs::PlayerView.swimming#set",
+      "sig": "set swimming: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1140,
+      "path": "mobs::PlayerView.uuid#get",
+      "sig": "get uuid: [i32; 4]",
+      "status": "bound"
+    },
+    {
+      "id": 1141,
+      "path": "mobs::PlayerView.uuid#set",
+      "sig": "set uuid: [i32; 4]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1142,
+      "path": "mobs::PlayerView.velocity#get",
+      "sig": "get velocity: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 1143,
+      "path": "mobs::PlayerView.velocity#set",
+      "sig": "set velocity: horizon_core::Vec3",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1144,
+      "path": "mobs::PlayerView.yaw#get",
+      "sig": "get yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1145,
+      "path": "mobs::PlayerView.yaw#set",
+      "sig": "set yaw: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1146,
+      "path": "mobs::PlayerView::has_effect",
+      "sig": "fn has_effect(&Self, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1147,
+      "path": "mobs::PlayerView::visibility_percent",
+      "sig": "fn visibility_percent(&Self) -> f64",
+      "status": "bound"
+    },
+    {
+      "id": 1148,
+      "path": "mobs::Polygon.cull_back#get",
+      "sig": "get cull_back: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1149,
+      "path": "mobs::Polygon.cull_back#set",
+      "sig": "set cull_back: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1150,
+      "path": "mobs::Polygon.normal#get",
+      "sig": "get normal: [f32; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 1151,
+      "path": "mobs::Polygon.normal#set",
+      "sig": "set normal: [f32; 3]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1152,
+      "path": "mobs::Polygon.vertices#get",
+      "sig": "get vertices: [[f32; 5]; 4]",
+      "status": "bound"
+    },
+    {
+      "id": 1153,
+      "path": "mobs::Polygon.vertices#set",
+      "sig": "set vertices: [[f32; 5]; 4]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1154,
+      "path": "mobs::Seen.active_raid#get",
+      "sig": "get active_raid: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1155,
+      "path": "mobs::Seen.active_raid#set",
+      "sig": "set active_raid: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1156,
+      "path": "mobs::Seen.alive#get",
+      "sig": "get alive: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1157,
+      "path": "mobs::Seen.alive#set",
+      "sig": "set alive: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1158,
+      "path": "mobs::Seen.baby#get",
+      "sig": "get baby: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1159,
+      "path": "mobs::Seen.baby#set",
+      "sig": "set baby: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1160,
+      "path": "mobs::Seen.bed#get",
+      "sig": "get bed: Option<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 1161,
+      "path": "mobs::Seen.bed#set",
+      "sig": "set bed: Option<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1162,
+      "path": "mobs::Seen.bred#get",
+      "sig": "get bred: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1163,
+      "path": "mobs::Seen.bred#set",
+      "sig": "set bred: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1164,
+      "path": "mobs::Seen.caravan#get",
+      "sig": "get caravan: u32",
+      "status": "bound"
+    },
+    {
+      "id": 1165,
+      "path": "mobs::Seen.caravan#set",
+      "sig": "set caravan: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1166,
+      "path": "mobs::Seen.cold_strider#get",
+      "sig": "get cold_strider: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1167,
+      "path": "mobs::Seen.cold_strider#set",
+      "sig": "set cold_strider: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1168,
+      "path": "mobs::Seen.color#get",
+      "sig": "get color: u8",
+      "status": "bound"
+    },
+    {
+      "id": 1169,
+      "path": "mobs::Seen.color#set",
+      "sig": "set color: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1170,
+      "path": "mobs::Seen.delay#get",
+      "sig": "get delay: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1171,
+      "path": "mobs::Seen.delay#set",
+      "sig": "set delay: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1172,
+      "path": "mobs::Seen.eye_y#get",
+      "sig": "get eye_y: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1173,
+      "path": "mobs::Seen.eye_y#set",
+      "sig": "set eye_y: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1174,
+      "path": "mobs::Seen.health#get",
+      "sig": "get health: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1175,
+      "path": "mobs::Seen.health#set",
+      "sig": "set health: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1176,
+      "path": "mobs::Seen.hostile#get",
+      "sig": "get hostile: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1177,
+      "path": "mobs::Seen.hostile#set",
+      "sig": "set hostile: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1178,
+      "path": "mobs::Seen.hunted_recently#get",
+      "sig": "get hunted_recently: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1179,
+      "path": "mobs::Seen.hunted_recently#set",
+      "sig": "set hunted_recently: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1180,
+      "path": "mobs::Seen.hurt_by#get",
+      "sig": "get hurt_by: Option<(Who, i32)>",
+      "status": "bound"
+    },
+    {
+      "id": 1181,
+      "path": "mobs::Seen.hurt_by#set",
+      "sig": "set hurt_by: Option<(Who, i32)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1182,
+      "path": "mobs::Seen.hurt_recently#get",
+      "sig": "get hurt_recently: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1183,
+      "path": "mobs::Seen.hurt_recently#set",
+      "sig": "set hurt_recently: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1184,
+      "path": "mobs::Seen.id#get",
+      "sig": "get id: u32",
+      "status": "bound"
+    },
+    {
+      "id": 1185,
+      "path": "mobs::Seen.id#set",
+      "sig": "set id: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1186,
+      "path": "mobs::Seen.in_love#get",
+      "sig": "get in_love: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1187,
+      "path": "mobs::Seen.in_love#set",
+      "sig": "set in_love: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1188,
+      "path": "mobs::Seen.in_water#get",
+      "sig": "get in_water: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1189,
+      "path": "mobs::Seen.in_water#set",
+      "sig": "set in_water: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1190,
+      "path": "mobs::Seen.is_vehicle#get",
+      "sig": "get is_vehicle: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1191,
+      "path": "mobs::Seen.is_vehicle#set",
+      "sig": "set is_vehicle: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1192,
+      "path": "mobs::Seen.job#get",
+      "sig": "get job: Option<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 1193,
+      "path": "mobs::Seen.job#set",
+      "sig": "set job: Option<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1194,
+      "path": "mobs::Seen.knockback_resistance#get",
+      "sig": "get knockback_resistance: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1195,
+      "path": "mobs::Seen.knockback_resistance#set",
+      "sig": "set knockback_resistance: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1196,
+      "path": "mobs::Seen.known_speed#get",
+      "sig": "get known_speed: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 1197,
+      "path": "mobs::Seen.known_speed#set",
+      "sig": "set known_speed: horizon_core::Vec3",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1198,
+      "path": "mobs::Seen.last_damage#get",
+      "sig": "get last_damage: Option<Damage>",
+      "status": "bound"
+    },
+    {
+      "id": 1199,
+      "path": "mobs::Seen.last_damage#set",
+      "sig": "set last_damage: Option<Damage>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1200,
+      "path": "mobs::Seen.leash#get",
+      "sig": "get leash: Option<leash::Holder>",
+      "status": "bound"
+    },
+    {
+      "id": 1201,
+      "path": "mobs::Seen.leash#set",
+      "sig": "set leash: Option<leash::Holder>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1202,
+      "path": "mobs::Seen.lying#get",
+      "sig": "get lying: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1203,
+      "path": "mobs::Seen.lying#set",
+      "sig": "set lying: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1204,
+      "path": "mobs::Seen.meeting#get",
+      "sig": "get meeting: Option<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 1205,
+      "path": "mobs::Seen.meeting#set",
+      "sig": "set meeting: Option<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1206,
+      "path": "mobs::Seen.opened_chest#get",
+      "sig": "get opened_chest: Option<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 1207,
+      "path": "mobs::Seen.opened_chest#set",
+      "sig": "set opened_chest: Option<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1208,
+      "path": "mobs::Seen.owner#get",
+      "sig": "get owner: Option<[i32; 4]>",
+      "status": "bound"
+    },
+    {
+      "id": 1209,
+      "path": "mobs::Seen.owner#set",
+      "sig": "set owner: Option<[i32; 4]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1210,
+      "path": "mobs::Seen.passenger#get",
+      "sig": "get passenger: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1211,
+      "path": "mobs::Seen.passenger#set",
+      "sig": "set passenger: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1212,
+      "path": "mobs::Seen.player_rep#get",
+      "sig": "get player_rep: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1213,
+      "path": "mobs::Seen.player_rep#set",
+      "sig": "set player_rep: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1214,
+      "path": "mobs::Seen.playing_dead#get",
+      "sig": "get playing_dead: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1215,
+      "path": "mobs::Seen.playing_dead#set",
+      "sig": "set playing_dead: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1216,
+      "path": "mobs::Seen.position#get",
+      "sig": "get position: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 1217,
+      "path": "mobs::Seen.position#set",
+      "sig": "set position: horizon_core::Vec3",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1218,
+      "path": "mobs::Seen.potential_job#get",
+      "sig": "get potential_job: Option<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 1219,
+      "path": "mobs::Seen.potential_job#set",
+      "sig": "set potential_job: Option<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1220,
+      "path": "mobs::Seen.profession#get",
+      "sig": "get profession: u8",
+      "status": "bound"
+    },
+    {
+      "id": 1221,
+      "path": "mobs::Seen.profession#set",
+      "sig": "set profession: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1222,
+      "path": "mobs::Seen.pushable#get",
+      "sig": "get pushable: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1223,
+      "path": "mobs::Seen.pushable#set",
+      "sig": "set pushable: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1224,
+      "path": "mobs::Seen.ridden#get",
+      "sig": "get ridden: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1225,
+      "path": "mobs::Seen.ridden#set",
+      "sig": "set ridden: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1226,
+      "path": "mobs::Seen.school#get",
+      "sig": "get school: (Option<u32>, i32)",
+      "status": "bound"
+    },
+    {
+      "id": 1227,
+      "path": "mobs::Seen.school#set",
+      "sig": "set school: (Option<u32>, i32)",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1228,
+      "path": "mobs::Seen.section#get",
+      "sig": "get section: ([i32; 3], u64)",
+      "status": "bound"
+    },
+    {
+      "id": 1229,
+      "path": "mobs::Seen.section#set",
+      "sig": "set section: ([i32; 3], u64)",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1230,
+      "path": "mobs::Seen.silent#get",
+      "sig": "get silent: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1231,
+      "path": "mobs::Seen.silent#set",
+      "sig": "set silent: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1232,
+      "path": "mobs::Seen.sitting#get",
+      "sig": "get sitting: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1233,
+      "path": "mobs::Seen.sitting#set",
+      "sig": "set sitting: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1234,
+      "path": "mobs::Seen.size#get",
+      "sig": "get size: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1235,
+      "path": "mobs::Seen.size#set",
+      "sig": "set size: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1236,
+      "path": "mobs::Seen.species#get",
+      "sig": "get species: Species",
+      "status": "bound"
+    },
+    {
+      "id": 1237,
+      "path": "mobs::Seen.species#set",
+      "sig": "set species: Species",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1238,
+      "path": "mobs::Seen.stats#get",
+      "sig": "get stats: [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 1239,
+      "path": "mobs::Seen.stats#set",
+      "sig": "set stats: [f64; 3]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1240,
+      "path": "mobs::Seen.tame#get",
+      "sig": "get tame: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1241,
+      "path": "mobs::Seen.tame#set",
+      "sig": "set tame: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1242,
+      "path": "mobs::Seen.target#get",
+      "sig": "get target: Option<Who>",
+      "status": "bound"
+    },
+    {
+      "id": 1243,
+      "path": "mobs::Seen.target#set",
+      "sig": "set target: Option<Who>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1244,
+      "path": "mobs::Seen.variant#get",
+      "sig": "get variant: u8",
+      "status": "bound"
+    },
+    {
+      "id": 1245,
+      "path": "mobs::Seen.variant#set",
+      "sig": "set variant: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1246,
+      "path": "mobs::Seen.vehicle#get",
+      "sig": "get vehicle: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 1247,
+      "path": "mobs::Seen.vehicle#set",
+      "sig": "set vehicle: Option<u32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1248,
+      "path": "mobs::Seen.velocity#get",
+      "sig": "get velocity: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 1249,
+      "path": "mobs::Seen.velocity#set",
+      "sig": "set velocity: horizon_core::Vec3",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1250,
+      "path": "mobs::Seen.xp#get",
+      "sig": "get xp: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1251,
+      "path": "mobs::Seen.xp#set",
+      "sig": "set xp: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1252,
+      "path": "mobs::Seen.yaw#get",
+      "sig": "get yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1253,
+      "path": "mobs::Seen.yaw#set",
+      "sig": "set yaw: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1254,
+      "path": "mobs::Seen::has_effect",
+      "sig": "fn has_effect(&Self, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1255,
+      "path": "mobs::SpawnSetup.baby#get",
+      "sig": "get baby: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1256,
+      "path": "mobs::SpawnSetup.baby#set",
+      "sig": "set baby: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1257,
+      "path": "mobs::SpawnSetup.health#get",
+      "sig": "get health: Option<f32>",
+      "status": "bound"
+    },
+    {
+      "id": 1258,
+      "path": "mobs::SpawnSetup.health#set",
+      "sig": "set health: Option<f32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1259,
+      "path": "mobs::SpawnSetup.home#get",
+      "sig": "get home: Option<[i32; 3]>",
+      "status": "bound"
+    },
+    {
+      "id": 1260,
+      "path": "mobs::SpawnSetup.home#set",
+      "sig": "set home: Option<[i32; 3]>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1261,
+      "path": "mobs::SpawnSetup.life#get",
+      "sig": "get life: Option<i32>",
+      "status": "bound"
+    },
+    {
+      "id": 1262,
+      "path": "mobs::SpawnSetup.life#set",
+      "sig": "set life: Option<i32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1263,
+      "path": "mobs::SpawnSetup.nausea#get",
+      "sig": "get nausea: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1264,
+      "path": "mobs::SpawnSetup.nausea#set",
+      "sig": "set nausea: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1265,
+      "path": "mobs::SpawnSetup.owner_mob#get",
+      "sig": "get owner_mob: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 1266,
+      "path": "mobs::SpawnSetup.owner_mob#set",
+      "sig": "set owner_mob: Option<u32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1267,
+      "path": "mobs::SpawnSetup.persistent#get",
+      "sig": "get persistent: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1268,
+      "path": "mobs::SpawnSetup.persistent#set",
+      "sig": "set persistent: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1269,
+      "path": "mobs::SpawnSetup.size#get",
+      "sig": "get size: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1270,
+      "path": "mobs::SpawnSetup.size#set",
+      "sig": "set size: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1271,
+      "path": "mobs::SpawnSetup.variant#get",
+      "sig": "get variant: Option<u8>",
+      "status": "bound"
+    },
+    {
+      "id": 1272,
+      "path": "mobs::SpawnSetup.variant#set",
+      "sig": "set variant: Option<u8>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1273,
+      "path": "mobs::SpawnSetup.velocity#get",
+      "sig": "get velocity: [f64; 3]",
+      "status": "bound"
+    },
+    {
+      "id": 1274,
+      "path": "mobs::SpawnSetup.velocity#set",
+      "sig": "set velocity: [f64; 3]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1275,
+      "path": "mobs::SpawnSetup.yaw#get",
+      "sig": "get yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1276,
+      "path": "mobs::SpawnSetup.yaw#set",
+      "sig": "set yaw: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1277,
+      "path": "mobs::SwimAnimation.amount#get",
+      "sig": "get amount: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1278,
+      "path": "mobs::SwimAnimation.amount#set",
+      "sig": "set amount: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1279,
+      "path": "mobs::SwimAnimation.in_water#get",
+      "sig": "get in_water: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1280,
+      "path": "mobs::SwimAnimation.in_water#set",
+      "sig": "set in_water: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1281,
+      "path": "mobs::SwimAnimation.old#get",
+      "sig": "get old: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1282,
+      "path": "mobs::SwimAnimation.old#set",
+      "sig": "set old: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1283,
+      "path": "mobs::SwimAnimation.visually#get",
+      "sig": "get visually: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1284,
+      "path": "mobs::SwimAnimation.visually#set",
+      "sig": "set visually: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1285,
+      "path": "mobs::SwimAnimation::amount",
+      "sig": "fn amount(&Self, f32) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 1286,
+      "path": "mobs::SwimAnimation::tick",
+      "sig": "fn tick(&mut Self, bool, bool) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 1287,
+      "path": "mobs::Vehicle.nautilus#get",
+      "sig": "get nautilus: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1288,
+      "path": "mobs::Vehicle.nautilus#set",
+      "sig": "set nautilus: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1289,
+      "path": "mobs::Vehicle.velocity#get",
+      "sig": "get velocity: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 1290,
+      "path": "mobs::Vehicle.velocity#set",
+      "sig": "set velocity: horizon_core::Vec3",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1291,
+      "path": "mobs::anger_left",
+      "sig": "fn anger_left(i64, i64) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 1292,
+      "path": "mobs::culls_back_faces",
+      "sig": "fn culls_back_faces(&str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1293,
+      "path": "mobs::exact_attributes",
+      "sig": "fn exact_attributes(&[u8]) -> std::collections::HashMap<String, std::collections::HashMap<String, f64>>",
+      "status": "bound"
+    },
+    {
+      "id": 1294,
+      "path": "motion::<LocationEffects as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 1295,
+      "path": "motion::<LocationEffects as Default>::default",
+      "sig": "fn default() -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 1296,
+      "path": "motion::<PlayerMotion as State>::type_name",
+      "sig": "fn type_name() -> &str",
+      "status": "bound"
+    },
+    {
+      "id": 1297,
+      "path": "motion::LocationEffects.applied_level#get",
+      "sig": "get applied_level: u32",
+      "status": "bound"
+    },
+    {
+      "id": 1298,
+      "path": "motion::LocationEffects.applied_level#set",
+      "sig": "set applied_level: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1299,
+      "path": "motion::LocationEffects.block#get",
+      "sig": "get block: Option<horizon_core::position::BlockPos>",
+      "status": "bound"
+    },
+    {
+      "id": 1300,
+      "path": "motion::LocationEffects.block#set",
+      "sig": "set block: Option<horizon_core::position::BlockPos>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1301,
+      "path": "motion::LocationEffects.boots_level#get",
+      "sig": "get boots_level: u32",
+      "status": "bound"
+    },
+    {
+      "id": 1302,
+      "path": "motion::LocationEffects.boots_level#set",
+      "sig": "set boots_level: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1303,
+      "path": "motion::LocationEffects.landed#get",
+      "sig": "get landed: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1304,
+      "path": "motion::LocationEffects.landed#set",
+      "sig": "set landed: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1305,
+      "path": "motion::LocationEffects.on_soul_speed_block#get",
+      "sig": "get on_soul_speed_block: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1306,
+      "path": "motion::LocationEffects.on_soul_speed_block#set",
+      "sig": "set on_soul_speed_block: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1307,
+      "path": "motion::MotionResources.climbable#get",
+      "sig": "get climbable: std::BTreeSet<String>",
+      "status": "bound"
+    },
+    {
+      "id": 1308,
+      "path": "motion::MotionResources.climbable#set",
+      "sig": "set climbable: std::BTreeSet<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1309,
+      "path": "motion::MotionResources.combination_step_sound#get",
+      "sig": "get combination_step_sound: std::BTreeSet<String>",
+      "status": "bound"
+    },
+    {
+      "id": 1310,
+      "path": "motion::MotionResources.combination_step_sound#set",
+      "sig": "set combination_step_sound: std::BTreeSet<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1311,
+      "path": "motion::MotionResources.crystal_sound#get",
+      "sig": "get crystal_sound: std::BTreeSet<String>",
+      "status": "bound"
+    },
+    {
+      "id": 1312,
+      "path": "motion::MotionResources.crystal_sound#set",
+      "sig": "set crystal_sound: std::BTreeSet<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1313,
+      "path": "motion::MotionResources.fall_reset#get",
+      "sig": "get fall_reset: std::BTreeSet<String>",
+      "status": "bound"
+    },
+    {
+      "id": 1314,
+      "path": "motion::MotionResources.fall_reset#set",
+      "sig": "set fall_reset: std::BTreeSet<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1315,
+      "path": "motion::MotionResources.inside_step_sound#get",
+      "sig": "get inside_step_sound: std::BTreeSet<String>",
+      "status": "bound"
+    },
+    {
+      "id": 1316,
+      "path": "motion::MotionResources.inside_step_sound#set",
+      "sig": "set inside_step_sound: std::BTreeSet<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1317,
+      "path": "motion::MotionResources.soul_speed_blocks#get",
+      "sig": "get soul_speed_blocks: std::BTreeSet<String>",
+      "status": "bound"
+    },
+    {
+      "id": 1318,
+      "path": "motion::MotionResources.soul_speed_blocks#set",
+      "sig": "set soul_speed_blocks: std::BTreeSet<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1319,
+      "path": "motion::PlayerMotion.air#get",
+      "sig": "get air: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1320,
+      "path": "motion::PlayerMotion.air#set",
+      "sig": "set air: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1321,
+      "path": "motion::PlayerMotion.applied_input#get",
+      "sig": "get applied_input: [f32; 2]",
+      "status": "bound"
+    },
+    {
+      "id": 1322,
+      "path": "motion::PlayerMotion.applied_input#set",
+      "sig": "set applied_input: [f32; 2]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1323,
+      "path": "motion::PlayerMotion.attack_log#get",
+      "sig": "get attack_log: Vec<crate::health::AttackRecord>",
+      "status": "bound"
+    },
+    {
+      "id": 1324,
+      "path": "motion::PlayerMotion.attack_log#set",
+      "sig": "set attack_log: Vec<crate::health::AttackRecord>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1325,
+      "path": "motion::PlayerMotion.auto_jump_enabled#get",
+      "sig": "get auto_jump_enabled: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1326,
+      "path": "motion::PlayerMotion.auto_jump_enabled#set",
+      "sig": "set auto_jump_enabled: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1327,
+      "path": "motion::PlayerMotion.auto_jump_time#get",
+      "sig": "get auto_jump_time: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1328,
+      "path": "motion::PlayerMotion.auto_jump_time#set",
+      "sig": "set auto_jump_time: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1329,
+      "path": "motion::PlayerMotion.auto_spin_attack_dmg#get",
+      "sig": "get auto_spin_attack_dmg: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1330,
+      "path": "motion::PlayerMotion.auto_spin_attack_dmg#set",
+      "sig": "set auto_spin_attack_dmg: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1331,
+      "path": "motion::PlayerMotion.auto_spin_attack_ticks#get",
+      "sig": "get auto_spin_attack_ticks: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1332,
+      "path": "motion::PlayerMotion.auto_spin_attack_ticks#set",
+      "sig": "set auto_spin_attack_ticks: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1333,
+      "path": "motion::PlayerMotion.block_effects#get",
+      "sig": "get block_effects: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1334,
+      "path": "motion::PlayerMotion.block_effects#set",
+      "sig": "set block_effects: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1335,
+      "path": "motion::PlayerMotion.block_landing#get",
+      "sig": "get block_landing: Option<(horizon_world::BlockStateId, horizon_core::position::BlockPos, f64)>",
+      "status": "bound"
+    },
+    {
+      "id": 1336,
+      "path": "motion::PlayerMotion.block_landing#set",
+      "sig": "set block_landing: Option<(horizon_world::BlockStateId, horizon_core::position::BlockPos, f64)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1337,
+      "path": "motion::PlayerMotion.burn_from_stepping_immune#get",
+      "sig": "get burn_from_stepping_immune: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1338,
+      "path": "motion::PlayerMotion.burn_from_stepping_immune#set",
+      "sig": "set burn_from_stepping_immune: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1339,
+      "path": "motion::PlayerMotion.client_loaded#get",
+      "sig": "get client_loaded: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1340,
+      "path": "motion::PlayerMotion.client_loaded#set",
+      "sig": "set client_loaded: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1341,
+      "path": "motion::PlayerMotion.client_side#get",
+      "sig": "get client_side: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1342,
+      "path": "motion::PlayerMotion.client_side#set",
+      "sig": "set client_side: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1343,
+      "path": "motion::PlayerMotion.collision#get",
+      "sig": "get collision: horizon_world::CollisionFlags",
+      "status": "bound"
+    },
+    {
+      "id": 1344,
+      "path": "motion::PlayerMotion.collision#set",
+      "sig": "set collision: horizon_world::CollisionFlags",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1345,
+      "path": "motion::PlayerMotion.crystal_sound_intensity#get",
+      "sig": "get crystal_sound_intensity: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1346,
+      "path": "motion::PlayerMotion.crystal_sound_intensity#set",
+      "sig": "set crystal_sound_intensity: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1347,
+      "path": "motion::PlayerMotion.dimensions#get",
+      "sig": "get dimensions: crate::pose::Dimensions",
+      "status": "bound"
+    },
+    {
+      "id": 1348,
+      "path": "motion::PlayerMotion.dimensions#set",
+      "sig": "set dimensions: crate::pose::Dimensions",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1349,
+      "path": "motion::PlayerMotion.entity_id#get",
+      "sig": "get entity_id: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1350,
+      "path": "motion::PlayerMotion.entity_id#set",
+      "sig": "set entity_id: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1351,
+      "path": "motion::PlayerMotion.fall_distance#get",
+      "sig": "get fall_distance: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1352,
+      "path": "motion::PlayerMotion.fall_distance#set",
+      "sig": "set fall_distance: f64",
+      "status": "bound"
+    },
+    {
+      "id": 1353,
+      "path": "motion::PlayerMotion.fall_fly_ticks#get",
+      "sig": "get fall_fly_ticks: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1354,
+      "path": "motion::PlayerMotion.fall_fly_ticks#set",
+      "sig": "set fall_fly_ticks: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1355,
+      "path": "motion::PlayerMotion.fall_flying#get",
+      "sig": "get fall_flying: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1356,
+      "path": "motion::PlayerMotion.fall_flying#set",
+      "sig": "set fall_flying: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1357,
+      "path": "motion::PlayerMotion.fire_ticks#get",
+      "sig": "get fire_ticks: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1358,
+      "path": "motion::PlayerMotion.fire_ticks#set",
+      "sig": "set fire_ticks: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1359,
+      "path": "motion::PlayerMotion.flying#get",
+      "sig": "get flying: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1360,
+      "path": "motion::PlayerMotion.flying#set",
+      "sig": "set flying: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1361,
+      "path": "motion::PlayerMotion.flying_speed#get",
+      "sig": "get flying_speed: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1362,
+      "path": "motion::PlayerMotion.flying_speed#set",
+      "sig": "set flying_speed: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1363,
+      "path": "motion::PlayerMotion.freeze_immune#get",
+      "sig": "get freeze_immune: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1364,
+      "path": "motion::PlayerMotion.freeze_immune#set",
+      "sig": "set freeze_immune: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1365,
+      "path": "motion::PlayerMotion.glide_ending#get",
+      "sig": "get glide_ending: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1366,
+      "path": "motion::PlayerMotion.glide_ending#set",
+      "sig": "set glide_ending: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1367,
+      "path": "motion::PlayerMotion.glider#get",
+      "sig": "get glider: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1368,
+      "path": "motion::PlayerMotion.glider#set",
+      "sig": "set glider: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1369,
+      "path": "motion::PlayerMotion.glider_wear#get",
+      "sig": "get glider_wear: u32",
+      "status": "bound"
+    },
+    {
+      "id": 1370,
+      "path": "motion::PlayerMotion.glider_wear#set",
+      "sig": "set glider_wear: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1371,
+      "path": "motion::PlayerMotion.ground#get",
+      "sig": "get ground: horizon_world::GroundState",
+      "status": "bound"
+    },
+    {
+      "id": 1372,
+      "path": "motion::PlayerMotion.ground#set",
+      "sig": "set ground: horizon_world::GroundState",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1373,
+      "path": "motion::PlayerMotion.head_yaw#get",
+      "sig": "get head_yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1374,
+      "path": "motion::PlayerMotion.head_yaw#set",
+      "sig": "set head_yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1375,
+      "path": "motion::PlayerMotion.hurt_log#get",
+      "sig": "get hurt_log: Vec<crate::health::HurtRecord>",
+      "status": "bound"
+    },
+    {
+      "id": 1376,
+      "path": "motion::PlayerMotion.hurt_log#set",
+      "sig": "set hurt_log: Vec<crate::health::HurtRecord>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1377,
+      "path": "motion::PlayerMotion.impulse#get",
+      "sig": "get impulse: horizon_world::living_fall::ImpulseContext",
+      "status": "bound"
+    },
+    {
+      "id": 1378,
+      "path": "motion::PlayerMotion.impulse#set",
+      "sig": "set impulse: horizon_world::living_fall::ImpulseContext",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1379,
+      "path": "motion::PlayerMotion.in_powder_snow#get",
+      "sig": "get in_powder_snow: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1380,
+      "path": "motion::PlayerMotion.in_powder_snow#set",
+      "sig": "set in_powder_snow: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1381,
+      "path": "motion::PlayerMotion.invulnerable#get",
+      "sig": "get invulnerable: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1382,
+      "path": "motion::PlayerMotion.invulnerable#set",
+      "sig": "set invulnerable: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1383,
+      "path": "motion::PlayerMotion.is_passenger#get",
+      "sig": "get is_passenger: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1384,
+      "path": "motion::PlayerMotion.is_passenger#set",
+      "sig": "set is_passenger: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1385,
+      "path": "motion::PlayerMotion.item_use_slows_sprint#get",
+      "sig": "get item_use_slows_sprint: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1386,
+      "path": "motion::PlayerMotion.item_use_slows_sprint#set",
+      "sig": "set item_use_slows_sprint: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1387,
+      "path": "motion::PlayerMotion.item_use_speed#get",
+      "sig": "get item_use_speed: Option<f32>",
+      "status": "bound"
+    },
+    {
+      "id": 1388,
+      "path": "motion::PlayerMotion.item_use_speed#set",
+      "sig": "set item_use_speed: Option<f32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1389,
+      "path": "motion::PlayerMotion.jump_trigger_time#get",
+      "sig": "get jump_trigger_time: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1390,
+      "path": "motion::PlayerMotion.jump_trigger_time#set",
+      "sig": "set jump_trigger_time: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1391,
+      "path": "motion::PlayerMotion.jumping#get",
+      "sig": "get jumping: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1392,
+      "path": "motion::PlayerMotion.jumping#set",
+      "sig": "set jumping: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1393,
+      "path": "motion::PlayerMotion.last_climbable#get",
+      "sig": "get last_climbable: Option<horizon_core::position::BlockPos>",
+      "status": "bound"
+    },
+    {
+      "id": 1394,
+      "path": "motion::PlayerMotion.last_climbable#set",
+      "sig": "set last_climbable: Option<horizon_core::position::BlockPos>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1395,
+      "path": "motion::PlayerMotion.last_crystal_sound_play_tick#get",
+      "sig": "get last_crystal_sound_play_tick: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1396,
+      "path": "motion::PlayerMotion.last_crystal_sound_play_tick#set",
+      "sig": "set last_crystal_sound_play_tick: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1397,
+      "path": "motion::PlayerMotion.leather_boots#get",
+      "sig": "get leather_boots: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1398,
+      "path": "motion::PlayerMotion.leather_boots#set",
+      "sig": "set leather_boots: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1399,
+      "path": "motion::PlayerMotion.local_crouching#get",
+      "sig": "get local_crouching: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1400,
+      "path": "motion::PlayerMotion.local_crouching#set",
+      "sig": "set local_crouching: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1401,
+      "path": "motion::PlayerMotion.location_effects#get",
+      "sig": "get location_effects: LocationEffects",
+      "status": "bound"
+    },
+    {
+      "id": 1402,
+      "path": "motion::PlayerMotion.location_effects#set",
+      "sig": "set location_effects: LocationEffects",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1403,
+      "path": "motion::PlayerMotion.may_fly#get",
+      "sig": "get may_fly: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1404,
+      "path": "motion::PlayerMotion.may_fly#set",
+      "sig": "set may_fly: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1405,
+      "path": "motion::PlayerMotion.mobility_restricted#get",
+      "sig": "get mobility_restricted: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1406,
+      "path": "motion::PlayerMotion.mobility_restricted#set",
+      "sig": "set mobility_restricted: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1407,
+      "path": "motion::PlayerMotion.move_vector#get",
+      "sig": "get move_vector: [f32; 2]",
+      "status": "bound"
+    },
+    {
+      "id": 1408,
+      "path": "motion::PlayerMotion.move_vector#set",
+      "sig": "set move_vector: [f32; 2]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1409,
+      "path": "motion::PlayerMotion.needs_sync#get",
+      "sig": "get needs_sync: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1410,
+      "path": "motion::PlayerMotion.needs_sync#set",
+      "sig": "set needs_sync: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1411,
+      "path": "motion::PlayerMotion.no_jump_delay#get",
+      "sig": "get no_jump_delay: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1412,
+      "path": "motion::PlayerMotion.no_jump_delay#set",
+      "sig": "set no_jump_delay: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1413,
+      "path": "motion::PlayerMotion.nudge#get",
+      "sig": "get nudge: [Option<f64>; 2]",
+      "status": "bound"
+    },
+    {
+      "id": 1414,
+      "path": "motion::PlayerMotion.nudge#set",
+      "sig": "set nudge: [Option<f64>; 2]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1415,
+      "path": "motion::PlayerMotion.old_position#get",
+      "sig": "get old_position: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 1416,
+      "path": "motion::PlayerMotion.old_position#set",
+      "sig": "set old_position: horizon_core::Vec3",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1417,
+      "path": "motion::PlayerMotion.piston#get",
+      "sig": "get piston: horizon_world::piston_movement::PistonMovement",
+      "status": "bound"
+    },
+    {
+      "id": 1418,
+      "path": "motion::PlayerMotion.piston#set",
+      "sig": "set piston: horizon_world::piston_movement::PistonMovement",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1419,
+      "path": "motion::PlayerMotion.pitch#get",
+      "sig": "get pitch: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1420,
+      "path": "motion::PlayerMotion.pitch#set",
+      "sig": "set pitch: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1421,
+      "path": "motion::PlayerMotion.pose#get",
+      "sig": "get pose: crate::pose::Pose",
+      "status": "bound"
+    },
+    {
+      "id": 1422,
+      "path": "motion::PlayerMotion.pose#set",
+      "sig": "set pose: crate::pose::Pose",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1423,
+      "path": "motion::PlayerMotion.position#get",
+      "sig": "get position: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 1424,
+      "path": "motion::PlayerMotion.position#set",
+      "sig": "set position: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 1425,
+      "path": "motion::PlayerMotion.powder_snow_entered#get",
+      "sig": "get powder_snow_entered: Vec<horizon_core::position::BlockPos>",
+      "status": "bound"
+    },
+    {
+      "id": 1426,
+      "path": "motion::PlayerMotion.powder_snow_entered#set",
+      "sig": "set powder_snow_entered: Vec<horizon_core::position::BlockPos>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1427,
+      "path": "motion::PlayerMotion.replaying#get",
+      "sig": "get replaying: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1428,
+      "path": "motion::PlayerMotion.replaying#set",
+      "sig": "set replaying: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1429,
+      "path": "motion::PlayerMotion.respiration#get",
+      "sig": "get respiration: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1430,
+      "path": "motion::PlayerMotion.respiration#set",
+      "sig": "set respiration: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1431,
+      "path": "motion::PlayerMotion.scale#get",
+      "sig": "get scale: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1432,
+      "path": "motion::PlayerMotion.scale#set",
+      "sig": "set scale: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1433,
+      "path": "motion::PlayerMotion.server_copy#get",
+      "sig": "get server_copy: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1434,
+      "path": "motion::PlayerMotion.server_copy#set",
+      "sig": "set server_copy: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1435,
+      "path": "motion::PlayerMotion.server_owns_glide#get",
+      "sig": "get server_owns_glide: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1436,
+      "path": "motion::PlayerMotion.server_owns_glide#set",
+      "sig": "set server_owns_glide: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1437,
+      "path": "motion::PlayerMotion.shift_key_down#get",
+      "sig": "get shift_key_down: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1438,
+      "path": "motion::PlayerMotion.shift_key_down#set",
+      "sig": "set shift_key_down: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1439,
+      "path": "motion::PlayerMotion.sleeping#get",
+      "sig": "get sleeping: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1440,
+      "path": "motion::PlayerMotion.sleeping#set",
+      "sig": "set sleeping: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1441,
+      "path": "motion::PlayerMotion.spawn_extra_particles_on_fall#get",
+      "sig": "get spawn_extra_particles_on_fall: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1442,
+      "path": "motion::PlayerMotion.spawn_extra_particles_on_fall#set",
+      "sig": "set spawn_extra_particles_on_fall: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1443,
+      "path": "motion::PlayerMotion.spectator#get",
+      "sig": "get spectator: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1444,
+      "path": "motion::PlayerMotion.spectator#set",
+      "sig": "set spectator: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1445,
+      "path": "motion::PlayerMotion.speed#get",
+      "sig": "get speed: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1446,
+      "path": "motion::PlayerMotion.speed#set",
+      "sig": "set speed: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1447,
+      "path": "motion::PlayerMotion.spin_hit#get",
+      "sig": "get spin_hit: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 1448,
+      "path": "motion::PlayerMotion.spin_hit#set",
+      "sig": "set spin_hit: Option<u32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1449,
+      "path": "motion::PlayerMotion.sprint_input#get",
+      "sig": "get sprint_input: crate::sprint::SprintState",
+      "status": "bound"
+    },
+    {
+      "id": 1450,
+      "path": "motion::PlayerMotion.sprint_input#set",
+      "sig": "set sprint_input: crate::sprint::SprintState",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1451,
+      "path": "motion::PlayerMotion.sprinting#get",
+      "sig": "get sprinting: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1452,
+      "path": "motion::PlayerMotion.sprinting#set",
+      "sig": "set sprinting: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1453,
+      "path": "motion::PlayerMotion.steps#get",
+      "sig": "get steps: horizon_world::MovementDistances",
+      "status": "bound"
+    },
+    {
+      "id": 1454,
+      "path": "motion::PlayerMotion.steps#set",
+      "sig": "set steps: horizon_world::MovementDistances",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1455,
+      "path": "motion::PlayerMotion.stuck_multiplier#get",
+      "sig": "get stuck_multiplier: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 1456,
+      "path": "motion::PlayerMotion.stuck_multiplier#set",
+      "sig": "set stuck_multiplier: horizon_core::Vec3",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1457,
+      "path": "motion::PlayerMotion.swimming#get",
+      "sig": "get swimming: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1458,
+      "path": "motion::PlayerMotion.swimming#set",
+      "sig": "set swimming: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1459,
+      "path": "motion::PlayerMotion.sync_position#get",
+      "sig": "get sync_position: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1460,
+      "path": "motion::PlayerMotion.sync_position#set",
+      "sig": "set sync_position: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1461,
+      "path": "motion::PlayerMotion.teleported#get",
+      "sig": "get teleported: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1462,
+      "path": "motion::PlayerMotion.teleported#set",
+      "sig": "set teleported: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1463,
+      "path": "motion::PlayerMotion.ticks_frozen#get",
+      "sig": "get ticks_frozen: i32",
+      "status": "bound"
+    },
+    {
+      "id": 1464,
+      "path": "motion::PlayerMotion.ticks_frozen#set",
+      "sig": "set ticks_frozen: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1465,
+      "path": "motion::PlayerMotion.velocity#get",
+      "sig": "get velocity: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 1466,
+      "path": "motion::PlayerMotion.velocity#set",
+      "sig": "set velocity: horizon_core::Vec3",
+      "status": "bound"
+    },
+    {
+      "id": 1467,
+      "path": "motion::PlayerMotion.was_auto_jump#get",
+      "sig": "get was_auto_jump: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1468,
+      "path": "motion::PlayerMotion.was_auto_jump#set",
+      "sig": "set was_auto_jump: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1469,
+      "path": "motion::PlayerMotion.was_in_powder_snow#get",
+      "sig": "get was_in_powder_snow: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1470,
+      "path": "motion::PlayerMotion.was_in_powder_snow#set",
+      "sig": "set was_in_powder_snow: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1471,
+      "path": "motion::PlayerMotion.was_jumping#get",
+      "sig": "get was_jumping: bool",
+      "status": "bound"
+    },
+    {
+      "id": 1472,
+      "path": "motion::PlayerMotion.was_jumping#set",
+      "sig": "set was_jumping: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 1473,
+      "path": "motion::PlayerMotion.yaw#get",
+      "sig": "get yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1474,
+      "path": "motion::PlayerMotion.yaw#set",
+      "sig": "set yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 1475,
+      "path": "motion::PlayerMotion::can_freeze",
+      "sig": "fn can_freeze(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1476,
+      "path": "motion::PlayerMotion::carried_attributes",
+      "sig": "fn carried_attributes(&Self, bool) -> horizon_world::nbt::Tag",
+      "status": "bound"
+    },
+    {
+      "id": 1477,
+      "path": "motion::PlayerMotion::carry_client_movement",
+      "sig": "fn carry_client_movement(&mut Self, Vec3) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 1478,
+      "path": "motion::PlayerMotion::drop_tiny_velocity",
+      "sig": "fn drop_tiny_velocity(&mut Self) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 1479,
+      "path": "motion::PlayerMotion::has_sprint_modifier",
+      "sig": "fn has_sprint_modifier(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1480,
+      "path": "motion::PlayerMotion::is_fully_frozen",
+      "sig": "fn is_fully_frozen(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1481,
+      "path": "motion::PlayerMotion::is_sweep_attack",
+      "sig": "fn is_sweep_attack(&Self, f32, bool, bool) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1482,
+      "path": "motion::PlayerMotion::packed_attributes",
+      "sig": "fn packed_attributes(&Self, bool) -> horizon_world::nbt::Tag",
+      "status": "bound"
+    },
+    {
+      "id": 1483,
+      "path": "motion::PlayerMotion::percent_frozen",
+      "sig": "fn percent_frozen(&Self) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 1484,
+      "path": "motion::PlayerMotion::saved_attributes",
+      "sig": "fn saved_attributes(&Self) -> horizon_world::nbt::Tag",
+      "status": "bound"
+    },
+    {
+      "id": 1485,
+      "path": "motion::PlayerMotion::set_remaining_fire_ticks",
+      "sig": "fn set_remaining_fire_ticks(&mut Self, i32) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 1486,
+      "path": "motion::PlayerMotion::yoake_state_air",
+      "sig": "fn yoake_state_air(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 1487,
+      "path": "motion::PlayerMotion::yoake_state_fall_distance",
+      "sig": "fn yoake_state_fall_distance(&Self) -> f64",
+      "status": "bound"
+    },
+    {
+      "id": 1488,
+      "path": "motion::PlayerMotion::yoake_state_fall_fly_ticks",
+      "sig": "fn yoake_state_fall_fly_ticks(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 1489,
+      "path": "motion::PlayerMotion::yoake_state_fall_flying",
+      "sig": "fn yoake_state_fall_flying(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1490,
+      "path": "motion::PlayerMotion::yoake_state_fire_ticks",
+      "sig": "fn yoake_state_fire_ticks(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 1491,
+      "path": "motion::PlayerMotion::yoake_state_flying",
+      "sig": "fn yoake_state_flying(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1492,
+      "path": "motion::PlayerMotion::yoake_state_flying_speed",
+      "sig": "fn yoake_state_flying_speed(&Self) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 1493,
+      "path": "motion::PlayerMotion::yoake_state_glider",
+      "sig": "fn yoake_state_glider(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1494,
+      "path": "motion::PlayerMotion::yoake_state_head_yaw",
+      "sig": "fn yoake_state_head_yaw(&Self) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 1495,
+      "path": "motion::PlayerMotion::yoake_state_invulnerable",
+      "sig": "fn yoake_state_invulnerable(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1496,
+      "path": "motion::PlayerMotion::yoake_state_is_passenger",
+      "sig": "fn yoake_state_is_passenger(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1497,
+      "path": "motion::PlayerMotion::yoake_state_jump_trigger_time",
+      "sig": "fn yoake_state_jump_trigger_time(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 1498,
+      "path": "motion::PlayerMotion::yoake_state_jumping",
+      "sig": "fn yoake_state_jumping(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1499,
+      "path": "motion::PlayerMotion::yoake_state_may_fly",
+      "sig": "fn yoake_state_may_fly(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1500,
+      "path": "motion::PlayerMotion::yoake_state_mobility_restricted",
+      "sig": "fn yoake_state_mobility_restricted(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1501,
+      "path": "motion::PlayerMotion::yoake_state_no_jump_delay",
+      "sig": "fn yoake_state_no_jump_delay(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 1502,
+      "path": "motion::PlayerMotion::yoake_state_pitch",
+      "sig": "fn yoake_state_pitch(&Self) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 1503,
+      "path": "motion::PlayerMotion::yoake_state_respiration",
+      "sig": "fn yoake_state_respiration(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 1504,
+      "path": "motion::PlayerMotion::yoake_state_scale",
+      "sig": "fn yoake_state_scale(&Self) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 1505,
+      "path": "motion::PlayerMotion::yoake_state_shift_key_down",
+      "sig": "fn yoake_state_shift_key_down(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1506,
+      "path": "motion::PlayerMotion::yoake_state_sleeping",
+      "sig": "fn yoake_state_sleeping(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1507,
+      "path": "motion::PlayerMotion::yoake_state_spectator",
+      "sig": "fn yoake_state_spectator(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1508,
+      "path": "motion::PlayerMotion::yoake_state_speed",
+      "sig": "fn yoake_state_speed(&Self) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 1509,
+      "path": "motion::PlayerMotion::yoake_state_sprinting",
+      "sig": "fn yoake_state_sprinting(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1510,
+      "path": "motion::PlayerMotion::yoake_state_swimming",
+      "sig": "fn yoake_state_swimming(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1511,
+      "path": "motion::PlayerMotion::yoake_state_yaw",
+      "sig": "fn yoake_state_yaw(&Self) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 1512,
+      "path": "motion::fly_into_wall_damage",
+      "sig": "fn fly_into_wall_damage(f64, f64) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 1513,
+      "path": "motion::horizontal_collision_minor",
+      "sig": "fn horizontal_collision_minor(f32, [f32; 2], horizon_core::Vec3) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 1514,
+      "path": "motion::native_living_jump",
+      "sig": "fn native_living_jump(u32, &str) -> ()",
+      "status": "bound"
     }
   ]
 }

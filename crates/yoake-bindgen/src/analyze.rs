@@ -547,6 +547,11 @@ fn arg_plan<'u>(an: &mut Analyzer<'u>, doc: usize, ty: &'u Value, sty: Option<Se
         let mutable = reference.get("is_mutable").and_then(Value::as_bool) == Some(true);
         let inner = reference.get("type").unwrap_or(&Value::Null);
         let mode = if mutable { ArgMode::RefMut } else { ArgMode::Ref };
+        // a decoded argument lives only for the call: a `&'static` parameter (an interned key the engine keeps) cannot
+        // be fed from guest bytes
+        if reference.get("lifetime").and_then(Value::as_str) == Some("'static") {
+            return Err(hard("`&'static` argument: the engine keeps it, a value decoded for the call cannot be"));
+        }
         if inner.get("primitive").and_then(Value::as_str) == Some("str") {
             if mutable {
                 return Err(hard("`&mut str` cannot be written back"));

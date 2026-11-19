@@ -641,6 +641,11 @@ fn render_path_root(an: &Analyzer<'_>, root_name: &str, game_paths: &[crate::Gam
                 let _ = writeln!(out, "                    Some(e) => {{\n                        f(e);\n                        Ok(())\n                    }}");
                 let _ = writeln!(out, "                    None => Err(Status::Stale),\n                }},");
             }
+            None if path.optional => {
+                let _ = writeln!(out, "                [Accessor::Field({index})] => match {place}.as_mut() {{");
+                let _ = writeln!(out, "                    Some(e) => {{\n                        f(e);\n                        Ok(())\n                    }}");
+                let _ = writeln!(out, "                    None => Err(Status::Stale),\n                }},");
+            }
             None => {
                 let _ = writeln!(out, "                [Accessor::Field({index})] => {{\n                    f(&mut {place});\n                    Ok(())\n                }}");
             }

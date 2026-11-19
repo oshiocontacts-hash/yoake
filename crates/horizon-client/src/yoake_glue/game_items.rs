@@ -136,6 +136,27 @@ pub mod yoake_glue {
         Ok(())
     }
 
+    /// `game_items::Game.mob#handle`
+    fn call_462(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        let key = <u32 as Decode>::decode(d)?;
+        d.finish()?;
+        let handle = activation::open_path(root, vec![Accessor::Field(7), Accessor::Id(u64::from(key))]).map_err(CallError::from)?;
+        Encode::encode(&handle, out);
+        Ok(())
+    }
+
+    /// `game_items::Game.player_motion#handle`
+    fn call_463(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        d.finish()?;
+        let handle = activation::open_path(root, vec![Accessor::Field(8)]).map_err(CallError::from)?;
+        Encode::encode(&handle, out);
+        Ok(())
+    }
+
     /// Paths a guest may reach from the `Game` root (see `game_paths` in bindgen.json).
     impl PathRoot for crate::game::Game<'_> {
         fn resolve(&mut self, path: &[Accessor], f: &mut dyn FnMut(&mut dyn std::any::Any)) -> Result<(), Status> {
@@ -186,6 +207,20 @@ pub mod yoake_glue {
                     f(&mut self.experience);
                     Ok(())
                 }
+                [Accessor::Field(7), Accessor::Id(id)] => match self.mobs.iter_mut().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(8)] => match self.player.as_mut() {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
                 _ => Err(Status::BadField),
             }
         }
@@ -205,6 +240,8 @@ pub mod yoake_glue {
         (459, "game_items::Game.painting#handle"),
         (460, "game_items::Game::yoake2_tick_hook"),
         (461, "game_items::Game::yoake2_world_start_hook"),
+        (462, "game_items::Game.mob#handle"),
+        (463, "game_items::Game.player_motion#handle"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -219,6 +256,8 @@ pub mod yoake_glue {
             457 => call_457(handle, args, out),
             458 => call_458(handle, args, out),
             459 => call_459(handle, args, out),
+            462 => call_462(handle, args, out),
+            463 => call_463(handle, args, out),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {

@@ -63,8 +63,9 @@ fn config(dir: &Path, json: &Path) -> Config {
                     ty: "Thing".into(),
                     path: vec!["things".into()],
                     by_id: Some(yoake_bindgen::ByIdCfg { field: "serial".into(), ty: "u32".into() }),
+                    optional: false,
                 },
-                yoake_bindgen::GamePathCfg { name: "lone".into(), ty: "Thing".into(), path: vec!["lone".into()], by_id: None },
+                yoake_bindgen::GamePathCfg { name: "lone".into(), ty: "Thing".into(), path: vec!["lone".into()], by_id: None, optional: false },
             ],
         }],
     }

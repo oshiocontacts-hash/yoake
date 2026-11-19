@@ -89,6 +89,9 @@ pub struct GamePathCfg {
     /// The last field is a list; pick the element whose `field` equals the id the guest passes.
     #[serde(default)]
     pub by_id: Option<ByIdCfg>,
+    /// The last field is an `Option<T>`: `None` (no such object right now, e.g. no local player) is `Stale`.
+    #[serde(default)]
+    pub optional: bool,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -98,10 +101,28 @@ pub struct ByIdCfg {
     pub ty: String,
 }
 
-/// Field names a guest may never be allowed to write: identities, lengths, indices, sequence numbers.
+/// Field names a guest may never be allowed to write: identities, lengths, indices, sequence numbers. Matched on
+/// whole snake_case segments (`len`, `item_len`, `entity_id`, `uuid`, `seq_no`), not substrings: `silent`, `valid`,
+/// `width` are ordinary fields.
 pub fn forbidden_writable(name: &str) -> bool {
+    const SEGMENTS: &[&str] = &["id", "uuid", "len", "length", "index", "idx", "seq", "sequence"];
     let n = name.to_ascii_lowercase();
-    n == "id" || n.ends_with("_id") || n.contains("uuid") || n.contains("len") || n.contains("index") || n.contains("idx") || n.contains("seq") || n == "join" || n == "0"
+    n == "join" || n == "0" || n.split('_').any(|segment| SEGMENTS.contains(&segment))
+}
+
+#[cfg(test)]
+mod forbidden_writable_tests {
+    use super::forbidden_writable;
+
+    #[test]
+    fn identities_lengths_and_indices_are_refused_by_segment_not_substring() {
+        for refused in ["id", "entity_id", "uuid", "owner_uuid", "len", "item_len", "length", "index", "slot_index", "idx", "seq", "seq_no", "join", "0", "ID"] {
+            assert!(forbidden_writable(refused), "{refused}");
+        }
+        for allowed in ["silent", "valid", "width", "lenient", "indexer_mode", "sequenced", "health", "idle_ticks", "kid"] {
+            assert!(!forbidden_writable(allowed), "{allowed}");
+        }
+    }
 }
 
 pub struct ModuleResult {

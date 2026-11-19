@@ -26,6 +26,32 @@
     "handle_types": 13
   },
   {
+    "label": "mobs",
+    "total": 130,
+    "bound_a": 52,
+    "bound_mech": 38,
+    "handle_required": 27,
+    "excluded": 13,
+    "derived": 54,
+    "derived_bound": 22,
+    "fields_total": 441,
+    "fields_bound": 359,
+    "handle_types": 21
+  },
+  {
+    "label": "motion",
+    "total": 241,
+    "bound_a": 35,
+    "bound_mech": 6,
+    "handle_required": 6,
+    "excluded": 194,
+    "derived": 6,
+    "derived_bound": 2,
+    "fields_total": 110,
+    "fields_bound": 89,
+    "handle_types": 3
+  },
+  {
     "label": "game_items",
     "total": 5,
     "bound_a": 5,

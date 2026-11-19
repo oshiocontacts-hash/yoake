@@ -6,6 +6,8 @@ Functions counted: free functions, inherent methods, and non-derived trait-impl 
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | `items` | 69 | 7 | 13 | **20 (29.0%)** | 15 (21.7%) | 34 (49.3%) | 8 / 21 | 73 / 90 | 9 |
 | `entities` | 163 | 30 | 25 | **55 (33.7%)** | 32 (19.6%) | 76 (46.6%) | 9 / 23 | 85 / 97 | 13 |
+| `mobs` | 130 | 52 | 38 | **90 (69.2%)** | 27 (20.8%) | 13 (10.0%) | 22 / 54 | 359 / 441 | 21 |
+| `motion` | 241 | 35 | 6 | **41 (17.0%)** | 6 (2.5%) | 194 (80.5%) | 2 / 6 | 89 / 110 | 3 |
 | `game_items` | 5 | 5 | 0 | **5 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 0 / 0 | 0 / 0 | 0 |
 | `entity_query` | 20 | 1 | 6 | **7 (35.0%)** | 4 (20.0%) | 9 (45.0%) | 6 / 10 | 14 / 43 | 4 |
 
@@ -175,6 +177,201 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | field `0` of `Wire` is private to another module | 5 |
 | field `min` of `Aabb` is private to another module | 1 |
 
+## `mobs` (horizon-client/src/mobs.rs)
+
+- bound now: **90 of 130** (69.2%): 52 basic + 38 mechanical
+- handle-required, not yet bound: 27 (20.8%)
+- excluded: 13 (10.0%)
+- field accessors (get + set pairs): 359 of 441 fields
+- handle types (receivers of bound methods or owners of bound fields): 21
+
+### Handle types and how a guest reaches them
+
+A type is reachable as a hook argument (`Root::HookArg`) when one of its methods is hooked; every type below has bound methods or accessors. The last column is the shortest chain of `Game` fields that mentions the type (resolution from `Game` is not built; this is where it would start).
+
+| handle type | bound methods | bound field pairs | from `Game` by field path |
+|---|---:|---:|---|
+| `crate::mobs::Aim` | 2 | 3 | `Game.mobs.attacker_aim` |
+| `crate::mobs::Attrs` | 1 | 8 | `Game.mobs.attrs` |
+| `crate::mobs::Brain` | 2 | 0 | `Game.mobs.kind.brain` |
+| `crate::mobs::Damage` | 6 | 3 | `Game.mobs.last_damage` |
+| `crate::mobs::DamageKind` | 2 | 0 | `Game.fight.last_blow` |
+| `crate::mobs::ElytraAnimation` | 3 | 2 | `Game.mobs.extra.elytra` |
+| `crate::mobs::EntityModelDocument` | 1 | 0 | - |
+| `crate::mobs::Extra` | 3 | 124 | `Game.mobs.extra` |
+| `crate::mobs::Flags` | 1 | 13 | `Game.mobs.kind.flags` |
+| `crate::mobs::MannequinDescription` | 3 | 0 | `Game.mobs.extra.description` |
+| `crate::mobs::Mob` | 55 | 65 | `Game.mobs` |
+| `crate::mobs::MobType` | 0 | 37 | `Game.mobs.kind` |
+| `crate::mobs::ModelNormals` | 0 | 1 | - |
+| `crate::mobs::Part` | 2 | 4 | `Game.crystal_model` |
+| `crate::mobs::PendingPushes` | 1 | 2 | - |
+| `crate::mobs::PlayerView` | 2 | 27 | - |
+| `crate::mobs::Polygon` | 1 | 3 | `Game.crystal_model.polygons` |
+| `crate::mobs::Seen` | 1 | 50 | - |
+| `crate::mobs::SpawnSetup` | 1 | 11 | - |
+| `crate::mobs::SwimAnimation` | 3 | 4 | `Game.mobs.extra.swim` |
+| `crate::mobs::Vehicle` | 0 | 2 | - |
+
+### Handle-required: reasons
+
+| reason | occurrences |
+|---|---:|
+| external type `glam::f32::mat3::Mat3` (crate not loaded) [return value] | 3 |
+| field `min` of `Aabb` is private to another module [return value] | 3 |
+| a reference nested inside another type needs a handle | 2 |
+| a reference nested inside another type needs a handle [&mut argument] | 2 |
+| a reference nested inside another type needs a handle [return value] | 2 |
+| external type `yoake_state::Value` (crate not loaded) [&argument] | 2 |
+| field `0` of `JoinSeq` is private to another module | 2 |
+| field `0` of `JoinSeq` is private to another module [&argument] | 2 |
+| field `0` of `JoinSeq` is private to another module [&mut argument] | 2 |
+| field `0` of `JoinSeq` is private to another module [return value] | 2 |
+| external type `glam::f32::mat3::Mat3` (crate not loaded) | 1 |
+| external type `glam::f32::mat3::Mat3` (crate not loaded) [by-value self] | 1 |
+| external type `glam::f32::sse2::mat4::Mat4` (crate not loaded) | 1 |
+| external type `glam::f64::dvec3::DVec3` (crate not loaded) | 1 |
+| external type `horizon_client_render::mesher::Vertex` (crate not loaded) [&mut argument] | 1 |
+| external type `serde_json::value::Value` (crate not loaded) [&argument] | 1 |
+| external type `serde_json::value::Value` (crate not loaded) [return value] | 1 |
+| external type `yoake_state::Field` (crate not loaded) | 1 |
+| external type `yoake_state::Value` (crate not loaded) [return value] | 1 |
+| field `state` of `LegacyRandom` is private to another module [&mut argument] | 1 |
+| std type `std::path::Path` has no codec yet [&argument] | 1 |
+
+### Excluded: reasons
+
+| reason | occurrences |
+|---|---:|
+| `&'static` argument: the engine keeps it, a value decoded for the call cannot be | 4 |
+| generic type alias `crate::Result` | 4 |
+| std type `std::path::Path` has no codec yet [&argument] | 4 |
+| a reference nested inside another type needs a handle [&mut argument] | 3 |
+| lifetime-carrying type `MobWorld` | 2 |
+| `dyn Trait` values cannot cross the data ABI | 1 |
+| `impl Trait` requires a listed instantiation | 1 |
+| a reference nested inside another type needs a handle [return value] | 1 |
+| external type `glam::f32::sse2::mat4::Mat4` (crate not loaded) | 1 |
+| external type `horizon_client_render::mesher::Vertex` (crate not loaded) [&mut argument] | 1 |
+| field `state` of `LegacyRandom` is private to another module [&mut argument] | 1 |
+| receiver type carries a lifetime: it cannot be a hook-argument handle | 1 |
+
+### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
+
+- `mobs::Mob`: `position`, `previous`, `velocity`, `yaw`, `previous_yaw`, `body_yaw`, `head_yaw`, `head_pitch`, `on_ground`, `health`, `fall_distance`, `persistent`, `name_visible`, `invisible`, `no_gravity`, `no_ai`, `silent`, `fire_ticks`, `ticks_frozen`, `glowing`, `air`, `absorption`
+
+337 read-only field accessors (getter only).
+
+### Fields without accessors
+
+| reason | fields |
+|---|---:|
+| `MobWorld` carries a lifetime (cannot be a handle type) | 37 |
+| `Teams` carries a lifetime (cannot be a handle type) | 2 |
+| a reference nested inside another type needs a handle | 13 |
+| external type `glam::f32::mat3::Mat3` (crate not loaded) | 1 |
+| external type `horizon_client_render::camera::AvatarBob` (crate not loaded) | 1 |
+| external type `horizon_client_render::chunk::block_entity::Data` (crate not loaded) | 1 |
+| external type `horizon_client_render::particles::ParticleOptions` (crate not loaded) | 1 |
+| external type `horizon_protocol::entity_data::Profile` (crate not loaded) | 1 |
+| external type `serde_json::value::Value` (crate not loaded) | 2 |
+| field `0` of `JoinSeq` is private to another module | 1 |
+| field `0` of `Ttl` is private to another module | 1 |
+| field `0` of `Wire` is private to another module | 1 |
+| field `catalog` of `EntityAttributes` is private to another module | 2 |
+| field `croak` of `State` is private to another module | 1 |
+| field `danger` of `State` is private to another module | 1 |
+| field `goals` of `GoalSelector` is private to another module | 1 |
+| field `got_bamboo` of `State` is private to another module | 1 |
+| field `last_damage_time` of `Tracker` is private to another module | 1 |
+| field `lower_head_tick` of `State` is private to another module | 1 |
+| field `map` of `Gossips` is private to another module | 2 |
+| field `min` of `Aabb` is private to another module | 4 |
+| field `old` of `Animation` is private to another module | 1 |
+| field `seen` of `Choice` is private to another module | 1 |
+| field `state` of `LegacyRandom` is private to another module | 1 |
+| field `suspects` of `AngerManagement` is private to another module | 1 |
+| generic type `Slot` requires a listed instantiation | 1 |
+| generic type `super::Slot` requires a listed instantiation | 1 |
+
+## `motion` (horizon-client/src/motion.rs)
+
+- bound now: **41 of 241** (17.0%): 35 basic + 6 mechanical
+- handle-required, not yet bound: 6 (2.5%)
+- excluded: 194 (80.5%)
+- field accessors (get + set pairs): 89 of 110 fields
+- handle types (receivers of bound methods or owners of bound fields): 3
+
+### Handle types and how a guest reaches them
+
+A type is reachable as a hook argument (`Root::HookArg`) when one of its methods is hooked; every type below has bound methods or accessors. The last column is the shortest chain of `Game` fields that mentions the type (resolution from `Game` is not built; this is where it would start).
+
+| handle type | bound methods | bound field pairs | from `Game` by field path |
+|---|---:|---:|---|
+| `crate::motion::LocationEffects` | 1 | 5 | `Game.player.location_effects` |
+| `crate::motion::MotionResources` | 0 | 6 | `Game.motion` |
+| `crate::motion::PlayerMotion` | 37 | 78 | `Game.player` |
+
+### Handle-required: reasons
+
+| reason | occurrences |
+|---|---:|
+| external type `yoake_state::Value` (crate not loaded) [&argument] | 2 |
+| external type `horizon_client_render::collisions::PowderSnowSubject` (crate not loaded) [return value] | 1 |
+| external type `yoake_state::Field` (crate not loaded) | 1 |
+| external type `yoake_state::Value` (crate not loaded) [return value] | 1 |
+| field `min` of `Aabb` is private to another module [return value] | 1 |
+
+### Excluded: reasons
+
+| reason | occurrences |
+|---|---:|
+| receiver type carries a lifetime: it cannot be a hook-argument handle | 178 |
+| generic type alias `Result` | 155 |
+| associated-type projection requires a listed instantiation | 5 |
+| field `min` of `Aabb` is private to another module | 4 |
+| `impl Trait` requires a listed instantiation | 2 |
+| external type `horizon_client_render::assets::Assets` (crate not loaded) [&argument] | 2 |
+| field `attributes` of `Catalog` is private to another module [&argument] | 2 |
+| std type `std::path::Path` has no codec yet [&argument] | 2 |
+| `dyn Trait` values cannot cross the data ABI | 1 |
+| `impl Trait` argument requires a listed instantiation | 1 |
+| closure argument (`impl Fn*`): guest callback handles are not built | 1 |
+| field `0` of `Wire` is private to another module [&argument] | 1 |
+| lifetime-carrying type `CollisionContext` | 1 |
+| lifetime-carrying type `SceneCollisions` | 1 |
+| lifetime-carrying type `crate::collisions::EntityCollisions` | 1 |
+| returns `&mut`: needs a child handle that locks its parent | 1 |
+| std type `core::io::error::Error` has no codec yet [return value] | 1 |
+| std type `core::io::error::Result` has no codec yet [return value] | 1 |
+
+### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
+
+- `motion::PlayerMotion`: `fire_ticks`, `air`, `position`, `velocity`, `fall_distance`, `yaw`, `head_yaw`, `flying`
+
+81 read-only field accessors (getter only).
+
+### Fields without accessors
+
+| reason | fields |
+|---|---:|
+| `MotionWorld` carries a lifetime (cannot be a handle type) | 6 |
+| a reference nested inside another type needs a handle | 1 |
+| external type `horizon_client_render::effects::StatusFlags` (crate not loaded) | 1 |
+| field `attributes` of `Catalog` is private to another module | 1 |
+| field `center` of `BorderGeometry` is private to another module | 1 |
+| field `definitions` of `Catalog` is private to another module | 1 |
+| field `min` of `Aabb` is private to another module | 1 |
+| field `records` of `MovementHistory` is private to another module | 1 |
+| field `states` of `BlockLandingRegistry` is private to another module | 1 |
+| field `states` of `BoundMovementProperties` is private to another module | 1 |
+| field `states` of `FluidResources` is private to another module | 1 |
+| field `trackers` of `EntityFluidInteraction` is private to another module | 1 |
+| generic type `crate::synced_values::SyncedValues` requires a listed instantiation | 1 |
+| generic type `horizon_world::live::LiveAttributes` requires a listed instantiation | 1 |
+| lifetime-carrying type `horizon_world::ClimbingRegistry` | 1 |
+| std type `core::ops::range::Range` has no codec yet | 1 |
+
 ## `game_items` (horizon-client/src/game/native_client_items.rs)
 
 - bound now: **5 of 5** (100.0%): 5 basic + 0 mechanical
@@ -264,7 +461,18 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 ## External types whose crate JSON was not loaded
 
+- `glam::f32::mat3::Mat3`
+- `glam::f32::sse2::mat4::Mat4`
+- `glam::f64::dvec3::DVec3`
+- `horizon_client_render::assets::Assets`
+- `horizon_client_render::camera::AvatarBob`
+- `horizon_client_render::chunk::block_entity::Data`
+- `horizon_client_render::collisions::PowderSnowSubject`
+- `horizon_client_render::effects::StatusFlags`
+- `horizon_client_render::mesher::Vertex`
+- `horizon_client_render::particles::ParticleOptions`
 - `horizon_client_render::world::World`
+- `horizon_protocol::entity_data::Profile`
 - `serde_json::value::Value`
 - `yoake_state::Field`
 - `yoake_state::Value`
@@ -281,6 +489,8 @@ A guest in a hook whose argument 0 is the `Game` root gets the root handle, call
 - `Game.item_frames` by `id` -> `horizon_client_lib::entities::ItemFrame`: 3 methods + 18 field accessors
 - `Game.cushions` by `id` -> `horizon_client_lib::entities::Cushion`: 6 methods + 12 field accessors
 - `Game.experience` -> `horizon_client_lib::entities::Experience`: 7 methods + 6 field accessors
+- `Game.mobs` by `id` -> `horizon_client_lib::mobs::Mob`: 55 methods + 130 field accessors
+- `Game.player` -> `horizon_client_lib::motion::PlayerMotion`: 37 methods + 156 field accessors
 
-196 bindings (methods plus getter/setter ids) are reachable this way across 7 types; before, they were reachable only inside a hook on the type itself.
+574 bindings (methods plus getter/setter ids) are reachable this way across 9 types; before, they were reachable only inside a hook on the type itself.
 

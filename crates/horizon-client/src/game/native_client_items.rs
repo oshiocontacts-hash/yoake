@@ -83,18 +83,23 @@ impl Game<'_> {
     pub(super) fn yoake2_world_start_hook(&mut self) {}
 }
 
-/// What `engine_call` dispatches through: the `Game` path-handle bindings, then the entities and items
+/// What `engine_call` dispatches through: the `Game` path-handle bindings, then the entities, mobs, motion and items
 /// modules (ids are disjoint through the one lock file).
 #[cfg(feature = "yoake2-slice")]
 pub(crate) fn yoake2_dispatch(handle: u64, id: u32, args: &[u8], out: &mut Vec<u8>) -> Result<(), yoake_slice::codec::CallError> {
     use yoake_slice::codec::CallError;
-    match yoake_glue::call(handle, id, args, out) {
-        Err(CallError::UnknownBinding(_)) => {}
-        other => return other,
-    }
-    match horizon_client_lib::entities::yoake_glue::call(handle, id, args, out) {
-        Err(CallError::UnknownBinding(_)) => {}
-        other => return other,
+    type Call = fn(u64, u32, &[u8], &mut Vec<u8>) -> Result<(), CallError>;
+    let modules: [Call; 4] = [
+        yoake_glue::call,
+        horizon_client_lib::entities::yoake_glue::call,
+        horizon_client_lib::mobs::yoake_glue::call,
+        horizon_client_lib::motion::yoake_glue::call,
+    ];
+    for call in modules {
+        match call(handle, id, args, out) {
+            Err(CallError::UnknownBinding(_)) => {}
+            other => return other,
+        }
     }
     horizon_client_lib::items::yoake_glue::call(handle, id, args, out)
 }

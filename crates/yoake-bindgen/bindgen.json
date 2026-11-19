@@ -67,6 +67,58 @@
       "guest_stubs": "crates/yoake-guest-sdk/src/stubs/entities.rs"
     },
     {
+      "name": "mobs",
+      "crate_name": "horizon_client_lib",
+      "source": "horizon-client/src/mobs.rs",
+      "glue": "crates/horizon-client/src/yoake_glue/mobs.rs",
+      "writable": {
+        "Mob": [
+          "position",
+          "previous",
+          "velocity",
+          "yaw",
+          "previous_yaw",
+          "body_yaw",
+          "head_yaw",
+          "head_pitch",
+          "on_ground",
+          "health",
+          "fire_ticks",
+          "air",
+          "ticks_frozen",
+          "absorption",
+          "fall_distance",
+          "no_gravity",
+          "no_ai",
+          "silent",
+          "invisible",
+          "glowing",
+          "persistent",
+          "name_visible"
+        ]
+      },
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/mobs.rs"
+    },
+    {
+      "name": "motion",
+      "crate_name": "horizon_client_lib",
+      "source": "horizon-client/src/motion.rs",
+      "glue": "crates/horizon-client/src/yoake_glue/motion.rs",
+      "writable": {
+        "PlayerMotion": [
+          "position",
+          "velocity",
+          "yaw",
+          "head_yaw",
+          "fire_ticks",
+          "air",
+          "fall_distance",
+          "flying"
+        ]
+      },
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/motion.rs"
+    },
+    {
       "name": "game_items",
       "crate_name": "horizon_client",
       "source": "horizon-client/src/game/native_client_items.rs",
@@ -147,6 +199,25 @@
           "path": [
             "experience"
           ]
+        },
+        {
+          "name": "mob",
+          "ty": "horizon_client_lib::mobs::Mob",
+          "path": [
+            "mobs"
+          ],
+          "by_id": {
+            "field": "id",
+            "ty": "u32"
+          }
+        },
+        {
+          "name": "player_motion",
+          "ty": "horizon_client_lib::motion::PlayerMotion",
+          "path": [
+            "player"
+          ],
+          "optional": true
         }
       ],
       "guest_stubs": "crates/yoake-guest-sdk/src/stubs/game_items.rs"
