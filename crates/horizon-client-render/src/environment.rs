@@ -115,6 +115,71 @@ impl Track {
         std::array::from_fn(|i| from[i] + (to[i] - from[i]) * alpha)
     }
 }
+/// The timelines a dimension type lists, merged into one.
+mod timelines {
+    use serde_json::Value;
+    use std::{
+        fs,
+        path::{Path, PathBuf},
+    };
+
+    /// `data/<ns>/<kind>/<path>.json` of `id` (`ns:path`) from the packs
+    /// (the last first), then the resources.
+    fn read(root: &Path, packs: &[PathBuf], kind: &str, id: &str) -> Option<Value> {
+        let (ns, path) = id.split_once(':').unwrap_or(("minecraft", id));
+        let file = format!("data/{ns}/{kind}/{path}.json");
+        packs
+            .iter()
+            .rev()
+            .map(|p| p.join(&file))
+            .chain(std::iter::once(root.join(&file)))
+            .find_map(|p| serde_json::from_slice(&fs::read(p).ok()?).ok())
+    }
+    fn expand(root: &Path, packs: &[PathBuf], entry: &str, out: &mut Vec<String>, depth: u8) {
+        match entry.strip_prefix('#') {
+            Some(tag) if depth < 8 => {
+                if let Some(t) = read(root, packs, "tags/timeline", tag) {
+                    for v in t["values"].as_array().into_iter().flatten() {
+                        let v = v.as_str().or_else(|| v["id"].as_str());
+                        if let Some(v) = v {
+                            expand(root, packs, v, out, depth + 1);
+                        }
+                    }
+                }
+            }
+            Some(_) => {}
+            None => out.push(entry.to_owned()),
+        }
+    }
+    /// The merged timeline of a `timelines` field: the first period, every
+    /// track (a later timeline's track replaces an earlier one's).
+    pub(super) fn resolve(root: &Path, packs: &[PathBuf], spec: &Value) -> Option<Value> {
+        let mut ids = Vec::new();
+        match spec {
+            Value::String(s) => expand(root, packs, s, &mut ids, 0),
+            Value::Array(a) => {
+                for v in a.iter().filter_map(Value::as_str) {
+                    expand(root, packs, v, &mut ids, 0);
+                }
+            }
+            _ => return None,
+        }
+        let mut period = None;
+        let mut tracks = serde_json::Map::new();
+        for id in ids {
+            let Some(t) = read(root, packs, "timeline", &id) else {
+                continue;
+            };
+            period = period.or_else(|| t["period_ticks"].as_i64());
+            for (k, v) in t["tracks"].as_object().into_iter().flatten() {
+                tracks.insert(k.clone(), v.clone());
+            }
+        }
+        (!tracks.is_empty()).then(|| {
+            serde_json::json!({"period_ticks": period.unwrap_or(24000), "tracks": tracks})
+        })
+    }
+}
 pub struct Environment {
     period: i64,
     tracks: HashMap<String, Track>,
@@ -164,6 +229,24 @@ impl Environment {
         } else {
             serde_json::json!({"period_ticks": 24000, "tracks": {}})
         };
+        Self::from_timeline(&timeline, dimension)
+    }
+    /// `load_type`, but a type that lists `timelines` (a tag `#ns:name` or a
+    /// list of timeline ids) is driven by those timelines, read from the packs'
+    /// `data` folders in `packs` (later ones win) and then `root`'s; `day_cycle`
+    /// and the day timeline only when it lists none (or none can be read).
+    pub fn load_type_timelines(
+        root: &Path,
+        packs: &[std::path::PathBuf],
+        dimension: &Value,
+        day_cycle: bool,
+    ) -> Result<Self> {
+        match timelines::resolve(root, packs, &dimension["timelines"]) {
+            Some(timeline) => Self::from_timeline(&timeline, dimension),
+            None => Self::load_type(root, dimension, day_cycle),
+        }
+    }
+    fn from_timeline(timeline: &Value, dimension: &Value) -> Result<Self> {
         let mut tracks = HashMap::new();
         for (name, track) in timeline["tracks"].as_object().ok_or("invalid timeline")? {
             let easing = match &track["ease"] {
@@ -419,6 +502,49 @@ mod tests {
         root.join("data/minecraft/timeline/day.json")
             .exists()
             .then(|| Environment::load(&root).unwrap())
+    }
+
+    /// A type's own timelines (a pack's, found through a tag the pack adds to) drive
+    /// its sky; a type with none keeps the day timeline.
+    #[test]
+    fn a_types_own_timelines_drive_its_day() {
+        let dir = std::env::temp_dir().join(format!("hz-f34b-env-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let write = |path: &str, text: &str| {
+            let p = dir.join(path);
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(p, text).unwrap();
+        };
+        let root = dir.join("root");
+        let pack = dir.join("pack");
+        write(
+            "root/data/minecraft/timeline/day.json",
+            r##"{"period_ticks":24000,"tracks":{"minecraft:visual/sky_color":{"keyframes":[{"ticks":0,"value":"#ff0000"}]}}}"##,
+        );
+        write(
+            "pack/data/mypack/timeline/dusk.json",
+            r##"{"period_ticks":1000,"tracks":{"minecraft:visual/sky_color":{"keyframes":[{"ticks":0,"value":"#000000"},{"ticks":500,"value":"#ffffff"}]}}}"##,
+        );
+        write(
+            "pack/data/mypack/tags/timeline/own.json",
+            r#"{"values":["mypack:dusk"]}"#,
+        );
+        let sky = |dimension: Value, ticks| {
+            Environment::load_type_timelines(&root, &[pack.clone()], &dimension, true)
+                .unwrap()
+                .sample(ticks, None, None)
+                .sky_color
+        };
+        let own = serde_json::json!({"timelines": "#mypack:own"});
+        assert_eq!(sky(own.clone(), 0), [0.0, 0.0, 0.0]);
+        assert_eq!(sky(own, 500), [1.0, 1.0, 1.0]);
+        let listed = serde_json::json!({"timelines": ["mypack:dusk"]});
+        assert_eq!(sky(listed, 500), [1.0, 1.0, 1.0]);
+        // No timelines: the day timeline (with its track).
+        assert_eq!(sky(serde_json::json!({}), 500), [1.0, 0.0, 0.0]);
+        // Timelines nobody can read: the day timeline too.
+        assert_eq!(sky(serde_json::json!({"timelines": "#mypack:gone"}), 500), [1.0, 0.0, 0.0]);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

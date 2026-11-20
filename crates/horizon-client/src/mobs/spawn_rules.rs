@@ -614,8 +614,8 @@ impl SpawnLevel for super::MobWorld<'_> {
         self.difficulty.effective == 0.0
     }
     fn dimension(&self) -> Dimension {
-        if let Some(rule) = self.spawn_light {
-            Dimension::Level(rule)
+        if let Some(custom) = self.custom {
+            Dimension::Level(custom.spawn_light)
         } else if self.nether {
             Dimension::Nether
         } else if self.end {

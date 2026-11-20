@@ -1056,6 +1056,8 @@ struct GameLevel<'w> {
     collision: &'w BlockCollisionRegistry<'w>,
     events: &'w mut Vec<LevelEvent>,
     dimension: LevelDimension,
+    /// The rules of the level's dimension type (F3-4b).
+    type_rules: horizon_world::level::LevelRules,
     darken: i32,
     /// The environment of the level's dimension (`SUN_ANGLE`).
     environment: &'w Environment,
@@ -1876,6 +1878,9 @@ impl LevelAccess for GameLevel<'_> {
     }
     fn dimension(&self) -> LevelDimension {
         self.dimension
+    }
+    fn level_rules(&self) -> horizon_world::level::LevelRules {
+        self.type_rules
     }
     /// `Level.isUnobstructed`: the placed state's collision shape against the player.
     /// `Level.isUnobstructed(state, pos, CollisionContext.of(player))`: no
@@ -3977,6 +3982,7 @@ impl Game<'_> {
         let burn_immune = self.wears_burn_from_stepping_immunity();
         let nudge = self.closest_space_nudge();
         let blind = self.potions.effects.get("blindness").is_some();
+        let fast_lava = self.level_facts().rules.fast_lava;
         let Some(player) = self.player.as_mut() else {
             return;
         };
@@ -3998,7 +4004,7 @@ impl Game<'_> {
         player.leather_boots = leather_boots;
         player.freeze_immune = freeze_immune;
         player.burn_from_stepping_immune = burn_immune;
-        player.fluids.fast_lava = self.dim == Dim::Nether;
+        player.fluids.fast_lava = fast_lava;
     }
     fn held_slot(&self) -> usize {
         match self.hand {
@@ -4811,11 +4817,12 @@ impl Game<'_> {
             })
             .collect();
         let guest_boxes = self.lan_block_trigger_boxes();
+        let type_rules = self.level_facts().rules;
         let dimension = match self.dim {
             Dim::Overworld => LevelDimension::Overworld,
             Dim::Nether => LevelDimension::Nether,
             Dim::End => LevelDimension::End,
-            // F3-4: dimension-type query
+            // The hooks name one of the three; the rules come from the type (`type_rules`).
             _ => LevelDimension::Overworld,
         };
         let rules = self.level_rules();
@@ -4885,6 +4892,7 @@ impl Game<'_> {
             collision: self.collision,
             events: &mut self.level_events,
             dimension,
+            type_rules,
             darken,
             environment: level_facts::environment_for(self.dim, &self.level_ctxs, &self.res),
             raining: rain > 0.2,
@@ -15113,7 +15121,12 @@ impl Game<'_> {
                 };
             }
         }
-        if problem.is_none() && !(self.dim == Dim::Overworld && self.sky_darken() >= 4) {
+        let sleeps = match self.level_facts().beds.sleep {
+            level_facts::Sleep::Always => true,
+            level_facts::Sleep::WhenDark => self.sky_darken() >= 4,
+            level_facts::Sleep::Never => false,
+        };
+        if problem.is_none() && !sleeps {
             problem = Some("not_possible_now");
         }
         // Creative players skip the monster check (`!this.isCreative()`).

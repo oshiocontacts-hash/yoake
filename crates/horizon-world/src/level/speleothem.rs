@@ -263,7 +263,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let above_pos = above(root);
         let above_state = self.state(above_pos);
         let fluid = if b.is_block(above_state, b.named.mud)
-            && self.level.dimension() != super::Dimension::Nether
+            && !self.level.level_rules().water_evaporates
         {
             FluidKind::Water
         } else {

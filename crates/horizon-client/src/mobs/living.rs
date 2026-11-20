@@ -797,7 +797,7 @@ impl Mob {
         // EntityFluidInteraction.applyCurrentTo: the flow pushes the mob.
         if (self.fluids.in_water || self.fluids.in_lava) && self.pushed_by_fluid() {
             let (water, lava) = w.fluid_currents(self.bounds());
-            let lava_scale = if w.nether {
+            let lava_scale = if w.fast_lava() {
                 0.007
             } else {
                 0.0023333333333333335
@@ -1900,7 +1900,7 @@ mod tests {
                 raining: false,
                 thundering: false,
                 nether: false,
-                spawn_light: None,
+                custom: None,
                 block_tags: &items.block_tags,
                 landing: &motion.landing,
                 biomes: &biomes,
@@ -2013,7 +2013,7 @@ mod tests {
             raining: false,
             thundering: false,
             nether: false,
-            spawn_light: None,
+            custom: None,
             block_tags: &items.block_tags,
             landing: &motion.landing,
             biomes: &biomes,

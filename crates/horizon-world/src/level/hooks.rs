@@ -266,7 +266,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     }
                 }
                 Class::WetSponge => {
-                    if self.level.dimension() == super::Dimension::Nether {
+                    if self.level.level_rules().water_evaporates {
                         self.set_block_and_update(pos, b.default_of(b.named.sponge));
                         self.level_event(2009, pos, 0);
                         let pitch = (1.0 + self.random().next_float() * 0.2) * 0.7;
@@ -545,7 +545,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let b = self.b;
         if !b.data(destroyed).is(Class::Ice)
             || prevents_melting
-            || self.level.dimension() == super::Dimension::Nether
+            || self.level.level_rules().water_evaporates
         {
             return;
         }
@@ -704,7 +704,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     /// `IceBlock.melt`.
     pub(crate) fn ice_melt(&mut self, pos: BlockPos, state: BlockStateId) {
         let b = self.b;
-        let target = if self.level.dimension() == super::Dimension::Nether {
+        let target = if self.level.level_rules().water_evaporates {
             b.air()
         } else {
             b.default_of(b.named.water)
@@ -712,7 +712,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         if !self.level.allow_block_fade(pos, state, target) {
             return;
         }
-        if self.level.dimension() == super::Dimension::Nether {
+        if self.level.level_rules().water_evaporates {
             self.remove_block(pos, false);
         } else {
             self.set_block_and_update(pos, target);

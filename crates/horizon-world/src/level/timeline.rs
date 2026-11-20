@@ -27,7 +27,9 @@ pub(crate) fn box_scan_order(min: BlockPos, max: BlockPos) -> Vec<BlockPos> {
 
 impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     fn day_ticks(&self) -> Option<i64> {
-        (self.level.dimension() == Dimension::Overworld)
+        self.level
+            .level_rules()
+            .day_cycle
             .then(|| self.level.day_time().rem_euclid(24000))
     }
     /// `EnvironmentAttributes.EYEBLOSSOM_OPEN` (day timeline: open from 12600

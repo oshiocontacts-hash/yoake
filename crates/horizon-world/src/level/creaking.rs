@@ -19,7 +19,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     /// `EnvironmentAttributes.CREAKING_ACTIVE`: the overworld day timeline
     /// turns it on from 12600 to 23400.
     pub(crate) fn creaking_active(&self) -> bool {
-        self.level.dimension() == Dimension::Overworld
+        self.level.level_rules().day_cycle
             && (12600..23401).contains(&self.level.day_time().rem_euclid(24000))
     }
     /// `CreakingHeartBlock.hasRequiredLogs`: pale oak logs along the axis.

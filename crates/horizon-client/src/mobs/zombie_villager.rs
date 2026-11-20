@@ -215,7 +215,7 @@ mod tests {
             raining: false,
             thundering: false,
             nether: false,
-            spawn_light: None,
+            custom: None,
             block_tags: &items.block_tags,
             landing: &motion.landing,
             biomes: &biomes,
