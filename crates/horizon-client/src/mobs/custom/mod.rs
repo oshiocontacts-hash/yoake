@@ -18,6 +18,8 @@ pub mod persist;
 pub mod registry;
 pub mod remote;
 pub mod render_state;
+pub mod script;
+pub mod script_apply;
 pub mod spawn;
 pub mod stats;
 
@@ -340,6 +342,8 @@ pub struct CustomState {
     pub sync_out: crate::lan::mob_sync::SyncOut,
     /// The `mob-tamed` and `mob-bred` notices nobody has taken yet (F4M-4c); at most 8 are kept.
     pub notices: Vec<Notice>,
+    /// What WASM scripts keep on the mob (F4M-10).
+    pub script: script::ScriptState,
 }
 
 /// A notification a script can take (`mob-tamed`, `mob-bred`); queued like [`CustomState::events`].
@@ -379,6 +383,7 @@ impl CustomState {
             hitbox_dirty: false,
             sync_out: Default::default(),
             notices: Vec::new(),
+            script: Default::default(),
         }
     }
     /// Queues a notice for the scripts (the oldest is dropped past 8).
@@ -412,8 +417,9 @@ impl CustomState {
         if let Some(held) = self.synced.get_mut(slot)
             && *held != v
         {
-            *held = v;
+            let old = std::mem::replace(held, v.clone());
             self.synced_dirty |= 1 << slot;
+            self.script.note_change(slot, old, v);
         }
         true
     }

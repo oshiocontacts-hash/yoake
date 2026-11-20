@@ -123,6 +123,13 @@ pub fn write(tag: &mut Tag, m: &Mob) {
             }
         }
     }
+    // F4M-10: what the scripts keep with the mob (`mob-save` may replace it), opaque bytes.
+    let script_data = super::script::data_to_save(m);
+    if script_data.is_empty() {
+        yoake.remove(&"script".into());
+    } else {
+        yoake.insert("script".into(), Tag::ByteArray(script_data));
+    }
     // Attributes: the changed ones, then the saved entries of attributes the type lost.
     let saved: Vec<Tag> = match yoake.get(&"attributes".into()) {
         Some(Tag::List(l)) => l.clone(),
@@ -161,6 +168,11 @@ pub fn read(m: &mut Mob, tag: &Tag) {
     }
     if let Some(Tag::List(list)) = yoake.get("attributes") {
         state.attrs.read_nbt(list);
+    }
+    if let Some(Tag::ByteArray(bytes)) = yoake.get("script")
+        && bytes.len() <= super::script::MAX_DATA_BYTES
+    {
+        state.script.data = bytes.clone();
     }
     m.extra.owner = crate::save::uuid_from_tag(yoake.get("owner"));
     m.extra.tame = m.extra.owner.is_some();

@@ -312,11 +312,22 @@ pub fn placement_ok<L: SpawnLevel>(p: Placement, l: &L, x: i32, y: i32, z: i32) 
     }
 }
 
+/// [`placement_ok`] for a type: `placement: custom` asks the WASM guests (`mob-spawn-check`), and
+/// is false without one (F4M-10).
+fn placement_ok_for<L: SpawnLevel>(c: &CustomType, p: Placement, l: &L, x: i32, y: i32, z: i32) -> bool {
+    if p != Placement::Custom {
+        return placement_ok(p, l, x, y, z);
+    }
+    super::script::runtime()
+        .and_then(|rt| rt.mob_spawn_check(&c.id, &site_dimension(l), [x, y, z]))
+        .unwrap_or(false)
+}
+
 /// `isSpawnPositionOk` for a custom type's picked entry: any applicable rule's placement.
 pub fn position_ok<L: SpawnLevel>(c: &CustomType, entry: &SpawnEntry, l: &L, x: i32, y: i32, z: i32) -> bool {
     rules_for(c, entry)
         .iter()
-        .any(|r| placement_ok(r.placement, l, x, y, z))
+        .any(|r| placement_ok_for(c, r.placement, l, x, y, z))
 }
 
 /// `checkSpawnRules` for a custom type's picked entry: some applicable rule whose placement and
@@ -345,7 +356,7 @@ pub fn rules_ok<L: NaturalLevel, R: RandomSource>(
         distance_sqr,
     };
     for rule in rules_for(c, entry) {
-        if !placement_ok(rule.placement, l, x, y, z) {
+        if !placement_ok_for(c, rule.placement, l, x, y, z) {
             continue;
         }
         let mut dark = || reason.ignores_light() || spawn_rules::is_dark_enough(l, random, x, y, z);

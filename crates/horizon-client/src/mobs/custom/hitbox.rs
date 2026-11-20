@@ -140,6 +140,17 @@ pub fn hurt_part<'a>(
     best
 }
 
+/// The name of the part a blow's aim hit (empty for the main box or without an aim).
+pub fn hit_part_name(m: &Mob, aim: Option<Aim>) -> String {
+    let (Some(t), Some(aim)) = (&m.kind.custom, aim) else {
+        return String::new();
+    };
+    let feet = [m.position.x, m.position.y, m.position.z];
+    hurt_part(t, &m.bounds(), feet, m.yaw, aim.eye, aim.look, 64.0)
+        .and_then(|(name, _, _)| name.map(str::to_owned))
+        .unwrap_or_default()
+}
+
 /// A blow's damage after the part its aim hit (see the module).
 pub fn scale_damage(m: &Mob, amount: f32, aim: Option<Aim>) -> f32 {
     let (Some(t), Some(aim)) = (&m.kind.custom, aim) else {

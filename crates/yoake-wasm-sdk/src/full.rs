@@ -77,6 +77,18 @@ pub mod client {
         services::ime_set_cursor_area(h, w, x, y)
     }
 
+    /// The index of a bone of a custom mob type's model: what a `mob_pose` bone write names. `None`
+    /// for an unknown type or bone. Needs `service.mobs`. (Service 282.)
+    pub fn mob_bone_index(type_id: &str, name: &str) -> Result<Option<u32>, String> {
+        services::mob_bone_index(name, type_id)
+    }
+
+    /// Where a named locator of a custom mob's model is in the world, as of the last drawn pose;
+    /// `None` when the mob is not drawn or has no such locator. Needs `service.mobs`. (Service 283.)
+    pub fn mob_locator(entity: u32, name: &str) -> Result<Option<types::MobTransform>, String> {
+        services::mob_locator(entity, name)
+    }
+
     /// The stack on the cursor in the open screen, or `None` when it is empty. Needs
     /// `service.screen`. (Service 221.)
     pub fn screen_carried() -> Result<Option<types::ItemStack>, String> {
@@ -368,6 +380,105 @@ pub mod server {
         /// Removes the value; true when there was one.
         pub fn attachment_remove(id: &str, kind: &str, holder: &str) -> Result<bool, String> {
             services::attachment_remove(holder, id, kind)
+        }
+    }
+
+    /// Scripting fully custom mobs (F4M-10; the `service.mobs` permission, services 260 to 281).
+    /// Natural argument order; every call is checked host-side and answers `Err` on a bad entity,
+    /// name or value. What a call changes happens at once for the mob whose own hook is running
+    /// (a goal, `mob_tick`, `mob_hurt`...), and at the latest on another mob's next tick.
+    pub mod mobs {
+        use super::{services, types};
+
+        pub fn bool_value(v: bool) -> types::MobValue {
+            types::MobValue { kind: types::MobValueKind::Bool, bool_value: v, int_value: 0, float_value: 0.0, string_value: String::new(), vec3_value: types::Vec3 { x: 0.0, y: 0.0, z: 0.0 } }
+        }
+        pub fn int_value(v: i32) -> types::MobValue {
+            types::MobValue { kind: types::MobValueKind::Int, int_value: v, ..bool_value(false) }
+        }
+        pub fn float_value(v: f32) -> types::MobValue {
+            types::MobValue { kind: types::MobValueKind::Float, float_value: v, ..bool_value(false) }
+        }
+        pub fn string_value(v: &str) -> types::MobValue {
+            types::MobValue { kind: types::MobValueKind::String, string_value: v.to_owned(), ..bool_value(false) }
+        }
+        /// An enum tracked value, by name.
+        pub fn choice_value(v: &str) -> types::MobValue {
+            types::MobValue { kind: types::MobValueKind::Choice, string_value: v.to_owned(), ..bool_value(false) }
+        }
+
+        /// A snapshot of a mob (`None`: not loaded or not alive).
+        pub fn info(entity: u32) -> Result<Option<types::MobInfo>, String> {
+            services::mob_info_call(entity)
+        }
+        /// Spawns a mob (only from a server hook inside a native mod call). (Service 260.)
+        pub fn spawn(type_id: &str, dimension: &str, position: types::Vec3, options: types::MobSpawnOptions) -> Result<u32, String> {
+            services::mob_spawn(dimension, options, position, type_id)
+        }
+        pub fn set_synced(entity: u32, key: &str, value: types::MobValue) -> Result<(), String> {
+            services::mob_set_synced(entity, key, &value)
+        }
+        pub fn get_synced(entity: u32, key: &str) -> Result<Option<types::MobValue>, String> {
+            services::mob_get_synced(entity, key)
+        }
+        /// Plays a trigger animation by name (`controller` may be empty). False: no such trigger.
+        pub fn trigger_anim(entity: u32, controller: &str, name: &str, speed: f32) -> Result<bool, String> {
+            services::mob_trigger_anim(controller, entity, name, speed)
+        }
+        pub fn set_controller_state(entity: u32, controller: &str, state: &str) -> Result<bool, String> {
+            services::mob_set_controller_state(controller, entity, state)
+        }
+        pub fn navigate_to(entity: u32, position: types::Vec3, speed: f64) -> Result<bool, String> {
+            services::mob_navigate_to(entity, position, speed)
+        }
+        pub fn navigate_stop(entity: u32) -> Result<(), String> {
+            services::mob_navigate_stop(entity)
+        }
+        pub fn look_at(entity: u32, position: types::Vec3, yaw_speed: f32, pitch_speed: f32) -> Result<(), String> {
+            services::mob_look_at(entity, pitch_speed, position, yaw_speed)
+        }
+        pub fn jump(entity: u32) -> Result<(), String> {
+            services::mob_jump(entity)
+        }
+        /// Sets the attack target: a mob (`target`), a player (`player` UUID, wins) or none of them (clears it).
+        pub fn set_target(entity: u32, target: Option<u32>, player: Option<&str>) -> Result<bool, String> {
+            services::mob_set_target(entity, player, target)
+        }
+        pub fn attack(entity: u32, target: Option<u32>, player: Option<&str>, damage: f32, knockback: f32) -> Result<bool, String> {
+            services::mob_attack(damage, entity, knockback, player, target)
+        }
+        pub fn attribute_get(entity: u32, attribute: &str) -> Result<types::AttributeValue, String> {
+            services::mob_attribute_get(attribute, entity)
+        }
+        pub fn attribute_set_base(entity: u32, attribute: &str, value: f64) -> Result<(), String> {
+            services::mob_attribute_set_base(attribute, entity, value)
+        }
+        pub fn attribute_add_modifier(entity: u32, attribute: &str, modifier: &str, operation: types::AttributeOperation, amount: f64) -> Result<(), String> {
+            services::mob_attribute_add_modifier(amount, attribute, entity, modifier, operation)
+        }
+        pub fn attribute_remove_modifier(entity: u32, attribute: &str, modifier: &str) -> Result<bool, String> {
+            services::mob_attribute_remove_modifier(attribute, entity, modifier)
+        }
+        pub fn set_hitbox_enabled(entity: u32, name: &str, enabled: bool) -> Result<(), String> {
+            services::mob_set_hitbox_enabled(enabled, entity, name)
+        }
+        /// The mob's script data bytes (saved with it, at most 64 KiB).
+        pub fn data_get(entity: u32) -> Result<Vec<u8>, String> {
+            services::mob_data_get(entity)
+        }
+        pub fn data_put(entity: u32, data: &[u8]) -> Result<(), String> {
+            services::mob_data_put(data, entity)
+        }
+        pub fn despawn(entity: u32) -> Result<bool, String> {
+            services::mob_despawn(entity)
+        }
+        /// Takes (true) or gives back (false) the mob: its own movement goals stop while claimed.
+        pub fn claim_control(entity: u32, claim: bool) -> Result<(), String> {
+            services::mob_claim_control(claim, entity)
+        }
+        /// Adds a velocity (blocks per tick) for a leap or a push. (Service 281.)
+        pub fn impulse(entity: u32, velocity: types::Vec3) -> Result<(), String> {
+            services::mob_impulse(entity, velocity)
         }
     }
 }

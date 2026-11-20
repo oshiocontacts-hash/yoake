@@ -843,6 +843,56 @@ interface engine-types {
         xp: s32,
     }
 
+    record mob-bone-write {
+        bone: u32,
+        additive: bool,
+        translation: option<script-vec3>,
+        rotation-degrees: option<script-vec3>,
+        scale: option<script-vec3>,
+        visible: option<bool>,
+    }
+
+    record mob-hurt-outcome {
+        /// The new `amount`, or none to leave it unchanged.
+        amount: option<f32>,
+        /// The new `cancel`, or none to leave it unchanged.
+        cancel: option<bool>,
+    }
+
+    record mob-interact-outcome {
+        /// The new `reply`, or none to leave it unchanged.
+        reply: option<string>,
+    }
+
+    record mob-pose-frame {
+        time: f32,
+        partial: f32,
+        ground-speed: f32,
+        head-yaw: f32,
+        head-pitch: f32,
+        on-ground: bool,
+        target: option<script-vec3>,
+    }
+
+    record mob-pose-outcome {
+        /// The new `writes`, or none to leave it unchanged.
+        writes: option<list<mob-bone-write>>,
+    }
+
+    record mob-save-outcome {
+        /// The new `data`, or none to leave it unchanged.
+        data: option<list<u8>>,
+    }
+
+    variant mob-script-value {
+        %bool(bool),
+        int(s32),
+        float(f32),
+        text(string),
+        vec3(script-vec3),
+        choice(string),
+    }
+
     record mob-split-outcome {
         cancel: bool,
         /// The new `count`, or none to leave it unchanged.
@@ -1544,6 +1594,12 @@ interface engine-types {
         overlay: bool,
     }
 
+    record script-vec3 {
+        x: f32,
+        y: f32,
+        z: f32,
+    }
+
     record server-chat-outcome {
         cancel: bool,
         /// The new `message`, or none to leave it unchanged.
@@ -1717,6 +1773,15 @@ interface server-types {
         clear,
     }
 
+    enum mob-value-kind {
+        %bool,
+        int,
+        float,
+        %string,
+        vec3,
+        choice,
+    }
+
     enum storage-scope {
         %world,
         global,
@@ -1877,6 +1942,44 @@ interface server-types {
         z: f64,
     }
 
+    record mob-info {
+        age: s32,
+        alive: bool,
+        baby: bool,
+        controlled: bool,
+        dimension: string,
+        handle: u32,
+        health: f32,
+        max-health: f32,
+        on-ground: bool,
+        owner: option<string>,
+        pitch: f32,
+        position: vec3,
+        sitting: bool,
+        target: option<u32>,
+        target-player: option<string>,
+        target-position: option<vec3>,
+        target-visible: bool,
+        type-id: string,
+        velocity: vec3,
+        yaw: f32,
+    }
+
+    record mob-spawn-options {
+        baby: bool,
+        persistent: bool,
+        yaw: f32,
+    }
+
+    record mob-value {
+        bool-value: bool,
+        float-value: f32,
+        int-value: s32,
+        kind: mob-value-kind,
+        string-value: string,
+        vec3-value: vec3,
+    }
+
     record particle-request {
         count: u32,
         particle: string,
@@ -1959,7 +2062,7 @@ interface server-types {
 
 /// Services listed in `abi-subset-server.json`.
 interface server-services {
-    use server-types.{attribute-operation, config-value-kind, damage-kind, inventory-operation, storage-scope, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, config-value, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, particle-request, player, player-inventory-slot, player-motion, ray-hit, team-change, tool-requirement, vec3, world-border-state, world-control-change};
+    use server-types.{attribute-operation, config-value-kind, damage-kind, inventory-operation, mob-value-kind, storage-scope, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, config-value, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, mob-info, mob-spawn-options, mob-value, particle-request, player, player-inventory-slot, player-motion, ray-hit, team-change, tool-requirement, vec3, world-border-state, world-control-change};
 
     acting-player: func() -> option<player>;
     held: func() -> option<item-stack>;
@@ -2062,6 +2165,28 @@ interface server-services {
     storage-blob-abort: func(id: u64) -> result<bool, string>;
     storage-blob-read: func(key: string, length: u32, offset: u64, scope: storage-scope) -> result<list<u8>, string>;
     player-set-food: func(food: s32, player: string, saturation: f32) -> result<_, string>;
+    mob-spawn: func(dimension: string, options: mob-spawn-options, position: vec3, type-id: string) -> result<u32, string>;
+    mob-info-call: func(entity: u32) -> result<option<mob-info>, string>;
+    mob-set-synced: func(entity: u32, key: string, value: mob-value) -> result<_, string>;
+    mob-get-synced: func(entity: u32, key: string) -> result<option<mob-value>, string>;
+    mob-trigger-anim: func(controller: string, entity: u32, name: string, speed: f32) -> result<bool, string>;
+    mob-set-controller-state: func(controller: string, entity: u32, state: string) -> result<bool, string>;
+    mob-navigate-to: func(entity: u32, position: vec3, speed: f64) -> result<bool, string>;
+    mob-navigate-stop: func(entity: u32) -> result<_, string>;
+    mob-look-at: func(entity: u32, pitch-speed: f32, position: vec3, yaw-speed: f32) -> result<_, string>;
+    mob-jump: func(entity: u32) -> result<_, string>;
+    mob-set-target: func(entity: u32, player: option<string>, target: option<u32>) -> result<bool, string>;
+    mob-attack: func(damage: f32, entity: u32, knockback: f32, player: option<string>, target: option<u32>) -> result<bool, string>;
+    mob-attribute-get: func(attribute: string, entity: u32) -> result<attribute-value, string>;
+    mob-attribute-set-base: func(attribute: string, entity: u32, value: f64) -> result<_, string>;
+    mob-attribute-add-modifier: func(amount: f64, attribute: string, entity: u32, modifier: string, operation: attribute-operation) -> result<_, string>;
+    mob-attribute-remove-modifier: func(attribute: string, entity: u32, modifier: string) -> result<bool, string>;
+    mob-set-hitbox-enabled: func(enabled: bool, entity: u32, name: string) -> result<_, string>;
+    mob-data-get: func(entity: u32) -> result<list<u8>, string>;
+    mob-data-put: func(data: list<u8>, entity: u32) -> result<_, string>;
+    mob-despawn: func(entity: u32) -> result<bool, string>;
+    mob-claim-control: func(claim: bool, entity: u32) -> result<_, string>;
+    mob-impulse: func(entity: u32, velocity: vec3) -> result<_, string>;
     level-register-type: func(id: string, type-json: string) -> result<_, string>;
     level-register: func(id: string, stem-json: string) -> result<_, string>;
     level-create: func(id: string, persistent: bool, stem-json: string) -> result<_, string>;
@@ -2149,6 +2274,12 @@ interface client-types {
         height: list<s16>,
     }
 
+    record mob-transform {
+        pitch: f32,
+        position: vec3,
+        yaw: f32,
+    }
+
     record pcm-anchor {
         entity: option<u32>,
         position: option<vec3>,
@@ -2181,7 +2312,7 @@ interface client-types {
 
 /// Services listed in `abi-subset-client.json`.
 interface client-services {
-    use client-types.{hud-corner, hud-corner-v2, box2, camera-override, camera-state, item-stack, key-state, map-entity, map-player, map-tile, pcm-anchor, slot-rect, vec2, vec3, view-hit};
+    use client-types.{hud-corner, hud-corner-v2, box2, camera-override, camera-state, item-stack, key-state, map-entity, map-player, map-tile, mob-transform, pcm-anchor, slot-rect, vec2, vec3, view-hit};
 
     use hud.{gui-texture};
 
@@ -2237,6 +2368,8 @@ interface client-services {
     play-local-sound: func(pitch: f32, sound-id: string, volume: f32) -> result<_, string>;
     play-local-sound-at: func(pitch: f32, position: vec3, sound-id: string, volume: f32) -> result<_, string>;
     gui-texture-id: func(texture: borrow<gui-texture>) -> result<string, string>;
+    mob-bone-index: func(name: string, type-id: string) -> result<option<u32>, string>;
+    mob-locator: func(entity: u32, name: string) -> result<option<mob-transform>, string>;
     config-get: func(key: string) -> result<config-value, string>;
     config-set: func(key: string, value: config-value) -> result<_, string>;
     storage-get: func(key: string, scope: storage-scope) -> result<option<list<u8>>, string>;
@@ -2495,7 +2628,7 @@ interface media-services {
 
 /// Hooks that run in the client.
 interface client-hooks {
-    use engine-types.{apply-effect-tick-outcome, biome-colors-outcome, biome-colors-type, block-entity-tick-outcome, block-entity-ticks-outcome, camera-distance-outcome, camera-entity, camera-override-type, camera-shake-outcome, can-eat-outcome, compute-fog-color-outcome, compute-fov-modifier-outcome, compute-fov-outcome, corner-command, critical-hit-outcome, fixed-frame-type, fog-data, fog-type, fov-player, frame-advance, frame-command, framerate-limit-outcome, gui-draw, gui-layer-pre-outcome, hand, health-inputs, hud-command, hud-outcome, ingredient-test-outcome, interaction-key-outcome, inventory-background-pre-outcome, inventory-screen-layout-outcome, item-bar-outcome, item-energy-buffer-type, item-model-context, item-model-property-outcome, item-render-outcome, item-slot-cooldown-outcome, item-stack, json, key-event, living-entity-use-item-start-outcome, living-entity-use-item-tick-outcome, living-fall-outcome, living-heal-outcome, living-incoming-damage-outcome, living-knockback-outcome, menu-button-outcome, menu-button-v2-outcome, mob-submit-outcome, mod-block-entity-fields, mod-container, mod-fluid-tanks, model-command, mouse-buttons-outcome, mouse-buttons-type, movement-input-outcome, music-layer, music-outcome, music-type, name-tag-line, native-block-behavior, native-block-rim, native-capability-provider, native-colored-light, native-command, native-fluid-definition, native-inventory-layout, native-item-behavior, native-item-context, native-item-holder, native-item-render-context, native-lifecycle-context, native-loot-drops, native-map-decoration, native-map-info, native-menu-behavior, native-minimap, native-mob-render, native-mod, native-panel-event, native-player-render, native-recipe-type, native-screen, native-screen-view, native-server-player, native-shake, native-zoom, nbt, net-frame-received-type, net-frames-listened-outcome, player-submit-outcome, recipe-book-categories-outcome, recipe-book-category, release-using-outcome, render-fog-outcome, render-hand-pose-outcome, render-name-tag-outcome, render-name-tag-position-outcome, render-needs-type, server-tick-phase, shader-params-outcome, should-apply-effect-tick-this-tick-outcome, stack-view, text-json, tooltip-color-outcome, use-animation-outcome, use-animation-type, use-duration-outcome, visuals-outcome, world-phase};
+    use engine-types.{apply-effect-tick-outcome, biome-colors-outcome, biome-colors-type, block-entity-tick-outcome, block-entity-ticks-outcome, camera-distance-outcome, camera-entity, camera-override-type, camera-shake-outcome, can-eat-outcome, compute-fog-color-outcome, compute-fov-modifier-outcome, compute-fov-outcome, corner-command, critical-hit-outcome, fixed-frame-type, fog-data, fog-type, fov-player, frame-advance, frame-command, framerate-limit-outcome, gui-draw, gui-layer-pre-outcome, hand, health-inputs, hud-command, hud-outcome, ingredient-test-outcome, interaction-key-outcome, inventory-background-pre-outcome, inventory-screen-layout-outcome, item-bar-outcome, item-energy-buffer-type, item-model-context, item-model-property-outcome, item-render-outcome, item-slot-cooldown-outcome, item-stack, json, key-event, living-entity-use-item-start-outcome, living-entity-use-item-tick-outcome, living-fall-outcome, living-heal-outcome, living-incoming-damage-outcome, living-knockback-outcome, menu-button-outcome, menu-button-v2-outcome, mob-bone-write, mob-pose-frame, mob-pose-outcome, mob-script-value, mob-submit-outcome, mod-block-entity-fields, mod-container, mod-fluid-tanks, model-command, mouse-buttons-outcome, mouse-buttons-type, movement-input-outcome, music-layer, music-outcome, music-type, name-tag-line, native-block-behavior, native-block-rim, native-capability-provider, native-colored-light, native-command, native-fluid-definition, native-inventory-layout, native-item-behavior, native-item-context, native-item-holder, native-item-render-context, native-lifecycle-context, native-loot-drops, native-map-decoration, native-map-info, native-menu-behavior, native-minimap, native-mob-render, native-mod, native-panel-event, native-player-render, native-recipe-type, native-screen, native-screen-view, native-server-player, native-shake, native-zoom, nbt, net-frame-received-type, net-frames-listened-outcome, player-submit-outcome, recipe-book-categories-outcome, recipe-book-category, release-using-outcome, render-fog-outcome, render-hand-pose-outcome, render-name-tag-outcome, render-name-tag-position-outcome, render-needs-type, server-tick-phase, shader-params-outcome, should-apply-effect-tick-this-tick-outcome, stack-view, text-json, tooltip-color-outcome, use-animation-outcome, use-animation-type, use-duration-outcome, visuals-outcome, world-phase};
 
     use server-types.{config-value};
     config-changed: func(key: string, value: config-value);
@@ -3868,6 +4001,15 @@ interface client-hooks {
     ///
     /// Collect: `stacks` is the aggregate so far; return the aggregate you want.
     equipment-render-stacks: func(stacks: list<item-stack>) -> list<item-stack>;
+    /// A custom mob of a type with `model.procedural_script` is about to be posed (inside the LOD
+    /// range): the script appends bone writes to `writes`. Client-side.
+    ///
+    /// Also returns the changed values of `writes`.
+    mob-pose: func(mob: u32, kind: string, frame: mob-pose-frame, writes: list<mob-bone-write>) -> mob-pose-outcome;
+    /// A client timeline event `name` of a custom mob's animation fired. Client-side.
+    mob-anim-event-client: func(mob: u32, name: string);
+    /// A tracked value `key` of a custom mob changed as this client sees it. Client-side.
+    synced-changed-client: func(mob: u32, key: string, old: mob-script-value, new: mob-script-value);
     /// Custom fluid families, collected before loading world and render tables. @API:fluids@.
     ///
     /// Collect: `fluids` is the aggregate so far; return the aggregate you want.
@@ -4120,7 +4262,7 @@ interface client-hooks {
 
 /// Hooks that run in the server (integrated or dedicated).
 interface server-hooks {
-    use engine-types.{anvil-craft, apply-effect-tick-outcome, arrow-loose-outcome, block-entity-tick-outcome, block-entity-ticks-outcome, block-exp-outcome, block-pos, block-signal-outcome, broadcast-message-outcome, camera-shake-outcome, can-eat-outcome, can-player-sleep-outcome, chorus-fruit-teleport-outcome, critical-hit-outcome, direction, ender-pearl-teleport-outcome, experience-orb-can-merge-outcome, experience-orb-pickup-outcome, food-level-changed-outcome, gui-draw, hand, health-inputs, hud-command, is-signal-source-outcome, item-bar-outcome, item-damaged-outcome, item-energy-buffer-type, item-expire-outcome, item-stack, json, level-dimension, living-breathe-outcome, living-drown-outcome, living-entity-use-item-finish-outcome, living-entity-use-item-start-outcome, living-entity-use-item-tick-outcome, living-fall-outcome, living-heal-outcome, living-incoming-damage-outcome, living-incoming-damage-v2-outcome, living-knockback-outcome, living-knockback-v2-outcome, loot-stack, mending-repair-outcome, menu-button-outcome, menu-button-v2-outcome, menu-quick-move-outcome, menu-slot-rules-outcome, merchant-offer, mob-split-outcome, mod-block-entity-fields, mod-container, mod-energy-buffer, mod-fluid-tanks, model-command, native-block-behavior, native-block-rim, native-capability-provider, native-chat-recipients, native-colored-light, native-command, native-data-map-type, native-fluid-definition, native-item-behavior, native-lifecycle-context, native-loot-context, native-loot-drops, native-menu-behavior, native-minimap, native-mod, native-note-block-change, native-panel-event, native-recipe-type, native-screen, native-screen-view, native-server-player, native-shake, native-zoom, nbt, note-block-change-outcome, placement-context, player-command-outcome, player-exp-change-outcome, player-login-outcome, player-permission-level-outcome, player-xp-change-outcome, potential-spawns-outcome, prepare-anvil-outcome, prepare-item-enchant-outcome, recipe-book-categories-outcome, recipe-book-category, release-using-outcome, server-chat-outcome, server-tick-phase, shader-params-outcome, should-apply-effect-tick-this-tick-outcome, sign-changed-outcome, sleep-finished-time-outcome, spawn-entry, suggestion, text-json, use-duration-outcome, vehicle-damage-outcome, visuals-outcome, world-phase};
+    use engine-types.{anvil-craft, apply-effect-tick-outcome, arrow-loose-outcome, block-entity-tick-outcome, block-entity-ticks-outcome, block-exp-outcome, block-pos, block-signal-outcome, broadcast-message-outcome, camera-shake-outcome, can-eat-outcome, can-player-sleep-outcome, chorus-fruit-teleport-outcome, critical-hit-outcome, direction, ender-pearl-teleport-outcome, experience-orb-can-merge-outcome, experience-orb-pickup-outcome, food-level-changed-outcome, gui-draw, hand, health-inputs, hud-command, is-signal-source-outcome, item-bar-outcome, item-damaged-outcome, item-energy-buffer-type, item-expire-outcome, item-stack, json, level-dimension, living-breathe-outcome, living-drown-outcome, living-entity-use-item-finish-outcome, living-entity-use-item-start-outcome, living-entity-use-item-tick-outcome, living-fall-outcome, living-heal-outcome, living-incoming-damage-outcome, living-incoming-damage-v2-outcome, living-knockback-outcome, living-knockback-v2-outcome, loot-stack, mending-repair-outcome, menu-button-outcome, menu-button-v2-outcome, menu-quick-move-outcome, menu-slot-rules-outcome, merchant-offer, mob-hurt-outcome, mob-interact-outcome, mob-save-outcome, mob-script-value, mob-split-outcome, mod-block-entity-fields, mod-container, mod-energy-buffer, mod-fluid-tanks, model-command, native-block-behavior, native-block-rim, native-capability-provider, native-chat-recipients, native-colored-light, native-command, native-data-map-type, native-fluid-definition, native-item-behavior, native-lifecycle-context, native-loot-context, native-loot-drops, native-menu-behavior, native-minimap, native-mod, native-note-block-change, native-panel-event, native-recipe-type, native-screen, native-screen-view, native-server-player, native-shake, native-zoom, nbt, note-block-change-outcome, placement-context, player-command-outcome, player-exp-change-outcome, player-login-outcome, player-permission-level-outcome, player-xp-change-outcome, potential-spawns-outcome, prepare-anvil-outcome, prepare-item-enchant-outcome, recipe-book-categories-outcome, recipe-book-category, release-using-outcome, server-chat-outcome, server-tick-phase, shader-params-outcome, should-apply-effect-tick-this-tick-outcome, sign-changed-outcome, sleep-finished-time-outcome, spawn-entry, suggestion, text-json, use-duration-outcome, vehicle-damage-outcome, visuals-outcome, world-phase};
 
     use server-types.{config-value};
     config-changed: func(key: string, value: config-value);
@@ -6897,6 +7039,57 @@ interface server-hooks {
     ///
     /// Collect: `knockback-velocity` is the aggregate so far; return the aggregate you want.
     explosion-knockback: func(dimension: string, center: list<f64>, blocks: list<list<s32>>, entity: option<u32>, knockback-velocity: list<f64>) -> list<f64>;
+    /// A custom mob's script goal `goal` asks whether it can start. Server-side.
+    /// API @API:mob_goal_can_use@.
+    ///
+    /// Returns true to cancel (take) the event; the first mod that cancels wins.
+    mob-goal-can-use: func(mob: u32, goal: string) -> bool;
+    /// A running script goal asks whether it goes on. Server-side.
+    ///
+    /// Returns true to cancel (take) the event; the first mod that cancels wins.
+    mob-goal-can-continue: func(mob: u32, goal: string) -> bool;
+    /// A script goal starts. Server-side.
+    mob-goal-start: func(mob: u32, goal: string);
+    /// A running script goal ticks. Server-side.
+    mob-goal-tick: func(mob: u32, goal: string);
+    /// A script goal stops. Server-side.
+    mob-goal-stop: func(mob: u32, goal: string);
+    /// A custom mob ticks. Server-side.
+    mob-tick: func(mob: u32);
+    /// A type with `placement: custom` asks whether it may spawn at `pos`. Server-side.
+    ///
+    /// Returns true to cancel (take) the event; the first mod that cancels wins.
+    mob-spawn-check: func(kind: string, dimension: string, pos: list<s32>) -> bool;
+    /// A custom mob entered the world; `reason` is `natural`, `egg`, `command`, `script`, `breeding`
+    /// or `load`. Server-side.
+    custom-mob-spawned: func(mob: u32, kind: string, reason: string);
+    /// A custom mob is hurt at hitbox part `part` (empty: the main box) by `source` (a damage type
+    /// id) for `amount`; the script may change `amount` or set `cancel`. Server-side.
+    ///
+    /// Also returns the changed values of `amount`, `cancel`.
+    mob-hurt: func(mob: u32, part: string, source: string, amount: f32, cancel: bool) -> mob-hurt-outcome;
+    /// A custom mob died; `attacker` is the mob or 0. Server-side.
+    mob-died: func(mob: u32, kind: string, attacker: u32);
+    /// A player (UUID `player`) used `item` (empty: the hand) with `hand` (`main` or `off`) on a
+    /// custom mob. Set `reply` to `consume` or `success` to handle it; empty passes. Server-side.
+    ///
+    /// Also returns the changed values of `reply`.
+    mob-interact: func(mob: u32, player: string, hand: string, item: string, reply: string) -> mob-interact-outcome;
+    /// A server timeline event `name` of a custom mob's animation. Server-side.
+    mob-anim-event: func(mob: u32, name: string);
+    /// A custom mob was loaded; `data` is the script data it was saved with. Server-side.
+    mob-load: func(mob: u32, data: list<u8>);
+    /// A custom mob is about to be saved; the script may replace `data`. Server-side.
+    ///
+    /// Also returns the changed values of `data`.
+    mob-save: func(mob: u32, data: list<u8>) -> mob-save-outcome;
+    /// A custom mob was tamed by the player with UUID `owner`. Server-side.
+    mob-tamed: func(mob: u32, owner: string);
+    /// A custom mob bred with `partner` (0: unknown); `child` is the baby (0 until it exists).
+    /// Server-side.
+    mob-bred: func(mob: u32, partner: u32, child: u32);
+    /// A tracked value `key` of a custom mob changed on the server. Server-side.
+    synced-changed-server: func(mob: u32, key: string, old: mob-script-value, new: mob-script-value);
     /// Custom fluid families, collected before loading world and render tables. @API:fluids@.
     ///
     /// Collect: `fluids` is the aggregate so far; return the aggregate you want.

@@ -150,6 +150,23 @@ fn anchor(value: ct::PcmAnchor) -> Result<NativeStreamAnchor, String> {
 }
 
 impl ClientServices for GameHost {
+
+    fn mob_bone_index(&mut self, name: String, type_id: String) -> Result<Option<u32>, String> {
+        super::mob_services::gate(super::mob_services::granted(&self.id))?;
+        if name.len() > 128 || type_id.len() > 128 {
+            return Err("names are at most 128 characters".into());
+        }
+        Ok(crate::mobs::custom::script::bone_index(&type_id, &name))
+    }
+
+    fn mob_locator(&mut self, entity: u32, name: String) -> Result<Option<ct::MobTransform>, String> {
+        super::mob_services::gate(super::mob_services::granted(&self.id))?;
+        Ok(crate::mobs::custom::script::locator(entity, &name).map(|p| ct::MobTransform {
+            position: ct::Vec3 { x: p.position[0], y: p.position[1], z: p.position[2] },
+            yaw: p.yaw,
+            pitch: p.pitch,
+        }))
+    }
     fn register_key_binding(
         &mut self,
         category: String,

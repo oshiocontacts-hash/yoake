@@ -414,10 +414,10 @@ fn dying_ticks(t: &Arc<CustomType>) -> (i32, i32) {
 }
 
 #[test]
-fn a_dying_mob_stays_until_its_death_animation_ends_with_a_cap_of_60_ticks() {
-    // 0.6 s: 12 ticks (shorter than the engine's 20: removed when the animation is over).
-    assert_eq!(fox_with_death(Some(0.6)).death_ticks(), Some(12));
-    assert_eq!(dying_ticks(&fox_with_death(Some(0.6))).0, 12);
+fn a_dying_mob_stays_until_its_death_animation_ends_with_a_range_of_20_to_60_ticks() {
+    // 0.6 s: clamped up to the engine's 20 ticks (the animation holds its last pose).
+    assert_eq!(fox_with_death(Some(0.6)).death_ticks(), Some(20));
+    assert_eq!(dying_ticks(&fox_with_death(Some(0.6))).0, 20);
     // 1.5 s: 30 ticks, longer than the vanilla 20.
     let t = fox_with_death(Some(1.5));
     assert_eq!(t.death_ticks(), Some(30));

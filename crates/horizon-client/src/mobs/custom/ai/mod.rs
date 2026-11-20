@@ -36,6 +36,7 @@ pub mod goals;
 pub mod interact;
 pub mod nav_select;
 pub mod rest;
+pub mod script_goal;
 pub mod riding;
 pub mod tame;
 pub mod targets;
@@ -65,7 +66,7 @@ pub fn support(kind: &str) -> Support {
         | "nearest_attackable" => Target,
         "follow_owner" | "sit" | "breed" | "follow_parent" => Goal,
         "owner_hurt_target" | "owner_hurt_by" | "owner_target" => Target,
-        "script" => Deferred("F4M-10: script goals"),
+        "script" => Goal,
         _ => Deferred("unknown goal type"),
     }
 }
@@ -93,6 +94,7 @@ pub fn attach(m: &mut Mob, t: &CustomType) {
             || attacks::add(m, g)
             || rest::add(m, t, g)
             || blocks::add(m, g)
+            || script_goal::add(m, t, g)
             || tame::add(m, g)
             || breed::add(m, t, g)
             || targets::add(m, g);
@@ -217,3 +219,5 @@ pub(crate) mod test_support;
 mod tests;
 #[cfg(test)]
 mod tests_4c;
+#[cfg(test)]
+mod tests_script;

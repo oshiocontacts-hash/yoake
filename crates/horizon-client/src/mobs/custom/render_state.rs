@@ -174,6 +174,8 @@ pub struct TypeRender {
     pub shadow: Option<(f32, f32)>,
     pub scale: f32,
     pub procedural: Option<ProceduralSet>,
+    /// `model.procedural_script`: the type's `mob-pose` script writes bones (F4M-10).
+    pub script_pose: bool,
     /// Bones whose name ends in [`LOD_MIN_SUFFIX`].
     pub lod_min: Vec<bool>,
     /// The bones `low_bones` evaluates: everything but `lod_min` bones (with all ancestors).
@@ -310,6 +312,7 @@ impl TypeRender {
             shadow: m.shadow.as_ref().map(|s| (s.radius as f32, s.strength as f32)),
             scale: m.scale as f32,
             procedural,
+            script_pose: m.procedural_script,
             lod_min,
             low_needed,
             rest_matrices,
@@ -602,7 +605,7 @@ impl MobRender {
     }
 
     /// Whether the pose is evaluated this frame at `lod`.
-    fn due(&self, lod: LodMode, frame: u64, id: u32) -> bool {
+    pub fn due(&self, lod: LodMode, frame: u64, id: u32) -> bool {
         let stagger = |period: u64| (frame + u64::from(id)) % period == 0;
         match lod {
             LodMode::Full | LodMode::LowBones => true,
@@ -743,6 +746,11 @@ struct Memo {
 }
 
 impl LocalMirror {
+    /// The `synced-changed` notifications of the mirrored mobs since the last call.
+    pub fn take_changes(&mut self) -> Vec<super::remote::SyncedChanged> {
+        self.store.take_changes()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.store.is_empty() && self.memo.is_empty()
     }
@@ -1608,8 +1616,8 @@ mod tests {
     fn a_death_animation_replaces_the_tilt_and_holds_its_last_pose() {
         let ct = fox();
         let ta = ct.anim.as_ref().unwrap();
-        // The fixture's death is 0.6 s: 12 ticks. Alive or without the animation there is no clock.
-        assert_eq!(ct.death_ticks(), Some(12));
+        // The fixture's death is 0.6 s: 12 ticks, kept 20. Alive or without the animation there is no clock.
+        assert_eq!(ct.death_ticks(), Some(20));
         assert_eq!(death_clock(ta, 0.0, 0.5), None);
         assert_eq!(death_clock(ta, 1.0, 0.0), Some(0.0));
         assert!((death_clock(ta, 7.0, 0.5).unwrap() - 6.5 * TICK_SECONDS).abs() < 1e-6);
@@ -1819,6 +1827,31 @@ mod tests {
         assert!(!mr.visibility.is_visible(ear));
         let moved = mr.matrices[ear].w_axis.y - MobRender::new(tr).matrices[ear].w_axis.y;
         assert!(moved > 3.0, "{moved}");
+    }
+
+    #[test]
+    fn mob_pose_writes_of_a_script_move_and_hide_bones_and_only_a_flagged_type_asks() {
+        use crate::mobs::custom::script::{MobBoneWrite, ScriptVec3, bone_writes};
+        let plain = fox();
+        assert!(!plain.render.as_ref().unwrap().script_pose, "the fixture does not ask for scripts");
+        let (ct, _) = fox_with(true, |v| v["model"]["procedural_script"] = serde_json::json!(true), |_| {});
+        let tr = ct.render.as_ref().unwrap();
+        assert!(tr.script_pose);
+        let ear = tr.skeleton.find("ear_l").unwrap().index();
+        let listed = vec![
+            MobBoneWrite { bone: ear as u32, additive: true, translation: Some(ScriptVec3 { x: 0.0, y: 4.0, z: 0.0 }), visible: Some(false), ..Default::default() },
+            MobBoneWrite { bone: 9999, ..Default::default() },
+        ];
+        let mut mr = MobRender::new(tr);
+        mr.writes = bone_writes(&listed, tr.skeleton.len());
+        assert_eq!(mr.writes.len(), 1, "a bone the model lacks is dropped");
+        mr.update(&ct, tr, None, &context(0, 0, LodMode::Full));
+        assert!(!mr.visibility.is_visible(ear));
+        assert!(mr.matrices[ear].w_axis.y - MobRender::new(tr).matrices[ear].w_axis.y > 3.0);
+        // The pose is only asked for when it is evaluated: `due` is false for a held LOD frame.
+        assert!(mr.due(LodMode::Full, 5, 1));
+        assert!(!mr.due(LodMode::Static, 5, 1));
+        assert!(!mr.due(LodMode::Hidden, 5, 1));
     }
 
     // ----- client events -----------------------------------------------------------------------

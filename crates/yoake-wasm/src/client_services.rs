@@ -136,4 +136,6 @@ client_services! {
     local_player_stacks() -> Vec<ItemStack>;
     play_local_sound(pitch: f32, sound_id: String, volume: f32) -> ();
     play_local_sound_at(pitch: f32, position: Vec3, sound_id: String, volume: f32) -> ();
+    mob_bone_index(name: String, type_id: String) -> Option<u32>;
+    mob_locator(entity: u32, name: String) -> Option<MobTransform>;
 }

@@ -20,6 +20,10 @@ mod dev_shaders;
 mod full;
 #[path = "wasm_mods/gpu_services.rs"]
 mod gpu_services;
+#[path = "wasm_mods/mob_services.rs"]
+mod mob_services;
+#[path = "wasm_mods/mob_runtime.rs"]
+mod mob_runtime;
 #[path = "wasm_mods/media_services.rs"]
 mod media_services;
 #[path = "wasm_mods/package.rs"]
@@ -473,6 +477,9 @@ pub(super) fn extend(
                 }
             }
         } else if source.full {
+            if source.permissions.iter().any(|p| p == "service.mobs") {
+                mob_services::grant(&source.id);
+            }
             // FR-MEDIA1: the browser services answer only packages that asked for them.
             media_services::grant(
                 &source.id,
@@ -611,6 +618,9 @@ pub(super) fn extend(
                 }
             }
         } else {
+            if server.permissions.iter().any(|p| p == "service.mobs") {
+                mob_services::grant(&server.mod_id);
+            }
             let source =
                 full::ServerSource::new(&server.mod_id, server.bytes.clone(), server.commands);
             match full::load_server(&source.module()) {
