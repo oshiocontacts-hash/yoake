@@ -121,7 +121,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             });
         }
         let water = matches!(fluid, FluidKind::Water | FluidKind::FlowingWater);
-        if water && self.level.dimension() == Dimension::Nether {
+        if water && self.level.level_rules().water_evaporates {
             // WATER_EVAPORATES: the water hisses away.
             let pitch = 2.6 + (self.random().next_float() - self.random().next_float()) * 0.8;
             self.emit(super::LevelEvent::Sound {

@@ -10,7 +10,8 @@
 use super::{Dim, Game, Resources};
 use std::collections::HashMap;
 use horizon_client::environment::Environment;
-use horizon_client::mobs::spawn_rules::LightRule;
+use horizon_client::mobs::{CustomLevel, spawn_rules::LightRule};
+use horizon_world::level::LevelRules;
 use horizon_world::dimension::{DimensionType, IntProvider};
 use horizon_world::nbt::Tag;
 use serde_json::Value;
@@ -26,8 +27,77 @@ pub(super) enum SkyKind {
     None,
 }
 
+/// `BedRule.canSleep`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Sleep {
+    Always,
+    WhenDark,
+    Never,
+}
+
+/// The `bed_rule` and `straw_bed_rule` attributes and the respawn anchor
+/// rule of a level.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct BedRules {
+    pub sleep: Sleep,
+    pub sets_spawn: bool,
+    pub destroy_on_use: bool,
+    pub straw_sets_spawn: bool,
+    pub straw_destroy_on_leave: bool,
+    /// `gameplay/respawn_anchor_works`.
+    pub anchor_works: bool,
+}
+impl BedRules {
+    const OVERWORLD: Self = Self {
+        sleep: Sleep::WhenDark,
+        sets_spawn: true,
+        destroy_on_use: false,
+        straw_sets_spawn: false,
+        straw_destroy_on_leave: true,
+        anchor_works: false,
+    };
+    const NETHER: Self = Self {
+        sleep: Sleep::Never,
+        sets_spawn: false,
+        destroy_on_use: true,
+        straw_sets_spawn: false,
+        straw_destroy_on_leave: false,
+        anchor_works: true,
+    };
+    const END: Self = Self {
+        anchor_works: false,
+        ..Self::NETHER
+    };
+    /// The rules of a type. A rule the type leaves out is the attribute's default:
+    /// sleep when dark, set the spawn, no destroying (the straw bed the same).
+    fn of_type(t: &DimensionType) -> Self {
+        let rule = |key: &str| t.attributes.get(&format!("minecraft:gameplay/{key}"));
+        let spawn = |r: Option<&Value>| {
+            r.and_then(|r| r["can_set_spawn"].as_str())
+                .is_none_or(|s| s != "never")
+        };
+        let flag = |r: Option<&Value>, k: &str| r.and_then(|r| r[k].as_bool()).unwrap_or(false);
+        let bed = rule("bed_rule");
+        let straw = rule("straw_bed_rule");
+        Self {
+            sleep: match bed.and_then(|r| r["can_sleep"].as_str()) {
+                Some("never") => Sleep::Never,
+                Some("always") => Sleep::Always,
+                _ => Sleep::WhenDark,
+            },
+            sets_spawn: spawn(bed),
+            destroy_on_use: flag(bed, "destroy_on_use"),
+            straw_sets_spawn: spawn(straw),
+            straw_destroy_on_leave: flag(straw, "destroy_on_leave"),
+            anchor_works: t.respawn_anchor_works(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct LevelFacts {
+    /// Beds and respawn anchors.
+    pub beds: BedRules,
     pub sky: SkyKind,
     /// `Level.canHaveWeather`: rain and thunder rise and fall here.
     pub weather: bool,
@@ -46,9 +116,13 @@ pub(super) struct LevelFacts {
     pub day_cycle: bool,
     /// Raids, patrols and village sieges may start (`gameplay/can_start_raid`).
     pub raids: bool,
-    /// Monster spawn light rule, for a level past the vanilla three (the
-    /// vanilla levels keep the fixed rules of `mobs::spawn_rules`).
-    pub spawn_light: Option<LightRule>,
+    /// What mobs read of a level past the vanilla three (the vanilla levels
+    /// keep the fixed rules `MobWorld.nether` and `end` stand for).
+    pub custom: Option<CustomLevel>,
+    /// What block behaviour reads of the type (`horizon-world`).
+    pub rules: LevelRules,
+    /// The player's lava flows fast.
+    pub fast_lava: bool,
     /// The highest block y mobs and heightmaps look at.
     pub top: i32,
     pub sea_level: i32,
@@ -64,7 +138,10 @@ impl LevelFacts {
         light_ambient: 0.0,
         ultrawarm: false,
         day_cycle: true,
-        spawn_light: None,
+        custom: None,
+        beds: BedRules::OVERWORLD,
+        rules: LevelRules::OVERWORLD,
+        fast_lava: false,
         raids: true,
         top: 319,
         sea_level: 63,
@@ -78,7 +155,10 @@ impl LevelFacts {
         light_ambient: 0.1,
         ultrawarm: true,
         day_cycle: false,
-        spawn_light: None,
+        custom: None,
+        beds: BedRules::NETHER,
+        rules: LevelRules::NETHER,
+        fast_lava: true,
         raids: false,
         top: 127,
         sea_level: 32,
@@ -92,7 +172,10 @@ impl LevelFacts {
         light_ambient: 0.0,
         ultrawarm: false,
         day_cycle: false,
-        spawn_light: None,
+        custom: None,
+        beds: BedRules::END,
+        rules: LevelRules::END,
+        fast_lava: false,
         raids: false,
         top: 319,
         sea_level: 63,
@@ -115,6 +198,8 @@ impl LevelFacts {
             "end" => SkyKind::End,
             _ => SkyKind::None,
         };
+        // A type's own timelines drive its day; one with none and a fixed time has no day.
+        let day_cycle = sky == SkyKind::Overworld && (!t.has_fixed_time || t.timelines.is_some());
         Self {
             sky,
             // Rain needs open sky under a sky that has weather.
@@ -124,28 +209,39 @@ impl LevelFacts {
             ambient: t.ambient_light,
             light_ambient: t.ambient_light,
             ultrawarm: t.water_evaporates(),
-            day_cycle: sky == SkyKind::Overworld && !t.has_fixed_time,
-            spawn_light: Some(match &t.monster_spawn_light_level {
-                IntProvider::Constant(n) => LightRule {
-                    block_limit: t.monster_spawn_block_light_limit,
-                    min: *n,
-                    max: *n,
-                    constant: true,
+            day_cycle,
+            custom: Some(CustomLevel {
+                spawn_light: match &t.monster_spawn_light_level {
+                    IntProvider::Constant(n) => LightRule {
+                        block_limit: t.monster_spawn_block_light_limit,
+                        min: *n,
+                        max: *n,
+                        constant: true,
+                    },
+                    IntProvider::Uniform { min, max } => LightRule {
+                        block_limit: t.monster_spawn_block_light_limit,
+                        min: *min,
+                        max: *max,
+                        constant: false,
+                    },
+                    // A provider the engine does not model: the Overworld's.
+                    IntProvider::Other(_) => LightRule {
+                        block_limit: t.monster_spawn_block_light_limit,
+                        min: 0,
+                        max: 7,
+                        constant: false,
+                    },
                 },
-                IntProvider::Uniform { min, max } => LightRule {
-                    block_limit: t.monster_spawn_block_light_limit,
-                    min: *min,
-                    max: *max,
-                    constant: false,
-                },
-                // A provider the engine does not model: the Overworld's.
-                IntProvider::Other(_) => LightRule {
-                    block_limit: t.monster_spawn_block_light_limit,
-                    min: 0,
-                    max: 7,
-                    constant: false,
-                },
+                piglins_zombify: t.piglins_zombify(),
+                snow_golem_melts: t.snow_golem_melts(),
+                fast_lava: t.fast_lava(),
+                has_skylight: t.has_skylight,
+                day_cycle,
+                ambient: t.ambient_light,
             }),
+            beds: BedRules::of_type(t),
+            rules: LevelRules::of_type(t),
+            fast_lava: t.fast_lava(),
             raids: t.can_start_raid(),
             top: t.min_y + t.logical_height - 1,
             sea_level: if t.has_ceiling { 32 } else { 63 },
@@ -258,6 +354,20 @@ impl Game<'_> {
             }
         };
         let facts = LevelFacts::of_type(&dimension_type);
+        // The world's unzipped data packs: where a pack type's own timelines are.
+        let packs: Vec<std::path::PathBuf> = if self.remote.is_some() {
+            Vec::new()
+        } else {
+            let mut dirs: Vec<_> = std::fs::read_dir(self.world_root.join("datapacks"))
+                .into_iter()
+                .flatten()
+                .filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .filter(|p| p.is_dir())
+                .collect();
+            dirs.sort();
+            dirs
+        };
         // A type the game ships (the Overworld's, the Nether's, the End's)
         // keeps that environment, with the prepared bundle's visuals; any
         // other type is read from its own data.
@@ -265,8 +375,9 @@ impl Game<'_> {
             "minecraft:overworld" | "minecraft:overworld_caves" => LevelEnv::Vanilla(Dim::Overworld),
             "minecraft:the_nether" => LevelEnv::Vanilla(Dim::Nether),
             "minecraft:the_end" => LevelEnv::Vanilla(Dim::End),
-            _ => match Environment::load_type(
+            _ => match Environment::load_type_timelines(
                 &self.options.resources,
+                &packs,
                 &dimension_type.to_value(),
                 facts.day_cycle,
             ) {
@@ -325,7 +436,7 @@ mod tests {
         assert!(facts("minecraft:the_nether").ultrawarm);
         assert!(!facts("minecraft:overworld").ultrawarm);
         // The Overworld's rule is uniform 0..=7 and block light 0; the Nether's 7 and 15.
-        let rule = |id| facts(id).spawn_light.unwrap();
+        let rule = |id| facts(id).custom.unwrap().spawn_light;
         assert_eq!((rule("minecraft:overworld").min, rule("minecraft:overworld").max), (0, 7));
         assert!(!rule("minecraft:overworld").constant);
         assert_eq!(rule("minecraft:the_nether").block_limit, 15);
@@ -360,5 +471,74 @@ mod tests {
         assert_eq!(f.sky, SkyKind::None);
         assert!(!f.weather && !f.day_cycle && f.nether_light);
         assert_eq!(f.sea_level, 32);
+    }
+
+    /// A Nether-like type of a pack: the Nether's rules from its attributes.
+    fn hell() -> DimensionType {
+        let mut t = DimensionType::new(0, 128);
+        t.skybox = "none".into();
+        t.has_skylight = false;
+        t.has_ceiling = true;
+        t.has_fixed_time = true;
+        t.ambient_light = 0.1;
+        t.cardinal_light = "nether".into();
+        t.monster_spawn_block_light_limit = 15;
+        t.monster_spawn_light_level = IntProvider::Constant(7);
+        for (k, v) in [
+            ("fast_lava", serde_json::json!(true)),
+            ("water_evaporates", serde_json::json!(true)),
+            ("piglins_zombify", serde_json::json!(false)),
+            ("snow_golem_melts", serde_json::json!(true)),
+            ("respawn_anchor_works", serde_json::json!(true)),
+            ("bed_rule", serde_json::json!({"can_set_spawn": "never", "can_sleep": "never", "destroy_on_use": true})),
+            ("straw_bed_rule", serde_json::json!({"can_set_spawn": "never", "can_sleep": "never", "destroy_on_use": true})),
+        ] {
+            t.attributes.insert(format!("minecraft:gameplay/{k}"), v);
+        }
+        t
+    }
+
+    /// F3-4b: a level of a Nether-like type of its own gets what the Nether gets.
+    #[test]
+    fn a_nether_like_type_behaves_like_the_nether() {
+        let f = LevelFacts::of_type(&hell());
+        let c = f.custom.unwrap();
+        assert!(f.fast_lava && f.rules.fast_lava && f.rules.water_evaporates && f.ultrawarm);
+        assert!(!c.piglins_zombify && c.snow_golem_melts && c.fast_lava && !c.has_skylight);
+        assert!(!c.day_cycle && !f.weather && f.nether_light);
+        assert_eq!(c.spawn_light.block_limit, 15);
+        assert_eq!(f.beds, BedRules::NETHER, "bed, straw bed and anchor rules");
+        assert!(!f.rules.has_skylight);
+    }
+
+    /// The beds of a type with no bed attributes are the attribute defaults, and a
+    /// Nether's and an End's rules read back from the real attributes.
+    #[test]
+    fn bed_rules_read_the_attributes() {
+        let plain = LevelFacts::of_type(&DimensionType::new(0, 128)).beds;
+        assert_eq!(plain.sleep, Sleep::WhenDark);
+        assert!(plain.sets_spawn && !plain.destroy_on_use && !plain.anchor_works);
+        let mut end = hell();
+        end.attributes.insert("minecraft:gameplay/respawn_anchor_works".into(), serde_json::json!(false));
+        assert_eq!(LevelFacts::of_type(&end).beds, BedRules::END);
+        let mut sleepy = DimensionType::new(0, 128);
+        sleepy.attributes.insert(
+            "minecraft:gameplay/bed_rule".into(),
+            serde_json::json!({"can_sleep": "always", "can_set_spawn": "always"}),
+        );
+        assert_eq!(LevelFacts::of_type(&sleepy).beds.sleep, Sleep::Always);
+    }
+
+    /// A type that lists timelines has a day even with a fixed time; one that lists none and
+    /// has a fixed time has none.
+    #[test]
+    fn timelines_give_a_type_a_day() {
+        let mut t = DimensionType::new(0, 128);
+        t.has_fixed_time = true;
+        assert!(!LevelFacts::of_type(&t).day_cycle);
+        t.timelines = Some(horizon_world::dimension::Timelines::Tag("#mypack:own".into()));
+        assert!(LevelFacts::of_type(&t).day_cycle);
+        assert!(LevelFacts::of_type(&t).custom.unwrap().day_cycle);
+        assert!(LevelFacts::of_type(&t).rules.day_cycle);
     }
 }

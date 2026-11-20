@@ -29,6 +29,28 @@ pub struct TargetInfo {
     pub passenger: bool,
 }
 impl MobWorld<'_> {
+    /// `gameplay/piglins_zombify`: piglins and hoglins convert here (the old
+    /// `!piglin_safe`; false only in the Nether among the vanilla levels).
+    pub fn piglins_zombify(&self) -> bool {
+        self.custom.map_or(!self.nether, |c| c.piglins_zombify)
+    }
+    /// `gameplay/snow_golem_melts`.
+    pub fn snow_golem_melts(&self) -> bool {
+        self.custom.map_or(self.nether, |c| c.snow_golem_melts)
+    }
+    /// `gameplay/fast_lava`: lava pushes faster.
+    pub fn fast_lava(&self) -> bool {
+        self.custom.map_or(self.nether, |c| c.fast_lava)
+    }
+    /// The Overworld's day timeline runs here (bees, creaking hearts, cat gifts).
+    pub fn has_day_cycle(&self) -> bool {
+        self.custom
+            .map_or(!self.nether && !self.end, |c| c.day_cycle)
+    }
+    /// `has_skylight`: the sky can be seen (not in the Nether).
+    pub fn has_skylight(&self) -> bool {
+        self.custom.map_or(!self.nether, |c| c.has_skylight)
+    }
     /// The biome's base temperature at a position.
     pub fn temperature(&self, x: i32, y: i32, z: i32) -> f32 {
         self.world
@@ -228,7 +250,7 @@ impl MobWorld<'_> {
     }
     /// Level.canSeeSky: sky light 15 at the position (no roof above).
     pub fn can_see_sky(&self, x: i32, y: i32, z: i32) -> bool {
-        if self.nether {
+        if !self.has_skylight() {
             return false;
         }
         self.world.light(x, y, z) >> 4 == 15
@@ -261,7 +283,11 @@ impl MobWorld<'_> {
         // DimensionType.getBrightness with ambient light 0 (overworld) / 0.1 (nether).
         let f = level / 15.0;
         let base = f / (4.0 - 3.0 * f);
-        if self.nether { 0.1 + base * 0.9 } else { base }
+        match self.custom {
+            Some(c) => c.ambient + base * (1.0 - c.ambient),
+            None if self.nether => 0.1 + base * 0.9,
+            None => base,
+        }
     }
     pub fn sky_darken(&self) -> i32 {
         if self.daylight { 0 } else { 11 }
@@ -478,7 +504,7 @@ pub(crate) fn with_resource_test_world(
         raining: false,
         thundering: false,
         nether: false,
-        spawn_light: None,
+        custom: None,
         block_tags: &items.block_tags,
         landing: &motion.landing,
         biomes: &biomes,

@@ -398,7 +398,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     if rules.spawn_mobs
                         && rules.spawn_monsters
                         && difficulty != 0
-                        && self.level.dimension() == super::Dimension::Overworld
+                        && self.level.level_rules().day_cycle
                         && self.rand_int(2000) < difficulty
                     {
                         self.emit(LevelEvent::BlockEvent {
@@ -668,10 +668,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             self.remove_block(pos, false);
         }
         let below_state = self.below_state(pos);
-        let infiniburn = match self.level.dimension() {
-            super::Dimension::Overworld => &b.tags.infiniburn_overworld,
-            super::Dimension::Nether => &b.tags.infiniburn_nether,
-            super::Dimension::End => &b.tags.infiniburn_end,
+        let infiniburn = match self.level.level_rules().infiniburn {
+            super::Infiniburn::Overworld => &b.tags.infiniburn_overworld,
+            super::Infiniburn::Nether => &b.tags.infiniburn_nether,
+            super::Infiniburn::End => &b.tags.infiniburn_end,
         };
         let infini = b.in_set(below_state, infiniburn);
         let age = b.table.int(state, p.age);
@@ -817,7 +817,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             true
         };
         if self.rand_int(3) == 0 || fewer(self, pos, 4) {
-            let brightness = if self.level.dimension() == super::Dimension::End {
+            let brightness = if self.level.level_rules().sky_end {
                 self.level.block_light(pos)
             } else {
                 self.max_local_raw_brightness(pos)

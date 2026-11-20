@@ -108,7 +108,7 @@ impl Game<'_> {
     /// `RespawnAnchorBlock.canSetSpawn`: the `respawn_anchor_works` attribute
     /// (only the Nether's dimension type sets it).
     pub(super) fn anchor_works(&self) -> bool {
-        self.dim == Dim::Nether
+        self.level_facts().beds.anchor_works
     }
     /// `RespawnAnchorBlock.charge`: one more charge, the block change and the sound.
     fn charge_anchor(
@@ -283,7 +283,7 @@ impl Game<'_> {
     /// `BedRule.destroyOnUse` of the dimension's `bed_rule` and
     /// `straw_bed_rule`: true in the Nether and the End.
     pub(super) fn beds_destroy_on_use(&self) -> bool {
-        self.dim != Dim::Overworld
+        self.level_facts().beds.destroy_on_use
     }
     /// `AbstractBedBlock.useWithoutItem` where the bed rule destroys on use
     /// (the bed's head at `head`): `BedBlock.destroyOnUse` removes both
@@ -600,7 +600,12 @@ impl Game<'_> {
     /// `straw_bed_rule`): only the Overworld's beds set the spawn, straw
     /// beds never.
     pub(super) fn bed_sets_spawn(&self, state: BlockStateId) -> bool {
-        self.dim == Dim::Overworld && &*self.res.facts().get(state).name != "minecraft:straw_bed"
+        let beds = self.level_facts().beds;
+        if &*self.res.facts().get(state).name == "minecraft:straw_bed" {
+            beds.straw_sets_spawn
+        } else {
+            beds.sets_spawn
+        }
     }
     /// `ServerPlayer.findRespawnAndUseSpawnBlock` for a config in the loaded
     /// dimension: the position and yaw, using an anchor's charge; a bed's

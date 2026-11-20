@@ -73,7 +73,7 @@ impl Game<'_> {
             // has destroy_on_leave, so a straw bed breaks when its sleeper gets up.
             let bed = self.world.block(head[0], head[1], head[2]);
             let straw = &*self.res.facts().get(bed).name == "minecraft:straw_bed";
-            if dim == Dim::Overworld
+            if self.level_facts().beds.straw_destroy_on_leave
                 && straw
                 && let Err(e) = self.destroy_straw_bed(head)
             {

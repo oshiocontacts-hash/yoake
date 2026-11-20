@@ -101,7 +101,7 @@ impl Goal for DrinkItem {
         0
     }
     fn can_use(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
-        if cx.w.nether {
+        if !cx.w.has_skylight() {
             return false;
         }
         if self.dark {
