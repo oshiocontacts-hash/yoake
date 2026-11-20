@@ -8,7 +8,8 @@
 //! 1. the **hook** ([`Hook`], installed with [`set_hook`], or passed to [`dispatch`] by a test):
 //!    `Consume` (handled, one of the held item is used up) and `Success` (handled, nothing used up)
 //!    end the interaction; `Pass` goes on;
-//! 2. the type's **`interact` rows**, in order: `feed`, `tame`, `ride`, `give_item`;
+//! 2. the type's **`interact` rows**, in order: `feed` (with `heal`, a tamed hurt mob eats an allowed
+//!    item and heals instead of falling in love), `tame`, `ride`, `give_item`;
 //! 3. the **implicit shortcuts** of the type's data, in this order: put on the `saddle_item`; `tame`
 //!    with a `tameable.items` item; `feed` with `breedable.food`; the owner's click on a tamed mob
 //!    that `sits_on_command` makes it sit or stand; `ride` when the type has seats and the player
@@ -163,6 +164,9 @@ fn run_row(m: &mut Mob, row: &Interact, ctx: &Context) -> Option<Outcome> {
             Some(tame_attempt(m, ctx, used(true)))
         }
         "feed" => {
+            if let Some(o) = heal_attempt(m, row, ctx) {
+                return Some(o);
+            }
             if !(explicit || breed::is_food(m, ctx.item, ctx.matches)) {
                 return None;
             }
@@ -218,4 +222,26 @@ fn feed_attempt(m: &mut Mob, ctx: &Context, reply: Reply) -> Option<Outcome> {
 fn ride(ctx: &Context) -> Option<Outcome> {
     ctx.ride_seat
         .map(|seat| Outcome::done(Reply::Success, vec![Action::Ride { seat }]))
+}
+
+/// A `feed` row with `heal`: a tamed mob that is hurt eats an item the row allows (`items`, else the
+/// row's `item`, else the type's `breedable.food`) and gets `heal` health back, like a tamed wolf. A mob
+/// that is not tamed, or not hurt, or an item not allowed: `None`, and the row goes on as plain feeding.
+fn heal_attempt(m: &mut Mob, row: &Interact, ctx: &Context) -> Option<Outcome> {
+    let amount = row.heal?;
+    let item = ctx.item?;
+    if !tame::is_tamed(m) || m.health >= m.attrs.max_health {
+        return None;
+    }
+    let allowed = if !row.items.is_empty() {
+        row.items.iter().any(|p| (ctx.matches)(p, item))
+    } else {
+        row.item.is_some() || breed::is_food(m, ctx.item, ctx.matches)
+    };
+    if !allowed {
+        return None;
+    }
+    m.heal(amount);
+    let reply = if row.consume.unwrap_or(true) { Reply::Consume } else { Reply::Success };
+    Some(Outcome::done(reply, vec![Action::Eat]))
 }

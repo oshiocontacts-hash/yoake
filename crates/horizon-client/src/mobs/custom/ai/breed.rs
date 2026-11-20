@@ -20,8 +20,8 @@
 //!   inheritance of the owner, the `mob-bred` notice.
 use super::tame;
 use crate::mobs::{
-    Mob, MobEvent,
-    custom::{CustomType, Notice},
+    Mob, MobEvent, MobWorld,
+    custom::{CustomType, Notice, attrs},
     goals::{Cx, Goal, LOOK, MOVE, goal_clone, reduced},
 };
 use horizon_mods::custom_mob::{CustomMobFile, Goal as GoalDef};
@@ -115,12 +115,11 @@ pub fn feed(m: &mut Mob, player: Option<[i32; 4]>) -> Fed {
 }
 
 /// The growth of a baby and the pause countdown (only the types that are `breedable`), once per
-/// tick, and the baby scale. In love is counted down by the engine for every mob.
-pub fn tick(m: &mut Mob) {
-    let Some(scale) = def(m).map(|d| d.baby_scale) else {
-        return;
-    };
-    if m.alive() {
+/// tick. In love is counted down by the engine for every mob. Then the mob's one scale
+/// ([`attrs::sync_scale`]: its `scale` attribute times the `baby_scale` while it is a baby) is put on
+/// it, for every custom type; with a world `w`, a mob that grew is moved to where its bigger box fits.
+pub fn tick(m: &mut Mob, w: Option<&MobWorld>) {
+    if def(m).is_some() && m.alive() {
         if m.extra.age < 0 {
             if !m.extra.age_locked {
                 let next = m.extra.age + 1;
@@ -130,21 +129,12 @@ pub fn tick(m: &mut Mob) {
             m.extra.age -= 1;
         }
     }
-    apply_scale(m, scale);
+    attrs::sync_scale(m, w);
 }
 
-/// The baby's model scale while it is a baby, and the scale it had before once it has grown.
-pub fn apply_scale(m: &mut Mob, baby_scale: f32) {
-    let Some(c) = m.extra.custom.as_mut() else { return };
-    if m.extra.age < 0 {
-        if c.scaled_from.is_none() {
-            c.scaled_from = Some(m.extra.model_scale);
-            let base = if m.extra.model_scale > 0.0 { m.extra.model_scale } else { 1.0 };
-            m.extra.model_scale = base * baby_scale;
-        }
-    } else if let Some(before) = c.scaled_from.take() {
-        m.extra.model_scale = before;
-    }
+/// The `baby_scale` of a `breedable` type.
+pub fn baby_scale(m: &Mob) -> Option<f32> {
+    def(m).map(|d| d.baby_scale)
 }
 
 /// The type id the baby of `parent` is (`offspring`, else the parent's own).
@@ -167,9 +157,7 @@ pub fn complete(parent: &mut Mob, partner: Option<&mut Mob>, child: &mut Mob) {
     }
     child.extra.age = BABY_AGE;
     child.extra.in_love = 0;
-    if let Some(scale) = def(child).map(|d| d.baby_scale) {
-        apply_scale(child, scale);
-    }
+    attrs::sync_scale(child, None);
     // `Wolf.getBreedOffspring`: a tamed parent's baby is tame, with the same owner.
     if tame::is_tamed(parent)
         && let Some(owner) = parent.extra.owner
