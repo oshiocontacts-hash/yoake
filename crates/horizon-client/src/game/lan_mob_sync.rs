@@ -23,6 +23,18 @@ impl Game<'_> {
                 collected.push(c);
             }
         }
+        // The players on a vehicle are told as the entity ids their clients know them by.
+        let guest_ids: Vec<([i32; 4], i32)> = hub
+            .guests
+            .iter()
+            .map(|g| (horizon_client::lan::playerdata::uuid_ints(g.uuid), g.entity_id))
+            .collect();
+        let entity_of = |p: [i32; 4]| guest_ids.iter().find(|g| g.0 == p).map(|g| g.1);
+        for c in &mut collected {
+            if let Some(seats) = c.seats.as_mut() {
+                mob_sync::add_player_seats(seats, &c.players, &entity_of);
+            }
+        }
         let level = hub.config.dimension.clone();
         for g in &mut hub.guests {
             let starts = std::mem::take(&mut g.mob_sync_starts);
@@ -49,7 +61,7 @@ impl Game<'_> {
                         .mobs
                         .iter()
                         .find(|m| m.id as i32 == entity)
-                        .and_then(mob_sync::seats_message)
+                        .and_then(|m| mob_sync::seats_message_with(m, &entity_of))
                 {
                     messages.push(seats);
                 }

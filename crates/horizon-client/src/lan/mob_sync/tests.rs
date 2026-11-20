@@ -313,6 +313,7 @@ fn a_player_gets_snapshots_for_new_mobs_and_deltas_for_those_in_range_only() {
         owner_delta: None,
         owner: None,
         seats: None,
+        players: vec![],
     };
     let snap = |e: i32| {
         Some(Snapshot {

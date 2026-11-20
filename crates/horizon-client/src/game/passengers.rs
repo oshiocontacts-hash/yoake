@@ -57,8 +57,7 @@ impl Game<'_> {
         // A custom vehicle with seats (F4M-4d) seats the rider on a free seat that allows it, and
         // refuses one it has no seat for; every other vehicle is linked as before.
         if self.mobs.iter().any(|m| m.id == vehicle && riding::has_seats(m)) {
-            let player = self.riding == Some(vehicle) || self.ridden_by_guest(vehicle);
-            return riding::board(&mut self.mobs, rider, vehicle, None, player, false).is_ok();
+            return riding::board(&mut self.mobs, rider, vehicle, None, false).is_ok();
         }
         riders::link(&mut self.mobs, rider, vehicle);
         true
@@ -82,6 +81,7 @@ impl Game<'_> {
             .collect();
         // A server's custom vehicles are told who sits where by the server (`horizon:mob_sync`).
         self.apply_remote_seat_claims();
+        self.sync_player_seats();
         // Not a text display: a server's display mounts come through
         // `remote_set_passengers`, which seats them in `position_riders`.
         let other: std::collections::HashSet<u32> = boats.union(&carts).chain(&tnts).copied().collect();
@@ -157,9 +157,8 @@ impl Game<'_> {
                         .iter()
                         .filter(|k| k.extra.mount == Some(v))
                         .collect();
-                    let player = vehicle.rider.is_some();
-                    attach = riding::mob_rider_attachment(vehicle, &self.mobs[i], &aboard, player);
-                    locked = riding::mob_rider_seat(vehicle, &self.mobs[i], &aboard, player)
+                    attach = riding::mob_rider_attachment(vehicle, &self.mobs[i], &aboard);
+                    locked = riding::mob_rider_seat(vehicle, &self.mobs[i], &aboard)
                         .is_some_and(|s| riding::seat_locks_yaw(vehicle, s));
                 }
                 let (pos, prev) = (vehicle.position, vehicle.previous);

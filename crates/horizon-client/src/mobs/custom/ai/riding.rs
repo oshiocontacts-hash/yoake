@@ -32,7 +32,7 @@
 use super::{TypeList, expr::When, type_list};
 use crate::mobs::{
     Mob, MobWorld, Species,
-    custom::{CustomType, SeatClaim},
+    custom::{CustomType, PlayerClaim, SeatClaim},
     riders,
 };
 use horizon_mods::custom_mob::{LoadedModel, Seat as SeatRow};
@@ -155,22 +155,26 @@ fn def(m: &Mob) -> Option<&RideDef> {
 /// no seat.
 pub fn assign(d: &RideDef, player: bool, mobs: &[RiderKind]) -> (Option<usize>, Vec<Option<usize>>) {
     let mobs: Vec<(RiderKind, Option<usize>)> = mobs.iter().map(|k| (*k, None)).collect();
-    assign_with(d, player.then_some(None), &mobs)
+    let players: &[Option<usize>] = if player { &[None] } else { &[] };
+    let (p, rest) = assign_with(d, players, &mobs);
+    (p.first().copied().flatten(), rest)
 }
 
-/// [`assign`] with the seats riders already hold (F4M-4d). `player` is `None` when the player is not
-/// aboard, else `Some(the seat it claimed)`; every mob comes with its claimed seat. Claims are settled
-/// first, the mobs' and then the player's: one that is out of range, taken or not allowed for its rider
-/// is ignored. Riders without a seat then take the first free seat that allows them, the player
-/// before the mobs (with no claims at all this is exactly [`assign`]).
+/// [`assign`] with the seats riders already hold (F4M-4d) and any number of players (the host in the
+/// window and the LAN guests). Every player comes with the seat it claimed (`None`: none yet), every mob
+/// likewise. Claims are settled first, the mobs' and then the players': one that is out of range, taken or
+/// not allowed for its rider is ignored. Riders without a seat then take the first free seat that allows
+/// them, the players before the mobs (with no claims at all this is exactly [`assign`]). No seat is ever
+/// given twice.
 pub fn assign_with(
     d: &RideDef,
-    player: Option<Option<usize>>,
+    players: &[Option<usize>],
     mobs: &[(RiderKind, Option<usize>)],
-) -> (Option<usize>, Vec<Option<usize>>) {
+) -> (Vec<Option<usize>>, Vec<Option<usize>>) {
     let n = d.seats.len();
     let mut taken = vec![false; n];
     let mut seats: Vec<Option<usize>> = vec![None; mobs.len()];
+    let mut ps: Vec<Option<usize>> = vec![None; players.len()];
     let settle = |taken: &mut Vec<bool>, kind: RiderKind, claim: Option<usize>| {
         let i = claim.filter(|&i| i < n && !taken[i] && d.seats[i].allows(kind))?;
         taken[i] = true;
@@ -179,21 +183,23 @@ pub fn assign_with(
     for (seat, (kind, claim)) in seats.iter_mut().zip(mobs) {
         *seat = settle(&mut taken, *kind, *claim);
     }
-    let mut p = player.and_then(|claim| settle(&mut taken, RiderKind::Player, claim));
+    for (seat, claim) in ps.iter_mut().zip(players) {
+        *seat = settle(&mut taken, RiderKind::Player, *claim);
+    }
     let first_free = |taken: &mut Vec<bool>, kind: RiderKind| {
         let i = d.seats.iter().enumerate().position(|(i, s)| !taken[i] && s.allows(kind))?;
         taken[i] = true;
         Some(i)
     };
-    if player.is_some() && p.is_none() {
-        p = first_free(&mut taken, RiderKind::Player);
+    for seat in ps.iter_mut().filter(|s| s.is_none()) {
+        *seat = first_free(&mut taken, RiderKind::Player);
     }
     for (seat, (kind, _)) in seats.iter_mut().zip(mobs) {
         if seat.is_none() {
             *seat = first_free(&mut taken, *kind);
         }
     }
-    (p, seats)
+    (ps, seats)
 }
 
 /// The seat a new rider of `kind` would get on `m` now, given the mob riders already aboard
@@ -244,37 +250,152 @@ pub fn takes_saddle(m: &Mob, item: Option<&str>) -> bool {
     d.saddle_item.as_deref().zip(item).is_some_and(|(s, i)| s == i) && !m.extra.saddled && m.alive()
 }
 
-/// The rider's seat (the player's, by the rules above) and its definition.
+/// The seat of the player riding `m` that steers it if one does, else the first player's, else the seat
+/// a player would take now (a rider whose claim is not made yet), and its definition.
 pub fn player_seat(m: &Mob) -> Option<(usize, &SeatDef)> {
     let d = def(m)?;
-    let i = free_player_seat(m, d, true)?;
-    Some((i, &d.seats[i]))
+    let claims = m.extra.custom.as_ref().map_or(&[][..], |s| s.player_claims.as_slice());
+    let i = claims
+        .iter()
+        .map(|c| usize::from(c.seat))
+        .find(|&i| d.seats.get(i).is_some_and(|s| s.controls == Controls::Player))
+        .or_else(|| claims.first().map(|c| usize::from(c.seat)))
+        .or_else(|| free_player_seat(m, d, None))?;
+    Some((i, d.seats.get(i)?))
 }
 
-/// The seat the player takes on `m`: the one it claimed (`player_seat`) while that is free, else the
-/// first seat no mob rider holds that allows the player. `claimed` false ignores the claim (a player
-/// who is about to board has none yet).
-fn free_player_seat(m: &Mob, d: &RideDef, claimed: bool) -> Option<usize> {
+/// The seat `player` sits on in `m`, by its claim.
+pub fn seat_of_player(m: &Mob, player: [i32; 4]) -> Option<usize> {
+    m.extra.custom.as_ref()?.player_claims.iter().find(|c| c.player == player).map(|c| usize::from(c.seat))
+}
+
+/// The seat `player` takes on `m` (or keeps): its claim, else the seat a loaded save gave it while that
+/// is free, else the first seat nobody holds that allows a player. `None` when there is none. With no
+/// `player` the claims of everyone aboard count.
+fn free_player_seat(m: &Mob, d: &RideDef, player: Option<[i32; 4]>) -> Option<usize> {
+    if let Some(i) = player.and_then(|p| seat_of_player(m, p)) {
+        return Some(i);
+    }
     let state = m.extra.custom.as_ref();
     let n = d.seats.len();
     let mut taken = vec![false; n];
-    for c in state.map_or(&[][..], |s| s.seat_claims.as_slice()) {
-        if let Some(t) = taken.get_mut(usize::from(c.seat)) {
+    for i in state
+        .iter()
+        .flat_map(|s| s.seat_claims.iter().map(|c| c.seat).chain(s.player_claims.iter().map(|c| c.seat)))
+    {
+        if let Some(t) = taken.get_mut(usize::from(i)) {
             *t = true;
         }
     }
     let free = |i: usize| !taken[i] && d.seats[i].allows(RiderKind::Player);
-    state
-        .and_then(|s| s.player_seat)
-        .map(usize::from)
-        .filter(|&i| claimed && i < n && free(i))
+    player
+        .and_then(|p| state?.saved_player_seats.iter().find(|c| c.player == p))
+        .map(|c| usize::from(c.seat))
+        .filter(|&i| i < n && free(i))
         .or_else(|| (0..n).find(|&i| free(i)))
 }
 
-/// The seat the player would get on `m` when it gets on now, the mobs aboard counted by their claims
-/// (the click that boards asks this; [`free_seat`] only knows the kinds of the riders).
-pub fn free_seat_for_player(m: &Mob) -> Option<usize> {
-    free_player_seat(m, def(m)?, false)
+/// The seat `player` would get on `m` when it gets on now, the mobs and the players aboard counted by
+/// their claims (the click that boards asks this; [`free_seat`] only knows the kinds of the riders).
+pub fn free_seat_for_player(m: &Mob, player: [i32; 4]) -> Option<usize> {
+    free_player_seat(m, def(m)?, Some(player))
+}
+
+/// Puts `player` on seat `seat` of the custom vehicle `vehicle` (the first free seat that allows it when
+/// `seat` is `None`) and returns the seat. A player already aboard keeps its claim (unless it asks
+/// for another free seat). No seat is ever given twice: the mobs aboard and the other players hold
+/// theirs.
+pub fn claim_player(mobs: &mut [Mob], vehicle: u32, player: [i32; 4], seat: Option<usize>) -> Result<usize, Refusal> {
+    let Some(v) = mobs.iter_mut().find(|m| m.id == vehicle) else { return Err(Refusal::Missing) };
+    let Some(d) = def(v) else { return Err(Refusal::NoSeats) };
+    let n = d.seats.len();
+    let mut taken = vec![false; n];
+    if let Some(state) = v.extra.custom.as_ref() {
+        for c in &state.seat_claims {
+            if let Some(t) = taken.get_mut(usize::from(c.seat)) {
+                *t = true;
+            }
+        }
+        for c in state.player_claims.iter().filter(|c| c.player != player) {
+            if let Some(t) = taken.get_mut(usize::from(c.seat)) {
+                *t = true;
+            }
+        }
+    }
+    let own = seat_of_player(v, player);
+    let chosen = match seat {
+        Some(s) if s >= n => return Err(Refusal::NoSuchSeat),
+        Some(s) if !d.seats[s].allows(RiderKind::Player) => return Err(Refusal::NotAllowed),
+        Some(s) if taken[s] => return Err(Refusal::Taken),
+        Some(s) => s,
+        None if own.is_some() => own.unwrap_or(0),
+        None => match free_player_seat(v, d, Some(player)) {
+            Some(i) => i,
+            None if (0..n).any(|i| d.seats[i].allows(RiderKind::Player)) => return Err(Refusal::Full),
+            None => return Err(Refusal::NotAllowed),
+        },
+    };
+    let Some(state) = v.extra.custom.as_mut() else { return Err(Refusal::NoSeats) };
+    let mut claims: Vec<PlayerClaim> = state.player_claims.iter().copied().filter(|c| c.player != player).collect();
+    claims.push(PlayerClaim { player, seat: u8::try_from(chosen).map_err(|_| Refusal::NoSuchSeat)? });
+    state.saved_player_seats.retain(|c| c.player != player);
+    state.set_player_claims(claims);
+    Ok(chosen)
+}
+
+/// Makes the player claims of every custom vehicle with seats match who rides (`riders`: each player's UUID
+/// and the vehicle it rides; the game's `riding_players`): the claim of a player that does not ride the
+/// vehicle any more (it got off, disconnected, died) is freed, a rider without a claim takes one, and a vehicle
+/// nobody steers from forgets its rider input. Returns the players no seat was left for (they must get
+/// off).
+pub fn sync_players(mobs: &mut [Mob], riders: &[([i32; 4], u32)]) -> Vec<([i32; 4], u32)> {
+    let mut evict = Vec::new();
+    let seated: Vec<u32> = mobs.iter().filter(|m| has_seats(m)).map(|m| m.id).collect();
+    for id in seated {
+        let aboard: Vec<[i32; 4]> = riders.iter().filter(|r| r.1 == id).map(|r| r.0).collect();
+        let Some(vi) = mobs.iter().position(|m| m.id == id) else { continue };
+        let held: Vec<[i32; 4]> = mobs[vi]
+            .extra
+            .custom
+            .as_ref()
+            .map_or_else(Vec::new, |s| s.player_claims.iter().map(|c| c.player).collect());
+        for p in held.into_iter().filter(|p| !aboard.contains(p)) {
+            release_player(&mut mobs[vi], p);
+        }
+        for p in aboard {
+            if seat_of_player(&mobs[vi], p).is_none() && claim_player(mobs, id, p, None).is_err() {
+                evict.push((p, id));
+            }
+        }
+        // The mob takes its input from a player that steers; with none it has no rider input.
+        let m = &mut mobs[vi];
+        let steered = m
+            .extra
+            .custom
+            .as_ref()
+            .is_some_and(|s| s.player_claims.iter().any(|c| seat_of_player(m, c.player).is_some() && player_steers(m, c.player)));
+        if m.rider.is_some() && !steered {
+            m.rider = None;
+        }
+    }
+    evict
+}
+
+/// Frees the seat `player` held on `m`.
+pub fn release_player(m: &mut Mob, player: [i32; 4]) {
+    if let Some(state) = m.extra.custom.as_mut()
+        && state.player_claims.iter().any(|c| c.player == player)
+    {
+        let claims = state.player_claims.iter().copied().filter(|c| c.player != player).collect();
+        state.set_player_claims(claims);
+    }
+}
+
+/// Whether `player` sits (or would sit) on a seat of `m` that steers (`controls: player`).
+pub fn player_steers(m: &Mob, player: [i32; 4]) -> bool {
+    let Some(d) = def(m) else { return true };
+    let i = seat_of_player(m, player).or_else(|| free_player_seat(m, d, Some(player)));
+    i.and_then(|i| d.seats.get(i)).is_some_and(|s| s.controls == Controls::Player)
 }
 
 /// The seat claimed by mob `rider` on `vehicle`.
@@ -337,24 +458,27 @@ pub fn attachment_at(m: &Mob, seat: usize) -> [f64; 3] {
 }
 
 /// The seat of the mob rider `rider` among the mobs aboard `vehicle` (`aboard`, the riders in id
-/// order, `rider` one of them) when the player is or is not aboard: its offset, for
-/// `passengers.rs`.
-pub fn mob_rider_attachment(vehicle: &Mob, rider: &Mob, aboard: &[&Mob], player_aboard: bool) -> [f64; 3] {
+/// order, `rider` one of them): its offset, for `passengers.rs`. The players aboard hold their claims.
+pub fn mob_rider_attachment(vehicle: &Mob, rider: &Mob, aboard: &[&Mob]) -> [f64; 3] {
     let Some(d) = def(vehicle) else {
         return attachment(vehicle);
     };
-    mob_rider_seat(vehicle, rider, aboard, player_aboard)
+    mob_rider_seat(vehicle, rider, aboard)
         .map_or_else(|| attachment(vehicle), |s| d.seats[s].offset)
 }
 
+/// The seats the players aboard `m` claimed, in claim order.
+fn player_seats(m: &Mob) -> Vec<Option<usize>> {
+    m.extra.custom.as_ref().map_or_else(Vec::new, |s| s.player_claims.iter().map(|c| Some(usize::from(c.seat))).collect())
+}
+
 /// The seat of mob `rider` among the mobs `aboard` `vehicle` (in list order): the seat it claimed, or
-/// the first free one that allows it, the player (when aboard) counted.
-pub fn mob_rider_seat(vehicle: &Mob, rider: &Mob, aboard: &[&Mob], player_aboard: bool) -> Option<usize> {
+/// the first free one that allows it, the players (by their claims) counted.
+pub fn mob_rider_seat(vehicle: &Mob, rider: &Mob, aboard: &[&Mob]) -> Option<usize> {
     let d = def(vehicle)?;
     let kinds: Vec<(RiderKind, Option<usize>)> =
         aboard.iter().map(|r| (kind_of(r), claim_of(vehicle, r.id))).collect();
-    let player = player_aboard.then(|| vehicle.extra.custom.as_ref().and_then(|c| c.player_seat).map(usize::from));
-    let (_, seats) = assign_with(d, player, &kinds);
+    let (_, seats) = assign_with(d, &player_seats(vehicle), &kinds);
     let index = aboard.iter().position(|r| r.id == rider.id).unwrap_or(0);
     seats.get(index).copied().flatten()
 }
@@ -389,7 +513,7 @@ pub enum Refusal {
 }
 
 /// Puts mob `rider` on seat `seat` of the custom vehicle `vehicle` (the first free seat that allows it
-/// when `seat` is `None`) and returns the seat. The player (`player_aboard`) and the mobs already aboard
+/// when `seat` is `None`) and returns the seat. The players and the mobs already aboard
 /// keep their seats. A rider that rides another vehicle is taken off it by the link, as `/ride`'s
 /// forced mount does; a rider already aboard moves to the seat asked for. `honour_cooldown` refuses a
 /// rider that got off something less than 60 ticks ago (the AI's boarding; commands and scripts force it).
@@ -398,7 +522,6 @@ pub fn board(
     rider: u32,
     vehicle: u32,
     seat: Option<usize>,
-    player_aboard: bool,
     honour_cooldown: bool,
 ) -> Result<usize, Refusal> {
     if rider == vehicle {
@@ -433,11 +556,9 @@ pub fn board(
             .collect();
         let existing: Vec<(RiderKind, Option<usize>)> =
             aboard.iter().map(|m| (kind_of(m), claim_of(v, m.id))).collect();
-        let player =
-            player_aboard.then(|| v.extra.custom.as_ref().and_then(|c| c.player_seat).map(usize::from));
-        let (p, rest) = assign_with(d, player, &existing);
+        let (p, rest) = assign_with(d, &player_seats(v), &existing);
         let mut taken = vec![false; n];
-        for i in p.into_iter().chain(rest.iter().copied().flatten()) {
+        for i in p.into_iter().flatten().chain(rest.iter().copied().flatten()) {
             taken[i] = true;
         }
         let kind = kind_of(&mobs[ri]);
@@ -482,16 +603,20 @@ pub fn settle(mobs: &mut [Mob], vi: usize) {
         return;
     }
     let vehicle = mobs[vi].id;
-    let (riders, seats) = {
+    let (riders, seats, players) = {
         let v = &mobs[vi];
         let Some(d) = def(v) else { return };
         let aboard: Vec<usize> = (0..mobs.len()).filter(|&j| j != vi && mobs[j].extra.mount == Some(vehicle)).collect();
         let kinds: Vec<(RiderKind, Option<usize>)> =
             aboard.iter().map(|&j| (kind_of(&mobs[j]), claim_of(v, mobs[j].id))).collect();
-        let player =
-            v.rider.is_some().then(|| v.extra.custom.as_ref().and_then(|c| c.player_seat).map(usize::from));
-        let (_, seats) = assign_with(d, player, &kinds);
-        (aboard, seats)
+        let (pseats, seats) = assign_with(d, &player_seats(v), &kinds);
+        let who = v.extra.custom.as_ref().map_or_else(Vec::new, |s| s.player_claims.iter().map(|c| c.player).collect::<Vec<_>>());
+        let players: Vec<PlayerClaim> = who
+            .into_iter()
+            .zip(pseats)
+            .filter_map(|(player, s)| Some(PlayerClaim { player, seat: u8::try_from(s?).ok()? }))
+            .collect();
+        (aboard, seats, players)
     };
     let mut claims = Vec::new();
     for (j, seat) in riders.into_iter().zip(seats) {
@@ -503,6 +628,9 @@ pub fn settle(mobs: &mut [Mob], vi: usize) {
                 mobs[j].extra.passenger = false;
             }
         }
+    }
+    if let Some(state) = mobs[vi].extra.custom.as_mut() {
+        state.set_player_claims(players);
     }
     store_claims(&mut mobs[vi], claims);
 }
@@ -522,8 +650,7 @@ pub fn seat_set(mobs: &mut [Mob], vehicle: u32, seat: usize, rider: Option<u32>)
     let Some(vi) = mobs.iter().position(|m| m.id == vehicle) else { return };
     match rider {
         Some(rider) => {
-            let player = mobs[vi].rider.is_some();
-            if let Err(why) = board(mobs, rider, vehicle, Some(seat), player, false) {
+            if let Err(why) = board(mobs, rider, vehicle, Some(seat), false) {
                 log::debug!("seat-set: mob {rider} cannot sit on seat {seat} of {vehicle}: {why:?}");
             }
         }

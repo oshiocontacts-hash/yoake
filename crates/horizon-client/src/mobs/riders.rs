@@ -157,8 +157,7 @@ pub fn start_riding(mobs: &mut [Mob], rider: u32, vehicle: u32) -> bool {
     // A custom vehicle with seats (F4M-4d) takes riders up to its seat count; every other vehicle
     // keeps the one-rider rules below.
     if mobs.iter().any(|m| m.id == vehicle && super::custom::ai::riding::has_seats(m)) {
-        let player = mobs.iter().any(|m| m.id == vehicle && m.rider.is_some());
-        return super::custom::ai::riding::board(mobs, rider, vehicle, None, player, true).is_ok();
+        return super::custom::ai::riding::board(mobs, rider, vehicle, None, true).is_ok();
     }
     let on_hoglin = mobs
         .iter()

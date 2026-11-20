@@ -349,14 +349,27 @@ pub struct CustomState {
     pub seat_claims: Vec<SeatClaim>,
     /// `seat_claims` changed since the sync layer last took it ([`CustomState::take_seat_claims`]).
     pub seat_claims_dirty: bool,
-    /// The seat the player took when it got on (cleared when it is off).
-    pub player_seat: Option<u8>,
+    /// Which seat each player rider holds (the host in the window and the LAN guests, F4M-4d): the
+    /// same reservation as `seat_claims`, so no two riders ever share a seat. Kept by
+    /// `ai::riding::claim_player` and `Game::sync_player_seats` (a claim ends when the player gets off,
+    /// disconnects or dies).
+    pub player_claims: Vec<PlayerClaim>,
+    /// Seats a loaded save names for players that are not aboard yet; a player that boards later
+    /// takes its saved seat while it is free.
+    pub saved_player_seats: Vec<PlayerClaim>,
 }
 
 /// A mob rider's seat on a custom vehicle: the rider's entity id and the index of the type's seat.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SeatClaim {
     pub rider: u32,
+    pub seat: u8,
+}
+
+/// A player rider's seat on a custom vehicle: the player's UUID and the index of the type's seat.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PlayerClaim {
+    pub player: [i32; 4],
     pub seat: u8,
 }
 
@@ -400,7 +413,8 @@ impl CustomState {
             script: Default::default(),
             seat_claims: Vec::new(),
             seat_claims_dirty: false,
-            player_seat: None,
+            player_claims: Vec::new(),
+            saved_player_seats: Vec::new(),
         }
     }
     /// Replaces the seat claims (sorted by seat); a different list marks them dirty.
@@ -411,9 +425,18 @@ impl CustomState {
             self.seat_claims_dirty = true;
         }
     }
+    /// Replaces the player claims (sorted by seat); a different list marks the seats dirty (the
+    /// sync layer tells the clients).
+    pub fn set_player_claims(&mut self, mut claims: Vec<PlayerClaim>) {
+        claims.sort_by_key(|c| (c.seat, c.player));
+        if claims != self.player_claims {
+            self.player_claims = claims;
+            self.seat_claims_dirty = true;
+        }
+    }
     /// The seat claims when they changed since the last call.
-    pub fn take_seat_claims(&mut self) -> Option<Vec<SeatClaim>> {
-        std::mem::take(&mut self.seat_claims_dirty).then(|| self.seat_claims.clone())
+    pub fn take_seat_claims(&mut self) -> Option<(Vec<SeatClaim>, Vec<PlayerClaim>)> {
+        std::mem::take(&mut self.seat_claims_dirty).then(|| (self.seat_claims.clone(), self.player_claims.clone()))
     }
     /// Queues a notice for the scripts (the oldest is dropped past 8).
     pub fn notice(&mut self, n: Notice) {

@@ -327,6 +327,7 @@ mod pad_menu;
 mod paintings;
 mod pandas;
 mod passengers;
+mod player_seats;
 mod persist;
 mod perspective;
 mod pick_entity;

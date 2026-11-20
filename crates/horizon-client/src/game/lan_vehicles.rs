@@ -313,7 +313,7 @@ impl Game<'_> {
             return;
         }
         // The host in the window rides it already.
-        if self.riding == Some(vehicle) {
+        if self.riding == Some(vehicle) && !self.mob_has_seats(vehicle) {
             host.hub.guests[gi].vehicle = before;
             return;
         }

@@ -35,7 +35,7 @@ impl Game<'_> {
             let m = &self.mobs[index];
             // The mobs aboard hold their seats by claim (F4M-4d), so the free seat is read off those.
             riding::rideable(m, &w, Some(player))
-                .then(|| riding::free_seat_for_player(m))
+                .then(|| riding::free_seat_for_player(m, player))
                 .flatten()
         };
         let hand = if self.hand == Hand::Off { interact::ClickHand::Off } else { interact::ClickHand::Main };
@@ -69,9 +69,10 @@ impl Game<'_> {
                 }
                 Action::Ride { .. } => {
                     if self.native_may_board(id) {
-                        // The seat the click picked is the player's until it gets off.
-                        if let Some(state) = self.mobs[index].extra.custom.as_mut() {
-                            state.player_seat = ride_seat.and_then(|s| u8::try_from(s).ok());
+                        // The seat the click picked is the player's until it gets off: it is
+                        // reserved now, so no mob or other player (host or LAN guest) takes it.
+                        if riding::claim_player(&mut self.mobs, id, player, ride_seat).is_err() {
+                            continue;
                         }
                         self.riding = Some(id);
                         self.trigger_player("minecraft:started_riding");

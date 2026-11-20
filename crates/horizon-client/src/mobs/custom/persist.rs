@@ -123,6 +123,20 @@ pub fn write(tag: &mut Tag, m: &Mob) {
             }
         }
     }
+    // F4M-4d: the seats the players on it hold (and the ones a load named for players not back yet),
+    // `player_seats: [{ uuid: [int; 4], seat: int }]`, so a player restored into the vehicle (its
+    // `RootVehicle`) gets its seat back.
+    let mut player_seats: Vec<Tag> = Vec::new();
+    for c in state.player_claims.iter().chain(&state.saved_player_seats) {
+        if !player_seats.iter().any(|t| crate::save::uuid_from_tag(t.get("uuid")) == Some(c.player)) {
+            player_seats.push(Tag::compound([("uuid", Tag::IntArray(c.player.to_vec())), ("seat", Tag::Int(i32::from(c.seat)))]));
+        }
+    }
+    if player_seats.is_empty() {
+        yoake.remove(&"player_seats".into());
+    } else {
+        yoake.insert("player_seats".into(), Tag::List(player_seats));
+    }
     // F4M-10: what the scripts keep with the mob (`mob-save` may replace it), opaque bytes.
     let script_data = super::script::data_to_save(m);
     if script_data.is_empty() {
@@ -168,6 +182,18 @@ pub fn read(m: &mut Mob, tag: &Tag) {
     }
     if let Some(Tag::List(list)) = yoake.get("attributes") {
         state.attrs.read_nbt(list);
+    }
+    if let Some(Tag::List(list)) = yoake.get("player_seats") {
+        state.saved_player_seats = list
+            .iter()
+            .filter_map(|t| {
+                Some(super::PlayerClaim {
+                    player: crate::save::uuid_from_tag(t.get("uuid"))?,
+                    seat: u8::try_from(number(t.get("seat"))?).ok()?,
+                })
+            })
+            .take(16)
+            .collect();
     }
     if let Some(Tag::ByteArray(bytes)) = yoake.get("script")
         && bytes.len() <= super::script::MAX_DATA_BYTES

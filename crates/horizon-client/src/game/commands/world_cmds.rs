@@ -1364,6 +1364,14 @@ impl Game<'_> {
         if !self.native_may_board(mob_id) {
             return Err(generic());
         }
+        // A custom vehicle with seats reserves the first free seat that allows the player (F4M-4d); a
+        // full one refuses.
+        if self.mob_has_seats(mob_id) {
+            let uuid = self.acting_player_uuid();
+            if horizon_client::mobs::custom::ai::riding::claim_player(&mut self.mobs, mob_id, uuid, None).is_err() {
+                return Err(generic());
+            }
+        }
         if let Some(m) = self.mobs.iter_mut().find(|m| m.id == mob_id) {
             m.extra.flag = false;
             m.extra.counter = 0;
