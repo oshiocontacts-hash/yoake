@@ -140,9 +140,12 @@ pub fn mob_type(t: &Arc<CustomType>) -> MobType {
         safe_fall_distance: value("safe_fall_distance", 3.0),
         fall_damage_multiplier: value("fall_damage_multiplier", 1.0),
         water_efficiency: 0.0,
+        // `yoake:water_slowdown` is a Yoake attribute (not a 26.3 one), kept as a custom attribute.
         water_slowdown: t
-            .builtin_value("water_slowdown")
-            .map_or_else(|| def.water_slowdown(), |v| v as f32),
+            .attributes
+            .iter()
+            .find(|a| a.id == "yoake:water_slowdown")
+            .map_or_else(|| def.water_slowdown(), |a| a.default as f32),
         air_speed: def.air_speed(),
         baby_scale: def.baby_scale(),
         head_rot_speed: def.head_rot_speed(),

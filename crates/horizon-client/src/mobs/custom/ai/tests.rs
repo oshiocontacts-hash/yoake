@@ -1382,3 +1382,25 @@ fn the_engines_path_search_of_a_custom_mob_is_metered_and_a_vanilla_mobs_is_not(
     assert_eq!(budget::stats().granted, 2);
     budget::reset_for_thread(None);
 }
+
+// ---- categories and Yoake attributes -------------------------------------------------------
+
+#[test]
+fn an_axolotls_mob_is_the_engines_axolotls_category() {
+    let m = mob_with("axolotls", "{}", "", at(0.5, 0.5));
+    assert_eq!(m.category(), "axolotls");
+    assert_eq!(
+        m.kind.custom.as_ref().unwrap().category,
+        crate::mobs::spawn_selection::Category::Axolotls
+    );
+}
+
+#[test]
+fn yoake_water_slowdown_sets_the_engines_water_slowdown() {
+    let json = r#"{"template":"yoake:mob","size":{"width":0.6,"height":1.0},
+        "attributes":{"yoake:water_slowdown":0.9},"ai":{}}"#;
+    let file = horizon_mods::custom_mob::CustomMobFile::parse("demo:swimmer", json.as_bytes()).unwrap();
+    let t = std::sync::Arc::new(super::super::CustomType::new(file, None).unwrap());
+    assert_eq!(super::super::build::mob_type(&t).water_slowdown, 0.9);
+    assert_eq!(mob("{}", at(0.5, 0.5)).kind.water_slowdown, 0.8, "the default is the neutral row's");
+}

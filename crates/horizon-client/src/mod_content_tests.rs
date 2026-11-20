@@ -4373,3 +4373,52 @@ fn the_engines_egg_textures_are_16_by_16_pngs() {
     assert_eq!(super::argb(0x123456), 0xFF123456_u32 as i32);
     assert_eq!(super::argb(0xAA123456), 0xFF123456_u32 as i32, "alpha bits of the input are ignored");
 }
+
+#[test]
+fn a_custom_mobs_row_has_the_vanilla_default_attribute_set_then_its_own() {
+    let base = br#"{
+        "minecraft:pig": {"width":0.9,"height":0.9,"eye_height":0.8,"category":"creature","fire_immune":false,
+            "attributes":{"minecraft:max_health":10.0,"minecraft:movement_speed":0.25,"minecraft:follow_range":16.0,"minecraft:armor":0.0}},
+        "minecraft:cow": {"width":0.9,"height":1.4,"eye_height":1.3,"category":"creature","fire_immune":false,
+            "attributes":{"minecraft:max_health":10.0,"minecraft:movement_speed":0.2,"minecraft:follow_range":16.0,"minecraft:armor":0.0}},
+        "minecraft:zombie": {"width":0.6,"height":1.95,"eye_height":1.74,"category":"monster","fire_immune":false,
+            "attributes":{"minecraft:max_health":20.0,"minecraft:movement_speed":0.23,"minecraft:follow_range":35.0,"minecraft:armor":0.0,"minecraft:attack_damage":3.0}},
+        "minecraft:player": {"width":0.6,"height":1.8,"eye_height":1.62,"category":"misc","fire_immune":false,
+            "attributes":{"minecraft:max_health":20.0,"minecraft:movement_speed":0.1,"minecraft:luck":0.0}},
+        "minecraft:marker": {"width":0.0,"height":0.0,"eye_height":0.0,"category":"misc","fire_immune":false}
+    }"#;
+    let rows: BTreeMap<String, Box<serde_json::value::RawValue>> = serde_json::from_slice(base).unwrap();
+    let defaults = super::vanilla_mob_attributes(&rows);
+    // Only what every non-misc row with attributes has (no attack damage, no luck), the most
+    // common value (the smallest text when none is), as the base file spells it.
+    let keys: Vec<&str> = defaults.keys().map(String::as_str).collect();
+    assert_eq!(
+        keys,
+        ["minecraft:armor", "minecraft:follow_range", "minecraft:max_health", "minecraft:movement_speed"]
+    );
+    assert_eq!(defaults["minecraft:max_health"].get(), "10.0");
+    assert_eq!(defaults["minecraft:movement_speed"].get(), "0.2");
+    assert!(super::vanilla_mob_attributes(&BTreeMap::new()).is_empty(), "no base rows: no defaults");
+
+    let file = horizon_mods::custom_mob::CustomMobFile::parse(
+        "demo:thing",
+        br#"{"template":"yoake:mob","category":"axolotls","size":{"width":0.6,"height":1.0},
+            "attributes":{"max_health":30,"movement_speed":0.5,"yoake:water_slowdown":0.9,
+                          "demo:warmth":{"default":3}}}"#,
+    )
+    .unwrap();
+    let row: serde_json::Value = serde_json::from_slice(&super::custom_row(&file, &defaults).unwrap()).unwrap();
+    assert_eq!(row["category"], "axolotls");
+    let attrs = row["attributes"].as_object().unwrap();
+    assert_eq!(attrs["minecraft:max_health"], 30.0, "its own value wins");
+    assert_eq!(attrs["minecraft:movement_speed"], 0.5);
+    assert_eq!(attrs["minecraft:follow_range"], 16.0, "the rest is the default set");
+    assert_eq!(attrs["minecraft:armor"], 0.0);
+    assert_eq!(attrs["yoake:water_slowdown"], 0.9);
+    assert_eq!(attrs["demo:warmth"], 3.0);
+    assert!(!attrs.contains_key("minecraft:luck") && !attrs.contains_key("minecraft:attack_damage"));
+    // With no base to take defaults from, the row holds what the file sets, as before.
+    let bare: serde_json::Value =
+        serde_json::from_slice(&super::custom_row(&file, &BTreeMap::new()).unwrap()).unwrap();
+    assert_eq!(bare["attributes"].as_object().unwrap().len(), 4);
+}

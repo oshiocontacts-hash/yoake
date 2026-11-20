@@ -903,6 +903,7 @@ impl Plan<'_> {
         }
         // A fully custom mob's row is made from its file (it has no template): its box and eyes,
         // its category and its attribute defaults.
+        let defaults = vanilla_mob_attributes(&rows);
         for c in &self.custom_mobs {
             if rows.contains_key(&c.id) {
                 continue;
@@ -912,7 +913,7 @@ impl Plan<'_> {
             }
             out.extend(serde_json::to_vec(&c.id).map_err(|e| e.to_string())?);
             out.push(b':');
-            out.extend(serde_json::to_vec(&custom_row(c)).map_err(|e| e.to_string())?);
+            out.extend(custom_row(c, &defaults)?);
         }
         out.push(b'}');
         Ok(out)
@@ -932,31 +933,107 @@ impl Plan<'_> {
     }
 }
 
-/// A custom mob's row of `entity-types.json`.
-fn custom_row(c: &horizon_mods::custom_mob::CustomMobFile) -> serde_json::Value {
+/// The attributes every vanilla living mob row carries, with the base value most rows give each:
+/// the keys that all rows of the base `entity-types.json` that have attributes and are not `misc`
+/// (so not the player or an armor stand) share. That is the default set (`LivingEntity` and `Mob`
+/// suppliers) a custom mob's row starts from. The values stay the base file's own text, so a float
+/// is not rounded. Empty when the base has no such rows (the file's own attributes are all a row
+/// gets then).
+fn vanilla_mob_attributes(
+    rows: &BTreeMap<String, Box<serde_json::value::RawValue>>,
+) -> BTreeMap<String, Box<serde_json::value::RawValue>> {
+    use serde_json::value::RawValue;
+    type Raw = BTreeMap<String, Box<RawValue>>;
+    let mut shared: Option<Vec<(String, Vec<String>)>> = None;
+    for row in rows.values() {
+        let Ok(row) = serde_json::from_str::<Raw>(row.get()) else {
+            continue;
+        };
+        if row
+            .get("category")
+            .is_none_or(|c| c.get().trim() == "\"misc\"")
+        {
+            continue;
+        }
+        let Some(attributes) = row
+            .get("attributes")
+            .and_then(|a| serde_json::from_str::<Raw>(a.get()).ok())
+        else {
+            continue;
+        };
+        shared = Some(match shared {
+            None => attributes
+                .into_iter()
+                .map(|(k, v)| (k, vec![v.get().trim().to_owned()]))
+                .collect(),
+            Some(old) => old
+                .into_iter()
+                .filter_map(|(k, mut values)| {
+                    let v = attributes.get(&k)?;
+                    values.push(v.get().trim().to_owned());
+                    Some((k, values))
+                })
+                .collect(),
+        });
+    }
+    shared
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|(k, values)| {
+            // The most common value; the smallest text among equals.
+            let mut counts: BTreeMap<&String, usize> = BTreeMap::new();
+            for v in &values {
+                *counts.entry(v).or_default() += 1;
+            }
+            let best = counts
+                .into_iter()
+                .max_by(|a, b| a.1.cmp(&b.1).then(b.0.cmp(a.0)))?
+                .0;
+            Some((k, RawValue::from_string(best.clone()).ok()?))
+        })
+        .collect()
+}
+
+/// A custom mob's row of `entity-types.json`: its box and eyes, its category and its attributes
+/// (the full default set of a vanilla mob, then what the file sets).
+fn custom_row(
+    c: &horizon_mods::custom_mob::CustomMobFile,
+    defaults: &BTreeMap<String, Box<serde_json::value::RawValue>>,
+) -> std::result::Result<Vec<u8>, String> {
     use horizon_mods::custom_mob::{Attribute, BUILTIN_ATTRIBUTES};
-    let mut attributes = serde_json::Map::new();
+    use serde_json::value::to_raw_value;
+    let mut attributes = defaults.clone();
+    let mut put = |name: String, v: f64| -> std::result::Result<(), String> {
+        attributes.insert(name, to_raw_value(&v).map_err(|e| e.to_string())?);
+        Ok(())
+    };
     for (name, value) in &c.attributes {
         match value {
             Attribute::Value(v) if BUILTIN_ATTRIBUTES.contains(&name.as_str()) => {
-                attributes.insert(format!("minecraft:{name}"), serde_json::json!(v));
+                put(format!("minecraft:{name}"), *v)?;
             }
-            Attribute::Value(v) => {
-                attributes.insert(name.clone(), serde_json::json!(v));
-            }
-            Attribute::Custom(a) => {
-                attributes.insert(name.clone(), serde_json::json!(a.default));
-            }
+            Attribute::Value(v) => put(name.clone(), *v)?,
+            Attribute::Custom(a) => put(name.clone(), a.default)?,
         }
     }
-    serde_json::json!({
-        "width": c.size.width,
-        "height": c.size.height,
-        "eye_height": c.size.eye_height.unwrap_or(c.size.height * 0.85),
-        "category": c.category,
-        "fire_immune": false,
-        "attributes": attributes,
+    #[derive(serde::Serialize)]
+    struct Row<'a> {
+        width: f64,
+        height: f64,
+        eye_height: f64,
+        category: &'a str,
+        fire_immune: bool,
+        attributes: BTreeMap<String, Box<serde_json::value::RawValue>>,
+    }
+    serde_json::to_vec(&Row {
+        width: c.size.width,
+        height: c.size.height,
+        eye_height: c.size.eye_height.unwrap_or(c.size.height * 0.85),
+        category: &c.category,
+        fire_immune: false,
+        attributes,
     })
+    .map_err(|e| e.to_string())
 }
 
 impl<'a> Plan<'a> {
