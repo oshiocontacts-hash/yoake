@@ -73,3 +73,19 @@ Differences / notes:
 * `BUILTIN_ATTRIBUTES` contains `water_slowdown`, which is not a 26.3 attribute key (absent from every vanilla row); a mob declaring it writes
   `minecraft:water_slowdown`, which is not a registered vanilla attribute. The other 15 names exist in the file (`flying_speed`, `attack_damage` only on some mobs).
 * `eye_height` default `height * 0.85` (vanilla uses 0.85 for most mobs, e.g. pig 0.765 for 0.9). Matches.
+
+## Add-on: F4M-4a
+
+`vps/yoake-free/f4m-4a` (cff373757, stacked on f4m-3: `mob_is_monster(&Mob)`, part-aware melee range, `mobs/custom/ai/`) merged on top
+("Merge FR-F4M-4a"), no conflicts, no catalog/WIT change.
+
+`f4m_parity -- --ignored` (HORIZON_TEST_RESOURCES as above), reported per stage:
+
+| Golden | after f4m-3 | after f4m-4a |
+|---|---|---|
+| A `golden_a_saves` | pass | pass |
+| B `golden_b_network` | pass | pass |
+| C `golden_c_render_types_and_identity` | pass | pass |
+
+Nothing failed after f4m-4a, so bare cff373757 was not checked. After f4m-4a: `horizon-client-lib --lib` 1720 passed, 48 ignored;
+`horizon-client --lib` 1222 passed, 41 ignored (the other suites above were not rerun for this add-on).
