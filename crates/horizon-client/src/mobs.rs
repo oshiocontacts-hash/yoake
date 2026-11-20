@@ -3459,6 +3459,8 @@ impl Mob {
         // before its goals, so a damage frame it emits is seen by the goal in the same tick.
         if self.kind.custom.is_some() {
             custom::anim_sync::tick(self, w);
+            // F4M-4c: the growth and breeding pause of a `breedable` type.
+            custom::ai::breed::tick(self);
         }
         ai::tick(self, w, level_random, events)
     }

@@ -105,6 +105,24 @@ pub fn write(tag: &mut Tag, m: &Mob) {
     if !rest.is_empty() {
         yoake.insert("rest".into(), Tag::Compound(rest));
     }
+    // F4M-4c: the owner (`UUIDUtil` int array), the order to sit, the breeding age (a baby's
+    // negative age or the pause after breeding) and the love ticks left. Only what is not the
+    // default is written, so a mob nobody tamed or bred writes nothing here.
+    for (key, tag) in [
+        ("owner", m.extra.owner.map(|o| Tag::IntArray(o.to_vec()))),
+        ("sitting", m.extra.sitting.then_some(Tag::Byte(1))),
+        ("age", (m.extra.age != 0).then_some(Tag::Int(m.extra.age))),
+        ("love", (m.extra.in_love > 0).then_some(Tag::Int(m.extra.in_love))),
+    ] {
+        match tag {
+            Some(tag) => {
+                yoake.insert(key.into(), tag);
+            }
+            None => {
+                yoake.remove(&key.into());
+            }
+        }
+    }
     // Attributes: the changed ones, then the saved entries of attributes the type lost.
     let saved: Vec<Tag> = match yoake.get(&"attributes".into()) {
         Some(Tag::List(l)) => l.clone(),
@@ -144,6 +162,11 @@ pub fn read(m: &mut Mob, tag: &Tag) {
     if let Some(Tag::List(list)) = yoake.get("attributes") {
         state.attrs.read_nbt(list);
     }
+    m.extra.owner = crate::save::uuid_from_tag(yoake.get("owner"));
+    m.extra.tame = m.extra.owner.is_some();
+    m.extra.sitting = m.extra.tame && number(yoake.get("sitting")).is_some_and(|n| n != 0);
+    m.extra.age = number(yoake.get("age")).unwrap_or(0) as i32;
+    m.extra.in_love = number(yoake.get("love")).unwrap_or(0).max(0) as i32;
     if let Some(rest @ Tag::Compound(_)) = yoake.get("rest") {
         state.rest.home = block_pos(rest.get("home"));
         state.rest.place = block_pos(rest.get("place"));
@@ -299,6 +322,52 @@ mod tests {
         let m = mob_from_nbt(&tag, &others, 1, None).unwrap();
         assert_eq!(m.species(), Species::Cow);
         assert!(m.extra.custom.is_none());
+    }
+
+    /// F4M-4c: the owner, the order to sit, the breeding age and the love ticks are saved in the
+    /// `yoake` compound, come back as they were, the second save is the first, and an untamed mob
+    /// writes none of them (and drops them from an older save).
+    #[test]
+    fn the_owner_the_sit_order_and_the_breeding_state_survive_a_save_and_load() {
+        use crate::mobs::custom::ai::tame;
+        let types = types();
+        let mut m = fox(&types);
+        let fresh = mob_to_nbt(&m, UUID, None, None);
+        for key in ["owner", "sitting", "age", "love"] {
+            assert!(fresh.get("yoake").unwrap().get(key).is_none(), "a fresh mob has no {key}");
+        }
+        tame::tame(&mut m, [11, 22, 33, 44]);
+        assert!(m.extra.sitting, "the fox sits on command");
+        m.extra.age = -12000;
+        let tag = mob_to_nbt(&m, UUID, None, None);
+        let y = tag.get("yoake").unwrap();
+        assert_eq!(y.get("owner"), Some(&Tag::IntArray(vec![11, 22, 33, 44])));
+        assert_eq!(number(y.get("sitting")), Some(1));
+        assert_eq!(number(y.get("age")), Some(-12000));
+        assert!(y.get("love").is_none());
+        let back = mob_from_nbt(&tag, &types, 9, None).unwrap();
+        assert_eq!(back.extra.owner, Some([11, 22, 33, 44]));
+        assert!(back.extra.tame && back.extra.sitting);
+        assert_eq!(back.extra.age, -12000);
+        assert_eq!(mob_to_nbt(&back, UUID, Some(&tag), None), tag, "the second save is the first");
+        // The love ticks of an adult.
+        let mut lover = fox(&types);
+        lover.extra.in_love = 300;
+        let tag = mob_to_nbt(&lover, UUID, None, None);
+        assert_eq!(number(tag.get("yoake").unwrap().get("love")), Some(300));
+        assert_eq!(mob_from_nbt(&tag, &types, 9, None).unwrap().extra.in_love, 300);
+        // Un-taming drops the keys from the compound the mob was loaded with.
+        let mut again = mob_from_nbt(&mob_to_nbt(&m, UUID, None, None), &types, 9, None).unwrap();
+        let old = mob_to_nbt(&again, UUID, None, None);
+        tame::untame(&mut again);
+        again.extra.age = 0;
+        let now = mob_to_nbt(&again, UUID, Some(&old), None);
+        for key in ["owner", "sitting", "age"] {
+            assert!(now.get("yoake").unwrap().get(key).is_none(), "{key} is gone");
+        }
+        // The entity compound of a vanilla mob never gets any of it.
+        let cow = Mob::new(1, crate::mobs::sensor_scan_tests::kind(), Vec3::ZERO, 0.0);
+        assert!(mob_to_nbt(&cow, UUID, None, None).get("yoake").is_none());
     }
 
     /// The rest place and home of `sleep_in_bed_like` are saved in `yoake.rest`, read back, and

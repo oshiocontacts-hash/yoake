@@ -47,22 +47,13 @@ fn every_schema_goal_type_has_a_status() {
             }
         }
     }
-    assert_eq!(running, 33);
+    // F4M-4c brought the owner goals, `breed` and `follow_parent`: only `script` (F4M-10) is left.
+    assert_eq!(running, 40);
     deferred.sort();
-    assert_eq!(
-        deferred,
-        [
-            "breed",
-            "follow_owner",
-            "follow_parent",
-            "owner_hurt_by",
-            "owner_hurt_target",
-            "owner_target",
-            "script",
-            "sit",
-        ]
-    );
-    assert_eq!(support("owner_target"), Support::Deferred("F4M-4c: needs the tameable owner state"));
+    assert_eq!(deferred, ["script"]);
+    assert_eq!(support("owner_target"), Support::Target);
+    assert_eq!(support("follow_owner"), Support::Goal);
+    assert_eq!(support("script"), Support::Deferred("F4M-10: script goals"));
 }
 
 #[test]
@@ -70,7 +61,7 @@ fn the_fixture_fox_lists_the_goals_it_does_not_get() {
     let t = super::super::tests::fox_type();
     let rows = unsupported(&t.file);
     let list: Vec<&str> = rows.iter().map(|(k, _)| k.as_str()).collect();
-    assert_eq!(list, ["script", "follow_owner", "sit"]);
+    assert_eq!(list, ["script"]);
 }
 
 #[test]

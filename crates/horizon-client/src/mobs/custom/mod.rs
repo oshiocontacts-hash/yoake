@@ -187,6 +187,11 @@ pub struct CustomType {
     pub anim: Option<anim_sync::TypeAnim>,
     /// Identifies the layout of the tracked values and controllers on the wire (`horizon:mob_sync`).
     pub sync_version: u32,
+    /// `tameable`, `breedable`, the seats with `saddle_item` and `rideable_when`, and the `interact`
+    /// rows are read from `file` (F4M-4c); the seats are resolved against the model once here.
+    pub tame: Option<ai::tame::TameDef>,
+    pub breed: Option<ai::breed::BreedDef>,
+    pub ride: ai::riding::RideDef,
 }
 
 impl CustomType {
@@ -257,8 +262,14 @@ impl CustomType {
             synced,
             anim,
             sync_version: 0,
+            tame: None,
+            breed: None,
+            ride: Default::default(),
         };
         me.sync_version = anim_sync::type_version(&me);
+        me.tame = ai::tame::TameDef::from_file(&me.file);
+        me.breed = ai::breed::BreedDef::from_file(&me.file);
+        me.ride = ai::riding::RideDef::new(&me, model)?;
         Ok(me)
     }
 
@@ -303,6 +314,20 @@ pub struct CustomState {
     pub hitbox_dirty: bool,
     /// What the sync layer remembers of its sending (rate limits).
     pub sync_out: crate::lan::mob_sync::SyncOut,
+    /// The `mob-tamed` and `mob-bred` notices nobody has taken yet (F4M-4c); at most 8 are kept.
+    pub notices: Vec<Notice>,
+    /// The model scale the mob had before its baby scale was put on it (`breed::apply_scale`).
+    pub scaled_from: Option<f32>,
+}
+
+/// A notification a script can take (`mob-tamed`, `mob-bred`); queued like [`CustomState::events`].
+#[derive(Clone, Debug, PartialEq)]
+pub enum Notice {
+    /// The mob was tamed by this player.
+    Tamed { owner: [i32; 4] },
+    /// The mob bred (it is the parent that found the partner); the child's entity id once the game
+    /// spawned it.
+    Bred { partner: Option<u32>, child: Option<u32> },
 }
 
 /// The places a rest goal remembers (block positions), kept with the mob across saves.
@@ -331,7 +356,20 @@ impl CustomState {
             },
             hitbox_dirty: false,
             sync_out: Default::default(),
+            notices: Vec::new(),
+            scaled_from: None,
         }
+    }
+    /// Queues a notice for the scripts (the oldest is dropped past 8).
+    pub fn notice(&mut self, n: Notice) {
+        if self.notices.len() >= 8 {
+            self.notices.remove(0);
+        }
+        self.notices.push(n);
+    }
+    /// Takes the queued notices, oldest first.
+    pub fn take_notices(&mut self) -> Vec<Notice> {
+        std::mem::take(&mut self.notices)
     }
     pub fn synced_value(&self, t: &CustomType, name: &str) -> Option<&SyncedValue> {
         self.synced.get(t.synced_slot(name)?)
