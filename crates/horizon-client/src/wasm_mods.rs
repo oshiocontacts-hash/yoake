@@ -26,6 +26,8 @@ pub(crate) mod package;
 pub(crate) mod package_ui;
 #[path = "wasm_mods/resources.rs"]
 mod resources;
+#[path = "wasm_mods/level_services.rs"]
+mod level_services;
 #[path = "wasm_mods/server_services.rs"]
 mod server_services;
 // Test mode only (`--yoake-test`): the operations of the engine test driver (`yoake_test.rs`).
@@ -39,6 +41,16 @@ use horizon_protocol::{
     buf::{Codec, Writer},
     item::Slot,
 };
+pub(crate) use level_services::generator_factory;
+
+/// A server module of a test guest, loaded as a world start loads it (its `init` runs, so what it registers is staged)
+/// and reachable by `handle-call` under `id` for as long as the answer lives.
+#[cfg(test)]
+pub(crate) fn test_server_guest(id: &str, bytes: &[u8]) -> Result<Box<dyn std::any::Any>, String> {
+    let source = full::ServerSource::new(id, bytes.to_vec(), false);
+    let module = full::load_server(&source.module())?;
+    Ok(Box::new(full::FullMod::new(id.to_owned(), None, Some(module))))
+}
 pub(crate) use server_services::{attachment_registry, prepare_attachments, reset_attachments};
 use std::{
     cell::Cell,

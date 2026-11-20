@@ -705,6 +705,7 @@ pub(super) fn build_level_registry(
     let _ = std::fs::remove_dir_all(world_root.join(horizon_client::level_registry::EPHEMERAL_DIR));
     let stored = LevelRegistry::stored_levels(world_root);
     let (staged, _) = horizon_client::mod_generator::staged();
+    let staged_types = horizon_client::mod_generator::staged_types();
     let data = (LevelRegistry::needs_catalog(world_root, &overrides)
         || !stored.is_empty()
         || !staged.is_empty())
@@ -725,7 +726,7 @@ pub(super) fn build_level_registry(
         shapes,
         data.as_ref().map(|d| d.source_catalog()),
     );
-    registry.restore_levels(stored, staged, data.as_ref().map(|d| d.source_catalog()));
+    registry.restore_levels_with_types(staged_types, stored, staged, data.as_ref().map(|d| d.source_catalog()));
     for problem in registry.problems() {
         log::error!("Horizon: {}", problem.message);
     }

@@ -74,6 +74,8 @@ pub struct ModGeneratorContext {
     /// The world's seed (every level has it, as in vanilla).
     pub seed: i64,
     pub shape: LevelShape,
+    /// The generator id the stem names (`yoake:mod`'s `id`).
+    pub generator: String,
     /// The stem's `generator.settings` object.
     pub settings: Value,
     assets: Arc<Assets>,
@@ -82,6 +84,11 @@ impl ModGeneratorContext {
     /// The default state id of a block (`minecraft:stone`).
     pub fn block(&self, name: &str) -> Option<u32> {
         self.assets.registry.default_state(name).map(|s| s.0)
+    }
+    /// The same lookup, to keep and call from the generating threads.
+    pub fn block_lookup(&self) -> Arc<dyn Fn(&str) -> Option<u32> + Send + Sync> {
+        let assets = self.assets.clone();
+        Arc::new(move |name| assets.registry.default_state(name).map(|s| s.0))
     }
 }
 
@@ -138,6 +145,7 @@ impl ModGenerators {
             )
         })?;
         let context = ModGeneratorContext {
+            generator: id.to_owned(),
             level: level.to_owned(),
             seed,
             shape,
@@ -203,6 +211,8 @@ impl ChunkGenerator for ModTerrain {
 #[derive(Default)]
 struct Staged {
     levels: Vec<(String, Value)>,
+    /// Dimension types mods register (`id`, the type's JSON), before any level that names them.
+    types: Vec<(String, Value)>,
     generators: ModGenerators,
 }
 static STAGED: std::sync::Mutex<Option<Staged>> = std::sync::Mutex::new(None);
@@ -220,6 +230,38 @@ pub fn stage_level(id: &str, stem: Value) -> Result<(), String> {
     }
     staged.levels.push((id.to_owned(), stem));
     Ok(())
+}
+/// Registers a level stem like `stage_level`, replacing the one a package registered before under the same id (a
+/// WebAssembly package's `init` runs again at each world start and registers again).
+pub fn stage_level_replacing(id: &str, stem: Value) -> Result<(), String> {
+    crate::level_registry::check_level_id(id).map_err(|r| format!("level id `{id}`: {r}"))?;
+    let mut staged = staged_lock();
+    let staged = staged.get_or_insert_with(Staged::default);
+    staged.levels.retain(|(l, _)| l != id);
+    staged.levels.push((id.to_owned(), stem));
+    Ok(())
+}
+/// Registers a dimension type (its JSON, as a data pack's file) for every world opened from now on; a later
+/// registration of the same id replaces it.
+pub fn stage_type(id: &str, json: Value) -> Result<(), String> {
+    crate::level_registry::check_level_id(id).map_err(|r| format!("type id `{id}`: {r}"))?;
+    horizon_world::dimension::DimensionType::from_value(&json).map_err(|e| format!("type `{id}`: {e}"))?;
+    let mut staged = staged_lock();
+    let staged = staged.get_or_insert_with(Staged::default);
+    staged.types.retain(|(t, _)| t != id);
+    staged.types.push((id.to_owned(), json));
+    Ok(())
+}
+/// The types staged so far.
+pub fn staged_types() -> Vec<(String, Value)> {
+    staged_lock().as_ref().map_or_else(Vec::new, |s| s.types.clone())
+}
+/// Registers a chunk generator like `stage_generator`, replacing the one registered under the same id.
+pub fn stage_generator_replacing(id: &str, factory: Arc<dyn ModGeneratorFactory>) -> Result<(), String> {
+    let mut staged = staged_lock();
+    let staged = staged.get_or_insert_with(Staged::default);
+    staged.generators.factories.remove(id);
+    staged.generators.register(id, factory)
 }
 /// Registers a chunk generator for every world opened from now on.
 pub fn stage_generator(id: &str, factory: Arc<dyn ModGeneratorFactory>) -> Result<(), String> {

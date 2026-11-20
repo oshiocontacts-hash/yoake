@@ -143,6 +143,7 @@ mod game_tests;
 mod dim_tests;
 mod level_facts;
 mod level_manager;
+mod native_levels;
 #[cfg(test)]
 mod level_registry_tests;
 mod gamemode_switcher;
@@ -3233,6 +3234,8 @@ pub(crate) struct Game<'a> {
     level_registry: horizon_client::level_registry::LevelRegistry,
     /// The chunk generators mods registered, for levels whose stem names one (F3-5).
     mod_generators: horizon_client::mod_generator::ModGenerators,
+    /// Levels mods asked to unload, closed at the start of the next server tick (F3-8).
+    pending_unloads: Vec<String>,
     /// The dimension types of the levels past the vanilla three (F3-4).
     level_ctxs: std::collections::HashMap<Dim, level_facts::LevelCtx>,
     /// This game is that server thread's (game/integrated.rs).
@@ -19943,6 +19946,7 @@ impl<'a> Game<'a> {
             level_shapes: Default::default(),
             level_registry: Default::default(),
             mod_generators: Default::default(),
+            pending_unloads: Vec::new(),
             level_ctxs: Default::default(),
             serving: None,
             world_options: None,

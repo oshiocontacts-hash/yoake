@@ -2062,6 +2062,14 @@ interface server-services {
     storage-blob-abort: func(id: u64) -> result<bool, string>;
     storage-blob-read: func(key: string, length: u32, offset: u64, scope: storage-scope) -> result<list<u8>, string>;
     player-set-food: func(food: s32, player: string, saturation: f32) -> result<_, string>;
+    level-register-type: func(id: string, type-json: string) -> result<_, string>;
+    level-register: func(id: string, stem-json: string) -> result<_, string>;
+    level-create: func(id: string, persistent: bool, stem-json: string) -> result<_, string>;
+    level-delete: func(id: string) -> result<_, string>;
+    level-unload: func(id: string) -> result<_, string>;
+    level-regenerate: func(id: string, seed: option<s64>) -> result<_, string>;
+    level-list: func() -> result<list<string>, string>;
+    generator-register: func(id: string) -> result<_, string>;
 }
 
 interface client-types {

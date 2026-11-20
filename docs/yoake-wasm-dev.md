@@ -884,6 +884,51 @@ HTTP, general networking, chunk force-loading and the other W2D proposal entries
 this work. `HttpsPolicy`, transfer accounting, `ChunkTickets` and `RequestTickets` remain standalone
 helpers, not transport implementations.
 
+## Levels and chunk generators (F3-8)
+
+A `server-full` module can add levels (dimensions) of its own and generate their chunks. Catalog 1.2 of
+`abi-subset-server.json` adds the services below (ids 227 to 234, additive: the 1.0 baseline test is unchanged);
+the SDK has them as `yoake_wasm_sdk::full::server::ext::{register_type, register_level, register_generator,
+create_level, delete_level, unload_level, regenerate_level, levels}` and the generator side as
+`yoake_wasm_sdk::full::generator`. The sample is `crates/yoake-wasm-sdk/examples/level-generator`.
+
+| Service | Id | When | What |
+| --- | --- | --- | --- |
+| `level-register-type(id, type-json)` | 227 | `init` | a dimension type (a data pack's JSON object) for the world |
+| `level-register(id, stem-json)` | 228 | `init` | a level (`{"type": <id or object>, "generator": ...}`), with its own folder `dimensions/<ns>/<path>/` |
+| `generator-register(id)` | 234 | `init` | this package generates levels whose stem is `{"type":"yoake:mod","id":<id>,"settings":{...}}` |
+| `level-create(id, stem-json, persistent)` | 229 | a hook | creates a level while the server runs |
+| `level-delete(id)` | 230 | a hook | deletes a created level and its folder; refused while anyone is in it |
+| `level-unload(id)` | 231 | a hook | saves and closes a level at the next tick; it opens again when entered |
+| `level-regenerate(id, seed)` | 232 | a hook | throws the terrain away (region, entities, poi), a new seed for a created level |
+| `level-list()` | 233 | a hook | the world's level ids, the vanilla three first |
+
+The three registering services run from `init`, before any world exists: they stage what they are given and every
+world opened afterwards has it (a world reads the staging when its levels are built, so a player saved in such a
+level reopens there). `init` runs again at each world start and registers again; a later registration of an id
+replaces the earlier one. Run in a hook, `level-register` and `generator-register` reach the world's registry
+directly and are refused once the world has ticked.
+
+A created level is persistent (`data/yoake_levels.json`, restored at the next start) or ephemeral (saved under
+`yoake_temp/`, gone with the world). Clients connected before a level was created can enter it when its dimension
+type is one they were sent; otherwise they are told to reconnect (the protocol cannot add a type to a connected
+client). The three vanilla levels and the levels of packs, saves and mods cannot be deleted. `level-create`
+allows 64 created levels at once.
+
+**Generator callback.** For every chunk of a `yoake:mod` level the engine calls the package's `handle-call` export,
+on the thread that generates the chunk, with the caller `yoake:engine` and the method `yoake:generate-chunk`. The
+request is a JSON object (`level`, `generator`, `x`, `z`, `min_y`, `height`, `seed`, `settings`); the answer is the
+binary fill of `generator::Fill` (sections from the bottom of the level, each one block or a palette and 4096
+indices, and one biome for the chunk). The whole answer is checked before anything is written (version, section
+range and duplicates, unknown blocks, palette indices, leftover bytes); a call that fails, an answer that does not
+check, or a guest that ran out of its limits leaves the chunk empty and is logged once per level (a guest that
+trapped or ran out of its limits is disabled, as for any hook). A generator must be a pure function of the chunk,
+the seed and the settings. The generating thread waits up to two seconds for the module when a hook holds it.
+
+The engine's own hooks that carry the `level-dimension` enum still say `overworld` for a level past the three
+vanilla ones (the enum is frozen by the 1.0 baseline); string payloads (loot drops, sounds, particles, the
+level services) carry the real level id.
+
 ## Client GPU API
 
 The GPU catalog is `crates/horizon-mod-api-gen/abi-subset-gpu.json` (ABI IDs 146–163).

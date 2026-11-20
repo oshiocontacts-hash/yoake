@@ -671,6 +671,25 @@ impl LevelRegistry {
         staged: Vec<(String, Value)>,
         catalog: Option<&BiomeSourceCatalog>,
     ) {
+        self.restore_levels_with_types(Vec::new(), stored, staged, catalog);
+    }
+
+    /// `restore_levels`, with the dimension types mods staged registered first.
+    pub fn restore_levels_with_types(
+        &mut self,
+        types: Vec<(String, Value)>,
+        stored: Vec<(String, Value)>,
+        staged: Vec<(String, Value)>,
+        catalog: Option<&BiomeSourceCatalog>,
+    ) {
+        for (id, json) in types {
+            let result = DimensionType::from_value(&json)
+                .map_err(|error| LevelError::Stem { id: id.clone(), error })
+                .and_then(|t| self.register_type(&id, t));
+            if let Err(e) = result {
+                self.problems.push(LevelProblem { id, message: e.to_string() });
+            }
+        }
         for (id, stem) in stored {
             let result = match catalog {
                 Some(catalog) => self.create_level(&id, stem, catalog, false).map(|_| ()),

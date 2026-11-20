@@ -444,6 +444,7 @@ impl Game<'_> {
     pub(super) fn tick_server(&mut self, paused: bool) -> Result<()> {
         // The world's levels are fixed once it ticks (F3-6 adds run-time creation).
         self.level_registry.freeze();
+        self.run_pending_level_ops();
         self.native_drain_permission_refresh();
         self.native_server_ops_tick_start()?;
         // `tickRateManager.tick()` once per server tick, before any level

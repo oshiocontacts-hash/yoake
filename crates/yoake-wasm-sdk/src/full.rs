@@ -144,6 +144,11 @@ pub mod client {
     include!("full_client_generated.rs");
 }
 
+/// Chunk generators written in a guest (F3-8): the request and the answer of the engine's
+/// `yoake:generate-chunk` call.
+#[path = "full_generator.rs"]
+pub mod generator;
+
 /// The `server-full` world: every server-side hook, plus the server services.
 pub mod server {
     #[doc(hidden)]
@@ -194,6 +199,52 @@ pub mod server {
         /// Needs `player-write`. (Service 226.)
         pub fn set_food(player: &str, food: i32, saturation: f32) -> Result<(), String> {
             services::player_set_food(food, player, saturation)
+        }
+
+        /// Registers a dimension type (a data pack's JSON object) for the world, from `init`.
+        /// (Service 227.)
+        pub fn register_type(id: &str, type_json: &str) -> Result<(), String> {
+            services::level_register_type(id, type_json)
+        }
+
+        /// Registers a level (a level stem JSON object) for the world, from `init`: its own folder
+        /// `dimensions/<ns>/<path>/`. (Service 228.)
+        pub fn register_level(id: &str, stem_json: &str) -> Result<(), String> {
+            services::level_register(id, stem_json)
+        }
+
+        /// Makes this package the generator of levels whose stem is
+        /// `{"type":"yoake:mod","id":<id>}`, from `init`; answer `generator::METHOD` in `handle_call`.
+        /// (Service 234.)
+        pub fn register_generator(id: &str) -> Result<(), String> {
+            services::generator_register(id)
+        }
+
+        /// Creates a level while the server runs; persistent ones come back at the next start.
+        /// (Service 229.)
+        pub fn create_level(id: &str, stem_json: &str, persistent: bool) -> Result<(), String> {
+            services::level_create(id, persistent, stem_json)
+        }
+
+        /// Deletes a created level nobody is in. (Service 230.)
+        pub fn delete_level(id: &str) -> Result<(), String> {
+            services::level_delete(id)
+        }
+
+        /// Saves and closes a level at the next tick boundary; it opens again when entered.
+        /// (Service 231.)
+        pub fn unload_level(id: &str) -> Result<(), String> {
+            services::level_unload(id)
+        }
+
+        /// Throws a level's terrain away, with a new seed for a created level. (Service 232.)
+        pub fn regenerate_level(id: &str, seed: Option<i64>) -> Result<(), String> {
+            services::level_regenerate(id, seed)
+        }
+
+        /// The world's level ids, the three vanilla ones first. (Service 233.)
+        pub fn levels() -> Result<Vec<String>, String> {
+            services::level_list()
         }
 
         pub fn vec3(x: f64, y: f64, z: f64) -> types::Vec3 {
