@@ -10570,6 +10570,363 @@
       "sig": "a87138dec60c83e0",
       "status": "live",
       "kind": "fn"
+    },
+    {
+      "id": 10736,
+      "key": "horizon_client_render::audio::output_disabled[cfg(any(feature=\"audio\",test))]",
+      "sig": "d2ce23d208bfe97d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10737,
+      "key": "horizon_client_render::biome::Biomes::with_colors",
+      "sig": "5993d6c873b6a497",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10738,
+      "key": "horizon_client_render::biome::Biomes::recolored_from",
+      "sig": "ffd31ef1cf770cbf",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10739,
+      "key": "horizon_client_render::biome::gaussian_weights",
+      "sig": "de9c32a2d40cebc0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10740,
+      "key": "horizon_client_render::biome::blend_rgb",
+      "sig": "c81bd73f712bf781",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10741,
+      "key": "horizon_client_render::block_edit::World::edit_runs",
+      "sig": "6b3eea68e0fdfc40",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10742,
+      "key": "horizon_client_render::block_entities::BlockEntities::tickers",
+      "sig": "50d592ab6ee667fc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10743,
+      "key": "horizon_client_render::block_entity_anim::Bell::tick",
+      "sig": "09b945a1c1332fc3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10744,
+      "key": "horizon_client_render::block_entity_anim::ConduitServer::check",
+      "sig": "0b04e0213e1ef403",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10745,
+      "key": "horizon_client_render::block_entity_anim::BlockEntityAnims::retain",
+      "sig": "941d19ccfc49f9e8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10746,
+      "key": "horizon_client_render::bluemap::Palette::new",
+      "sig": "6c5cb58386c60ab5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10747,
+      "key": "horizon_client_render::bluemap::Inner::map_info",
+      "sig": "ce8a58ac24490e99",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10748,
+      "key": "horizon_client_render::chunk::Chunk::prime",
+      "sig": "1a15ce7731c3c17d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10749,
+      "key": "horizon_client_render::cit::CitRules::keep_glints",
+      "sig": "784a8995fa755082",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10750,
+      "key": "horizon_client_render::connected::ConnectedTextures::load",
+      "sig": "adc537cd9dd44505",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10751,
+      "key": "horizon_client_render::datapack::worldgen_overrides",
+      "sig": "d6bd54905a72086f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10752,
+      "key": "horizon_client_render::fog::camera_fog_type",
+      "sig": "f19dd23d50c624b8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10753,
+      "key": "horizon_client_render::fusion::FusionTextures::pick",
+      "sig": "6517f564fc08433f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10754,
+      "key": "horizon_client_render::gfx::flat::plan",
+      "sig": "5c3f36fbeb922e74",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10755,
+      "key": "horizon_client_render::gfx::flat::Flat::new",
+      "sig": "036260f76a16f062",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10756,
+      "key": "horizon_client_render::gfx::lod::Bounds::visible",
+      "sig": "ebe1cb8ec4f80aa6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10757,
+      "key": "horizon_client_render::gfx::mod_gpu::Texture::bytes",
+      "sig": "312c117b1281ea76",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10758,
+      "key": "horizon_client_render::gfx::mod_gpu::FrameUsage::charge",
+      "sig": "c2460571e9c7d4a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10759,
+      "key": "horizon_client_render::gfx::pack_post::Gpu::storage_stages",
+      "sig": "8df4326849d52c99",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10760,
+      "key": "horizon_client_render::graphics_ui::H::cycle",
+      "sig": "abc8e12fcb6f533d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10761,
+      "key": "horizon_client_render::graphics_ui::Item::step_slider",
+      "sig": "f9c88271ca06ef6a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10762,
+      "key": "horizon_client_render::light::beside_unlit",
+      "sig": "5bc12984bef64fcc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10763,
+      "key": "horizon_client_render::lod::Column::light_open_water_where",
+      "sig": "6d6c91bb393369e2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10764,
+      "key": "horizon_client_render::lod::mesh::heightmap",
+      "sig": "b79e7be549133ffa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10765,
+      "key": "horizon_client_render::lod::mesh::mesh_columns_with_edges",
+      "sig": "ba3a42b7653cf84c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10766,
+      "key": "horizon_client_render::lod::mesh::add_side",
+      "sig": "8660cf0f36ea4b20",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10767,
+      "key": "horizon_client_render::mesher::MeshTables::flat_light",
+      "sig": "7e1a62ab6a2a43fd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10768,
+      "key": "horizon_client_render::mesher::sides::Sides::runs",
+      "sig": "1d4cdc7292a12a96",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10769,
+      "key": "horizon_client_render::models::catalog::StateModels::each_seeded",
+      "sig": "d5ee34000b2f623a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10770,
+      "key": "horizon_client_render::native_audio_stream::PcmWriter::push_with",
+      "sig": "8d3106db1d7a258b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10771,
+      "key": "horizon_client_render::options_ui::Opt::step_slider",
+      "sig": "f9c88271ca06ef6a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10772,
+      "key": "horizon_client_render::options_ui::Opt::set_slider",
+      "sig": "661264fb2c563817",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10773,
+      "key": "horizon_client_render::options_ui::Opt::cycle",
+      "sig": "97175713869c4fff",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10774,
+      "key": "horizon_client_render::particles::ModBehaviour::apply",
+      "sig": "84718d16fe23fc16",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10775,
+      "key": "horizon_client_render::sculk::Data::tick",
+      "sig": "738095de99e6f2fd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10776,
+      "key": "horizon_client_render::sculk::is_occluded",
+      "sig": "37ad0e390841889c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10777,
+      "key": "horizon_client_render::shader_options::ShaderOptions::option_label_within",
+      "sig": "885921058df50e3a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10778,
+      "key": "horizon_client_render::skins::head_skin",
+      "sig": "3fa87385f99e560a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10779,
+      "key": "horizon_client_render::skins::patch_skin",
+      "sig": "9035e28f06ffbab1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10780,
+      "key": "horizon_client_render::skins::lookup",
+      "sig": "26735806f7cc0a51",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10781,
+      "key": "horizon_client_render::split_profiles::wrap",
+      "sig": "64f3827d1afe55c1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10782,
+      "key": "horizon_client_render::streaming::ViewArrival::arriving",
+      "sig": "f4572bef10b33aaa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10783,
+      "key": "horizon_client_render::streaming::rank_again",
+      "sig": "f779e05084ad62e2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10784,
+      "key": "horizon_client_render::streaming::whole_relight_columns",
+      "sig": "3acf19bdfff04205",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10785,
+      "key": "horizon_client_render::weather::tile",
+      "sig": "1783f09e379a2d8b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10786,
+      "key": "horizon_client_render::world::World::may_hold",
+      "sig": "9eb6ef89020b9782",
+      "status": "live",
+      "kind": "fn"
     }
   ],
   "excluded": [
@@ -10885,17 +11242,17 @@
     },
     {
       "key": "horizon_client_render::audio::LocalCharge::add",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::audio::LocalCharge::empty",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::audio::LocalCharge::subtract",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -10991,11 +11348,6 @@
     {
       "key": "horizon_client_render::audio::output_devices[cfg(not(feature=\"audio\"))]",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::audio::output_disabled[cfg(any(feature=\"audio\",test))]",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -11095,7 +11447,7 @@
     },
     {
       "key": "horizon_client_render::auth::with_one_retry",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -11199,18 +11551,8 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::biome::Biomes::recolored_from",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::biome::Biomes::registry_order",
       "reason": "borrowed return type",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::biome::Biomes::with_colors",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -11219,18 +11561,8 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::biome::blend_rgb",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::biome::color",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::biome::gaussian_weights",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -11255,11 +11587,6 @@
     },
     {
       "key": "horizon_client_render::block_edit::Memo::get",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::block_edit::World::edit_runs",
       "reason": "impl Trait argument",
       "kind": "fn"
     },
@@ -11390,7 +11717,7 @@
     },
     {
       "key": "horizon_client_render::block_entities::BlockEntities::retain",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -11421,11 +11748,6 @@
     {
       "key": "horizon_client_render::block_entities::BlockEntities::take",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::block_entities::BlockEntities::tickers",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -11469,11 +11791,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::block_entity_anim::Bell::tick",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::block_entity_anim::Bell::trigger_event",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -11486,11 +11803,6 @@
     {
       "key": "horizon_client_render::block_entity_anim::BlockEntityAnims::lid",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::block_entity_anim::BlockEntityAnims::retain",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -11530,11 +11842,6 @@
     },
     {
       "key": "horizon_client_render::block_entity_anim::ConduitServer::ambient",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::block_entity_anim::ConduitServer::check",
       "reason": "impl Trait argument",
       "kind": "fn"
     },
@@ -11590,7 +11897,7 @@
     },
     {
       "key": "horizon_client_render::block_entity_anim::WobbleStyle::duration",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -11635,7 +11942,7 @@
     },
     {
       "key": "horizon_client_render::block_entity_anim::ticker",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -11775,7 +12082,7 @@
     },
     {
       "key": "horizon_client_render::block_entity_render::CacheOptions::any_model_cache",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -11999,11 +12306,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::bluemap::Inner::map_info",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::bluemap::Inner::tile_file",
       "reason": "small body",
       "kind": "fn"
@@ -12051,11 +12353,6 @@
     {
       "key": "horizon_client_render::bluemap::Palette::from_game",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::bluemap::Palette::new",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -12320,7 +12617,7 @@
     },
     {
       "key": "horizon_client_render::camera::Camera::align_with_entity",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -12360,17 +12657,17 @@
     },
     {
       "key": "horizon_client_render::camera::CameraType::cycle",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::camera::CameraType::is_first_person",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::camera::CameraType::is_mirrored",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -12475,7 +12772,7 @@
     },
     {
       "key": "horizon_client_render::capture_time::AnimationInstant::elapsed",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -12485,12 +12782,12 @@
     },
     {
       "key": "horizon_client_render::capture_time::AnimationInstant::wall",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::capture_time::Clock::now",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -12830,7 +13127,7 @@
     },
     {
       "key": "horizon_client_render::chunk::Chunk::highest",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -12855,12 +13152,7 @@
     },
     {
       "key": "horizon_client_render::chunk::Chunk::motion_blocking",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::chunk::Chunk::prime",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -12880,7 +13172,7 @@
     },
     {
       "key": "horizon_client_render::chunk::Chunk::world_surface",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -12890,17 +13182,17 @@
     },
     {
       "key": "horizon_client_render::chunk::ColumnLayout::height",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::chunk::ColumnLayout::max_y",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::chunk::ColumnLayout::min_y",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -12910,37 +13202,37 @@
     },
     {
       "key": "horizon_client_render::chunk::ColumnLayout::section_index",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::chunk::ColumnLayout::section_y",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::chunk::ColumnLayout::sections",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::chunk::LevelShape::column",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::chunk::LevelShape::has_section",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::chunk::LevelShape::max_y",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::chunk::LevelShape::min_section",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -12950,7 +13242,7 @@
     },
     {
       "key": "horizon_client_render::chunk::LevelShape::section_count",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -13105,7 +13397,7 @@
     },
     {
       "key": "horizon_client_render::chunk::free_columns",
-      "reason": "generic type params",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -13199,11 +13491,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::cit::CitRules::keep_glints",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::cit::CitRules::load",
       "reason": "small body",
       "kind": "fn"
@@ -13245,7 +13532,7 @@
     },
     {
       "key": "horizon_client_render::cit::text_matches",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -13340,7 +13627,7 @@
     },
     {
       "key": "horizon_client_render::cit_assets::rule_sprites",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -13570,7 +13857,7 @@
     },
     {
       "key": "horizon_client_render::command_block::Mode::block",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -13580,12 +13867,12 @@
     },
     {
       "key": "horizon_client_render::command_block::Mode::label",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::command_block::Mode::next",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -13595,7 +13882,7 @@
     },
     {
       "key": "horizon_client_render::command_block::Mode::ordinal",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -13639,13 +13926,8 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::connected::ConnectedTextures::load",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::connected::ConnectedTextures::pick",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -13725,7 +14007,7 @@
     },
     {
       "key": "horizon_client_render::containers::FurnaceKind::fast",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -13735,7 +14017,7 @@
     },
     {
       "key": "horizon_client_render::containers::FurnaceKind::recipe_type",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -13905,12 +14187,12 @@
     },
     {
       "key": "horizon_client_render::crash::mod_guard::ModThread::as_str",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::crash::mod_guard::ModThread::index",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -14179,11 +14461,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::datapack::worldgen_overrides",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::dynamic_light::Luminance::hdr_tier",
       "reason": "small body",
       "kind": "fn"
@@ -14320,7 +14597,7 @@
     },
     {
       "key": "horizon_client_render::environment::Easing::apply",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -14355,17 +14632,17 @@
     },
     {
       "key": "horizon_client_render::extras::Corner::label",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::extras::Corner::left",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::extras::Corner::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -14375,7 +14652,7 @@
     },
     {
       "key": "horizon_client_render::extras::Corner::top",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -14435,62 +14712,62 @@
     },
     {
       "key": "horizon_client_render::extras::Item::caption",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::extras::Item::caption_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::extras::Item::caption_text",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::extras::Item::cost",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::extras::Item::cycle",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::extras::Item::description",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::extras::Item::description_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::extras::Item::description_text",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::extras::Item::key_name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::extras::Item::parent",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::extras::Item::switch",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::extras::Item::value",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -14516,11 +14793,6 @@
     {
       "key": "horizon_client_render::fog::FogTables::load",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::fog::camera_fog_type",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -14550,7 +14822,7 @@
     },
     {
       "key": "horizon_client_render::font::Filter::passes",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -14694,11 +14966,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::fusion::FusionTextures::pick",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::fusion::namespaced",
       "reason": "small body",
       "kind": "fn"
@@ -14735,12 +15002,12 @@
     },
     {
       "key": "horizon_client_render::gfx::Part::of",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::Part::set",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -15385,7 +15652,7 @@
     },
     {
       "key": "horizon_client_render::gfx::arena::free_later",
-      "reason": "generic type params",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -15460,22 +15727,22 @@
     },
     {
       "key": "horizon_client_render::gfx::capture::PresentationTime::delta",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::capture::PresentationTime::elapsed",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::capture::PresentationTime::frame",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::capture::PresentationTime::now",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -15500,7 +15767,7 @@
     },
     {
       "key": "horizon_client_render::gfx::collect_animated_layers",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -15715,12 +15982,12 @@
     },
     {
       "key": "horizon_client_render::gfx::facing_runs",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::facing_runs_from",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -15745,27 +16012,22 @@
     },
     {
       "key": "horizon_client_render::gfx::flat::Flat::draw",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::flat::Flat::draw_geometry",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::flat::Flat::draw_phase2",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::flat::Flat::draw_with",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::gfx::flat::Flat::new",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -15790,7 +16052,7 @@
     },
     {
       "key": "horizon_client_render::gfx::flat::Flat::trim",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -15806,11 +16068,6 @@
     {
       "key": "horizon_client_render::gfx::flat::is_broken_intel_vulkan",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::gfx::flat::plan",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -16090,22 +16347,22 @@
     },
     {
       "key": "horizon_client_render::gfx::hdr::Output::color_space",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::hdr::Output::format",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::hdr::Output::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::hdr::Output::space",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -16181,11 +16438,6 @@
     {
       "key": "horizon_client_render::gfx::lod::Bounds::mesh",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::gfx::lod::Bounds::visible",
-      "reason": "by-value or typed self",
       "kind": "fn"
     },
     {
@@ -16285,22 +16537,17 @@
     },
     {
       "key": "horizon_client_render::gfx::mod_gpu::Allocation::bytes",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::mod_gpu::Allocation::same_kind",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::mod_gpu::Format::bytes",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::gfx::mod_gpu::FrameUsage::charge",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -16381,11 +16628,6 @@
     {
       "key": "horizon_client_render::gfx::mod_gpu::Resources<Value>::usage",
       "reason": "generic impl",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::gfx::mod_gpu::Texture::bytes",
-      "reason": "by-value or typed self",
       "kind": "fn"
     },
     {
@@ -16545,12 +16787,12 @@
     },
     {
       "key": "horizon_client_render::gfx::mod_gpu_resources::commands::Rect::covered_pixels",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::mod_gpu_resources::commands::Rect::validate",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -16670,7 +16912,7 @@
     },
     {
       "key": "horizon_client_render::gfx::mod_gpu_resources::timing::Workload::uses_quarter",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -17480,7 +17722,7 @@
     },
     {
       "key": "horizon_client_render::gfx::occlusion::Graph::propagate",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -17805,17 +18047,12 @@
     },
     {
       "key": "horizon_client_render::gfx::pack_post::Gpu::storable",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::gfx::pack_post::Gpu::storage_stages",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::pack_post::Image::buffer",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -17940,7 +18177,7 @@
     },
     {
       "key": "horizon_client_render::gfx::pack_post::SamplerKind::binding_type",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -17950,7 +18187,7 @@
     },
     {
       "key": "horizon_client_render::gfx::pack_post::TerrainList::translucent",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -18780,12 +19017,12 @@
     },
     {
       "key": "horizon_client_render::graphics::EntityCullingMode::label",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics::EntityCullingMode::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -18795,12 +19032,12 @@
     },
     {
       "key": "horizon_client_render::graphics::FarDetail::label",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics::FarDetail::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -18810,12 +19047,12 @@
     },
     {
       "key": "horizon_client_render::graphics::FrameGeneration::label",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics::FrameGeneration::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -18900,32 +19137,32 @@
     },
     {
       "key": "horizon_client_render::graphics::GraphicsApi::label",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics::GraphicsApi::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics::GraphicsApi::with_env",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics::LeafCullingMode::is_interior",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics::LeafCullingMode::label",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics::LeafCullingMode::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -18935,12 +19172,12 @@
     },
     {
       "key": "horizon_client_render::graphics::PresentMode::label",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics::PresentMode::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -18950,12 +19187,12 @@
     },
     {
       "key": "horizon_client_render::graphics::Preset::label",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics::Preset::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -18965,12 +19202,12 @@
     },
     {
       "key": "horizon_client_render::graphics::Upscaling::label",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics::Upscaling::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -18980,7 +19217,7 @@
     },
     {
       "key": "horizon_client_render::graphics::Upscaling::ratio",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -19035,12 +19272,12 @@
     },
     {
       "key": "horizon_client_render::graphics_style::Cost::label",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_style::Cost::rgb",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -19204,83 +19441,73 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::graphics_ui::H::cycle",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::graphics_ui::H::label",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::H::set_slider",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::H::slider",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::H::slider_steps",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::Item::available",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::Item::blocked",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::Item::cycle",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::Item::label",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::Item::set_slider",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::Item::slider",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::Item::slider_steps",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::graphics_ui::Item::step_slider",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::Item::steps",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::Item::switch",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::Item::touched",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -19290,12 +19517,12 @@
     },
     {
       "key": "horizon_client_render::graphics_ui::Page::about",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::graphics_ui::Page::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -19385,27 +19612,27 @@
     },
     {
       "key": "horizon_client_render::hdr_calibration::Step::hint_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::hdr_calibration::Step::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::hdr_calibration::Step::name_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::hdr_calibration::Step::number",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::hdr_calibration::Step::range",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -19950,7 +20177,7 @@
     },
     {
       "key": "horizon_client_render::hud_layout::Blend::pipeline",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -20300,7 +20527,7 @@
     },
     {
       "key": "horizon_client_render::jigsaw_block::JointType::label_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -20310,7 +20537,7 @@
     },
     {
       "key": "horizon_client_render::jigsaw_block::JointType::serialized_name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -20440,7 +20667,7 @@
     },
     {
       "key": "horizon_client_render::level_loading::Status::color",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -20520,7 +20747,7 @@
     },
     {
       "key": "horizon_client_render::light::LightChanges::dirty_sections",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -20585,7 +20812,7 @@
     },
     {
       "key": "horizon_client_render::light::Region::finish",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -20616,11 +20843,6 @@
     {
       "key": "horizon_client_render::light::apply_relighting",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::light::beside_unlit",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -20711,11 +20933,6 @@
     {
       "key": "horizon_client_render::lod::Column::light_open_water",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::lod::Column::light_open_water_where",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -20980,42 +21197,42 @@
     },
     {
       "key": "horizon_client_render::lod::TileKey::children",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::lod::TileKey::distance",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::lod::TileKey::origin",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::lod::TileKey::overlaps",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::lod::TileKey::parent",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::lod::TileKey::reach",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::lod::TileKey::refreshed_by",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::lod::TileKey::size",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -21040,12 +21257,12 @@
     },
     {
       "key": "horizon_client_render::lod::drop_queued_samples",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::lod::forget_detail",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -21059,28 +21276,13 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::lod::mesh::add_side",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::lod::mesh::fill_buried_gaps",
       "reason": "borrowed return type",
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::lod::mesh::heightmap",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::lod::mesh::hides",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::lod::mesh::mesh_columns_with_edges",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -21261,11 +21463,6 @@
     {
       "key": "horizon_client_render::mesher::MeshTables::facts",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::mesher::MeshTables::flat_light",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -21535,17 +21732,12 @@
     },
     {
       "key": "horizon_client_render::mesher::sides::Sides::every",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::mesher::sides::Sides::quads",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::mesher::sides::Sides::runs",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -21555,12 +21747,12 @@
     },
     {
       "key": "horizon_client_render::mesher::sides::Sides::visible",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::mesher::sides::Sides::visible_from",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -21751,11 +21943,6 @@
     {
       "key": "horizon_client_render::models::catalog::StateModels::collect_seeded",
       "reason": "borrowed return type",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::models::catalog::StateModels::each_seeded",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -22089,11 +22276,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::native_audio_stream::PcmWriter::push_with",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::native_audio_stream::PcmWriter::queued",
       "reason": "small body",
       "kind": "fn"
@@ -22130,7 +22312,7 @@
     },
     {
       "key": "horizon_client_render::native_mic::CaptureConverter::input",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -22165,7 +22347,7 @@
     },
     {
       "key": "horizon_client_render::native_mic::NativeMicrophones::retain_owners",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -22250,17 +22432,17 @@
     },
     {
       "key": "horizon_client_render::options_file::Spec::decode",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::options_file::Spec::encode",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::options_file::Spec::validate",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -22380,67 +22562,52 @@
     },
     {
       "key": "horizon_client_render::options_ui::Opt::affects_preset",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::options_ui::Opt::available",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::options_ui::Opt::caption",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::options_ui::Opt::cycle",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::options_ui::Opt::file_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::options_ui::Opt::kind",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::options_ui::Opt::label",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::options_ui::Opt::set_slider",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::options_ui::Opt::slider_position",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::options_ui::Opt::slider_steps",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::options_ui::Opt::step_slider",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::options_ui::Opt::tooltip_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::options_ui::Opt::value_text",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -22745,7 +22912,7 @@
     },
     {
       "key": "horizon_client_render::pack_screen::Compat::key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -23314,11 +23481,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::particles::ModBehaviour::apply",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::particles::ModBehaviour::parse",
       "reason": "small body",
       "kind": "fn"
@@ -23670,7 +23832,7 @@
     },
     {
       "key": "horizon_client_render::particles::destroy_positions",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -23720,12 +23882,12 @@
     },
     {
       "key": "horizon_client_render::poi_sections::Poi::max_tickets",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::poi_sections::Poi::valid_range",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -24109,11 +24271,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::sculk::Data::tick",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::sculk::SculkEntity::for_block",
       "reason": "small body",
       "kind": "fn"
@@ -24249,11 +24406,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::sculk::is_occluded",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::sculk::is_vibration",
       "reason": "small body",
       "kind": "fn"
@@ -24320,7 +24472,7 @@
     },
     {
       "key": "horizon_client_render::section_mask::SectionMask::from",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -24335,7 +24487,7 @@
     },
     {
       "key": "horizon_client_render::section_mask::SectionMask::iter",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -24579,11 +24731,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::shader_options::ShaderOptions::option_label_within",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::shader_options::ShaderOptions::profile_label",
       "reason": "small body",
       "kind": "fn"
@@ -24819,16 +24966,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::skins::head_skin",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::skins::lookup",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::skins::nbt_text",
       "reason": "small body",
       "kind": "fn"
@@ -24841,11 +24978,6 @@
     {
       "key": "horizon_client_render::skins::offline_skin",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::skins::patch_skin",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -25644,11 +25776,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::split_profiles::wrap",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::split_ui::SplitUi::draft",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -26174,11 +26301,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::streaming::ViewArrival::arriving",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::streaming::ViewArrival::recent",
       "reason": "small body",
       "kind": "fn"
@@ -26215,7 +26337,7 @@
     },
     {
       "key": "horizon_client_render::streaming::light_region_ready",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -26224,18 +26346,8 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::streaming::rank_again",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::streaming::same_light",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::streaming::whole_relight_columns",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -26285,17 +26397,17 @@
     },
     {
       "key": "horizon_client_render::structure_block::StructureMode::info_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::structure_block::StructureMode::label_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::structure_block::StructureMode::legacy_name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -26305,12 +26417,12 @@
     },
     {
       "key": "horizon_client_render::structure_block::StructureMode::ordinal",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::structure_block::StructureMode::serialized_name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -26320,7 +26432,7 @@
     },
     {
       "key": "horizon_client_render::structure_block::UpdateType::ordinal",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -26580,17 +26692,17 @@
     },
     {
       "key": "horizon_client_render::test_block::TestBlockMode::id",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::test_block::TestBlockMode::info_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::test_block::TestBlockMode::label_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -26600,7 +26712,7 @@
     },
     {
       "key": "horizon_client_render::test_block::TestBlockMode::serialized_name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -26615,7 +26727,7 @@
     },
     {
       "key": "horizon_client_render::test_instance_block::Status::index",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -26625,7 +26737,7 @@
     },
     {
       "key": "horizon_client_render::test_instance_block::Status::serialized_name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -27125,7 +27237,7 @@
     },
     {
       "key": "horizon_client_render::vault::VaultState::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -27155,7 +27267,7 @@
     },
     {
       "key": "horizon_client_render::weather::Parameters::column",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -27194,13 +27306,8 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::weather::tile",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::widgets::Kind::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -27560,7 +27667,7 @@
     },
     {
       "key": "horizon_client_render::world::DirtySections::retain_columns",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -27639,13 +27746,8 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_render::world::World::may_hold",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_render::world::World::motion_blocking",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -27670,7 +27772,7 @@
     },
     {
       "key": "horizon_client_render::world::World::world_surface",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {

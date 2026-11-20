@@ -1526,22 +1526,131 @@
       "sig": "412c92709fb6ff80",
       "status": "live",
       "kind": "fn"
+    },
+    {
+      "id": 10787,
+      "key": "horizon_core::biome::BiomeZoom::quart_at_block",
+      "sig": "0af3cedea811931a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10788,
+      "key": "horizon_core::biome::BiomeZoom::corner_jitter",
+      "sig": "5fcafb835b4c1257",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10789,
+      "key": "horizon_core::density::visit",
+      "sig": "a596e5d58b409d86",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10790,
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::rewrite_children",
+      "sig": "dd2bda559978258e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10791,
+      "key": "horizon_core::density::arithmetic::UnaryOp::apply_bulk",
+      "sig": "703534052fd7a8aa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10792,
+      "key": "horizon_core::density::interval::Interval::multiply_range",
+      "sig": "8895d16674f4f973",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10793,
+      "key": "horizon_core::density::interval::Interval::power",
+      "sig": "e8a087ebef800c2f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10794,
+      "key": "horizon_core::density::interval::Interval::even_bounds",
+      "sig": "1951212eb79203a7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10795,
+      "key": "horizon_core::density::interval::Interval::map_monotonic",
+      "sig": "84b10f1d0dab07dc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10796,
+      "key": "horizon_core::density::interval::Interval::lerp_values",
+      "sig": "fbb280ff5523dc69",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10797,
+      "key": "horizon_core::geometry::Vec3::distance_squared",
+      "sig": "2f3da8d0876a9cfc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10798,
+      "key": "horizon_core::geometry::Aabb::change_extent",
+      "sig": "a813a7f70979f7fd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10799,
+      "key": "horizon_core::geometry::Aabb::collided_along_vector",
+      "sig": "6cd51c72e3472128",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10800,
+      "key": "horizon_core::geometry::sweep::sweep_intersected_blocks",
+      "sig": "56b8ff78548cb952",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10801,
+      "key": "horizon_core::paletted::PalettedContainer::has",
+      "sig": "ca8f2612e99f20b6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10802,
+      "key": "horizon_core::ticks::LevelTicks::begin_tick",
+      "sig": "56a07290f0b9a4ad",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10803,
+      "key": "horizon_core::ticks::index::DeadlineIndex::visit",
+      "sig": "f56be0ed7fb2bc7f",
+      "status": "live",
+      "kind": "fn"
     }
   ],
   "excluded": [
     {
-      "key": "horizon_core::biome::BiomeZoom::corner_jitter",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_core::biome::BiomeZoom::new",
       "reason": "const fn",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_core::biome::BiomeZoom::quart_at_block",
-      "reason": "by-value or typed self",
       "kind": "fn"
     },
     {
@@ -1656,22 +1765,17 @@
     },
     {
       "key": "horizon_core::density::arithmetic::BinaryOp::apply",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::arithmetic::BinaryOp::apply_bulk",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::arithmetic::UnaryOp::apply",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_core::density::arithmetic::UnaryOp::apply_bulk",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -1706,22 +1810,22 @@
     },
     {
       "key": "horizon_core::density::beardifier::StructureBounds::contains",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::beardifier::StructureBounds::intersects",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::beardifier::StructureBounds::maximum",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::beardifier::StructureBounds::minimum",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -1836,7 +1940,7 @@
     },
     {
       "key": "horizon_core::density::graph::GraphUnary::operation",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -1890,11 +1994,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_core::density::graph::compiler::DensityCompiler::rewrite_children",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_core::density::graph::seeded::SeededContext::blended",
       "reason": "small body",
       "kind": "fn"
@@ -1921,12 +2020,12 @@
     },
     {
       "key": "horizon_core::density::interval::Interval::abs",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::add_range",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -1936,27 +2035,22 @@
     },
     {
       "key": "horizon_core::density::interval::Interval::clamp",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::contains",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::divide_range",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::encapsulating_values",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_core::density::interval::Interval::even_bounds",
-      "reason": "by-value or typed self",
       "kind": "fn"
     },
     {
@@ -1966,67 +2060,52 @@
     },
     {
       "key": "horizon_core::density::interval::Interval::including_value",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::intersects",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::is_nai",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::java_hash_code",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::lerp_ranges",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_core::density::interval::Interval::lerp_values",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::log",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_core::density::interval::Interval::map_monotonic",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::max",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::maximum",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::min",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::minimum",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_core::density::interval::Interval::multiply_range",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2035,28 +2114,23 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_core::density::interval::Interval::power",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_core::density::interval::Interval::reciprocal",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::sign",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::square",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::interval::Interval::subtract_range",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2086,12 +2160,12 @@
     },
     {
       "key": "horizon_core::density::rounding::RoundMode::apply",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::rounding::RoundMode::integer",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2121,7 +2195,7 @@
     },
     {
       "key": "horizon_core::density::selection::Values::get",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2131,7 +2205,7 @@
     },
     {
       "key": "horizon_core::density::slice::SliceAxes::coordinates",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2201,12 +2275,12 @@
     },
     {
       "key": "horizon_core::density::terrain_noise::DistanceMetric::compute2",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::terrain_noise::DistanceMetric::compute3",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2216,11 +2290,6 @@
     },
     {
       "key": "horizon_core::density::terrain_noise::create_blended_fbm",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_core::density::visit",
       "reason": "impl Trait argument",
       "kind": "fn"
     },
@@ -2246,17 +2315,17 @@
     },
     {
       "key": "horizon_core::density::world_fields::WorldField::domain_axes",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::world_fields::WorldField::fallback",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::density::world_fields::WorldField::range",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2286,7 +2355,7 @@
     },
     {
       "key": "horizon_core::geometry::Aabb::average_size",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2296,22 +2365,17 @@
     },
     {
       "key": "horizon_core::geometry::Aabb::bottom_center",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::center",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_core::geometry::Aabb::change_extent",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::clip",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2321,37 +2385,32 @@
     },
     {
       "key": "horizon_core::geometry::Aabb::clip_direction",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_core::geometry::Aabb::collided_along_vector",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::contains",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::contract",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::deflate",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::distance_squared_to_box",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::distance_squared_to_point",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2361,37 +2420,37 @@
     },
     {
       "key": "horizon_core::geometry::Aabb::expand_towards",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::has_nan",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::inflate",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::intersect",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::intersects",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::intersects_corners",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::max",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2401,7 +2460,7 @@
     },
     {
       "key": "horizon_core::geometry::Aabb::min",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2411,7 +2470,7 @@
     },
     {
       "key": "horizon_core::geometry::Aabb::move_by",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2421,7 +2480,7 @@
     },
     {
       "key": "horizon_core::geometry::Aabb::next_deflated",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2431,12 +2490,12 @@
     },
     {
       "key": "horizon_core::geometry::Aabb::size",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::union_bounds",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2446,12 +2505,12 @@
     },
     {
       "key": "horizon_core::geometry::Aabb::with_max",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Aabb::with_min",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2471,22 +2530,22 @@
     },
     {
       "key": "horizon_core::geometry::Vec3::add_vector",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::align",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::closer_than",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::component",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2496,22 +2555,17 @@
     },
     {
       "key": "horizon_core::geometry::Vec3::cross",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::distance",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_core::geometry::Vec3::distance_squared",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::dot",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2521,42 +2575,42 @@
     },
     {
       "key": "horizon_core::geometry::Vec3::horizontal",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::horizontal_distance",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::horizontal_distance_squared",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::is_finite",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::length",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::length_squared",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::lerp",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::multiply",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2566,67 +2620,67 @@
     },
     {
       "key": "horizon_core::geometry::Vec3::normalize",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::projected_on",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::relative",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::reverse",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::rotate_clockwise_90",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::rotate_x",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::rotate_y",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::rotate_z",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::rotation",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::scale",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::subtract",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::vector_to",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::geometry::Vec3::with_component",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2791,7 +2845,7 @@
     },
     {
       "key": "horizon_core::geometry::movement::resolve_step_movement",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -3006,7 +3060,7 @@
     },
     {
       "key": "horizon_core::geometry::shape::join::ShapeOp::validate",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -3037,11 +3091,6 @@
     {
       "key": "horizon_core::geometry::sweep::furthest_corner",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_core::geometry::sweep::sweep_intersected_blocks",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -3526,47 +3575,47 @@
     },
     {
       "key": "horizon_core::noise::volume::DensityVolume::block",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::noise::volume::DensityVolume::coordinate",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::noise::volume::DensityVolume::index",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::noise::volume::DensityVolume::index_of_block",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::noise::volume::DensityVolume::maximum",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::noise::volume::DensityVolume::minimum",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::noise::volume::DensityVolume::size",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::noise::volume::DensityVolume::sizes",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::noise::volume::DensityVolume::steps",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -3600,11 +3649,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_core::paletted::PalettedContainer::has",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_core::paletted::PalettedContainer::heap_bytes",
       "reason": "small body",
       "kind": "fn"
@@ -3626,7 +3670,7 @@
     },
     {
       "key": "horizon_core::paletted::PalettedContainer::maybe_has",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -3691,7 +3735,7 @@
     },
     {
       "key": "horizon_core::paletted::Strategy::config",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -3701,12 +3745,12 @@
     },
     {
       "key": "horizon_core::paletted::Strategy::storage_bits",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::paletted::Strategy::wire_has_palette",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -4001,7 +4045,7 @@
     },
     {
       "key": "horizon_core::random::marsaglia_polar",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -4321,7 +4365,7 @@
     },
     {
       "key": "horizon_core::ticks::ChunkTicks::remove_if",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -4337,11 +4381,6 @@
     {
       "key": "horizon_core::ticks::LevelTicks::area_ticks",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_core::ticks::LevelTicks::begin_tick",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -4381,7 +4420,7 @@
     },
     {
       "key": "horizon_core::ticks::LevelTicks::tick",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -4396,32 +4435,32 @@
     },
     {
       "key": "horizon_core::ticks::SavedTick::unpack",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::ticks::ScheduledTick::drain_cmp",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::ticks::ScheduledTick::intra_cmp",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::ticks::ScheduledTick::key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::ticks::ScheduledTick::saved",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_core::ticks::TickArea::contains",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -4572,11 +4611,6 @@
     {
       "key": "horizon_core::ticks::index::DeadlineIndex::shift_keys",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_core::ticks::index::DeadlineIndex::visit",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {

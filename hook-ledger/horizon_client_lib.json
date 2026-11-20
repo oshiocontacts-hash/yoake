@@ -30214,6 +30214,307 @@
       "sig": "9f143d6397fc0005",
       "status": "live",
       "kind": "fn"
+    },
+    {
+      "id": 10642,
+      "key": "horizon_client_lib::advancements::InventoryIndex::build",
+      "sig": "ef42a6690dff7417",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10643,
+      "key": "horizon_client_lib::advancements::Tree::visible",
+      "sig": "c8a7e2bf074e3262",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10644,
+      "key": "horizon_client_lib::ambience::bubble_column_in",
+      "sig": "09b7f4be75d12680",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10645,
+      "key": "horizon_client_lib::block_contact::swept_inside",
+      "sig": "79b438a47fe214b4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10646,
+      "key": "horizon_client_lib::creative::click_display",
+      "sig": "d3caeeac75e4f7bc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10647,
+      "key": "horizon_client_lib::debug_chart::Chart::draw",
+      "sig": "964f7759def90025",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10648,
+      "key": "horizon_client_lib::debug_chart::Chart::bars",
+      "sig": "9bd3811fdb073c03",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10649,
+      "key": "horizon_client_lib::debug_overlay::heightmap_lines",
+      "sig": "8135028aca90d9f6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10650,
+      "key": "horizon_client_lib::discord_presence::sockets_with",
+      "sig": "05cbfa33f77d5b95",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10651,
+      "key": "horizon_client_lib::end_gateway::swept_gateway",
+      "sig": "1c138faf5ad6f437",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10652,
+      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck",
+      "sig": "cb949a1269b47ce5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10653,
+      "key": "horizon_client_lib::entity_culling::Culler::occluded",
+      "sig": "0818998d5d62d1b1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10654,
+      "key": "horizon_client_lib::falling_block::Damage::impact",
+      "sig": "edbee1e5f748329d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10655,
+      "key": "horizon_client_lib::falling_block::inside_blocks",
+      "sig": "528158edd2533524",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10656,
+      "key": "horizon_client_lib::flatgen::settings_from_json",
+      "sig": "70b06d3745d4f5b0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10657,
+      "key": "horizon_client_lib::lan::advancements::ServerAdvancements::write_progress",
+      "sig": "bc209a8a630acefb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10658,
+      "key": "horizon_client_lib::lan::entity::Entities::tick",
+      "sig": "89fb355e696145ad",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10659,
+      "key": "horizon_client_lib::lan::menu::Slots::get",
+      "sig": "183c1865529fcf7b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10660,
+      "key": "horizon_client_lib::lan::menu::Slots::read",
+      "sig": "8defc10ccc1080ae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10661,
+      "key": "horizon_client_lib::lan::menu::Slots::write",
+      "sig": "8c24ca89b3f0a3b7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10662,
+      "key": "horizon_client_lib::lan::prediction::Replay::finish",
+      "sig": "61ce79d472c27ff1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10663,
+      "key": "horizon_client_lib::lan::prediction::Replay::play_to",
+      "sig": "77f27150c3d2caf5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10664,
+      "key": "horizon_client_lib::mobs::ModelNormals::part",
+      "sig": "9c1d06cf67039b8e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10665,
+      "key": "horizon_client_lib::mobs::ai::in_wall",
+      "sig": "875dea0725909e9c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10666,
+      "key": "horizon_client_lib::mobs::allay::noteblock_deposit",
+      "sig": "2c7386ec40806f69",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10667,
+      "key": "horizon_client_lib::mobs::allay::listen",
+      "sig": "2c9baec78e3d8d93",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10668,
+      "key": "horizon_client_lib::mobs::goals::Mob::pick_best",
+      "sig": "da3a15e4466216d2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10669,
+      "key": "horizon_client_lib::mobs::goals::Mob::land_random_pos_scored",
+      "sig": "3b6aa67e5197da84",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10670,
+      "key": "horizon_client_lib::mobs::goals::MoveToBlock::find_nearest",
+      "sig": "605693093f434247",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10671,
+      "key": "horizon_client_lib::mobs::path::Finder::find",
+      "sig": "a5842782b9953b56",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10672,
+      "key": "horizon_client_lib::mobs::villager::meet",
+      "sig": "a0892f4d77f3489a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10673,
+      "key": "horizon_client_lib::mobs::villager_brain::chunk_pois",
+      "sig": "5c12a91cad09d063",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10674,
+      "key": "horizon_client_lib::mobs::villager_brain::pois_in_range",
+      "sig": "da74ad8e3c515acb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10675,
+      "key": "horizon_client_lib::mobs::warden::AngerManagement::tick",
+      "sig": "520d6371cce34fcb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10676,
+      "key": "horizon_client_lib::mobs::warden::listen",
+      "sig": "cc4011712b533fcd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10677,
+      "key": "horizon_client_lib::mod_content::template_properties",
+      "sig": "9f6b850b78f5986e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10678,
+      "key": "horizon_client_lib::mod_content::resolve_shapes",
+      "sig": "be78e0ac97e5458e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10679,
+      "key": "horizon_client_lib::multiplayer::player_list_tooltip",
+      "sig": "a5032f53abf6ccdf",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10680,
+      "key": "horizon_client_lib::music::MusicFrequency::next_song_delay",
+      "sig": "097ac18671271626",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10681,
+      "key": "horizon_client_lib::scoreboard_cmd::Tracker::message",
+      "sig": "8ae63e5cd21f6531",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10682,
+      "key": "horizon_client_lib::spear::hits_in_reach",
+      "sig": "3614e88c95c321de",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10683,
+      "key": "horizon_client_lib::tick_chunk_membership::TickChunkMembership::start_ticking",
+      "sig": "15574bb0bbbad58e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10684,
+      "key": "horizon_client_lib::vanillagen::lod::decorated_batch",
+      "sig": "b2a04431509e0088",
+      "status": "live",
+      "kind": "fn"
     }
   ],
   "excluded": [
@@ -32069,11 +32370,6 @@
       "kind": "callsite"
     },
     {
-      "key": "horizon_client_lib::advancements::InventoryIndex::build",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::advancements::InventoryIndex::candidates",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -32146,11 +32442,6 @@
     {
       "key": "horizon_client_lib::advancements::Tree::load",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::advancements::Tree::visible",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -32271,11 +32562,6 @@
     {
       "key": "horizon_client_lib::ambience::AmbientTables::load",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::ambience::bubble_column_in",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -32495,7 +32781,7 @@
     },
     {
       "key": "horizon_client_lib::arrows::Pickup::byte",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -32570,7 +32856,7 @@
     },
     {
       "key": "horizon_client_lib::arrows::clip_block_shapes",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -32879,11 +33165,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::block_contact::swept_inside",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::block_entity_item::carries_record",
       "reason": "small body",
       "kind": "fn"
@@ -32965,7 +33246,7 @@
     },
     {
       "key": "horizon_client_lib::block_pattern::BlockPattern::find",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -33135,37 +33416,37 @@
     },
     {
       "key": "horizon_client_lib::capture_clock::CaptureFrame::filename[cfg(feature=\"dev-capture\")]",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::capture_clock::FrameTime::delta[cfg(feature=\"dev-capture\")]",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::capture_clock::FrameTime::elapsed[cfg(feature=\"dev-capture\")]",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::capture_clock::FrameTime::partial_tick[cfg(feature=\"dev-capture\")]",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::capture_clock::FrameTime::residual[cfg(feature=\"dev-capture\")]",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::capture_clock::FrameTime::seconds[cfg(feature=\"dev-capture\")]",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::capture_clock::FrameTime::total_ticks[cfg(feature=\"dev-capture\")]",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -33620,7 +33901,7 @@
     },
     {
       "key": "horizon_client_lib::container_screen::Button::menu_button",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -33755,7 +34036,7 @@
     },
     {
       "key": "horizon_client_lib::control::spawn_listener",
-      "reason": "generic type params",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -34099,11 +34380,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::creative::click_display",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::creative::item_group_key",
       "reason": "small body",
       "kind": "fn"
@@ -34215,37 +34491,27 @@
     },
     {
       "key": "horizon_client_lib::debug_chart::Chart::aggregated",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::debug_chart::Chart::bars",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::debug_chart::Chart::color",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::debug_chart::Chart::display",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::debug_chart::Chart::draw",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::debug_chart::Chart::height",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::debug_chart::Chart::lines_and_labels",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -34360,7 +34626,7 @@
     },
     {
       "key": "horizon_client_lib::debug_entries::Category::translation_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -34405,7 +34671,7 @@
     },
     {
       "key": "horizon_client_lib::debug_entries::Profile::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -34415,17 +34681,17 @@
     },
     {
       "key": "horizon_client_lib::debug_entries::Profile::statuses",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::debug_entries::Profile::translation_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::debug_entries::Status::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -34501,11 +34767,6 @@
     {
       "key": "horizon_client_lib::debug_overlay::gpu_line",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::debug_overlay::heightmap_lines",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -34750,7 +35011,7 @@
     },
     {
       "key": "horizon_client_lib::dialog_screen::Part::moved",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -34795,7 +35056,7 @@
     },
     {
       "key": "horizon_client_lib::discord_presence::Client::reply",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -34839,11 +35100,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::discord_presence::sockets_with",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::discord_presence::unix_now",
       "reason": "small body",
       "kind": "fn"
@@ -34880,12 +35136,7 @@
     },
     {
       "key": "horizon_client_lib::end_gateway::pearl_gateway",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::end_gateway::swept_gateway",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -34915,12 +35166,7 @@
     },
     {
       "key": "horizon_client_lib::entities::ArmorStand::on_pos_legacy",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::entities::ExperienceOrb::unstuck",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -34953,22 +35199,17 @@
     },
     {
       "key": "horizon_client_lib::entity_culling::Culler::cull_vertices",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::entity_culling::Culler::hidden",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::entity_culling::Culler::new",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::entity_culling::Culler::occluded",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -35202,18 +35443,13 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::falling_block::Damage::impact",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::falling_block::Damage::save",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::falling_block::apply_effects_from_blocks",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -35224,11 +35460,6 @@
     {
       "key": "horizon_client_lib::falling_block::hurt_mobs",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::falling_block::inside_blocks",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -35338,7 +35569,7 @@
     },
     {
       "key": "horizon_client_lib::first_person::UseResult::should_swing",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -35379,11 +35610,6 @@
     {
       "key": "horizon_client_lib::flatgen::decoration_features",
       "reason": "impl Trait return",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::flatgen::settings_from_json",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -35638,7 +35864,7 @@
     },
     {
       "key": "horizon_client_lib::gizmos::InvisibleBlock::color",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -35668,17 +35894,17 @@
     },
     {
       "key": "horizon_client_lib::gossip::Entry::weighted",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::gossip::GossipType::decay_per_day",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::gossip::GossipType::decay_per_transfer",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -35688,22 +35914,22 @@
     },
     {
       "key": "horizon_client_lib::gossip::GossipType::id",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::gossip::GossipType::index",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::gossip::GossipType::max",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::gossip::GossipType::weight",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -35713,7 +35939,7 @@
     },
     {
       "key": "horizon_client_lib::gossip::Gossips::count_for_type",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -35783,7 +36009,7 @@
     },
     {
       "key": "horizon_client_lib::health::HealthEvent::trace",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -36168,7 +36394,7 @@
     },
     {
       "key": "horizon_client_lib::item_render::gui::emit",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -36578,7 +36804,7 @@
     },
     {
       "key": "horizon_client_lib::join_mods::HostKind::as_str",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -36783,12 +37009,12 @@
     },
     {
       "key": "horizon_client_lib::join_seq::JoinSeq::get",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::join_seq::JoinSeq::is_joined",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -36964,11 +37190,6 @@
     {
       "key": "horizon_client_lib::lan::advancements::ServerAdvancements::visibility",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::lan::advancements::ServerAdvancements::write_progress",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -37318,7 +37539,7 @@
     },
     {
       "key": "horizon_client_lib::lan::chunks::light_sections",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -37822,11 +38043,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::lan::entity::Entities::tick",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::lan::entity::Entities::tracks",
       "reason": "small body",
       "kind": "fn"
@@ -38133,7 +38349,7 @@
     },
     {
       "key": "horizon_client_lib::lan::guest::SavedBody::apply",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -38158,7 +38374,7 @@
     },
     {
       "key": "horizon_client_lib::lan::guest::stack_to_network",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -38513,7 +38729,7 @@
     },
     {
       "key": "horizon_client_lib::lan::hub::Hub::system_message_to",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -38673,12 +38889,12 @@
     },
     {
       "key": "horizon_client_lib::lan::hub::chat_filter::Place::is_chat",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::lan::hub::chat_filter::Place::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -38792,33 +39008,18 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::lan::menu::Slots::get",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::lan::menu::Slots::halves",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::lan::menu::Slots::read",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::lan::menu::Slots::still_valid",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::lan::menu::Slots::valid",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::lan::menu::Slots::write",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -38963,7 +39164,7 @@
     },
     {
       "key": "horizon_client_lib::lan::prediction::Replay::catch_up",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -38977,17 +39178,7 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::lan::prediction::Replay::finish",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::lan::prediction::Replay::play",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::lan::prediction::Replay::play_to",
       "reason": "impl Trait argument",
       "kind": "fn"
     },
@@ -39178,7 +39369,7 @@
     },
     {
       "key": "horizon_client_lib::landing::FallEvent::trace",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -39198,17 +39389,17 @@
     },
     {
       "key": "horizon_client_lib::landing::SceneSound::block_sound",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::landing::SceneSound::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::landing::SceneSound::player_fall_sound",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -39363,7 +39554,7 @@
     },
     {
       "key": "horizon_client_lib::lod_net::server::Service::deliver",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -39383,7 +39574,7 @@
     },
     {
       "key": "horizon_client_lib::lod_net::server::Service::retain",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -39998,17 +40189,17 @@
     },
     {
       "key": "horizon_client_lib::mobs::DamageKind::bypasses_effects",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::DamageKind::bypasses_invulnerability",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::DamageKind::bypasses_resistance",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -40024,11 +40215,6 @@
     {
       "key": "horizon_client_lib::mobs::MobType::layer",
       "reason": "borrowed return type",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::mobs::ModelNormals::part",
-      "reason": "by-value or typed self",
       "kind": "fn"
     },
     {
@@ -40172,11 +40358,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::mobs::ai::in_wall",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::mobs::ai::is_monster",
       "reason": "small body",
       "kind": "fn"
@@ -40297,16 +40478,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::mobs::allay::listen",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::mobs::allay::noteblock_deposit",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::mobs::allay::pickup_reach",
       "reason": "small body",
       "kind": "fn"
@@ -40358,12 +40529,12 @@
     },
     {
       "key": "horizon_client_lib::mobs::anim::ArmPose::affects_offhand",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::anim::ArmPose::two_handed",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -40493,7 +40664,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::animal_brain::Act::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -40558,7 +40729,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::animal_brain::Kind::sensors",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -40698,7 +40869,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::animal_brain::find_closest",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -41513,7 +41684,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::brain::Ttl::present",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -42643,12 +42814,12 @@
     },
     {
       "key": "horizon_client_lib::mobs::equip::Slot::index",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::equip::Slot::is_armor",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -42733,17 +42904,17 @@
     },
     {
       "key": "horizon_client_lib::mobs::finalize::Attr::id",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::finalize::Attr::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::finalize::Attr::range",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -42908,7 +43079,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::finalize::Reason::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -43952,11 +44123,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::mobs::goals::Mob::land_random_pos_scored",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::mobs::goals::Mob::land_random_pos_towards",
       "reason": "small body",
       "kind": "fn"
@@ -43964,11 +44130,6 @@
     {
       "key": "horizon_client_lib::mobs::goals::Mob::land_up_out_of_solid",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::mobs::goals::Mob::pick_best",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -44008,17 +44169,12 @@
     },
     {
       "key": "horizon_client_lib::mobs::goals::MoveToBlock::can_continue",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::goals::MoveToBlock::can_use",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::mobs::goals::MoveToBlock::find_nearest",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -44663,7 +44819,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::leash::Holder::who",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -45138,7 +45294,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::monster_brain::Act::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -45223,7 +45379,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::monster_brain::find_closest",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -46012,11 +46168,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::mobs::path::Finder::find",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::mobs::path::Finder::first_ground_below",
       "reason": "small body",
       "kind": "fn"
@@ -46158,7 +46309,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::path::Path::raise_cauldron_nodes",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -46188,7 +46339,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::path::PathType::malus",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -47308,7 +47459,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::skin::Paint::job",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -47403,22 +47554,22 @@
     },
     {
       "key": "horizon_client_lib::mobs::spawn_rules::Dimension::block_light_limit",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::spawn_rules::Dimension::light_test",
-      "reason": "by-value or typed self",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::spawn_rules::Reason::ignores_light",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::spawn_rules::Reason::is_spawner",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -47528,12 +47679,12 @@
     },
     {
       "key": "horizon_client_lib::mobs::spawn_selection::Category::despawn_distance",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::spawn_selection::Category::friendly",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -47543,22 +47694,22 @@
     },
     {
       "key": "horizon_client_lib::mobs::spawn_selection::Category::index",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::spawn_selection::Category::max",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::spawn_selection::Category::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::spawn_selection::Category::persistent",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -48878,7 +49029,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::trial_spawner::TrialState::capable_of_spawning",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -48888,12 +49039,12 @@
     },
     {
       "key": "horizon_client_lib::mobs::trial_spawner::TrialState::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::trial_spawner::TrialState::spinning_mob_speed",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -49183,7 +49334,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::villager::Ext::take_half_stack",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -49287,11 +49438,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::mobs::villager::meet",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::mobs::villager::particles_around",
       "reason": "small body",
       "kind": "fn"
@@ -49378,12 +49524,12 @@
     },
     {
       "key": "horizon_client_lib::mobs::villager_brain::Act::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::villager_brain::Act::slot",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -49463,12 +49609,12 @@
     },
     {
       "key": "horizon_client_lib::mobs::villager_brain::PoiMem::clear",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::villager_brain::PoiMem::get",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -49592,11 +49738,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::mobs::villager_brain::chunk_pois",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::mobs::villager_brain::closer_to_center",
       "reason": "small body",
       "kind": "fn"
@@ -49633,7 +49774,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::villager_brain::find_closest",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -49794,11 +49935,6 @@
     {
       "key": "horizon_client_lib::mobs::villager_brain::poi_of_state",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::mobs::villager_brain::pois_in_range",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -49983,7 +50119,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::warden::AngerLevel::ambient_sound",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -49993,17 +50129,17 @@
     },
     {
       "key": "horizon_client_lib::mobs::warden::AngerLevel::is_angry",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::warden::AngerLevel::listening_sound",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::warden::AngerLevel::minimum",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -50013,7 +50149,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::warden::AngerManagement::active_entity",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -50032,13 +50168,8 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::mobs::warden::AngerManagement::tick",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::mobs::warden::Pose::code",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -50162,11 +50293,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::mobs::warden::listen",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::mobs::warden::pose",
       "reason": "small body",
       "kind": "fn"
@@ -50203,17 +50329,17 @@
     },
     {
       "key": "horizon_client_lib::mobs::warden_brain::Act::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::warden_brain::Act::order",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mobs::warden_brain::Act::slot",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -50293,7 +50419,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::warden_brain::find_closest",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -50403,7 +50529,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::wither::client_tick",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -50448,7 +50574,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::wither::turn_heads",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -50518,7 +50644,7 @@
     },
     {
       "key": "horizon_client_lib::mobs::world::MobWorld::nearest_block",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -50778,7 +50904,7 @@
     },
     {
       "key": "horizon_client_lib::mod_content::block_order",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -50844,16 +50970,6 @@
     {
       "key": "horizon_client_lib::mod_content::read_json",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::mod_content::resolve_shapes",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::mod_content::template_properties",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -50948,7 +51064,7 @@
     },
     {
       "key": "horizon_client_lib::motion::fluids::BubbleColumn::push",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -51008,7 +51124,7 @@
     },
     {
       "key": "horizon_client_lib::motion::fluids::bubble_column_push_over",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -51018,7 +51134,7 @@
     },
     {
       "key": "horizon_client_lib::motion::fluids::bubble_columns_touching",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -51197,11 +51313,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::multiplayer::player_list_tooltip",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::multiplayer::quarter",
       "reason": "small body",
       "kind": "fn"
@@ -51298,12 +51409,7 @@
     },
     {
       "key": "horizon_client_lib::music::MusicFrequency::max_frequency",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::music::MusicFrequency::next_song_delay",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -51993,7 +52099,7 @@
     },
     {
       "key": "horizon_client_lib::portal_sections::PortalSections::get",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -52003,7 +52109,7 @@
     },
     {
       "key": "horizon_client_lib::pose::Dimensions::bounds",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -52053,7 +52159,7 @@
     },
     {
       "key": "horizon_client_lib::pose::Pose::dimensions",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -52063,7 +52169,7 @@
     },
     {
       "key": "horizon_client_lib::pose::Pose::id",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -52073,17 +52179,17 @@
     },
     {
       "key": "horizon_client_lib::pose::Pose::mannequin_name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::pose::Pose::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::pregen::Pregen::advance",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -52373,22 +52479,22 @@
     },
     {
       "key": "horizon_client_lib::raid::Number::double",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::raid::Number::float",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::raid::Number::int",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::raid::Number::long",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -52538,22 +52644,22 @@
     },
     {
       "key": "horizon_client_lib::raid::RaiderType::can_be_leader",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::raid::RaiderType::entity",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::raid::RaiderType::health",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::raid::RaiderType::spawns",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -52588,7 +52694,7 @@
     },
     {
       "key": "horizon_client_lib::raid::Status::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -52753,12 +52859,12 @@
     },
     {
       "key": "horizon_client_lib::random_tick_sections::RandomTickSections::get_with",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::random_tick_sections::RandomTickSections::masked",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -52773,7 +52879,7 @@
     },
     {
       "key": "horizon_client_lib::random_tick_sections::Sections::from",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -52808,27 +52914,27 @@
     },
     {
       "key": "horizon_client_lib::recipe_book::BookType::index",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::recipe_book::BookType::keys",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::recipe_book::BookType::search_categories",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::recipe_book::BookType::tabs",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::recipe_book::Category::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -52948,7 +53054,7 @@
     },
     {
       "key": "horizon_client_lib::recipe_book::Tab::icons",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -53233,7 +53339,7 @@
     },
     {
       "key": "horizon_client_lib::save::Folder::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -53433,7 +53539,7 @@
     },
     {
       "key": "horizon_client_lib::save::WorldPreset::next",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -53443,7 +53549,7 @@
     },
     {
       "key": "horizon_client_lib::save::WorldPreset::prev",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -53618,7 +53724,7 @@
     },
     {
       "key": "horizon_client_lib::save::read_ticks",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -53648,7 +53754,7 @@
     },
     {
       "key": "horizon_client_lib::save::tick_list",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -53702,13 +53808,8 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::scoreboard_cmd::Tracker::message",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::scoreboard_cmd::Tracker::send",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -53858,7 +53959,7 @@
     },
     {
       "key": "horizon_client_lib::screen_narrator::InputType::is_keyboard",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -53948,7 +54049,7 @@
     },
     {
       "key": "horizon_client_lib::server_packs::Removal::reply",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -54148,7 +54249,7 @@
     },
     {
       "key": "horizon_client_lib::spear::Condition::test",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -54178,11 +54279,6 @@
     },
     {
       "key": "horizon_client_lib::spear::hits_along",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::spear::hits_in_reach",
       "reason": "impl Trait argument",
       "kind": "fn"
     },
@@ -54333,27 +54429,27 @@
     },
     {
       "key": "horizon_client_lib::sprint::Conditions::can_start",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::sprint::Conditions::possible",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::sprint::Conditions::should_stop",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::sprint::Keys::direction",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::sprint::Keys::with_stick",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -54458,7 +54554,7 @@
     },
     {
       "key": "horizon_client_lib::stopwatches::Stopwatch::elapsed_ms",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -54594,11 +54690,6 @@
     {
       "key": "horizon_client_lib::tick_chunk_membership::TickChunkMembership::removed",
       "reason": "borrowed return type",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::tick_chunk_membership::TickChunkMembership::start_ticking",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -55834,11 +55925,6 @@
     {
       "key": "horizon_client_lib::vanillagen::lod::batch_origin",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::vanillagen::lod::decorated_batch",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {

@@ -2030,17 +2030,38 @@
       "sig": "b7d6380d081724cf",
       "status": "live",
       "kind": "fn"
+    },
+    {
+      "id": 10804,
+      "key": "horizon_protocol::adapter::ServerVersion::ids",
+      "sig": "ce9e0687137cceff",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10805,
+      "key": "horizon_protocol::adapter::ServerVersion::serverbound_body",
+      "sig": "b4e515df4fb587b7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10806,
+      "key": "horizon_protocol::item::hash::raw::list",
+      "sig": "a9a76077b6a22c4b",
+      "status": "live",
+      "kind": "fn"
     }
   ],
   "excluded": [
     {
       "key": "horizon_protocol::adapter::ServerVersion::at_most",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_protocol::adapter::ServerVersion::clientbound_id",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2049,33 +2070,23 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_protocol::adapter::ServerVersion::ids",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_protocol::adapter::ServerVersion::map",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_protocol::adapter::ServerVersion::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_protocol::adapter::ServerVersion::protocol",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_protocol::adapter::ServerVersion::serverbound_body",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_protocol::adapter::ServerVersion::serverbound_id",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2085,12 +2096,12 @@
     },
     {
       "key": "horizon_protocol::adapter::ids::Remap::down",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_protocol::adapter::ids::Remap::up",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2100,7 +2111,7 @@
     },
     {
       "key": "horizon_protocol::adapter::ids::apply",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2615,12 +2626,12 @@
     },
     {
       "key": "horizon_protocol::chunk::Strategy::configuration",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_protocol::chunk::Strategy::entries",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2645,7 +2656,7 @@
     },
     {
       "key": "horizon_protocol::connection::CaptureFenceId::encode[cfg(feature=\"dev-capture\")]",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -2975,12 +2986,12 @@
     },
     {
       "key": "horizon_protocol::hash_ops::HashCode::as_bytes",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_protocol::hash_ops::HashCode::as_int",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -3404,11 +3415,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_protocol::item::hash::raw::list",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_protocol::item::hash::raw::mob_effect",
       "reason": "small body",
       "kind": "fn"
@@ -3565,7 +3571,7 @@
     },
     {
       "key": "horizon_protocol::mod_list::Side::code",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -3750,7 +3756,7 @@
     },
     {
       "key": "horizon_protocol::mod_transfer::RefuseReason::code",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -3760,7 +3766,7 @@
     },
     {
       "key": "horizon_protocol::mod_transfer::RefuseReason::text",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -4085,12 +4091,12 @@
     },
     {
       "key": "horizon_protocol::rsa::SignatureHash::digest",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_protocol::rsa::SignatureHash::prefix",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -4135,7 +4141,7 @@
     },
     {
       "key": "horizon_protocol::secure_chat::DecodeError::key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {

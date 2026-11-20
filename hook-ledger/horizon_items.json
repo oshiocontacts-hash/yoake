@@ -549,7 +549,7 @@
     },
     {
       "key": "horizon_items::blocks::SignForm::block_entity_type",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -709,12 +709,12 @@
     },
     {
       "key": "horizon_items::bundle::Weight::add",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_items::bundle::Weight::how_many",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -724,12 +724,12 @@
     },
     {
       "key": "horizon_items::bundle::Weight::sub",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_items::bundle::Weight::times",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -814,7 +814,7 @@
     },
     {
       "key": "horizon_items::enchant::Cost::calculate",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -989,7 +989,7 @@
     },
     {
       "key": "horizon_items::firework::FireworkShape::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
