@@ -844,3 +844,63 @@ fn the_mob_tick_runs_the_breeding_clock_of_breedable_types_only() {
     }
     assert_eq!(n.extra.age, 5, "a type that is not breedable keeps its age");
 }
+
+/// A `feed` row with `heal` is data: the allowed items, the amount, tamed and hurt only; the item is
+/// used up and the mob's health is clamped to its maximum.
+#[test]
+fn a_feed_row_heals_a_hurt_tamed_mob_with_the_items_it_allows() {
+    const COD: &str = "minecraft:cod";
+    let t = ty(json!([]), |v| {
+        v["breedable"] = json!({"food": [WHEAT]});
+        v["interact"] = json!([{"action": "feed", "heal": 4, "items": [COD, "#minecraft:fishes"]}]);
+    });
+    let tags = |p: &str, i: &str| p == i || (p == "#minecraft:fishes" && i == "minecraft:salmon");
+    let click_with = |item: &'static str| {
+        let mut c = click(Some(item), STRANGER);
+        c.matches = &tags;
+        c
+    };
+    let mut m = plain(&t, 0.5, 0.5);
+    let max = m.attrs.max_health;
+    m.health = max - 6.0;
+    // Not tamed: nothing (the fish is not food of the type either).
+    let o = interact::dispatch(&mut m, &click_with(COD), None);
+    assert_eq!((o.reply, m.health), (Reply::Pass, max - 6.0), "wild");
+    tame::tame(&mut m, OWNER);
+    // Tamed and hurt: the item heals by the row's amount and is used up; tags go through the matcher.
+    let o = interact::dispatch(&mut m, &click_with(COD), None);
+    assert_eq!((o.reply, o.actions), (Reply::Consume, vec![Action::Eat]));
+    assert_eq!(m.health, max - 2.0);
+    let o = interact::dispatch(&mut m, &click_with("minecraft:salmon"), None);
+    assert_eq!(o.reply, Reply::Consume, "a tag");
+    assert_eq!(m.health, max, "clamped to the maximum");
+    // Full health: the item is not used.
+    let o = interact::dispatch(&mut m, &click_with(COD), None);
+    assert_eq!(o.reply, Reply::Pass, "not hurt");
+    // An item the row does not allow does not heal, even when it is the type's food (it breeds).
+    m.health = max - 6.0;
+    let o = interact::dispatch(&mut m, &click_with(WHEAT), None);
+    assert_eq!(o.actions, [Action::Eat, Action::Event(18)]);
+    assert_eq!(m.health, max - 6.0);
+    assert_eq!(interact::dispatch(&mut m, &click_with("minecraft:stick"), None).reply, Reply::Pass);
+    // Without `items`, the row's own item heals; `consume: false` keeps it.
+    let t = ty(json!([]), |v| {
+        v["interact"] = json!([{"action": "feed", "item": COD, "heal": 3, "consume": false}]);
+    });
+    let mut m = plain(&t, 0.5, 0.5);
+    tame::tame(&mut m, OWNER);
+    m.health = 5.0;
+    let o = interact::dispatch(&mut m, &click_with(COD), None);
+    assert_eq!((o.reply, m.health), (Reply::Success, 8.0));
+    // Without `items` or `item`, the type's food heals.
+    let t = ty(json!([]), |v| {
+        v["breedable"] = json!({"food": [WHEAT]});
+        v["interact"] = json!([{"action": "feed", "heal": 2}]);
+    });
+    let mut m = plain(&t, 0.5, 0.5);
+    tame::tame(&mut m, OWNER);
+    m.health = 5.0;
+    let o = interact::dispatch(&mut m, &click_with(WHEAT), None);
+    assert_eq!((o.reply, m.health), (Reply::Consume, 7.0));
+    assert_eq!(m.extra.in_love, 0, "healing is not love");
+}

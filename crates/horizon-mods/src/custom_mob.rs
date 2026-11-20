@@ -720,6 +720,14 @@ pub struct Interact {
     /// `true` only when sneaking, `false` only when not; unset, either.
     #[serde(default)]
     pub sneaking: Option<bool>,
+    /// `feed`: the health a tamed, hurt mob gets back from the item (above 0, at most 1024). The item is
+    /// used up; a mob that is not tamed or not hurt falls through to the row's other meaning (love).
+    #[serde(default)]
+    pub heal: Option<f32>,
+    /// `feed` with `heal`: the items that heal (ids or `#tags`); none means the row's `item`, else the
+    /// type's `breedable.food`.
+    #[serde(default)]
+    pub items: Vec<String>,
 }
 
 /// A custom mob's file, as written.
@@ -1217,6 +1225,18 @@ impl CustomMobFile {
             {
                 return Err("interact count is 1 to 64".into());
             }
+            if let Some(h) = row.heal
+                && (row.action != "feed" || !h.is_finite() || h <= 0.0 || h > 1024.0)
+            {
+                return Err("interact heal is above 0 and at most 1024, on a feed row".into());
+            }
+            if !row.items.is_empty() && (row.action != "feed" || row.heal.is_none()) {
+                return Err("interact items go with the heal of a feed row".into());
+            }
+            too_many("interact items", row.items.len(), 16)?;
+            if row.items.iter().any(|i| i.is_empty()) {
+                return Err("an interact item is an id or a #tag".into());
+            }
             if row.action == "ride" && self.seats.is_empty() {
                 return Err("an interact ride row needs seats".into());
             }
@@ -1486,9 +1506,20 @@ mod tests {
             ("a count over 64", json!([{"action": "give_item", "give": "a:b", "count": 65}])),
             ("ride without seats", json!([{"action": "ride"}])),
             ("an unknown key", json!([{"action": "feed", "zzz": 1}])),
+            ("heal on a tame row", json!([{"action": "tame", "heal": 2}])),
+            ("a heal of nothing", json!([{"action": "feed", "heal": 0}])),
+            ("a negative heal", json!([{"action": "feed", "heal": -1}])),
+            ("items without heal", json!([{"action": "feed", "items": ["a:b"]}])),
+            ("an empty item pattern", json!([{"action": "feed", "heal": 1, "items": [""]}])),
         ] {
             assert!(with(|v| v["interact"] = edit).is_err(), "{what}");
         }
+        let healing = with(|v| {
+            v["interact"] = json!([{"action": "feed", "heal": 4, "items": ["minecraft:cod", "#minecraft:fishes"]}]);
+        })
+        .unwrap();
+        assert_eq!(healing.interact[0].heal, Some(4.0));
+        assert_eq!(healing.interact[0].items.len(), 2);
         assert!(with(|v| v["saddle_item"] = json!("saddle")).is_err(), "a saddle that is no id");
     }
 
