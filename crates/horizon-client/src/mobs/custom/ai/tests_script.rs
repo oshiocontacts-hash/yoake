@@ -26,6 +26,9 @@ struct Mock {
     can_continue: AtomicBool,
     /// Commands to queue for the asking mob when `goal-start` is called.
     on_start: Mutex<Vec<Command>>,
+    /// The test's thread: the runtime is process-wide, so custom mobs ticked by other tests running in parallel also
+    /// call into it; only this thread's calls are recorded.
+    owner: Mutex<Option<std::thread::ThreadId>>,
 }
 
 impl Mock {
@@ -33,9 +36,13 @@ impl Mock {
         let m = Arc::new(Self::default());
         m.live.store(true, Ordering::SeqCst);
         m.can_continue.store(true, Ordering::SeqCst);
+        *m.owner.lock().unwrap() = Some(std::thread::current().id());
         m
     }
     fn log(&self, s: String) {
+        if *self.owner.lock().unwrap() != Some(std::thread::current().id()) {
+            return;
+        }
         self.calls.lock().unwrap().push(s);
     }
     fn count(&self, prefix: &str) -> usize {
