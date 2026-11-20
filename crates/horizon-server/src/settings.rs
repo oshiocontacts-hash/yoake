@@ -141,6 +141,7 @@ fn range(section: &str, field: &str) -> Option<std::ops::RangeInclusive<i64>> {
     match (section, field) {
         ("server", "view_distance" | "simulation_distance") => Some(2..=32),
         ("server", "max_view_distance") => Some(0..=32),
+        ("server", "custom_mob_path_budget") => Some(1..=1_048_576),
         ("server", "max_players") => Some(1..=1000),
         ("backups", "keep") => Some(1..=1000),
         _ => None,

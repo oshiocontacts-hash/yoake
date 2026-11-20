@@ -1331,11 +1331,23 @@ impl<'a, 'w> Finder<'a, 'w> {
     }
     /// PathFinder.findPath over several target positions.
     pub fn find(
+        self,
+        positions: &[[i32; 3]],
+        max_path_length: f32,
+        reach_range: i32,
+        max_visited: i32,
+    ) -> Option<Path> {
+        self.find_counted(positions, max_path_length, reach_range, max_visited, &mut 0)
+    }
+    /// [`Self::find`], also telling how many nodes the search visited (the custom mobs'
+    /// path budget counts them).
+    pub fn find_counted(
         mut self,
         positions: &[[i32; 3]],
         max_path_length: f32,
         reach_range: i32,
         max_visited: i32,
+        visited: &mut i32,
     ) -> Option<Path> {
         let from = self.start()?;
         let mut targets: Vec<Target> = positions
@@ -1421,6 +1433,7 @@ impl<'a, 'w> Finder<'a, 'w> {
                 }
             }
         }
+        *visited = count;
         let reached: Vec<&Target> = targets.iter().filter(|t| t.reached).collect();
         let build = |s: &Self, t: &Target, reached: bool| -> Option<Path> {
             let mut n = t.best?;

@@ -26,6 +26,7 @@ use horizon_mods::custom_mob::{CustomMobFile, Goal as GoalDef};
 
 pub mod attacks;
 pub mod blocks;
+pub mod budget;
 pub mod expr;
 pub mod rest;
 pub mod goals;

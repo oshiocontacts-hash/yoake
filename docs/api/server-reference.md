@@ -88,6 +88,7 @@ Horizon server settings (docs/server.md). The server writes them into server.pro
 | `simulation_distance` | `10` | `simulation-distance` | chunks around each player where mobs, crops and redstone tick |
 | `max_view_distance` | `0` | `horizon-max-view-distance` | past view_distance, saved chunks only, up to this (never generated; 0: off) |
 | `admin_feedback_to_ops` | `true` | `horizon-admin-feedback-to-ops` | operators see each other's commands ([name: ...], vanilla); false: only the log |
+| `custom_mob_path_budget` | `8192` | `horizon-custom-mob-path-budget` | nodes all mods' custom mobs together may search for paths each tick (they wait for the next) |
 
 ### `[world]`
 

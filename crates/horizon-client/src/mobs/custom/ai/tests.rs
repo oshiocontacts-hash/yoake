@@ -1282,3 +1282,103 @@ fn eat_block_changes_nothing_without_griefing_but_still_has_its_effect() {
     run(&mut m, &w, &mut ctx, 60);
     assert_eq!(ctx.events.len(), before);
 }
+
+// ---- the shared path budget ----------------------------------------------------------------
+
+use super::budget::{self, DEFAULT_PATH_BUDGET, PathBudget};
+
+#[test]
+fn the_budget_defaults_to_8192_nodes_a_tick_and_reads_the_server_setting() {
+    assert_eq!(DEFAULT_PATH_BUDGET, 8192);
+    assert_eq!(PathBudget::default().limit(), budget::limit());
+    assert_eq!(budget::limit_property(None), 8192);
+    assert_eq!(budget::limit_property(Some(" 4096 ")), 4096);
+    assert_eq!(budget::limit_property(Some("many")), 8192, "unreadable: the default");
+    assert_eq!(budget::limit_property(Some("0")), 1);
+    assert_eq!(budget::limit_property(Some("99999999")), budget::MAX_PATH_BUDGET);
+    assert_eq!(budget::PROPERTY, "horizon-custom-mob-path-budget");
+}
+
+#[test]
+fn a_search_that_does_not_fit_waits_for_the_next_tick() {
+    let mut b = PathBudget::new(1500);
+    assert!(b.request(1, 100, 1024));
+    b.charge(1024);
+    assert_eq!(b.remaining(), 476);
+    assert!(!b.request(2, 100, 1024), "476 left: mob 2 waits");
+    assert_eq!(b.stats().waited, 1);
+    assert_eq!(b.stats().granted, 1);
+    assert_eq!(b.stats().nodes, 1024);
+    // The next tick: a fresh allowance, and mob 2 first in line.
+    assert!(b.request(2, 101, 1024));
+    assert_eq!(b.waiting(), [] as [u32; 0]);
+    b.charge(300);
+    assert!(b.request(3, 101, 1024), "1200 left fits one more");
+    // A small search fits where a big one does not: the cost is its cap.
+    let mut b = PathBudget::new(1000);
+    assert!(b.request(1, 5, 256));
+    b.charge(256);
+    assert!(b.request(2, 5, 256) && b.request(3, 5, 256));
+    // The cap is cut to the allowance, so a search can always be made in a fresh tick.
+    let mut tiny = PathBudget::new(100);
+    assert!(tiny.request(1, 1, 1024));
+}
+
+#[test]
+fn mobs_take_turns_when_the_budget_cannot_serve_all_of_them() {
+    // Room for two full searches a tick, three mobs asking in the same order every tick.
+    let mut b = PathBudget::new(2048);
+    let mut served = [0u32; 4];
+    for tick in 1..=30i64 {
+        for id in [1u32, 2, 3] {
+            if b.request(id, tick, 1024) {
+                b.charge(1024);
+                served[id as usize] += 1;
+            }
+        }
+    }
+    let total = served[1] + served[2] + served[3];
+    assert!(total >= 54, "most of the budget is used: {served:?}");
+    for id in 1..=3 {
+        assert!((16..=24).contains(&served[id]), "mob {id} was served {} times of 30", served[id]);
+    }
+    assert!(b.stats().waited >= 28 && b.stats().ticks == 30);
+    assert!(b.stats().busiest_tick <= 2048);
+}
+
+#[test]
+fn a_waiting_mob_that_never_comes_back_does_not_block_the_others_for_long() {
+    let mut b = PathBudget::new(1024);
+    assert!(b.request(1, 1, 1024));
+    b.charge(1024);
+    assert!(!b.request(2, 1, 1024));
+    // Mob 2 is gone. Tick 2 keeps its place for mob 2, so mob 1 is refused; tick 3 forgets it.
+    assert!(!b.request(1, 2, 1024));
+    assert!(b.request(1, 3, 1024));
+}
+
+#[test]
+fn the_engines_path_search_of_a_custom_mob_is_metered_and_a_vanilla_mobs_is_not() {
+    budget::reset_for_thread(Some(100));
+    let fx = flat();
+    let w = fx.world();
+    let mut m = mob("{}", at(0.5, 0.5));
+    assert!(m.create_path_to(&w, [8, 1, 0], 0).is_some(), "a fresh tick: it fits");
+    let spent = budget::stats();
+    assert_eq!((spent.granted, spent.waited), (1, 0));
+    assert!(spent.nodes > 0, "the nodes it visited were counted");
+    budget::charge(1000);
+    assert!(m.create_path_to(&w, [8, 1, 0], 0).is_none(), "used up: it waits");
+    assert_eq!(budget::stats().waited, 1);
+    // A vanilla mob is not metered.
+    let mut cow = crate::mobs::Mob::new(2, crate::mobs::sensor_scan_tests::kind(), at(0.5, 0.5), 0.0);
+    cow.on_ground = true;
+    assert!(cow.create_path_to(&w, [8, 1, 0], 0).is_some());
+    assert_eq!(budget::stats().granted, 1);
+    // The next tick it is first in line.
+    let mut next = fx.world();
+    next.game_time += 1;
+    assert!(m.create_path_to(&next, [8, 1, 0], 0).is_some());
+    assert_eq!(budget::stats().granted, 2);
+    budget::reset_for_thread(None);
+}
