@@ -1,7 +1,7 @@
 {
   "abi_version": 2,
   "world": "client-full",
-  "interface_version": "1.5.0",
+  "interface_version": "1.7.0",
   "status": "active",
   "types": {
     "vec2": {"x":"f32","y":"f32"},
@@ -16,7 +16,8 @@
     "map-entity": {"id":"u32","kind":"string","position":"vec3","yaw":"f32"},
     "camera-state": {"position":"vec3","eye-height":"f32","partial-tick":"f32","yaw":"f32","pitch":"f32","fov-degrees":"f32","near":"f32","far":"f32","view":"list<f32>","projection":"list<f32>","dimension":"string"},
     "camera-override": {"position":"vec3","yaw":"f32","pitch":"f32","roll":"f32","fov-degrees":"f32"},
-    "pcm-anchor": {"entity":"option<u32>","position":"option<vec3>"}
+    "pcm-anchor": {"entity":"option<u32>","position":"option<vec3>"},
+    "mob-transform": {"position":"vec3","yaw":"f32","pitch":"f32"}
   },
   "enums": {"hud-corner":["top-left","top-right","bottom-left","bottom-right"],"hud-corner-v2":["top-left","top-right","bottom-left","bottom-right","top-center"]},
   "hooks": [],
@@ -70,6 +71,8 @@
     {"id":222,"abi":true,"name":"local_player_stacks","arguments":{},"result":"result<list<item-stack>, string>","side":"client","capability":"service.client-view"},
     {"id":223,"abi":true,"name":"play_local_sound","arguments":{"sound-id":"string","volume":"f32","pitch":"f32"},"result":"result<_, string>","side":"client","capability":"service.audio"},
     {"id":224,"abi":true,"name":"play_local_sound_at","arguments":{"sound-id":"string","position":"vec3","volume":"f32","pitch":"f32"},"result":"result<_, string>","side":"client","capability":"service.audio"},
-    {"id":225,"abi":true,"name":"gui_texture_id","arguments":{"texture":"borrow<gui-texture>"},"result":"result<string, string>","side":"client","capability":"service.hud"}
+    {"id":225,"abi":true,"name":"gui_texture_id","arguments":{"texture":"borrow<gui-texture>"},"result":"result<string, string>","side":"client","capability":"service.hud"},
+    {"id":282,"abi":true,"name":"mob_bone_index","arguments":{"type-id":"string","name":"string"},"result":"result<option<u32>, string>","side":"client","capability":"service.mobs"},
+    {"id":283,"abi":true,"name":"mob_locator","arguments":{"entity":"u32","name":"string"},"result":"result<option<mob-transform>, string>","side":"client","capability":"service.mobs"}
   ]
 }

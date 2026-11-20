@@ -1,12 +1,12 @@
 {
   "generated_by": "horizon-mod-api-gen",
-  "hook_count": 476,
-  "fully_typed": 448,
+  "hook_count": 496,
+  "fully_typed": 468,
   "partial": 13,
   "with_handles": 15,
-  "client_hooks": 211,
-  "server_hooks": 378,
-  "named_types": 220,
+  "client_hooks": 214,
+  "server_hooks": 395,
+  "named_types": 228,
   "handle_types": [
     {
       "rust_type": "LootEntity",
@@ -4213,6 +4213,206 @@
       "side": "server",
       "side_source": "explicit",
       "contract": "collect",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_goal_can_use",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_goal_can_continue",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_goal_start",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_goal_tick",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_goal_stop",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_tick",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_spawn_check",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "cancel",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "custom_mob_spawned",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_hurt",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_died",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_interact",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_anim_event",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_load",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_save",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_tamed",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_bred",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "synced_changed_server",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_pose",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "mob_anim_event_client",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "synced_changed_client",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
       "fully_typed": true,
       "partial": false,
       "partial_notes": [],

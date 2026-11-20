@@ -439,6 +439,32 @@ pub fn request_trigger(m: &mut Mob, name: &str, speed: f32) -> bool {
     true
 }
 
+/// Forces the animation controller `controller` of `m` into its state `state` (the script
+/// `set-controller-state`): the state is entered at once with its fade, and the controller's own
+/// transitions may leave it again on a later tick. False for a mob without animations or a name
+/// the type does not have.
+pub fn force_state(m: &mut Mob, controller: &str, state: &str) -> bool {
+    let Some(t) = m.kind.custom.clone() else {
+        return false;
+    };
+    let (Some(a), Some(cs)) = (&t.anim, m.extra.custom.as_mut()) else {
+        return false;
+    };
+    let Some(li) = a.rig.controllers().iter().position(|c| c.name == controller) else {
+        return false;
+    };
+    let Some(si) = a.rig.controllers()[li].states.iter().position(|s| s.name == state) else {
+        return false;
+    };
+    let anim = cs.anim.get_or_insert_with(|| Box::new(MobAnim::new(a, m.id, 0)));
+    let MobAnim { state: rig, inputs, .. } = &mut **anim;
+    let Some(ls) = rig.layers.get_mut(li) else {
+        return false;
+    };
+    a.rig.controllers()[li].set_state(ls, si, true, inputs);
+    true
+}
+
 /// One server tick of the mob's animation (see the module docs). Nothing happens for a mob whose
 /// type has no animations. `w.game_time` is the tick.
 pub fn tick(m: &mut Mob, w: &MobWorld) {

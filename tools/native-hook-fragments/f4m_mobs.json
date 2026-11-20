@@ -1,0 +1,192 @@
+{
+  "hooks": [
+    {
+      "name": "mob_goal_can_use",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_goal_can_use",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "cancel",
+        "out": "result"
+      }
+    },
+    {
+      "name": "mob_goal_can_continue",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_goal_can_continue",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "cancel",
+        "out": "result"
+      }
+    },
+    {
+      "name": "mob_goal_start",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_goal_start",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_goal_tick",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_goal_tick",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_goal_stop",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_goal_stop",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_tick",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_tick",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_spawn_check",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_spawn_check",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "cancel",
+        "out": "allowed"
+      }
+    },
+    {
+      "name": "custom_mob_spawned",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_custom_mob_spawned",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_hurt",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_hurt",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_died",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_died",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_interact",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_interact",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_anim_event",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_anim_event",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_load",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_load",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_save",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_save",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_tamed",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_tamed",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_bred",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_bred",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "synced_changed_server",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_synced_changed_server",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_pose",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_pose",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "mob_anim_event_client",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_mob_anim_event_client",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    },
+    {
+      "name": "synced_changed_client",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_synced_changed_client",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "listen"
+      }
+    }
+  ],
+  "rust_summary": "F4M-10: the hooks a WASM guest implements to script fully custom mobs (goals, lifecycle, interaction, pose).",
+  "doc_summary": "F4M-10 script hooks of fully custom mobs (`native_mob_goal_can_use`, `native_mob_tick`, `native_mob_hurt`, `native_mob_pose` and the rest). The game reaches the WASM guest of a server module through the `mobs::custom::script::Runtime` it installs, not through these functions: they exist so the catalog (and the generated WIT, SDK and adapters) has one place that names every export and its types. Bundles need hooks version @API:mob_goal_can_use@.",
+  "comments": [
+    "crates/horizon-client/src/game/native_hooks.rs"
+  ]
+}

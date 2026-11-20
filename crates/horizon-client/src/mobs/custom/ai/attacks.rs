@@ -93,6 +93,7 @@ pub fn deliver_frame(m: &mut Mob, name: &str) -> bool {
     match m.extra.custom.as_mut() {
         Some(c) => {
             c.attack.push_frame(name);
+            c.script.push_event(name);
             true
         }
         None => false,
