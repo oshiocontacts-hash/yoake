@@ -97,6 +97,8 @@ pub struct SyncLedgerConfig {
     pub ledger: PathBuf,
     pub overlay_root: PathBuf,
     pub only: Vec<String>,
+    /// `--frozen`: build the overlays exactly as the compiler wrapper does (read-only ledger), without a build.
+    pub frozen: bool,
 }
 
 fn usage() -> &'static str {
@@ -410,6 +412,7 @@ fn parse_sync_ledger_args(args: &mut std::env::Args) -> Result<Option<Command>, 
     let mut ledger = None;
     let mut overlay_root = None;
     let mut only = Vec::new();
+    let mut frozen = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-h" | "--help" => {
@@ -421,6 +424,7 @@ fn parse_sync_ledger_args(args: &mut std::env::Args) -> Result<Option<Command>, 
             "--ledger" => ledger = Some(PathBuf::from(next_arg(args, "--ledger")?)),
             "--overlay-root" => overlay_root = Some(PathBuf::from(next_arg(args, "--overlay-root")?)),
             "--crate" => only.push(next_arg(args, "--crate")?),
+            "--frozen" => frozen = true,
             other => return Err(format!("unknown argument '{other}'
 {}", usage())),
         }
@@ -431,6 +435,7 @@ fn parse_sync_ledger_args(args: &mut std::env::Args) -> Result<Option<Command>, 
         overlay_root: overlay_root.unwrap_or_else(|| workspace_root.join("target").join("yoake-sync").join("root")),
         workspace_root,
         only,
+        frozen,
     })))
 }
 
@@ -454,7 +459,7 @@ fn sync_ledger(config: &SyncLedgerConfig) -> Result<bool, String> {
             crate_name: parts[1].to_string(),
             ledger: config.ledger.clone(),
             stamp_config: config.stamp_config.clone(),
-            frozen: false,
+            frozen: config.frozen,
         })?;
     }
     Ok(true)
