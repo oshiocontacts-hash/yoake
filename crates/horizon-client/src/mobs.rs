@@ -3485,7 +3485,7 @@ impl Mob {
         if self.kind.custom.is_some() {
             custom::anim_sync::tick(self, w);
             // F4M-4c: the growth and breeding pause of a `breedable` type.
-            custom::ai::breed::tick(self);
+            custom::ai::breed::tick(self, Some(w));
         }
         ai::tick(self, w, level_random, events)
     }

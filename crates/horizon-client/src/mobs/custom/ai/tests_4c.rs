@@ -469,31 +469,31 @@ fn the_pause_counts_down_and_a_baby_grows_up_and_loses_its_small_scale() {
     let mut m = plain(&t, 0.5, 0.5);
     m.extra.age = 100;
     for _ in 0..99 {
-        breed::tick(&mut m);
+        breed::tick(&mut m, None);
     }
     assert_eq!(m.extra.age, 1);
     assert_eq!(breed::feed(&mut m, None), Fed::No, "still resting");
-    breed::tick(&mut m);
+    breed::tick(&mut m, None);
     assert_eq!(m.extra.age, 0);
     assert_eq!(breed::feed(&mut m, None), Fed::Love, "ready again");
     // A baby: small, then grown after its 24000 ticks.
     let mut baby = plain(&t, 0.5, 0.5);
     baby.extra.age = BABY_AGE;
-    breed::tick(&mut baby);
+    breed::tick(&mut baby, None);
     assert!((baby.model_scale() - 0.4).abs() < 1e-6);
     for _ in 0..23_998 {
-        breed::tick(&mut baby);
+        breed::tick(&mut baby, None);
     }
     assert!(baby.is_baby());
-    breed::tick(&mut baby);
-    breed::tick(&mut baby);
+    breed::tick(&mut baby, None);
+    breed::tick(&mut baby, None);
     assert!(!baby.is_baby() && baby.extra.age == 0);
     assert!((baby.model_scale() - 1.0).abs() < 1e-6, "full size again: {}", baby.model_scale());
     // An age lock holds a baby back.
     let mut locked = plain(&t, 0.5, 0.5);
     locked.extra.age = BABY_AGE;
     locked.extra.age_locked = true;
-    breed::tick(&mut locked);
+    breed::tick(&mut locked, None);
     assert_eq!(locked.extra.age, BABY_AGE);
 }
 
@@ -843,4 +843,131 @@ fn the_mob_tick_runs_the_breeding_clock_of_breedable_types_only() {
         n.tick(&w, &mut lr, &mut events);
     }
     assert_eq!(n.extra.age, 5, "a type that is not breedable keeps its age");
+}
+
+/// A `feed` row with `heal` is data: the allowed items, the amount, tamed and hurt only; the item is
+/// used up and the mob's health is clamped to its maximum.
+#[test]
+fn a_feed_row_heals_a_hurt_tamed_mob_with_the_items_it_allows() {
+    const COD: &str = "minecraft:cod";
+    let t = ty(json!([]), |v| {
+        v["breedable"] = json!({"food": [WHEAT]});
+        v["interact"] = json!([{"action": "feed", "heal": 4, "items": [COD, "#minecraft:fishes"]}]);
+    });
+    let tags = |p: &str, i: &str| p == i || (p == "#minecraft:fishes" && i == "minecraft:salmon");
+    let click_with = |item: &'static str| {
+        let mut c = click(Some(item), STRANGER);
+        c.matches = &tags;
+        c
+    };
+    let mut m = plain(&t, 0.5, 0.5);
+    let max = m.attrs.max_health;
+    m.health = max - 6.0;
+    // Not tamed: nothing (the fish is not food of the type either).
+    let o = interact::dispatch(&mut m, &click_with(COD), None);
+    assert_eq!((o.reply, m.health), (Reply::Pass, max - 6.0), "wild");
+    tame::tame(&mut m, OWNER);
+    // Tamed and hurt: the item heals by the row's amount and is used up; tags go through the matcher.
+    let o = interact::dispatch(&mut m, &click_with(COD), None);
+    assert_eq!((o.reply, o.actions), (Reply::Consume, vec![Action::Eat]));
+    assert_eq!(m.health, max - 2.0);
+    let o = interact::dispatch(&mut m, &click_with("minecraft:salmon"), None);
+    assert_eq!(o.reply, Reply::Consume, "a tag");
+    assert_eq!(m.health, max, "clamped to the maximum");
+    // Full health: the item is not used.
+    let o = interact::dispatch(&mut m, &click_with(COD), None);
+    assert_eq!(o.reply, Reply::Pass, "not hurt");
+    // An item the row does not allow does not heal, even when it is the type's food (it breeds).
+    m.health = max - 6.0;
+    let o = interact::dispatch(&mut m, &click_with(WHEAT), None);
+    assert_eq!(o.actions, [Action::Eat, Action::Event(18)]);
+    assert_eq!(m.health, max - 6.0);
+    assert_eq!(interact::dispatch(&mut m, &click_with("minecraft:stick"), None).reply, Reply::Pass);
+    // Without `items`, the row's own item heals; `consume: false` keeps it.
+    let t = ty(json!([]), |v| {
+        v["interact"] = json!([{"action": "feed", "item": COD, "heal": 3, "consume": false}]);
+    });
+    let mut m = plain(&t, 0.5, 0.5);
+    tame::tame(&mut m, OWNER);
+    m.health = 5.0;
+    let o = interact::dispatch(&mut m, &click_with(COD), None);
+    assert_eq!((o.reply, m.health), (Reply::Success, 8.0));
+    // Without `items` or `item`, the type's food heals.
+    let t = ty(json!([]), |v| {
+        v["breedable"] = json!({"food": [WHEAT]});
+        v["interact"] = json!([{"action": "feed", "heal": 2}]);
+    });
+    let mut m = plain(&t, 0.5, 0.5);
+    tame::tame(&mut m, OWNER);
+    m.health = 5.0;
+    let o = interact::dispatch(&mut m, &click_with(WHEAT), None);
+    assert_eq!((o.reply, m.health), (Reply::Consume, 7.0));
+    assert_eq!(m.extra.in_love, 0, "healing is not love");
+}
+
+// ---- one effective scale (the `scale` attribute times the baby scale) ------------------------------
+
+/// The baby scale multiplies the type's `scale` attribute (one effective scale) instead of replacing
+/// it, and the attribute alone scales an adult and a type that is not breedable.
+#[test]
+fn the_baby_scale_is_multiplied_with_the_scale_attribute() {
+    use crate::mobs::custom::attrs;
+    let t = breeder(Some(100), |v| v["attributes"]["scale"] = json!(2.0));
+    // The attribute alone: the adult is twice the size, its box follows.
+    let mut adult = plain(&t, 0.5, 0.5);
+    let plain_h = adult.dims().1;
+    breed::tick(&mut adult, None);
+    assert!((adult.model_scale() - 2.0).abs() < 1e-6);
+    assert!((adult.dims().1 - plain_h * 2.0).abs() < 1e-6, "the box follows");
+    // A baby: 2 times 0.4, whether it is born or ticked into being one.
+    let mut baby = plain(&t, 0.5, 0.5);
+    baby.extra.age = BABY_AGE;
+    breed::tick(&mut baby, None);
+    assert!((baby.model_scale() - 0.8).abs() < 1e-6, "{}", baby.model_scale());
+    assert!((attrs::attribute_scale(&baby) - 2.0).abs() < 1e-6, "the attribute itself is untouched");
+    let mut parent = plain(&t, 0.5, 0.5);
+    let mut child = plain(&t, 0.5, 0.5);
+    breed::complete(&mut parent, None, &mut child);
+    assert!((child.model_scale() - 0.8).abs() < 1e-6, "born: {}", child.model_scale());
+    // Grown up (an age lock-free baby on its last tick): back to the attribute, not to what it was.
+    baby.extra.age = -1;
+    breed::tick(&mut baby, None);
+    assert!(!baby.is_baby());
+    assert!((baby.model_scale() - 2.0).abs() < 1e-6, "{}", baby.model_scale());
+    // A type that is not breedable still gets its attribute; one with none stays at the default.
+    let wild = ty(json!([]), |v| v["attributes"]["scale"] = json!(0.5));
+    let mut w = plain(&wild, 0.5, 0.5);
+    breed::tick(&mut w, None);
+    assert!((w.model_scale() - 0.5).abs() < 1e-6);
+    let none = ty(json!([]), |_| {});
+    let mut n = plain(&none, 0.5, 0.5);
+    breed::tick(&mut n, None);
+    assert_eq!(n.extra.model_scale, 0.0, "no scale attribute: the engine's default is untouched");
+    assert_eq!(n.model_scale(), 1.0);
+}
+
+/// A baby that grows up beside a wall is moved to where its bigger box fits
+/// (`fudgePositionAfterSizeChange`), as the vanilla ageable mobs are; without a world nothing moves.
+#[test]
+fn a_baby_that_grows_up_is_moved_out_of_the_wall_its_bigger_box_would_overlap() {
+    let t = breeder(Some(100), |_| {});
+    let mut fx = flat();
+    fx.set_stone(1, 1, 0);
+    let others = [];
+    let w = view(&fx.world(), &others, None);
+    let grown = |world: Option<&crate::mobs::MobWorld>| {
+        let mut m = plain(&t, 0.85, 0.5);
+        m.age = 10;
+        m.extra.age = BABY_AGE;
+        breed::tick(&mut m, None);
+        assert!(m.is_baby() && m.extra.model_scale > 0.0);
+        m.extra.age = -1;
+        breed::tick(&mut m, world);
+        assert!(!m.is_baby());
+        m.position
+    };
+    assert_eq!(grown(None).x, 0.85, "no world, no move");
+    let moved = grown(Some(&w));
+    // The grown box is 0.6 wide: its east side is at the wall (x = 1) at the farthest.
+    assert!(moved.x <= 0.7 + 1e-4 && moved.x > 0.55, "moved off the wall: {moved:?}");
 }

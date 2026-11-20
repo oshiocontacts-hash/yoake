@@ -302,3 +302,48 @@ mod tests {
         assert_eq!(Sync::parse("none"), Sync::None);
     }
 }
+
+// ---- the scale of a mob (F4M-4c) -----------------------------------------------------------------
+
+/// The range of vanilla's `minecraft:scale`.
+const SCALE_RANGE: (f64, f64) = (0.0625, 16.0);
+
+/// The mob's `scale` attribute: the value its type's `attributes` give (default 1).
+pub fn attribute_scale(m: &crate::mobs::Mob) -> f32 {
+    m.kind
+        .custom
+        .as_ref()
+        .and_then(|t| t.builtin_value("scale"))
+        .map_or(1.0, |s| s.clamp(SCALE_RANGE.0, SCALE_RANGE.1) as f32)
+}
+
+/// The one scale of a custom mob: its `scale` attribute times the `baby_scale` of its `breedable` type
+/// while it is a baby (as vanilla stacks a baby's scale on the attribute, never over it).
+pub fn effective_scale(m: &crate::mobs::Mob) -> f32 {
+    let baby = if m.extra.age < 0 {
+        super::ai::breed::baby_scale(m).unwrap_or(1.0)
+    } else {
+        1.0
+    };
+    attribute_scale(m) * baby
+}
+
+/// Puts [`effective_scale`] on the mob (`extra.model_scale`, which every box, seat and model scale
+/// reads; 0, the engine's "none", when it is 1). When the mob got bigger (a baby grew up, the type
+/// is larger than the box it spawned with) and `w` is given, it is moved to where the bigger box
+/// fits (`Mob::fudge_position_after_size_change`, vanilla's `refreshDimensions`). Custom mobs only.
+pub fn sync_scale(m: &mut crate::mobs::Mob, w: Option<&crate::mobs::MobWorld>) {
+    if m.kind.custom.is_none() {
+        return;
+    }
+    let want = effective_scale(m);
+    let field = if (want - 1.0).abs() < f32::EPSILON { 0.0 } else { want };
+    if m.extra.model_scale == field {
+        return;
+    }
+    let (old_w, old_h, _) = m.dims();
+    m.extra.model_scale = field;
+    if let Some(w) = w {
+        m.fudge_position_after_size_change(w, old_w, old_h);
+    }
+}

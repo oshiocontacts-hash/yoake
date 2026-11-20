@@ -466,3 +466,38 @@ fn an_owner_value_is_sent_to_the_owner_only_and_to_nobody_before_there_is_one() 
     assert!(for_viewer_as(Some(OWNER), |_| true, &[], &[c.clone()], snap_of(&m)).is_empty());
     assert_eq!(slots_sent(&for_viewer_as(Some(OTHER), |_| true, &[], &[c], snap_of(&m))), [0]);
 }
+
+#[test]
+fn the_hosts_own_view_hides_owner_values_of_mobs_it_does_not_own() {
+    use crate::mobs::custom::ai::tame;
+    const HOST: [i32; 4] = [7, 8, 9, 10];
+    const OTHER: [i32; 4] = [1, 2, 3, 4];
+    let mut w = World::new();
+    let mut m = fox(|v| {
+        v["synced"]["mood"] = json!({"type": "i32", "min": 0, "max": 100, "default": 5, "sync": "owner"});
+        v["tameable"]["sits_on_command"] = json!(false);
+    });
+    w.tick(&mut m, 100);
+    set(&mut m, "mood", SyncedValue::I32(40));
+    set(&mut m, "warmth", SyncedValue::I32(3));
+    // No owner: the owner value is hidden from the host, the public one is not.
+    assert_eq!(host_value(&m, Some(HOST), "mood"), None);
+    assert_eq!(host_value(&m, Some(HOST), "warmth"), Some(&SyncedValue::I32(3)));
+    // Owned by another player: still hidden.
+    tame::tame(&mut m, OTHER);
+    assert_eq!(host_value(&m, Some(HOST), "mood"), None);
+    assert_eq!(host_value(&m, Some(OTHER), "mood"), Some(&SyncedValue::I32(40)));
+    // Owned by the host's player: visible.
+    tame::tame(&mut m, HOST);
+    assert_eq!(host_value(&m, Some(HOST), "mood"), Some(&SyncedValue::I32(40)));
+    assert_eq!(host_value(&m, None, "mood"), None);
+    assert_eq!(host_value(&m, Some(HOST), "nope"), None);
+    // The host's view is exactly the slots a remote client of the same uuid is sent.
+    let slots = m.kind.custom.as_ref().unwrap().synced.len();
+    for viewer in [HOST, OTHER] {
+        let sent = slots_sent(&for_viewer_as(Some(viewer), |_| true, &[1], &[], snap_of(&m)));
+        for slot in 0..slots {
+            assert_eq!(value_visible_to(&m, slot, Some(viewer)), sent.contains(&slot), "{viewer:?} slot {slot}");
+        }
+    }
+}
