@@ -83,22 +83,28 @@ fn truncated_empty_utf8_and_random_strings() {
             continue;
         }
         let mut syms = Symbols::new(&[]);
-        if let Err(e) = within_cap(|| parse_controllers(&BASE_CTRL[..cut], &mut syms)) {
+        if let Err(e) = within_cap(|| parse_controllers("c.json", &BASE_CTRL[..cut], &mut syms)) {
+            assert_eq!(e.file, "c.json", "cut {cut}");
             assert!(!e.message.is_empty(), "cut {cut}");
         }
     }
     for bad in ["", "  \n\t", "\u{FEFF}", "\u{FEFF}あ🦀\0", "null", "[]", "123", "\"x\"", "{}"] {
         let mut syms = Symbols::new(&[]);
-        let e = within_cap(|| parse_controllers(bad, &mut syms)).unwrap_err();
+        let e = within_cap(|| parse_controllers("c.json", bad, &mut syms)).unwrap_err();
+        assert_eq!(e.file, "c.json", "{bad}");
         assert!(!e.message.is_empty(), "{bad}");
     }
+    let syn = within_cap(|| parse_controllers("c.json", "{", &mut Symbols::new(&[]))).unwrap_err();
+    assert_eq!(syn.file, "c.json");
+    assert!(syn.to_string().contains("line 1"), "{syn}");
     let mut rng = StdRng::seed_from_u64(0xC741);
     let alpha: Vec<char> = "{}[]:,\"0123456789.-+abcdefghijklmnopqrstuvwxyz_ \n\t\u{3042}\u{1F98A}\0".chars().collect();
     for _ in 0..500 {
         let len = rng.random_range(0..500);
         let s: String = (0..len).map(|_| alpha[rng.random_range(0..alpha.len())]).collect();
         let mut syms = Symbols::new(&[]);
-        if let Err(e) = within_cap(|| parse_controllers(&s, &mut syms)) {
+        if let Err(e) = within_cap(|| parse_controllers("c.json", &s, &mut syms)) {
+            assert_eq!(e.file, "c.json");
             assert!(!e.message.is_empty());
         }
     }
@@ -147,12 +153,14 @@ fn wrong_types_at_every_field() {
     ];
     for raw in cases {
         let mut syms = Symbols::new(&[]);
-        let e = within_cap(|| parse_controllers(raw, &mut syms)).unwrap_err();
+        let e = within_cap(|| parse_controllers("c.json", raw, &mut syms)).unwrap_err();
+        assert_eq!(e.file, "c.json", "{raw}: {e}");
         assert!(!e.message.is_empty(), "{raw}");
     }
     let mut syms = Symbols::new(&[]);
-    let e = within_cap(|| parse_controllers(r#"{"controllers":{"c":{"weight":"1 +"}}}"#, &mut syms)).unwrap_err();
-    assert_eq!(e.context, "c");
+    let e = within_cap(|| parse_controllers("c.json", r#"{"controllers":{"c":{"weight":"1 +"}}}"#, &mut syms)).unwrap_err();
+    assert_eq!(e.file, "c.json");
+    assert_eq!(e.path, r#"controllers["c"].weight"#);
     assert!(e.column.is_some());
 }
 
@@ -164,51 +172,69 @@ fn limits_deep_nesting_huge_numbers_and_duplicates() {
         layers.insert(format!("c{i}"), json!({}));
     }
     let doc = serde_json::to_string(&json!({"controllers": layers})).unwrap();
-    assert!(within_cap(|| parse_controllers(&doc, &mut syms)).is_err());
+    assert!(within_cap(|| parse_controllers("c.json", &doc, &mut syms)).is_err());
 
     let mut states = Map::new();
     for i in 0..=MAX_STATES {
         states.insert(format!("s{i}"), json!({}));
     }
     let doc = serde_json::to_string(&json!({"controllers": {"c": {"states": states}}})).unwrap();
-    assert_eq!(within_cap(|| parse_controllers(&doc, &mut syms)).unwrap_err().context, "c");
+    assert_err_path(within_cap(|| parse_controllers("c.json", &doc, &mut syms)), r#"controllers["c"].states"#);
 
     let anims = vec![json!("a"); MAX_STATE_ANIMS + 1];
     let doc = serde_json::to_string(&json!({"controllers": {"c": {"states": {"s": {"animations": anims}}}}})).unwrap();
-    assert_err_ctx(within_cap(|| parse_controllers(&doc, &mut syms)), "c");
+    assert_err_path(
+        within_cap(|| parse_controllers("c.json", &doc, &mut syms)),
+        r#"controllers["c"].states["s"].animations"#,
+    );
 
     let mut on_enter = Map::new();
     for i in 0..=MAX_VARIABLES {
         on_enter.insert(format!("v.x{i}"), json!(1));
     }
     let doc = serde_json::to_string(&json!({"controllers": {"c": {"states": {"s": {"on_enter": on_enter}}}}})).unwrap();
-    assert_err_ctx(within_cap(|| parse_controllers(&doc, &mut syms)), "c");
+    assert_err_path(
+        within_cap(|| parse_controllers("c.json", &doc, &mut syms)),
+        r#"controllers["c"].states["s"].on_enter"#,
+    );
 
     for num in ["1e400", "-1e400", "\"NaN\"", "\"Infinity\""] {
         let raw = format!(r#"{{"controllers":{{"c":{{"states":{{"s":{{"blend":{num}}}}}}}}}}}"#);
-        assert!(within_cap(|| parse_controllers(&raw, &mut syms)).is_err(), "{num}");
+        assert!(within_cap(|| parse_controllers("c.json", &raw, &mut syms)).is_err(), "{num}");
     }
 
     let deep_arr = format!("{}{}", "[".repeat(3000), "]".repeat(3000));
-    assert!(within_cap(|| parse_controllers(&deep_arr, &mut syms)).is_err());
+    let e = within_cap(|| parse_controllers("c.json", &deep_arr, &mut syms)).unwrap_err();
+    assert_eq!((e.file.as_str(), e.path.as_str()), ("c.json", "json"));
     let deep_obj = format!("{}1{}", "{\"a\":".repeat(3000), "}".repeat(3000));
-    assert!(within_cap(|| parse_controllers(&deep_obj, &mut syms)).is_err());
+    let e = within_cap(|| parse_controllers("c.json", &deep_obj, &mut syms)).unwrap_err();
+    assert_eq!((e.file.as_str(), e.path.as_str()), ("c.json", "json"));
 
     let dup = r#"{"controllers":{"c":{"states":{"s":{},"s":{"blend":0.5}}}}}"#;
-    let p = within_cap(|| parse_controllers(dup, &mut syms)).unwrap();
+    let p = within_cap(|| parse_controllers("c.json", dup, &mut syms)).unwrap();
     assert_eq!(p.controllers.len(), 1);
 }
 
-fn assert_err_ctx<T: std::fmt::Debug>(r: Result<T, horizon_mobmodel::anim::LoadError>, ctx: &str) {
+fn assert_err_path<T: std::fmt::Debug>(r: Result<T, horizon_mobmodel::anim::LoadError>, prefix: &str) {
     let e = r.unwrap_err();
-    assert_eq!(e.context, ctx);
+    assert_eq!(e.file, "c.json");
+    assert!(e.path.starts_with(prefix), "expected path starting with {prefix}, got {e}");
     assert!(!e.message.is_empty());
 }
 
 #[test]
-#[ignore = "finding: blend_seconds and Ctx::scalar accept 1e300 as f32::INFINITY"]
 fn huge_f64_1e300_is_rejected() {
     let mut syms = Symbols::new(&[]);
-    let raw = r#"{"controllers":{"c":{"weight":1e300,"states":{"s":{"blend":1e300}}}}}"#;
-    assert!(within_cap(|| parse_controllers(raw, &mut syms)).is_err());
+    assert_err_path(
+        within_cap(|| parse_controllers("c.json", r#"{"controllers":{"c":{"weight":1e300}}}"#, &mut syms)),
+        r#"controllers["c"].weight"#,
+    );
+    assert_err_path(
+        within_cap(|| parse_controllers("c.json", r#"{"controllers":{"c":{"states":{"s":{"blend":1e300}}}}}"#, &mut syms)),
+        r#"controllers["c"].states["s"].blend"#,
+    );
+    assert_err_path(
+        within_cap(|| parse_controllers("c.json", r#"{"controllers":{"c":{"states":{"s":{"animations":[{"name":"a","weight":1e300}]}}}}}"#, &mut syms)),
+        r#"controllers["c"].states["s"].animations[0].weight"#,
+    );
 }

@@ -24,10 +24,11 @@
 
 use crate::expr::{compile, Expr, ExprError, ExprErrorKind, ExprInputs, Query, Symbols};
 use crate::limits::MAX_ANIMATIONS;
+use crate::model::{at, check_json_nesting, key, MAX_JSON_NESTING};
 use glam::Vec3;
 use serde::de::{Deserializer, MapAccess, Visitor};
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::fmt;
 
 /// A non-fatal finding while loading, for the loader to list with the animation name.
@@ -48,21 +49,26 @@ impl fmt::Display for Warning {
     }
 }
 
-/// A fatal load error.
-#[derive(Clone, Debug, PartialEq)]
+/// A fatal load error: always names the file (when known), JSON path (where there is one), and message.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LoadError {
-    pub context: String,
+    /// The file name given to the loader (empty when none was supplied).
+    pub file: String,
+    /// JSON path such as `animations["walk"].bones["arm"].rotation` (empty for whole-file problems).
+    pub path: String,
     pub message: String,
-    /// Column in an expression, if the error came from one.
+    /// 1-based column in an expression, if the error came from one.
     pub column: Option<usize>,
 }
 
 impl fmt::Display for LoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if !self.context.is_empty() {
-            write!(f, "'{}': ", self.context)?;
+        match (self.file.is_empty(), self.path.is_empty()) {
+            (true, true) => write!(f, "{}", self.message)?,
+            (false, true) => write!(f, "{}: {}", self.file, self.message)?,
+            (true, false) => write!(f, "{}: {}", self.path, self.message)?,
+            (false, false) => write!(f, "{}: {}: {}", self.file, self.path, self.message)?,
         }
-        write!(f, "{}", self.message)?;
         if let Some(c) = self.column {
             write!(f, " (column {c})")?;
         }
@@ -72,14 +78,23 @@ impl fmt::Display for LoadError {
 
 impl std::error::Error for LoadError {}
 
-pub(crate) fn load_err(context: &str, message: impl Into<String>) -> LoadError {
-    LoadError { context: context.to_string(), message: message.into(), column: None }
+pub(crate) fn map_key(path: &str, k: &str) -> String {
+    if path.is_empty() {
+        format!("[{k:?}]")
+    } else {
+        format!("{path}[{k:?}]")
+    }
 }
 
-/// Loading context: symbols, warnings, and the name used in messages.
+pub(crate) fn load_err(file: &str, path: &str, message: impl Into<String>) -> LoadError {
+    LoadError { file: file.to_string(), path: path.to_string(), message: message.into(), column: None }
+}
+
+/// Loading context: symbols, warnings, file name, and warning context.
 pub(crate) struct Ctx<'a> {
     pub syms: &'a mut Symbols,
     pub warnings: &'a mut Vec<Warning>,
+    pub file: &'a str,
     pub context: String,
 }
 
@@ -88,25 +103,32 @@ impl Ctx<'_> {
         self.warnings.push(Warning { context: self.context.clone(), message: message.into() });
     }
 
-    pub fn err(&self, message: impl Into<String>) -> LoadError {
-        load_err(&self.context, message)
+    pub fn err(&self, path: &str, message: impl Into<String>) -> LoadError {
+        load_err(self.file, path, message)
     }
 
     /// Compile an expression; unsupported Molang becomes a warning and the constant 0.
-    pub fn compile(&mut self, src: &str, what: &str) -> Result<Expr, LoadError> {
+    pub fn compile(&mut self, src: &str, path: &str) -> Result<Expr, LoadError> {
         match compile(src, self.syms) {
             Ok(e) => Ok(e),
             Err(e) if e.kind == ExprErrorKind::Unsupported => {
-                self.warn(format!("{what}: unsupported expression '{src}' ({e}); using 0"));
+                self.warn(format!("{path}: unsupported expression '{src}' ({e}); using 0"));
                 Ok(Expr::constant(0.0))
             }
-            Err(e) => Err(expr_load_error(&self.context, what, src, &e)),
+            Err(e) => Err(expr_load_error(self.file, path, src, &e)),
         }
     }
 
-    pub fn scalar(&mut self, v: &Value, what: &str) -> Result<Scalar, LoadError> {
+    pub fn scalar(&mut self, v: &Value, path: &str) -> Result<Scalar, LoadError> {
         match v {
-            Value::Number(n) => Ok(Scalar::Const(n.as_f64().unwrap_or(0.0) as f32)),
+            Value::Number(n) => {
+                let x = n
+                    .as_f64()
+                    .map(|x| x as f32)
+                    .filter(|x| x.is_finite())
+                    .ok_or_else(|| self.err(path, "number out of range for f32"))?;
+                Ok(Scalar::Const(x))
+            }
             Value::Bool(b) => Ok(Scalar::Const(if *b { 1.0 } else { 0.0 })),
             Value::String(s) => {
                 if let Ok(x) = s.trim().parse::<f32>() {
@@ -114,31 +136,40 @@ impl Ctx<'_> {
                         return Ok(Scalar::Const(x));
                     }
                 }
-                let e = self.compile(s, what)?;
+                let e = self.compile(s, path)?;
                 Ok(Scalar::from_expr(e))
             }
-            _ => Err(self.err(format!("{what}: expected a number or an expression string"))),
+            _ => Err(self.err(path, "expected a number or an expression string")),
         }
     }
 
-    pub fn vec3(&mut self, v: &Value, what: &str) -> Result<Vec3Expr, LoadError> {
+    pub fn vec3(&mut self, v: &Value, path: &str) -> Result<Vec3Expr, LoadError> {
         match v {
             Value::Array(a) => {
                 if a.len() != 3 {
-                    return Err(self.err(format!("{what}: a vector needs 3 values, got {}", a.len())));
+                    return Err(self.err(path, format!("a vector needs 3 values, got {}", a.len())));
                 }
-                Ok(Vec3Expr([self.scalar(&a[0], what)?, self.scalar(&a[1], what)?, self.scalar(&a[2], what)?]))
+                Ok(Vec3Expr([
+                    self.scalar(&a[0], &at(path, 0))?,
+                    self.scalar(&a[1], &at(path, 1))?,
+                    self.scalar(&a[2], &at(path, 2))?,
+                ]))
             }
             other => {
-                let s = self.scalar(other, what)?;
+                let s = self.scalar(other, path)?;
                 Ok(Vec3Expr([s.clone(), s.clone(), s]))
             }
         }
     }
 }
 
-pub(crate) fn expr_load_error(context: &str, what: &str, src: &str, e: &ExprError) -> LoadError {
-    LoadError { context: context.to_string(), message: format!("{what}: '{src}': {}", e.message), column: Some(e.column) }
+pub(crate) fn expr_load_error(file: &str, path: &str, src: &str, e: &ExprError) -> LoadError {
+    LoadError {
+        file: file.to_string(),
+        path: path.to_string(),
+        message: format!("'{src}': {}", e.message),
+        column: Some(e.column),
+    }
 }
 
 /// A JSON object read with its key order kept (serde_json's own map sorts keys).
@@ -665,14 +696,14 @@ impl AnimEvent {
 }
 
 /// Reads the optional `volume`, `pitch` and `offset` of an effect object (animation.json or bbmodel data point).
-fn effect_params(o: Option<&serde_json::Map<String, Value>>, ev: &mut AnimEvent, ctx: &Ctx) -> Result<(), LoadError> {
+fn effect_params(o: Option<&Map<String, Value>>, path: &str, ev: &mut AnimEvent, ctx: &Ctx) -> Result<(), LoadError> {
     let Some(o) = o else { return Ok(()) };
     let num = |k: &str, lo: f32, hi: f32, def: f32| -> Result<f32, LoadError> {
         match o.get(k) {
             None => Ok(def),
             Some(v) => match v.as_f64() {
                 Some(x) if x.is_finite() && (lo as f64..=hi as f64).contains(&x) => Ok(x as f32),
-                _ => Err(ctx.err(format!("{k} of '{}' must be a number from {lo} to {hi}", ev.name))),
+                _ => Err(ctx.err(&key(path, k), format!("{k} of '{}' must be a number from {lo} to {hi}", ev.name))),
             },
         }
     };
@@ -682,12 +713,13 @@ fn effect_params(o: Option<&serde_json::Map<String, Value>>, ev: &mut AnimEvent,
     }
     if ev.kind == EventKind::Particle {
         if let Some(v) = o.get("offset") {
+            let op = key(path, "offset");
             let a = v.as_array().filter(|a| a.len() == 3).map(|a| a.iter().map(|x| x.as_f64()).collect::<Vec<_>>());
             match a {
                 Some(a) if a.iter().all(|x| x.is_some_and(|x| x.is_finite() && x.abs() <= 1.0e4)) => {
                     ev.offset = [a[0].unwrap() as f32, a[1].unwrap() as f32, a[2].unwrap() as f32];
                 }
-                _ => return Err(ctx.err(format!("offset of '{}' must be [x, y, z] pixels (|v| <= 10000)", ev.name))),
+                _ => return Err(ctx.err(&op, format!("offset of '{}' must be [x, y, z] pixels (|v| <= 10000)", ev.name))),
             }
         }
     }
@@ -812,7 +844,7 @@ impl AnimationLibrary {
             return Ok(());
         }
         if self.animations.len() >= MAX_ANIMATIONS {
-            return Err(load_err(&a.name, format!("more than {MAX_ANIMATIONS} animations")));
+            return Err(load_err("", &map_key("animations", &a.name), format!("more than {MAX_ANIMATIONS} animations")));
         }
         self.animations.push(a);
         Ok(())
@@ -866,31 +898,36 @@ struct AnimFile {
     animations: Option<OrderedMap<Value>>,
 }
 
-/// Parse an `animation.json` document. Names, flags and keyframes as in section 3.6; see the module docs for the
-/// conventions. Unsupported fields and Molang constructs become warnings.
-pub fn parse_animation_file(json: &str, syms: &mut Symbols) -> Result<ParsedAnimations, LoadError> {
-    let file: AnimFile = serde_json::from_str(json).map_err(|e| load_err("", format!("invalid JSON: {e}")))?;
+/// Parse an `animation.json` document. `file` is used in error messages. Names, flags and keyframes as in section 3.6;
+/// see the module docs for the conventions. Unsupported fields and Molang constructs become warnings.
+pub fn parse_animation_file(file: &str, json: &str, syms: &mut Symbols) -> Result<ParsedAnimations, LoadError> {
+    let raw = json.as_bytes().strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(json.as_bytes());
+    if check_json_nesting(raw, MAX_JSON_NESTING).is_err() {
+        return Err(load_err(file, "json", format!("JSON nested deeper than {MAX_JSON_NESTING} levels")));
+    }
+    let parsed: AnimFile = serde_json::from_str(json).map_err(|e| load_err(file, "", format!("invalid JSON: {e}")))?;
     let mut out = ParsedAnimations::default();
-    let Some(OrderedMap(list)) = file.animations else {
-        return Err(load_err("", "no \"animations\" object"));
+    let Some(OrderedMap(list)) = parsed.animations else {
+        return Err(load_err(file, "animations", "no \"animations\" object"));
     };
     for (name, value) in list {
-        let mut ctx = Ctx { syms, warnings: &mut out.warnings, context: name.clone() };
-        let anim = parse_animation(&name, &value, &mut ctx)?;
+        let base = map_key("animations", &name);
+        let mut ctx = Ctx { syms, warnings: &mut out.warnings, file, context: name.clone() };
+        let anim = parse_animation(&name, &base, &value, &mut ctx)?;
         out.animations.push(anim);
     }
     Ok(out)
 }
 
-fn parse_time_key(key: &str, ctx: &Ctx, what: &str) -> Result<f32, LoadError> {
-    match key.trim().parse::<f32>() {
+fn parse_time_key(time_str: &str, path: &str, ctx: &Ctx) -> Result<f32, LoadError> {
+    match time_str.trim().parse::<f32>() {
         Ok(t) if t.is_finite() && t >= 0.0 => Ok(t),
-        _ => Err(ctx.err(format!("{what}: '{key}' is not a time in seconds (a number >= 0)"))),
+        _ => Err(ctx.err(path, format!("'{time_str}' is not a time in seconds (a finite number >= 0)"))),
     }
 }
 
-fn parse_animation(name: &str, v: &Value, ctx: &mut Ctx) -> Result<Animation, LoadError> {
-    let Some(obj) = v.as_object() else { return Err(ctx.err("animation must be an object")) };
+fn parse_animation(name: &str, base: &str, v: &Value, ctx: &mut Ctx) -> Result<Animation, LoadError> {
+    let Some(obj) = v.as_object() else { return Err(ctx.err(base, "animation must be an object")) };
     let mut anim = Animation {
         name: name.to_string(),
         loop_mode: LoopMode::Once,
@@ -902,8 +939,9 @@ fn parse_animation(name: &str, v: &Value, ctx: &mut Ctx) -> Result<Animation, Lo
         events: Vec::new(),
     };
     let mut explicit_length = None;
-    for (key, val) in obj {
-        match key.as_str() {
+    for (k, val) in obj {
+        let p = key(base, k);
+        match k.as_str() {
             "loop" => {
                 anim.loop_mode = match val {
                     Value::Bool(true) => LoopMode::Loop,
@@ -911,43 +949,43 @@ fn parse_animation(name: &str, v: &Value, ctx: &mut Ctx) -> Result<Animation, Lo
                     Value::String(s) if s == "hold_on_last_frame" => LoopMode::Hold,
                     Value::String(s) if s == "true" => LoopMode::Loop,
                     Value::String(s) if s == "false" => LoopMode::Once,
-                    _ => return Err(ctx.err("loop must be true, false or \"hold_on_last_frame\"")),
+                    _ => return Err(ctx.err(&p, "loop must be true, false or \"hold_on_last_frame\"")),
                 }
             }
             "animation_length" => match val.as_f64() {
-                Some(l) if l.is_finite() && l >= 0.0 => explicit_length = Some(l as f32),
-                _ => return Err(ctx.err("animation_length must be a number >= 0")),
+                Some(l) if l.is_finite() && l >= 0.0 && (l as f32).is_finite() => explicit_length = Some(l as f32),
+                _ => return Err(ctx.err(&p, "animation_length must be a finite number >= 0")),
             },
             "override_previous_animation" => match val.as_bool() {
                 Some(b) => anim.override_previous = b,
-                None => return Err(ctx.err("override_previous_animation must be true or false")),
+                None => return Err(ctx.err(&p, "override_previous_animation must be true or false")),
             },
             "anim_time_update" => {
-                let s = ctx.scalar(val, "anim_time_update")?;
+                let s = ctx.scalar(val, &p)?;
                 anim.anim_time_update = Some(match s {
                     Scalar::Const(c) => Expr::constant(c),
                     Scalar::Expr(e) => e,
                 });
             }
             "blend_weight" => {
-                let s = ctx.scalar(val, "blend_weight")?;
+                let s = ctx.scalar(val, &p)?;
                 anim.blend_weight = Some(match s {
                     Scalar::Const(c) => Expr::constant(c),
                     Scalar::Expr(e) => e,
                 });
             }
             "bones" => {
-                let Some(bones) = val.as_object() else { return Err(ctx.err("bones must be an object")) };
+                let Some(bones) = val.as_object() else { return Err(ctx.err(&p, "bones must be an object")) };
                 for (bone, bv) in bones {
-                    anim.bones.push(parse_bone(bone, bv, ctx)?);
+                    anim.bones.push(parse_bone(bone, &map_key(&p, bone), bv, ctx)?);
                 }
             }
-            "timeline" => parse_events(EventKind::Timeline, val, &mut anim.events, ctx)?,
-            "sound_effects" => parse_events(EventKind::Sound, val, &mut anim.events, ctx)?,
-            "particle_effects" => parse_events(EventKind::Particle, val, &mut anim.events, ctx)?,
+            "timeline" => parse_events(EventKind::Timeline, &p, val, &mut anim.events, ctx)?,
+            "sound_effects" => parse_events(EventKind::Sound, &p, val, &mut anim.events, ctx)?,
+            "particle_effects" => parse_events(EventKind::Particle, &p, val, &mut anim.events, ctx)?,
             "format_version" | "start_delay" | "loop_delay" | "reset" | "animation_name" => {
-                if matches!(key.as_str(), "start_delay" | "loop_delay") && val.as_f64().is_none_or(|x| x != 0.0) {
-                    ctx.warn(format!("{key} is not supported (ignored)"));
+                if matches!(k.as_str(), "start_delay" | "loop_delay") && val.as_f64().is_none_or(|x| x != 0.0) {
+                    ctx.warn(format!("{k} is not supported (ignored)"));
                 }
             }
             other => ctx.warn(format!("unsupported field '{other}' (ignored)")),
@@ -985,33 +1023,42 @@ fn check_events(a: &mut Animation, ctx: &mut Ctx) {
     }
 }
 
-fn parse_events(kind: EventKind, v: &Value, out: &mut Vec<AnimEvent>, ctx: &mut Ctx) -> Result<(), LoadError> {
+fn parse_events(kind: EventKind, base: &str, v: &Value, out: &mut Vec<AnimEvent>, ctx: &mut Ctx) -> Result<(), LoadError> {
     let what = match kind {
         EventKind::Timeline => "timeline",
         EventKind::Sound => "sound_effects",
         EventKind::Particle => "particle_effects",
     };
-    let Some(obj) = v.as_object() else { return Err(ctx.err(format!("{what} must be an object keyed by time"))) };
-    for (key, val) in obj {
-        let time = parse_time_key(key, ctx, what)?;
-        let items: Vec<&Value> = match val {
-            Value::Array(a) => a.iter().collect(),
-            other => vec![other],
+    let Some(obj) = v.as_object() else { return Err(ctx.err(base, format!("{what} must be an object keyed by time"))) };
+    for (tk, val) in obj {
+        let tp = map_key(base, tk);
+        let time = parse_time_key(tk, &tp, ctx)?;
+        let items: Vec<(String, &Value)> = match val {
+            Value::Array(a) => a.iter().enumerate().map(|(i, x)| (at(&tp, i), x)).collect(),
+            other => vec![(tp.clone(), other)],
         };
-        for item in items {
+        for (ip, item) in items {
             let (name, locator) = match (kind, item) {
                 (_, Value::String(s)) => (s.clone(), None),
-                (EventKind::Timeline, _) => return Err(ctx.err(format!("{what} at {key}: expected a name or a list of names"))),
+                (EventKind::Timeline, _) => return Err(ctx.err(&ip, "expected a name or a list of names")),
                 (_, Value::Object(o)) => {
                     let Some(effect) = o.get("effect").and_then(Value::as_str) else {
-                        return Err(ctx.err(format!("{what} at {key}: missing \"effect\"")));
+                        return Err(ctx.err(&key(&ip, "effect"), "missing \"effect\""));
                     };
-                    (effect.to_string(), o.get("locator").and_then(Value::as_str).map(str::to_string))
+                    let locator = match o.get("locator") {
+                        None | Some(Value::Null) => None,
+                        Some(lv) => Some(
+                            lv.as_str()
+                                .ok_or_else(|| ctx.err(&key(&ip, "locator"), "expected a string"))?
+                                .to_string(),
+                        ),
+                    };
+                    (effect.to_string(), locator)
                 }
-                _ => return Err(ctx.err(format!("{what} at {key}: expected an object with \"effect\""))),
+                _ => return Err(ctx.err(&ip, "expected an object with \"effect\"")),
             };
             let mut ev = AnimEvent::new(time, kind, name, locator);
-            effect_params(item.as_object(), &mut ev, ctx)?;
+            effect_params(item.as_object(), &ip, &mut ev, ctx)?;
             out.push(ev);
         }
     }
@@ -1046,11 +1093,11 @@ fn bedrock_to_internal(ch: &mut Channel, kind: ChannelKind) {
     }
 }
 
-fn parse_bone(bone: &str, v: &Value, ctx: &mut Ctx) -> Result<BoneAnim, LoadError> {
-    let Some(obj) = v.as_object() else { return Err(ctx.err(format!("bone '{bone}' must be an object"))) };
+fn parse_bone(bone: &str, base: &str, v: &Value, ctx: &mut Ctx) -> Result<BoneAnim, LoadError> {
+    let Some(obj) = v.as_object() else { return Err(ctx.err(base, format!("bone '{bone}' must be an object"))) };
     let mut b = BoneAnim { bone: bone.to_string(), rotation: None, position: None, scale: None };
-    for (key, val) in obj {
-        let kind = match key.as_str() {
+    for (k, val) in obj {
+        let kind = match k.as_str() {
             "rotation" => ChannelKind::Rotation,
             "position" => ChannelKind::Position,
             "scale" => ChannelKind::Scale,
@@ -1059,8 +1106,7 @@ fn parse_bone(bone: &str, v: &Value, ctx: &mut Ctx) -> Result<BoneAnim, LoadErro
                 continue;
             }
         };
-        let what = format!("bone '{bone}' {key}");
-        let mut ch = parse_channel(val, &what, ctx)?;
+        let mut ch = parse_channel(val, &key(base, k), ctx)?;
         bedrock_to_internal(&mut ch, kind);
         match kind {
             ChannelKind::Rotation => b.rotation = Some(ch),
@@ -1071,13 +1117,26 @@ fn parse_bone(bone: &str, v: &Value, ctx: &mut Ctx) -> Result<BoneAnim, LoadErro
     Ok(b)
 }
 
-fn parse_channel(v: &Value, what: &str, ctx: &mut Ctx) -> Result<Channel, LoadError> {
-    let Value::Object(obj) = v else { return Ok(Channel::Constant(ctx.vec3(v, what)?)) };
+fn parse_easing_arg(v: &Value, path: &str, ctx: &Ctx) -> Result<Option<f32>, LoadError> {
+    let x = match v {
+        Value::Array(a) => a.first().and_then(Value::as_f64),
+        other => other.as_f64(),
+    };
+    let Some(x) = x else { return Ok(None) };
+    let x32 = x as f32;
+    if !x32.is_finite() {
+        return Err(ctx.err(path, "number out of range for f32"));
+    }
+    Ok(Some(x32))
+}
+
+fn parse_channel(v: &Value, path: &str, ctx: &mut Ctx) -> Result<Channel, LoadError> {
+    let Value::Object(obj) = v else { return Ok(Channel::Constant(ctx.vec3(v, path)?)) };
     let mut keys: Vec<Keyframe> = Vec::new();
     for (tk, kv) in obj {
-        let time = parse_time_key(tk, ctx, what)?;
-        let kw = format!("{what} at {tk}");
-        let mut key = Keyframe {
+        let kp = map_key(path, tk);
+        let time = parse_time_key(tk, &kp, ctx)?;
+        let mut kf = Keyframe {
             time,
             pre: Vec3Expr::constant(Vec3::ZERO),
             post: Vec3Expr::constant(Vec3::ZERO),
@@ -1089,56 +1148,62 @@ fn parse_channel(v: &Value, what: &str, ctx: &mut Ctx) -> Result<Channel, LoadEr
         if let Value::Object(o) = kv {
             let (mut pre, mut post) = (None, None);
             for (f, fv) in o {
+                let fp = key(&kp, f);
                 match f.as_str() {
-                    "pre" => pre = Some(ctx.vec3(fv, &kw)?),
-                    "post" => post = Some(ctx.vec3(fv, &kw)?),
+                    "pre" => pre = Some(ctx.vec3(fv, &fp)?),
+                    "post" => post = Some(ctx.vec3(fv, &fp)?),
                     "lerp_mode" => match fv.as_str().and_then(LerpMode::parse) {
-                        Some(m) => key.lerp = m,
+                        Some(m) => kf.lerp = m,
                         None => {
-                            ctx.warn(format!("{kw}: unknown lerp_mode {fv}, using linear"));
+                            ctx.warn(format!("{fp}: unknown lerp_mode {fv}, using linear"));
                         }
                     },
                     "easing" => match fv.as_str().and_then(Easing::parse) {
-                        Some(e) => key.easing = e,
-                        None => ctx.warn(format!("{kw}: unknown easing {fv}, using linear")),
+                        Some(e) => kf.easing = e,
+                        None => ctx.warn(format!("{fp}: unknown easing {fv}, using linear")),
                     },
                     "easingargs" | "easingArgs" | "easing_args" => {
-                        key.easing_args = fv.as_array().and_then(|v| v.first()).and_then(Value::as_f64).map(|x| x as f32);
-                        if key.easing_args.is_none() {
-                            ctx.warn(format!("{kw}: easingArgs must be a list of numbers (ignored)"));
+                        kf.easing_args = fv
+                            .as_array()
+                            .and_then(|v| v.first())
+                            .map(|first| parse_easing_arg(first, &at(&fp, 0), ctx))
+                            .transpose()?
+                            .flatten();
+                        if kf.easing_args.is_none() {
+                            ctx.warn(format!("{fp}: easingArgs must be a list of numbers (ignored)"));
                         }
                     }
-                    "bezier_left_time" => key.bezier.left_time = f32_vec3(fv, &kw, ctx)?,
-                    "bezier_left_value" => key.bezier.left_value = f32_vec3(fv, &kw, ctx)?,
-                    "bezier_right_time" => key.bezier.right_time = f32_vec3(fv, &kw, ctx)?,
-                    "bezier_right_value" => key.bezier.right_value = f32_vec3(fv, &kw, ctx)?,
-                    other => ctx.warn(format!("{kw}: unsupported field '{other}' (ignored)")),
+                    "bezier_left_time" => kf.bezier.left_time = f32_vec3(fv, &fp, ctx)?,
+                    "bezier_left_value" => kf.bezier.left_value = f32_vec3(fv, &fp, ctx)?,
+                    "bezier_right_time" => kf.bezier.right_time = f32_vec3(fv, &fp, ctx)?,
+                    "bezier_right_value" => kf.bezier.right_value = f32_vec3(fv, &fp, ctx)?,
+                    other => ctx.warn(format!("{fp}: unsupported field '{other}' (ignored)")),
                 }
             }
             match (pre, post) {
                 (Some(a), Some(b)) => {
-                    key.pre = a;
-                    key.post = b;
+                    kf.pre = a;
+                    kf.post = b;
                 }
                 (Some(a), None) => {
-                    key.post = a.clone();
-                    key.pre = a;
+                    kf.post = a.clone();
+                    kf.pre = a;
                 }
                 (None, Some(b)) => {
-                    key.pre = b.clone();
-                    key.post = b;
+                    kf.pre = b.clone();
+                    kf.post = b;
                 }
-                (None, None) => return Err(ctx.err(format!("{kw}: needs \"pre\" and/or \"post\""))),
+                (None, None) => return Err(ctx.err(&kp, "needs \"pre\" and/or \"post\"")),
             }
         } else {
-            let v3 = ctx.vec3(kv, &kw)?;
-            key.pre = v3.clone();
-            key.post = v3;
+            let v3 = ctx.vec3(kv, &kp)?;
+            kf.pre = v3.clone();
+            kf.post = v3;
         }
-        keys.push(key);
+        keys.push(kf);
     }
     if keys.is_empty() {
-        return Err(ctx.err(format!("{what}: empty keyframe table")));
+        return Err(ctx.err(path, "empty keyframe table"));
     }
     // Two keys that parse to the same time (for example "1" and "1.0") are an authoring mistake: keep the later.
     keys.sort_by(|a, b| a.time.total_cmp(&b.time));
@@ -1151,20 +1216,25 @@ fn parse_channel(v: &Value, what: &str, ctx: &mut Ctx) -> Result<Channel, LoadEr
         dedup.push(k);
     }
     if dedup.len() != before {
-        ctx.warn(format!("{what}: duplicate keyframe times, kept the last of each"));
+        ctx.warn(format!("{path}: duplicate keyframe times, kept the last of each"));
     }
     Ok(Channel::Keys(dedup))
 }
 
-fn f32_vec3(v: &Value, what: &str, ctx: &Ctx) -> Result<Vec3, LoadError> {
-    let bad = || ctx.err(format!("{what}: expected three numbers"));
+fn f32_vec3(v: &Value, path: &str, ctx: &Ctx) -> Result<Vec3, LoadError> {
+    let num = |x: &Value, p: &str| -> Result<f32, LoadError> {
+        let n = x.as_f64().ok_or_else(|| ctx.err(p, "expected a number"))? as f32;
+        if !n.is_finite() {
+            return Err(ctx.err(p, "number out of range for f32"));
+        }
+        Ok(n)
+    };
     match v {
         Value::Array(a) if a.len() == 3 => {
-            let g = |i: usize| a[i].as_f64().map(|x| x as f32).ok_or_else(bad);
-            Ok(Vec3::new(g(0)?, g(1)?, g(2)?))
+            Ok(Vec3::new(num(&a[0], &at(path, 0))?, num(&a[1], &at(path, 1))?, num(&a[2], &at(path, 2))?))
         }
-        Value::Number(n) => Ok(Vec3::splat(n.as_f64().unwrap_or(0.0) as f32)),
-        _ => Err(bad()),
+        Value::Number(_) => Ok(Vec3::splat(num(v, path)?)),
+        _ => Err(ctx.err(path, "expected three numbers")),
     }
 }
 
@@ -1182,39 +1252,56 @@ fn f32_vec3(v: &Value, what: &str, ctx: &Ctx) -> Result<Vec3, LoadError> {
 /// `bezier_left_time`, `bezier_left_value`, `bezier_right_time`, `bezier_right_value`. An animator of
 /// `type: "effect"` has keyframes with `channel` `sound`, `particle` or `timeline` and `data_points` of
 /// `{effect, locator}` (sound, particle) or `{script}` (timeline; the script text is the event name).
-pub fn animations_from_bbmodel(animations: &Value, syms: &mut Symbols) -> Result<ParsedAnimations, LoadError> {
+pub fn animations_from_bbmodel(file: &str, animations: &Value, syms: &mut Symbols) -> Result<ParsedAnimations, LoadError> {
     let mut out = ParsedAnimations::default();
-    let Some(list) = animations.as_array() else { return Err(load_err("", "animations must be an array")) };
+    let Some(list) = animations.as_array() else { return Err(load_err(file, "animations", "animations must be an array")) };
     for (n, av) in list.iter().enumerate() {
-        let name = av.get("name").and_then(Value::as_str).map_or_else(|| format!("animation_{n}"), str::to_string);
-        let mut ctx = Ctx { syms, warnings: &mut out.warnings, context: name.clone() };
-        let anim = convert_bb_animation(&name, av, &mut ctx)?;
+        let ap = at("animations", n);
+        let Some(obj) = av.as_object() else {
+            return Err(load_err(file, &ap, "animation must be an object"));
+        };
+        let name = match obj.get("name") {
+            None | Some(Value::Null) => format!("animation_{n}"),
+            Some(v) => v.as_str().ok_or_else(|| load_err(file, &key(&ap, "name"), "expected a string"))?.to_string(),
+        };
+        let mut ctx = Ctx { syms, warnings: &mut out.warnings, file, context: name.clone() };
+        let anim = convert_bb_animation(&name, &ap, obj, &mut ctx)?;
         out.animations.push(anim);
     }
     Ok(out)
 }
 
-fn convert_bb_animation(name: &str, v: &Value, ctx: &mut Ctx) -> Result<Animation, LoadError> {
+fn convert_bb_animation(name: &str, ap: &str, obj: &Map<String, Value>, ctx: &mut Ctx) -> Result<Animation, LoadError> {
+    let override_previous = match obj.get("override") {
+        None | Some(Value::Null) => false,
+        Some(v) => v.as_bool().ok_or_else(|| ctx.err(&key(ap, "override"), "expected true or false"))?,
+    };
+    let loop_mode = match obj.get("loop") {
+        None | Some(Value::Null) => LoopMode::Once,
+        Some(v) => match v.as_str() {
+            Some("once") => LoopMode::Once,
+            Some("loop") => LoopMode::Loop,
+            Some("hold") => LoopMode::Hold,
+            Some(other) => return Err(ctx.err(&key(ap, "loop"), format!("unknown loop mode '{other}' (once, hold, loop)"))),
+            None => return Err(ctx.err(&key(ap, "loop"), "expected \"once\", \"hold\" or \"loop\"")),
+        },
+    };
     let mut anim = Animation {
         name: name.to_string(),
-        loop_mode: LoopMode::Once,
+        loop_mode,
         length: 0.0,
-        override_previous: v.get("override").and_then(Value::as_bool).unwrap_or(false),
+        override_previous,
         anim_time_update: None,
         blend_weight: None,
         bones: Vec::new(),
         events: Vec::new(),
     };
-    anim.loop_mode = match v.get("loop").and_then(Value::as_str) {
-        None | Some("once") => LoopMode::Once,
-        Some("loop") => LoopMode::Loop,
-        Some("hold") => LoopMode::Hold,
-        Some(other) => return Err(ctx.err(format!("unknown loop mode '{other}' (once, hold, loop)"))),
-    };
     for (field, slot) in [("anim_time_update", 0), ("blend_weight", 1)] {
-        if let Some(s) = v.get(field).and_then(Value::as_str) {
+        if let Some(fv) = obj.get(field).filter(|v| !v.is_null()) {
+            let fp = key(ap, field);
+            let s = fv.as_str().ok_or_else(|| ctx.err(&fp, "expected an expression string"))?;
             if !s.trim().is_empty() {
-                let e = ctx.compile(s, field)?;
+                let e = ctx.compile(s, &fp)?;
                 if slot == 0 {
                     anim.anim_time_update = Some(e);
                 } else {
@@ -1223,63 +1310,98 @@ fn convert_bb_animation(name: &str, v: &Value, ctx: &mut Ctx) -> Result<Animatio
             }
         }
     }
-    let explicit_length = v.get("length").and_then(Value::as_f64).filter(|l| l.is_finite() && *l >= 0.0);
-    if let Some(animators) = v.get("animators").and_then(Value::as_object) {
-        let mut entries: Vec<(String, &Value)> = Vec::new();
+    let explicit_length = match obj.get("length") {
+        None | Some(Value::Null) => None,
+        Some(lv) => {
+            let lp = key(ap, "length");
+            let l = lv.as_f64().ok_or_else(|| ctx.err(&lp, "length must be a finite number >= 0"))?;
+            let l32 = l as f32;
+            if !l32.is_finite() || l32 < 0.0 {
+                return Err(ctx.err(&lp, "length must be a finite number >= 0"));
+            }
+            Some(l32)
+        }
+    };
+    if let Some(av) = obj.get("animators") {
+        let amp = key(ap, "animators");
+        let animators = av.as_object().ok_or_else(|| ctx.err(&amp, "animators must be an object"))?;
+        let mut entries: Vec<(String, String, &Map<String, Value>)> = Vec::new();
         for (id, a) in animators {
-            let bone = a.get("name").and_then(Value::as_str).unwrap_or(id).to_string();
-            entries.push((bone, a));
+            let a_path = map_key(&amp, id);
+            let ao = a.as_object().ok_or_else(|| ctx.err(&a_path, "animator must be an object"))?;
+            let bone = match ao.get("name") {
+                None | Some(Value::Null) => id.clone(),
+                Some(nv) => nv.as_str().ok_or_else(|| ctx.err(&key(&a_path, "name"), "expected a string"))?.to_string(),
+            };
+            entries.push((bone, a_path, ao));
         }
         entries.sort_by(|a, b| a.0.cmp(&b.0));
-        for (bone, a) in entries {
-            let kfs = a.get("keyframes").and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[]);
-            if a.get("type").and_then(Value::as_str) == Some("effect") {
-                convert_bb_effects(kfs, &mut anim.events, ctx)?;
+        for (bone, a_path, ao) in entries {
+            let kfs_path = key(&a_path, "keyframes");
+            let kfs = match ao.get("keyframes") {
+                None => &[][..],
+                Some(kv) => kv.as_array().ok_or_else(|| ctx.err(&kfs_path, "keyframes must be an array"))?.as_slice(),
+            };
+            let ty = match ao.get("type") {
+                None | Some(Value::Null) => None,
+                Some(tv) => Some(tv.as_str().ok_or_else(|| ctx.err(&key(&a_path, "type"), "expected a string"))?),
+            };
+            for (ki, kf) in kfs.iter().enumerate() {
+                let kp = at(&kfs_path, ki);
+                let ko = kf.as_object().ok_or_else(|| ctx.err(&kp, "keyframe must be an object"))?;
+                match ko.get("channel") {
+                    Some(cv) if cv.is_string() => {}
+                    Some(_) => return Err(ctx.err(&key(&kp, "channel"), "expected a string")),
+                    None => return Err(ctx.err(&key(&kp, "channel"), "missing \"channel\"")),
+                }
+            }
+            if ty == Some("effect") {
+                convert_bb_effects(kfs, &kfs_path, &mut anim.events, ctx)?;
             } else {
                 if anim.bones.iter().any(|b| b.bone == bone) {
                     ctx.warn(format!("two animators for bone '{bone}', the second is ignored"));
                     continue;
                 }
-                if let Some(b) = convert_bb_bone(&bone, kfs, ctx)? {
+                if let Some(b) = convert_bb_bone(&bone, kfs, &kfs_path, ctx)? {
                     anim.bones.push(b);
                 }
             }
         }
     }
-    anim.length = explicit_length.map_or_else(|| derived_length(&anim), |l| l as f32);
+    anim.length = explicit_length.unwrap_or_else(|| derived_length(&anim));
     sort_events(&mut anim.events);
     check_events(&mut anim, ctx);
     Ok(anim)
 }
 
-fn bb_time(k: &Value, ctx: &Ctx, what: &str) -> Result<f32, LoadError> {
-    match k.get("time").and_then(Value::as_f64) {
-        Some(t) if t.is_finite() && t >= 0.0 => Ok(t as f32),
-        _ => Err(ctx.err(format!("{what}: keyframe without a valid \"time\""))),
+fn bb_time(ko: &Map<String, Value>, path: &str, ctx: &Ctx) -> Result<f32, LoadError> {
+    match ko.get("time").and_then(Value::as_f64) {
+        Some(t) if t.is_finite() && t >= 0.0 && (t as f32).is_finite() => Ok(t as f32),
+        _ => Err(ctx.err(path, "keyframe without a valid finite \"time\" >= 0")),
     }
 }
 
-fn bb_point(p: &Value, kind: ChannelKind, what: &str, ctx: &mut Ctx) -> Result<Vec3Expr, LoadError> {
+fn bb_point(po: &Map<String, Value>, path: &str, kind: ChannelKind, ctx: &mut Ctx) -> Result<Vec3Expr, LoadError> {
     let def = kind.default_value();
     let mut comps = [Scalar::Const(def.x), Scalar::Const(def.y), Scalar::Const(def.z)];
     for (i, axis) in ["x", "y", "z"].iter().enumerate() {
-        match p.get(*axis) {
+        match po.get(*axis) {
             None | Some(Value::Null) => {}
             Some(Value::String(s)) if s.trim().is_empty() => {}
-            Some(v) => comps[i] = ctx.scalar(v, &format!("{what} {axis}"))?,
+            Some(v) => comps[i] = ctx.scalar(v, &key(path, axis))?,
         }
     }
     Ok(Vec3Expr(comps))
 }
 
-fn bb_vec3(k: &Value, field: &str, default: Vec3, what: &str, ctx: &Ctx) -> Result<Vec3, LoadError> {
-    match k.get(field) {
+fn bb_vec3(ko: &Map<String, Value>, field: &str, default: Vec3, kp: &str, ctx: &Ctx) -> Result<Vec3, LoadError> {
+    match ko.get(field) {
         None | Some(Value::Null) => Ok(default),
-        Some(v) => f32_vec3(v, &format!("{what} {field}"), ctx),
+        Some(v) => f32_vec3(v, &key(kp, field), ctx),
     }
 }
 
-fn convert_bb_bone(bone: &str, kfs: &[Value], ctx: &mut Ctx) -> Result<Option<BoneAnim>, LoadError> {
+fn convert_bb_bone(bone: &str, kfs: &[Value], kfs_path: &str, ctx: &mut Ctx) -> Result<Option<BoneAnim>, LoadError> {
     let mut b = BoneAnim { bone: bone.to_string(), rotation: None, position: None, scale: None };
     for kind in [ChannelKind::Rotation, ChannelKind::Position, ChannelKind::Scale] {
         let cname = match kind {
@@ -1287,34 +1409,48 @@ fn convert_bb_bone(bone: &str, kfs: &[Value], ctx: &mut Ctx) -> Result<Option<Bo
             ChannelKind::Position => "position",
             ChannelKind::Scale => "scale",
         };
-        let what = format!("bone '{bone}' {cname}");
         let mut keys = Vec::new();
-        for k in kfs.iter().filter(|k| k.get("channel").and_then(Value::as_str) == Some(cname)) {
-            let time = bb_time(k, ctx, &what)?;
-            let pts = k.get("data_points").and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[]);
-            let (pre, post) = match pts {
-                [] => return Err(ctx.err(format!("{what} at {time}: no data_points"))),
-                [p] => {
-                    let v = bb_point(p, kind, &what, ctx)?;
+        for (ki, k) in kfs.iter().enumerate() {
+            let ko = k.as_object().expect("validated above");
+            if ko.get("channel").and_then(Value::as_str) != Some(cname) {
+                continue;
+            }
+            let kp = at(kfs_path, ki);
+            let time = bb_time(ko, &key(&kp, "time"), ctx)?;
+            let dp_path = key(&kp, "data_points");
+            let pts_val = ko.get("data_points").ok_or_else(|| ctx.err(&dp_path, "missing \"data_points\""))?;
+            let pts = pts_val.as_array().ok_or_else(|| ctx.err(&dp_path, "data_points must be an array"))?;
+            let mut pt_objs = Vec::with_capacity(pts.len());
+            for (pi, p) in pts.iter().enumerate() {
+                let pp = at(&dp_path, pi);
+                pt_objs.push((pp.clone(), p.as_object().ok_or_else(|| ctx.err(&pp, "data point must be an object"))?));
+            }
+            let (pre, post) = match pt_objs.as_slice() {
+                [] => return Err(ctx.err(&dp_path, "no data_points")),
+                [(pp, po)] => {
+                    let v = bb_point(po, pp, kind, ctx)?;
                     (v.clone(), v)
                 }
-                [a, b, ..] => (bb_point(a, kind, &what, ctx)?, bb_point(b, kind, &what, ctx)?),
+                [(pa, poa), (pb, pob), ..] => (bb_point(poa, pa, kind, ctx)?, bb_point(pob, pb, kind, ctx)?),
             };
-            let lerp = match k.get("interpolation").and_then(Value::as_str) {
-                None => LerpMode::Linear,
-                Some(s) => LerpMode::parse(s).unwrap_or_else(|| {
-                    ctx.warn(format!("{what} at {time}: unknown interpolation '{s}', using linear"));
-                    LerpMode::Linear
-                }),
+            let lerp = match ko.get("interpolation") {
+                None | Some(Value::Null) => LerpMode::Linear,
+                Some(iv) => {
+                    let s = iv.as_str().ok_or_else(|| ctx.err(&key(&kp, "interpolation"), "expected a string"))?;
+                    LerpMode::parse(s).unwrap_or_else(|| {
+                        ctx.warn(format!("{kp}: unknown interpolation '{s}', using linear"));
+                        LerpMode::Linear
+                    })
+                }
             };
             let d = BezierHandles::default();
             let bezier = BezierHandles {
-                left_time: bb_vec3(k, "bezier_left_time", d.left_time, &what, ctx)?,
-                left_value: bb_vec3(k, "bezier_left_value", d.left_value, &what, ctx)?,
-                right_time: bb_vec3(k, "bezier_right_time", d.right_time, &what, ctx)?,
-                right_value: bb_vec3(k, "bezier_right_value", d.right_value, &what, ctx)?,
+                left_time: bb_vec3(ko, "bezier_left_time", d.left_time, &kp, ctx)?,
+                left_value: bb_vec3(ko, "bezier_left_value", d.left_value, &kp, ctx)?,
+                right_time: bb_vec3(ko, "bezier_right_time", d.right_time, &kp, ctx)?,
+                right_value: bb_vec3(ko, "bezier_right_value", d.right_value, &kp, ctx)?,
             };
-            let (easing, easing_args) = bb_easing(k, &what, time, ctx);
+            let (easing, easing_args) = bb_easing(ko, &kp, time, ctx)?;
             keys.push(Keyframe { time, pre, post, lerp, easing, easing_args, bezier });
         }
         if keys.is_empty() {
@@ -1334,39 +1470,50 @@ fn convert_bb_bone(bone: &str, kfs: &[Value], ctx: &mut Ctx) -> Result<Option<Bo
     Ok(Some(b))
 }
 
-/// GeckoLib-plugin keyframe easing: `easing` (a name such as `easeOutBack`) and `easingArgs` (list of numbers) on the
-/// keyframe object. Also accepted, because the exact plugin layout is unverified: `easing_args` / `easingargs`, a single
-/// number for the args, and a nested object `"easing": {"type"|"name"|"id": ..., "args"|"easingArgs": [...]}`. Missing or
-/// unknown easing is linear (unknown names warn). Like animation.json, easing shapes the segment ENDING at this key.
-fn bb_easing(k: &Value, what: &str, time: f32, ctx: &mut Ctx) -> (Easing, Option<f32>) {
-    let num = |v: &Value| match v {
-        Value::Array(a) => a.first().and_then(Value::as_f64).map(|x| x as f32),
-        other => other.as_f64().map(|x| x as f32),
-    };
-    let mut args = ["easingArgs", "easing_args", "easingargs"].iter().find_map(|f| k.get(*f)).and_then(num);
-    let name_val = match k.get("easing") {
-        Some(Value::Object(o)) => {
-            if let Some(a) = ["args", "easingArgs", "easing_args"].iter().find_map(|f| o.get(*f)).and_then(num) {
-                args = Some(a);
-            }
-            ["type", "name", "id", "easing"].iter().find_map(|f| o.get(*f)).and_then(Value::as_str)
+fn bb_easing(ko: &Map<String, Value>, kp: &str, time: f32, ctx: &mut Ctx) -> Result<(Easing, Option<f32>), LoadError> {
+    let mut args = None;
+    for f in ["easingArgs", "easing_args", "easingargs"] {
+        if let Some(v) = ko.get(f).filter(|v| !v.is_null()) {
+            args = parse_easing_arg(v, &key(kp, f), ctx)?;
+            break;
         }
-        Some(v) => v.as_str(),
-        None => None,
+    }
+    let name_val = match ko.get("easing") {
+        None | Some(Value::Null) => None,
+        Some(Value::Object(o)) => {
+            let ep = key(kp, "easing");
+            for f in ["args", "easingArgs", "easing_args"] {
+                if let Some(v) = o.get(f).filter(|v| !v.is_null()) {
+                    args = parse_easing_arg(v, &key(&ep, f), ctx)?;
+                    break;
+                }
+            }
+            let mut found = None;
+            for f in ["type", "name", "id", "easing"] {
+                if let Some(v) = o.get(f).filter(|v| !v.is_null()) {
+                    found = Some(v.as_str().ok_or_else(|| ctx.err(&key(&ep, f), "expected a string"))?);
+                    break;
+                }
+            }
+            found
+        }
+        Some(v) => Some(v.as_str().ok_or_else(|| ctx.err(&key(kp, "easing"), "expected a string or object"))?),
     };
-    let Some(name) = name_val else { return (Easing::Linear, args) };
+    let Some(name) = name_val else { return Ok((Easing::Linear, args)) };
     match Easing::parse(name) {
-        Some(e) => (e, args),
+        Some(e) => Ok((e, args)),
         None => {
-            ctx.warn(format!("{what} at {time}: unknown easing '{name}', using linear"));
-            (Easing::Linear, args)
+            ctx.warn(format!("{kp} at {time}: unknown easing '{name}', using linear"));
+            Ok((Easing::Linear, args))
         }
     }
 }
 
-fn convert_bb_effects(kfs: &[Value], out: &mut Vec<AnimEvent>, ctx: &mut Ctx) -> Result<(), LoadError> {
-    for k in kfs {
-        let kind = match k.get("channel").and_then(Value::as_str) {
+fn convert_bb_effects(kfs: &[Value], kfs_path: &str, out: &mut Vec<AnimEvent>, ctx: &mut Ctx) -> Result<(), LoadError> {
+    for (ki, k) in kfs.iter().enumerate() {
+        let kp = at(kfs_path, ki);
+        let ko = k.as_object().expect("validated above");
+        let kind = match ko.get("channel").and_then(Value::as_str) {
             Some("sound") => EventKind::Sound,
             Some("particle") => EventKind::Particle,
             Some("timeline") => EventKind::Timeline,
@@ -1375,19 +1522,36 @@ fn convert_bb_effects(kfs: &[Value], out: &mut Vec<AnimEvent>, ctx: &mut Ctx) ->
                 continue;
             }
         };
-        let time = bb_time(k, ctx, "effects")?;
-        for p in k.get("data_points").and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[]) {
-            let text = |f: &str| p.get(f).and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty());
+        let time = bb_time(ko, &key(&kp, "time"), ctx)?;
+        let dp_path = key(&kp, "data_points");
+        let pts_val = ko.get("data_points").ok_or_else(|| ctx.err(&dp_path, "missing \"data_points\""))?;
+        let pts = pts_val.as_array().ok_or_else(|| ctx.err(&dp_path, "data_points must be an array"))?;
+        for (pi, p) in pts.iter().enumerate() {
+            let pp = at(&dp_path, pi);
+            let po = p.as_object().ok_or_else(|| ctx.err(&pp, "data point must be an object"))?;
+            let opt_str = |f: &str| -> Result<Option<&str>, LoadError> {
+                match po.get(f) {
+                    None | Some(Value::Null) => Ok(None),
+                    Some(v) => {
+                        let s = v.as_str().ok_or_else(|| ctx.err(&key(&pp, f), "expected a string"))?;
+                        Ok(Some(s.trim()).filter(|s| !s.is_empty()))
+                    }
+                }
+            };
             let name = match kind {
-                EventKind::Timeline => text("script").or_else(|| text("effect")),
-                _ => text("effect"),
+                EventKind::Timeline => match opt_str("script")? {
+                    Some(s) => Some(s),
+                    None => opt_str("effect")?,
+                },
+                _ => opt_str("effect")?,
             };
             let Some(name) = name else {
                 ctx.warn(format!("effect keyframe at {time}s has no effect name (ignored)"));
                 continue;
             };
-            let mut ev = AnimEvent::new(time, kind, name, text("locator").map(str::to_string));
-            effect_params(p.as_object(), &mut ev, ctx)?;
+            let loc = opt_str("locator")?.map(str::to_string);
+            let mut ev = AnimEvent::new(time, kind, name, loc);
+            effect_params(Some(po), &pp, &mut ev, ctx)?;
             out.push(ev);
         }
     }
@@ -1403,7 +1567,7 @@ mod tests {
     }
 
     fn parse(json: &str) -> ParsedAnimations {
-        parse_animation_file(json, &mut syms()).unwrap()
+        parse_animation_file("test.animation.json", json, &mut syms()).unwrap()
     }
 
     fn inp() -> ExprInputs {
@@ -1769,23 +1933,27 @@ mod tests {
 
     #[test]
     fn errors_are_reported_with_context() {
-        let e = parse_animation_file(r#"{"animations":{"a":{"bones":{"b":{"rotation":["1 +", 0, 0]}}}}}"#, &mut syms()).unwrap_err();
-        assert_eq!(e.context, "a");
+        let e = parse_animation_file("a.json", r#"{"animations":{"a":{"bones":{"b":{"rotation":["1 +", 0, 0]}}}}}"#, &mut syms()).unwrap_err();
+        assert_eq!(e.file, "a.json");
+        assert_eq!(e.path, r#"animations["a"].bones["b"].rotation[0]"#);
         assert_eq!(e.column, Some(4));
-        let e = parse_animation_file(r#"{"animations":{"a":{"loop":"maybe"}}}"#, &mut syms()).unwrap_err();
+        let e = parse_animation_file("a.json", r#"{"animations":{"a":{"loop":"maybe"}}}"#, &mut syms()).unwrap_err();
         assert!(e.message.contains("loop"));
-        let e = parse_animation_file(r#"{"animations":{"a":{"bones":{"b":{"rotation":[1,2]}}}}}"#, &mut syms()).unwrap_err();
+        let e = parse_animation_file("a.json", r#"{"animations":{"a":{"bones":{"b":{"rotation":[1,2]}}}}}"#, &mut syms()).unwrap_err();
         assert!(e.message.contains("3 values"));
-        let e = parse_animation_file(r#"{"animations":{"a":{"bones":{"b":{"rotation":{"x":[1,2,3]}}}}}}"#, &mut syms()).unwrap_err();
+        let e = parse_animation_file("a.json", r#"{"animations":{"a":{"bones":{"b":{"rotation":{"x":[1,2,3]}}}}}}"#, &mut syms()).unwrap_err();
         assert!(e.message.contains("time"));
         let e = parse_animation_file(
+            "a.json",
             r#"{"animations":{"a":{"bones":{"b":{"rotation":["query.synced('missing')",0,0]}}}}}"#,
             &mut syms(),
         )
         .unwrap_err();
         assert!(e.message.contains("missing"));
-        assert!(parse_animation_file("{", &mut syms()).is_err());
-        assert!(parse_animation_file("{}", &mut syms()).is_err());
+        let e = parse_animation_file("a.json", "{", &mut syms()).unwrap_err();
+        assert_eq!(e.file, "a.json");
+        assert!(e.to_string().contains("line 1"));
+        assert!(parse_animation_file("a.json", "{}", &mut syms()).is_err());
     }
 
     #[test]
@@ -1851,7 +2019,7 @@ mod tests {
             {"name": "idle", "loop": "hold", "length": 2, "animators": {}}]"#,
         )
         .unwrap();
-        let p = animations_from_bbmodel(&v, &mut syms()).unwrap();
+        let p = animations_from_bbmodel("fox.bbmodel", &v, &mut syms()).unwrap();
         assert_eq!(p.animations.len(), 2);
         let walk = &p.animations[0];
         assert_eq!((walk.loop_mode, walk.length, walk.override_previous), (LoopMode::Loop, 1.0, true));
@@ -1888,7 +2056,7 @@ mod tests {
 
     #[test]
     fn bbmodel_conversion_errors() {
-        let bad = |s: &str| animations_from_bbmodel(&serde_json::from_str(s).unwrap(), &mut syms());
+        let bad = |s: &str| animations_from_bbmodel("fox.bbmodel", &serde_json::from_str(s).unwrap(), &mut syms());
         assert!(bad(r#"{}"#).is_err());
         assert!(bad(r#"[{"name":"a","loop":"forever"}]"#).is_err());
         assert!(bad(r#"[{"name":"a","animators":{"x":{"name":"b","keyframes":[{"channel":"rotation","data_points":[{}]}]}}}]"#).is_err());

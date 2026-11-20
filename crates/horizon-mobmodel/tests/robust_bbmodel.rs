@@ -277,13 +277,11 @@ fn limits_numbers_nesting_and_duplicates() {
     assert_err_file(within_cap(|| load_bbmodel("t.bbmodel", dup_bone)), true, "dup_bone");
 }
 
-#[test]
-#[ignore = "finding: decode_png allocates 256 MiB for an 8192x8192 RGBA IHDR before reading pixels"]
-fn huge_8192_png_header_stays_within_alloc_cap() {
+fn png_with_ihdr(w: u32, h: u32) -> String {
     use base64::Engine;
     let mut png = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, b'I', b'H', b'D', b'R'];
-    png.extend_from_slice(&8192u32.to_be_bytes());
-    png.extend_from_slice(&8192u32.to_be_bytes());
+    png.extend_from_slice(&w.to_be_bytes());
+    png.extend_from_slice(&h.to_be_bytes());
     png.extend_from_slice(&[8, 6, 0, 0, 0]); // RGBA8
     let mut crc: u32 = 0xFFFF_FFFF;
     for &b in &png[12..29] {
@@ -294,19 +292,43 @@ fn huge_8192_png_header_stays_within_alloc_cap() {
     }
     png.extend_from_slice(&(!crc).to_be_bytes());
     png.extend_from_slice(&[0, 0, 0, 0, b'I', b'E', b'N', b'D', 0xAE, 0x42, 0x60, 0x82]);
-    let b64 = base64::engine::general_purpose::STANDARD.encode(&png);
-    let doc = json!({"resolution":{"width":16,"height":16},"elements":[],"outliner":[],"textures":[{"name":"t","source":format!("data:image/png;base64,{b64}")}]});
-    let raw = serde_json::to_vec(&doc).unwrap();
-    let _ = within_cap(|| load_bbmodel("t.bbmodel", &raw));
+    format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(&png))
 }
 
 #[test]
-#[ignore = "finding: bbmodel MAX_DEPTH=64 is shadowed by serde_json 128-level recursion limit so >63 nested groups fail with empty path"]
+fn huge_8192_png_header_stays_within_alloc_cap() {
+    assert_eq!(MAX_TEXTURE_DIM, 4096);
+    for (w, h) in [(8192, 8192), (4097, 1), (4096, 4096)] {
+        let doc = json!({"resolution":{"width":16,"height":16},"elements":[],"outliner":[],"textures":[{"name":"t","source":png_with_ihdr(w, h)}]});
+        let raw = serde_json::to_vec(&doc).unwrap();
+        let e = within_cap(|| load_bbmodel("t.bbmodel", &raw)).unwrap_err();
+        assert_eq!((e.file.as_str(), e.path.as_str()), ("t.bbmodel", "textures[0].source"), "{w}x{h}: {e}");
+    }
+}
+
+#[test]
 fn outliner_past_max_depth_reports_json_path() {
+    // 70 groups exceeds JSON pre-scan (120) before serde (128), reporting `outliner`.
     let mut nested = json!({"name": "leaf"});
     for i in 0..70 {
         nested = json!({"name": format!("g{i}"), "children": [nested]});
     }
     let raw = serde_json::to_vec(&json!({"outliner": [nested]})).unwrap();
-    assert_err_file(within_cap(|| load_bbmodel("t.bbmodel", &raw)), true, "depth");
+    let e = within_cap(|| load_bbmodel("t.bbmodel", &raw)).unwrap_err();
+    assert_eq!((e.file.as_str(), e.path.as_str()), ("t.bbmodel", "outliner"), "{e}");
+
+    // 49 groups (99 JSON levels, below 120) hits bbmodel's 48-group limit with full group path.
+    let mut nested49 = json!({"name": "leaf"});
+    for i in 0..49 {
+        nested49 = json!({"name": format!("g{i}"), "children": [nested49]});
+    }
+    let raw49 = serde_json::to_vec(&json!({"outliner": [nested49]})).unwrap();
+    let e49 = within_cap(|| load_bbmodel("t.bbmodel", &raw49)).unwrap_err();
+    assert_eq!(e49.file, "t.bbmodel");
+    assert!(e49.path.starts_with("outliner[0].children[0]"), "{e49}");
+    assert!(e49.message.contains("nested deeper than 48"), "{e49}");
+
+    // Braces/brackets inside escaped JSON string literals must not trigger the nesting pre-scan.
+    let brackets = format!(r#"{{"name":"\"{}\\\"","elements":[],"outliner":[]}}"#, "[{".repeat(300));
+    assert!(within_cap(|| load_bbmodel("t.bbmodel", brackets.as_bytes())).is_ok());
 }

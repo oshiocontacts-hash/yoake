@@ -11,7 +11,7 @@ use horizon_mobmodel::procedural::{parse_procedural, parse_procedural_str};
 use horizon_mobmodel::skeleton::{Bone, BoneIndex, Skeleton};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 
@@ -78,6 +78,21 @@ fn skel() -> Skeleton {
 
 fn locs() -> Vec<Locator> {
     vec![Locator { name: "tip_loc".into(), bone: BoneIndex(3), offset: Vec3::new(4.0, 2.0, 0.0), rotation: Vec3::ZERO, null_object: false }]
+}
+
+fn drop_value_iteratively(root: Value) {
+    let mut stack = vec![root];
+    while let Some(v) = stack.pop() {
+        match v {
+            Value::Array(arr) => stack.extend(arr),
+            Value::Object(map) => {
+                for (_, val) in map {
+                    stack.push(val);
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 fn assert_err_path<T>(r: Result<T, ModelError>, require_path: bool, label: &str) {
@@ -241,11 +256,12 @@ fn limits_numbers_deep_nesting_and_duplicates() {
 
     let deep_json = format!("{}{}", "[".repeat(3000), "]".repeat(3000));
     assert_err_path(within_cap(|| parse_procedural_str("t.json", &deep_json, &s, &l, &mut syms)), false, "deep_json");
-    let mut deep_val = json!(1);
+    let mut deep_val = Value::from(1);
     for _ in 0..2000 {
-        deep_val = json!([deep_val]);
+        deep_val = Value::Array(vec![deep_val]);
     }
     assert_err_path(within_cap(|| parse_procedural("t.json", "p", &deep_val, &s, &l, &mut syms)), true, "deep_val");
+    drop_value_iteratively(deep_val);
 
     let dup = r#"[{"type":"look_at","bone":"head","yaw":10,"yaw":20}]"#;
     assert!(within_cap(|| parse_procedural_str("t.json", dup, &s, &l, &mut syms)).is_ok());

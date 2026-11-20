@@ -1629,6 +1629,14 @@ pub fn parse_procedural_str(
     locators: &[Locator],
     syms: &mut Symbols,
 ) -> Result<ProceduralSet, ModelError> {
+    let raw = json.as_bytes().strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(json.as_bytes());
+    if crate::model::check_json_nesting(raw, crate::model::MAX_JSON_NESTING).is_err() {
+        return Err(ModelError {
+            file: file.to_string(),
+            path: "procedural".to_string(),
+            message: format!("JSON nested deeper than {} levels", crate::model::MAX_JSON_NESTING),
+        });
+    }
     let v: Value = serde_json::from_str(json).map_err(|e| ModelError {
         file: file.to_string(),
         path: String::new(),

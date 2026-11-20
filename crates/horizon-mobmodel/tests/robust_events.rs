@@ -58,6 +58,21 @@ fn within_cap<T>(f: impl FnOnce() -> T) -> T {
     out
 }
 
+fn drop_value_iteratively(root: Value) {
+    let mut stack = vec![root];
+    while let Some(v) = stack.pop() {
+        match v {
+            Value::Array(arr) => stack.extend(arr),
+            Value::Object(map) => {
+                for (_, val) in map {
+                    stack.push(val);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 fn assert_err<T>(r: Result<T, ModelError>, file: &str, label: &str) {
     let e = match r {
         Ok(_) => panic!("{label}: expected Err, got Ok"),
@@ -126,11 +141,15 @@ fn particles_wrong_types_invalid_ids_nesting_and_limits() {
     }
     assert_err(within_cap(|| parse_particles("type.json", "model.particles", &Value::Object(too_many))), "type.json", "max_particles");
 
-    let mut deep = json!(1);
+    let mut deep = Value::from(1);
     for _ in 0..2000 {
-        deep = json!([deep]);
+        deep = Value::Array(vec![deep]);
     }
-    assert_err(within_cap(|| parse_particles("type.json", "model.particles", &json!({"p": deep}))), "type.json", "deep");
+    let mut deep_map = Map::new();
+    deep_map.insert("p".to_string(), deep);
+    let deep_doc = Value::Object(deep_map);
+    assert_err(within_cap(|| parse_particles("type.json", "model.particles", &deep_doc)), "type.json", "deep");
+    drop_value_iteratively(deep_doc);
 
     let dup_serde: Value = serde_json::from_str(r#"{"p":"smoke","p":"cloud"}"#).unwrap();
     let t = within_cap(|| parse_particles("type.json", "model.particles", &dup_serde)).unwrap();
@@ -209,10 +228,13 @@ fn mob_events_build_errors_and_limits() {
 }
 
 #[test]
-#[ignore = "finding: MobEvents::from_model_json silently ignores non-object model Value"]
 fn from_model_json_rejects_non_object_model() {
     let lib = sample_lib();
     for bad in [json!(null), json!(123), json!([]), json!("bad")] {
-        assert!(within_cap(|| MobEvents::from_model_json("type.json", "anim.json", &bad, &lib, &[])).is_err(), "{bad}");
+        let e = within_cap(|| MobEvents::from_model_json("type.json", "anim.json", &bad, &lib, &[])).unwrap_err();
+        assert_eq!((e.file.as_str(), e.path.as_str()), ("type.json", "model"), "{bad}: {e}");
     }
+    let e = within_cap(|| parse_particles("type.json", "model.particles", &json!({"bad\nname": "smoke"}))).unwrap_err();
+    assert_eq!(e.file, "type.json");
+    assert_eq!(e.path, r#"model.particles["bad\nname"]"#);
 }

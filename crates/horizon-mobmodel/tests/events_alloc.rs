@@ -51,10 +51,10 @@ fn emission_does_not_allocate() {
     let ctrl = r#"{"controllers":{"loco":{"initial":"a","states":{"a":{"animations":["ticker"]}}},"act":{"mode":"add","triggers":{"wave":"wave"}}}}"#;
     let mut syms = Symbols::new(&[]);
     let mut lib = AnimationLibrary::new();
-    for a in parse_animation_file(anims, &mut syms).unwrap().animations {
+    for a in parse_animation_file("a.json", anims, &mut syms).unwrap().animations {
         lib.add(a).unwrap();
     }
-    let c = parse_controllers(ctrl, &mut syms).unwrap().controllers;
+    let c = parse_controllers("c.json", ctrl, &mut syms).unwrap().controllers;
     let (rig, _) = Rig::new(sk.clone(), lib, c).unwrap();
     let model: serde_json::Value = serde_json::json!({"particles": {"dust": "minecraft:cloud"}, "server_events": true});
     let me = MobEvents::from_model_json("t", "a", &model, rig.animations(), &locators).unwrap();

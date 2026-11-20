@@ -24,7 +24,13 @@ pub const MAX_MESH_VERTICES: usize = 65_536;
 /// Embedded textures per model.
 pub const MAX_TEXTURES: usize = 64;
 /// Largest accepted texture or texture-size edge in pixels.
-pub const MAX_TEXTURE_DIM: u32 = 8192;
+pub const MAX_TEXTURE_DIM: u32 = 4096;
+/// Largest accepted decoded RGBA8 byte size of one embedded texture (16 MiB).
+pub const MAX_TEXTURE_BYTES: usize = 16 * 1024 * 1024;
+/// Largest accepted sum of decoded RGBA8 byte sizes across all textures in one model (64 MiB).
+pub const MAX_MODEL_TEXTURE_BYTES: usize = 64 * 1024 * 1024;
+/// Maximum JSON container nesting depth accepted by the pre-scan (strictly below serde_json's 128 recursion limit).
+pub(crate) const MAX_JSON_NESTING: usize = 120;
 /// Largest accepted absolute value of any number in a model file (pixels or degrees).
 pub const MAX_ABS_VALUE: f64 = 1.0e6;
 
@@ -256,6 +262,40 @@ pub(crate) fn at(path: &str, i: usize) -> String {
     format!("{path}[{i}]")
 }
 
+/// Scans raw JSON bytes before `serde_json` runs and rejects nesting deeper than `max_depth`, ignoring `[`/`{`
+/// inside JSON string literals while respecting `\"` and `\\` escapes. Zero allocations.
+pub(crate) fn check_json_nesting(bytes: &[u8], max_depth: usize) -> Result<(), usize> {
+    let mut depth = 0usize;
+    let mut in_string = false;
+    let mut escaped = false;
+    for &b in bytes {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if b == b'\\' {
+                escaped = true;
+            } else if b == b'"' {
+                in_string = false;
+            }
+        } else {
+            match b {
+                b'"' => in_string = true,
+                b'{' | b'[' => {
+                    depth += 1;
+                    if depth > max_depth {
+                        return Err(depth);
+                    }
+                }
+                b'}' | b']' => {
+                    depth = depth.saturating_sub(1);
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Reads typed values out of a `serde_json::Value`, producing errors with the file name and path.
 pub(crate) struct Rd<'a> {
     pub file: &'a str,
@@ -267,7 +307,19 @@ impl<'a> Rd<'a> {
     }
 
     pub fn parse(&self, bytes: &[u8]) -> Result<Value, ModelError> {
+        self.parse_with_nesting_path(bytes, "json", format!("JSON nested deeper than {MAX_JSON_NESTING} levels"))
+    }
+
+    pub fn parse_with_nesting_path(
+        &self,
+        bytes: &[u8],
+        nesting_path: &str,
+        nesting_msg: String,
+    ) -> Result<Value, ModelError> {
         let bytes = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes);
+        if check_json_nesting(bytes, MAX_JSON_NESTING).is_err() {
+            return Err(self.err(nesting_path, nesting_msg));
+        }
         serde_json::from_slice::<Value>(bytes).map_err(|e| self.err("", format!("invalid JSON: {e}")))
     }
 
@@ -385,42 +437,87 @@ fn kind(v: &Value) -> &'static str {
 }
 
 /// Decodes a PNG to RGBA8: `(width, height, pixels)`.
-pub(crate) fn decode_png(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
-    let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-    decoder.set_transformations(png::Transformations::normalize_to_color8());
-    let mut reader = decoder.read_info().map_err(|e| e.to_string())?;
-    let (w, h) = reader.info().size();
+///
+/// Reads the IHDR dimensions directly from `bytes` before any allocation, enforces `MAX_TEXTURE_DIM`,
+/// `MAX_TEXTURE_BYTES`, and `max_bytes` (the model's remaining texture budget), and allocates the output buffer once.
+pub(crate) fn decode_png(bytes: &[u8], max_bytes: usize) -> Result<(u32, u32, Vec<u8>), String> {
+    const PNG_SIG: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+    if bytes.len() < 33 || !bytes.starts_with(&PNG_SIG) || &bytes[12..16] != b"IHDR" {
+        return Err("invalid PNG header".to_string());
+    }
+    let ihdr_len = u32::from_be_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]);
+    if ihdr_len != 13 {
+        return Err("invalid PNG IHDR length".to_string());
+    }
+    let w = u32::from_be_bytes([bytes[16], bytes[17], bytes[18], bytes[19]]);
+    let h = u32::from_be_bytes([bytes[20], bytes[21], bytes[22], bytes[23]]);
     if w == 0 || h == 0 || w > MAX_TEXTURE_DIM || h > MAX_TEXTURE_DIM {
         return Err(format!("texture size {w}x{h} is outside 1..={MAX_TEXTURE_DIM}"));
     }
+    let decoded_bytes = (w as u64)
+        .checked_mul(h as u64)
+        .and_then(|px| px.checked_mul(4))
+        .ok_or_else(|| "texture is too large".to_string())?;
+    if decoded_bytes > MAX_TEXTURE_BYTES as u64 {
+        return Err(format!("decoded texture size ({decoded_bytes} bytes) exceeds {MAX_TEXTURE_BYTES} bytes"));
+    }
+    if decoded_bytes > max_bytes as u64 {
+        return Err(format!("total decoded texture size exceeds {MAX_MODEL_TEXTURE_BYTES} bytes"));
+    }
+
+    let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+    decoder.set_transformations(png::Transformations::normalize_to_color8());
+    let mut reader = decoder.read_info().map_err(|e| e.to_string())?;
+    if reader.info().size() != (w, h) {
+        return Err("PNG header size mismatch".to_string());
+    }
+    let px = (w as usize) * (h as usize);
+    let target_bytes = px * 4;
     let size = reader.output_buffer_size().ok_or("texture is too large")?;
-    if size > 256 * 1024 * 1024 {
+    if size > MAX_TEXTURE_BYTES || size > max_bytes {
         return Err("texture is too large".to_string());
     }
-    let mut buf = vec![0u8; size];
-    let info = reader.next_frame(&mut buf).map_err(|e| e.to_string())?;
-    let data = &buf[..info.buffer_size()];
-    let px = (w as usize) * (h as usize);
-    let mut rgba = Vec::with_capacity(px * 4);
+    let mut rgba = vec![0u8; size.max(target_bytes)];
+    let info = reader.next_frame(&mut rgba[..size]).map_err(|e| e.to_string())?;
+    if (info.width, info.height) != (w, h) {
+        return Err("PNG frame size mismatch".to_string());
+    }
+    let used = info.buffer_size();
     match info.color_type {
-        png::ColorType::Rgba if data.len() >= px * 4 => rgba.extend_from_slice(&data[..px * 4]),
-        png::ColorType::Rgb if data.len() >= px * 3 => {
-            for c in data[..px * 3].chunks_exact(3) {
-                rgba.extend_from_slice(&[c[0], c[1], c[2], 255]);
+        png::ColorType::Rgba if used >= px * 4 => {}
+        png::ColorType::Rgb if used >= px * 3 => {
+            for i in (0..px).rev() {
+                let (r, g, b) = (rgba[i * 3], rgba[i * 3 + 1], rgba[i * 3 + 2]);
+                let d = i * 4;
+                rgba[d] = r;
+                rgba[d + 1] = g;
+                rgba[d + 2] = b;
+                rgba[d + 3] = 255;
             }
         }
-        png::ColorType::GrayscaleAlpha if data.len() >= px * 2 => {
-            for c in data[..px * 2].chunks_exact(2) {
-                rgba.extend_from_slice(&[c[0], c[0], c[0], c[1]]);
+        png::ColorType::GrayscaleAlpha if used >= px * 2 => {
+            for i in (0..px).rev() {
+                let (g, a) = (rgba[i * 2], rgba[i * 2 + 1]);
+                let d = i * 4;
+                rgba[d] = g;
+                rgba[d + 1] = g;
+                rgba[d + 2] = g;
+                rgba[d + 3] = a;
             }
         }
-        png::ColorType::Grayscale if data.len() >= px => {
-            for &g in &data[..px] {
-                rgba.extend_from_slice(&[g, g, g, 255]);
+        png::ColorType::Grayscale if used >= px => {
+            for i in (0..px).rev() {
+                let g = rgba[i];
+                let d = i * 4;
+                rgba[d] = g;
+                rgba[d + 1] = g;
+                rgba[d + 2] = g;
+                rgba[d + 3] = 255;
             }
         }
         other => return Err(format!("unsupported PNG layout {other:?}")),
     }
+    rgba.truncate(target_bytes);
     Ok((w, h, rgba))
 }
 

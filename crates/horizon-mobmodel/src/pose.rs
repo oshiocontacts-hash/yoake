@@ -15,7 +15,7 @@
 //! * The rotation order is the one of [`crate::skeleton::bone_matrices`]: `Quat::from_euler(ZYX, z, y, x)`, X applied
 //!   first.
 
-use crate::anim::{Animation, AnimationLibrary, ChannelKind, LoadError, Warning};
+use crate::anim::{map_key, Animation, AnimationLibrary, ChannelKind, LoadError, Warning};
 use crate::controller::{Controller, ControllerState, LayerMode, StateRun};
 use crate::expr::{ExprInputs, Query};
 use crate::skeleton::{bone_matrices, BoneIndex, BoneTransform, Pose, Skeleton};
@@ -130,10 +130,13 @@ impl Rig {
     ) -> Result<(Rig, Vec<Warning>), LoadError> {
         let mut warnings = Vec::new();
         for c in &mut controllers {
+            let cpath = map_key("controllers", &c.name);
             for s in &mut c.states {
-                for a in &mut s.animations {
+                let spath = format!("{}.states[{:?}]", cpath, s.name);
+                for (i, a) in s.animations.iter_mut().enumerate() {
                     a.index = animations.find(&a.name).ok_or_else(|| LoadError {
-                        context: c.name.clone(),
+                        file: String::new(),
+                        path: format!("{spath}.animations[{i}]"),
                         message: format!("state '{}' uses unknown animation '{}'", s.name, a.name),
                         column: None,
                     })?;
@@ -141,7 +144,8 @@ impl Rig {
             }
             for t in &mut c.triggers {
                 t.index = animations.find(&t.animation).ok_or_else(|| LoadError {
-                    context: c.name.clone(),
+                    file: String::new(),
+                    path: format!("{}.triggers[{:?}]", cpath, t.name),
                     message: format!("trigger '{}' uses unknown animation '{}'", t.name, t.animation),
                     column: None,
                 })?;

@@ -83,22 +83,28 @@ fn truncated_empty_utf8_and_random_strings() {
             continue;
         }
         let mut syms = Symbols::new(&[]);
-        if let Err(e) = within_cap(|| parse_animation_file(&BASE_ANIM[..cut], &mut syms)) {
+        if let Err(e) = within_cap(|| parse_animation_file("a.animation.json", &BASE_ANIM[..cut], &mut syms)) {
+            assert_eq!(e.file, "a.animation.json", "cut {cut}");
             assert!(!e.message.is_empty(), "cut {cut}");
         }
     }
     for bad in ["", "   \n\t", "\u{FEFF}", "\u{FEFF}あ🦀\0", "null", "[]", "123", "\"x\"", "{}"] {
         let mut syms = Symbols::new(&[]);
-        let e = within_cap(|| parse_animation_file(bad, &mut syms)).unwrap_err();
+        let e = within_cap(|| parse_animation_file("a.animation.json", bad, &mut syms)).unwrap_err();
+        assert_eq!(e.file, "a.animation.json", "{bad}");
         assert!(!e.message.is_empty(), "{bad}");
     }
+    let syn = within_cap(|| parse_animation_file("a.animation.json", "{", &mut Symbols::new(&[]))).unwrap_err();
+    assert_eq!(syn.file, "a.animation.json");
+    assert!(syn.to_string().contains("line 1"), "{syn}");
     let mut rng = StdRng::seed_from_u64(0xAA11);
     let alpha: Vec<char> = "{}[]:,\"0123456789.-+eEabcdefghijklmnopqrstuvwxyz_ \n\t\u{3042}\u{1F98A}\0".chars().collect();
     for _ in 0..500 {
         let len = rng.random_range(0..500);
         let s: String = (0..len).map(|_| alpha[rng.random_range(0..alpha.len())]).collect();
         let mut syms = Symbols::new(&[]);
-        if let Err(e) = within_cap(|| parse_animation_file(&s, &mut syms)) {
+        if let Err(e) = within_cap(|| parse_animation_file("a.animation.json", &s, &mut syms)) {
+            assert_eq!(e.file, "a.animation.json");
             assert!(!e.message.is_empty());
         }
     }
@@ -143,14 +149,16 @@ fn wrong_types_at_every_field_of_animation_json() {
     ];
     for raw in cases {
         let mut syms = Symbols::new(&[]);
-        let e = within_cap(|| parse_animation_file(raw, &mut syms)).unwrap_err();
+        let e = within_cap(|| parse_animation_file("a.animation.json", raw, &mut syms)).unwrap_err();
+        assert_eq!(e.file, "a.animation.json", "{raw}: {e}");
         assert!(!e.message.is_empty(), "{raw}");
         if raw.contains(r#""a":"#) {
-            assert_eq!(e.context, "a", "{raw}: {e}");
+            assert!(e.path.starts_with(r#"animations["a"]"#), "{raw}: {e}");
         }
     }
     let mut syms = Symbols::new(&[]);
-    let e = within_cap(|| parse_animation_file(r#"{"animations":{"a":{"anim_time_update":"1 +"}}}"#, &mut syms)).unwrap_err();
+    let e = within_cap(|| parse_animation_file("a.animation.json", r#"{"animations":{"a":{"anim_time_update":"1 +"}}}"#, &mut syms)).unwrap_err();
+    assert_eq!(e.path, r#"animations["a"].anim_time_update"#);
     assert!(e.column.is_some());
 }
 
@@ -173,7 +181,9 @@ fn bbmodel_animations_errors_and_limits() {
         json!([{"name": "a", "animators": {"u": {"type": "effect", "keyframes": [{"channel": "particle", "time": 0, "data_points": [{"effect": "p", "offset": ["bad", 0, 0]}]}]}}}]),
     ] {
         let mut syms = Symbols::new(&[]);
-        let e = within_cap(|| animations_from_bbmodel(&v, &mut syms)).unwrap_err();
+        let e = within_cap(|| animations_from_bbmodel("a.bbmodel", &v, &mut syms)).unwrap_err();
+        assert_eq!(e.file, "a.bbmodel", "{v}: {e}");
+        assert!(!e.path.is_empty(), "{v}: {e}");
         assert!(!e.message.is_empty(), "{v}");
     }
 
@@ -184,7 +194,7 @@ fn bbmodel_animations_errors_and_limits() {
     }
     let big = serde_json::to_string(&json!({"animations": map})).unwrap();
     let mut syms = Symbols::new(&[]);
-    let parsed = within_cap(|| parse_animation_file(&big, &mut syms)).unwrap();
+    let parsed = within_cap(|| parse_animation_file("a.animation.json", &big, &mut syms)).unwrap();
     let mut lib = AnimationLibrary::new();
     for (i, a) in parsed.animations.into_iter().enumerate() {
         let res = lib.add(a);
@@ -200,40 +210,66 @@ fn bbmodel_animations_errors_and_limits() {
 fn deep_nesting_huge_numbers_and_duplicate_keys() {
     let deep_arr = format!("{}{}", "[".repeat(3000), "]".repeat(3000));
     let mut syms = Symbols::new(&[]);
-    assert!(within_cap(|| parse_animation_file(&deep_arr, &mut syms)).is_err());
+    let e = within_cap(|| parse_animation_file("a.animation.json", &deep_arr, &mut syms)).unwrap_err();
+    assert_eq!((e.file.as_str(), e.path.as_str()), ("a.animation.json", "json"));
     let deep_obj = format!("{}1{}", "{\"a\":".repeat(3000), "}".repeat(3000));
-    assert!(within_cap(|| parse_animation_file(&deep_obj, &mut syms)).is_err());
+    let e = within_cap(|| parse_animation_file("a.animation.json", &deep_obj, &mut syms)).unwrap_err();
+    assert_eq!((e.file.as_str(), e.path.as_str()), ("a.animation.json", "json"));
 
     for num in ["1e400", "-1e400", "\"NaN\"", "\"Infinity\"", "\"-Infinity\""] {
         let raw = format!(r#"{{"animations":{{"a":{{"animation_length":{num}}}}}}}"#);
-        assert!(within_cap(|| parse_animation_file(&raw, &mut syms)).is_err(), "{num}");
+        assert!(within_cap(|| parse_animation_file("a.animation.json", &raw, &mut syms)).is_err(), "{num}");
     }
     let dup = r#"{"animations":{"a":{"bones":{"b":{"rotation":{"1":[0,0,0],"1.0":[1,0,0]}}}},"a":{"loop":true}}}"#;
-    let p = within_cap(|| parse_animation_file(dup, &mut syms)).unwrap();
+    let p = within_cap(|| parse_animation_file("a.animation.json", dup, &mut syms)).unwrap();
     assert_eq!(p.animations.len(), 2);
 }
 
 #[test]
-#[ignore = "finding: 1e300 in anim.rs scalar/animation_length/bezier/bb_time turns into f32::INFINITY"]
 fn huge_f64_1e300_is_rejected_not_turned_into_infinity() {
     let mut syms = Symbols::new(&[]);
-    let raw = r#"{"animations":{"a":{"loop":true,"animation_length":1e300,"bones":{"b":{"scale":1e300}}}}}"#;
-    assert!(within_cap(|| parse_animation_file(raw, &mut syms)).is_err());
-    let bb = json!([{"name": "a", "animators": {"u": {"name": "b", "keyframes": [{"channel": "scale", "time": 1e300, "data_points": [{}]}]}}}]);
-    assert!(within_cap(|| animations_from_bbmodel(&bb, &mut syms)).is_err());
+    for raw in [
+        r#"{"animations":{"a":{"loop":true,"animation_length":1e300}}}"#,
+        r#"{"animations":{"a":{"bones":{"b":{"scale":1e300}}}}}"#,
+        r#"{"animations":{"a":{"bones":{"b":{"rotation":{"0":{"post":[0,0,0],"bezier_left_time":[1e300,0,0]}}}}}}}"#,
+    ] {
+        let e = within_cap(|| parse_animation_file("a.animation.json", raw, &mut syms)).unwrap_err();
+        assert_eq!(e.file, "a.animation.json", "{raw}: {e}");
+        assert!(!e.path.is_empty(), "{raw}: {e}");
+    }
+    for bb in [
+        json!([{"name": "a", "length": 1e300}]),
+        json!([{"name": "a", "animators": {"u": {"name": "b", "keyframes": [{"channel": "scale", "time": 1e300, "data_points": [{}]}]}}}]),
+        json!([{"name": "a", "animators": {"u": {"name": "b", "keyframes": [{"channel": "scale", "time": 0, "data_points": [{"x": 1e300}]}]}}}]),
+    ] {
+        let e = within_cap(|| animations_from_bbmodel("a.bbmodel", &bb, &mut syms)).unwrap_err();
+        assert_eq!(e.file, "a.bbmodel", "{bb}: {e}");
+        assert!(!e.path.is_empty(), "{bb}: {e}");
+    }
 }
 
 #[test]
-#[ignore = "finding: animations_from_bbmodel silently accepts non-object elements, animators, keyframes, data_points"]
 fn bbmodel_animations_reject_wrong_nested_container_types() {
     let mut syms = Symbols::new(&[]);
     for v in [
         json!([123]),
         json!([null]),
+        json!([{"name": 123}]),
+        json!([{"name": "a", "loop": 123}]),
+        json!([{"name": "a", "length": "bad"}]),
+        json!([{"name": "a", "override": "yes"}]),
+        json!([{"name": "a", "anim_time_update": 123}]),
         json!([{"name": "a", "animators": 123}]),
+        json!([{"name": "a", "animators": {"u": 123}}]),
         json!([{"name": "a", "animators": {"u": {"name": "b", "keyframes": 123}}}]),
+        json!([{"name": "a", "animators": {"u": {"name": "b", "keyframes": [123]}}}]),
+        json!([{"name": "a", "animators": {"u": {"name": "b", "keyframes": [{"channel": 123}]}}}]),
+        json!([{"name": "a", "animators": {"u": {"name": "b", "keyframes": [{"channel": "rotation", "time": 0, "data_points": 123}]}}}]),
         json!([{"name": "a", "animators": {"u": {"name": "b", "keyframes": [{"channel": "rotation", "time": 0, "data_points": [123]}]}}}]),
+        json!([{"name": "a", "animators": {"u": {"type": "effect", "keyframes": [{"channel": "sound", "time": 0, "data_points": [123]}]}}}]),
     ] {
-        assert!(within_cap(|| animations_from_bbmodel(&v, &mut syms)).is_err(), "{v}");
+        let e = within_cap(|| animations_from_bbmodel("a.bbmodel", &v, &mut syms)).unwrap_err();
+        assert_eq!(e.file, "a.bbmodel", "{v}: {e}");
+        assert!(!e.path.is_empty(), "{v}: {e}");
     }
 }

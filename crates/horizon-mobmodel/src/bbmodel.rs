@@ -13,6 +13,8 @@
 //! * Mesh vertex positions are relative to the mesh `origin`; the mesh `rotation` turns them about the origin. Faces
 //!   and vertices are taken sorted by their id string (deterministic whatever the file order).
 //! * `animations` is kept as the raw JSON value for the animation loader.
+//! * Outliner nesting is limited to [`MAX_DEPTH`] (48 group levels), which is always reached before `serde_json`'s
+//!   128-level recursion limit (pre-scanned up to 120 JSON container levels).
 
 use crate::model::*;
 use crate::skeleton::{Bone, BoneIndex};
@@ -21,13 +23,18 @@ use glam::Vec3;
 use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
 
-const MAX_DEPTH: usize = 64;
+/// Maximum outliner group nesting depth (48 group levels stays under `MAX_JSON_NESTING` = 120 and serde's 128).
+const MAX_DEPTH: usize = 48;
 const MAX_TEXTURE_SOURCE_LEN: usize = 48 * 1024 * 1024;
 
 /// Loads a `.bbmodel`. `file` is only used in error messages.
 pub fn load_bbmodel(file: &str, bytes: &[u8]) -> Result<Model, ModelError> {
     let rd = Rd { file };
-    let root = rd.parse(bytes)?;
+    let root = rd.parse_with_nesting_path(
+        bytes,
+        "outliner",
+        format!("groups nested deeper than {MAX_DEPTH} (JSON nested deeper than {MAX_JSON_NESTING} levels)"),
+    )?;
     let obj = rd.object("", &root)?;
     let mut warnings = Vec::new();
 
@@ -48,13 +55,16 @@ pub fn load_bbmodel(file: &str, bytes: &[u8]) -> Result<Model, ModelError> {
 
     // Textures.
     let mut textures = Vec::new();
+    let mut remaining_tex_bytes = MAX_MODEL_TEXTURE_BYTES;
     if let Some(tv) = Rd::opt(obj, "textures") {
         let arr = rd.array("textures", tv)?;
         if arr.len() > MAX_TEXTURES {
             return Err(rd.err("textures", format!("too many textures ({}, limit {MAX_TEXTURES})", arr.len())));
         }
         for (i, t) in arr.iter().enumerate() {
-            textures.push(parse_texture(&rd, &at("textures", i), t)?);
+            let tex = parse_texture(&rd, &at("textures", i), t, remaining_tex_bytes)?;
+            remaining_tex_bytes = remaining_tex_bytes.saturating_sub(tex.rgba.len());
+            textures.push(tex);
         }
     }
 
@@ -176,6 +186,9 @@ impl<'a> Builder<'a> {
 
     fn group(&mut self, g: &'a Map<String, Value>, p: &str, parent: Option<BoneIndex>, depth: usize) -> Result<(), ModelError> {
         let rd = self.rd;
+        if depth >= MAX_DEPTH {
+            return Err(rd.err(p, format!("outliner is nested deeper than {MAX_DEPTH} groups")));
+        }
         if rd.opt_bool(g, p, "export")? == Some(false) {
             self.mark_used(g, 0);
             return Ok(());
@@ -390,7 +403,7 @@ fn parse_mesh(rd: &Rd<'_>, p: &str, e: &Map<String, Value>, warnings: &mut Vec<S
     Ok(Mesh { name, vertices, faces })
 }
 
-fn parse_texture(rd: &Rd<'_>, p: &str, v: &Value) -> Result<Texture, ModelError> {
+fn parse_texture(rd: &Rd<'_>, p: &str, v: &Value, remaining_budget: usize) -> Result<Texture, ModelError> {
     let t = rd.object(p, v)?;
     let name = rd.opt_str(t, p, "name")?.unwrap_or("").to_string();
     let path = match rd.opt_str(t, p, "path")? {
@@ -407,7 +420,8 @@ fn parse_texture(rd: &Rd<'_>, p: &str, v: &Value) -> Result<Texture, ModelError>
             let bytes = base64::engine::general_purpose::STANDARD
                 .decode(b64.trim())
                 .map_err(|e| rd.err(&key(p, "source"), format!("invalid base64: {e}")))?;
-            let (w, h, px) = decode_png(&bytes).map_err(|e| rd.err(&key(p, "source"), format!("invalid PNG: {e}")))?;
+            let (w, h, px) =
+                decode_png(&bytes, remaining_budget).map_err(|e| rd.err(&key(p, "source"), format!("invalid PNG: {e}")))?;
             width = w;
             height = h;
             rgba = px;

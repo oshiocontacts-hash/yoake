@@ -76,3 +76,9 @@ server pounce emits exactly one `custom:hit` at tick 7 or 8 and nothing else; th
 
 * Cinder Fox hind legs split (`leg_bl_lower`, `leg_br_lower`): 18 bones, golden file +360 lines (no old line changed), `cinder_fox_four_leg_ground_ik` test. See `FR-F4M-FOX.md` and `FR-F4M-8.md`.
 * `ProceduralStats` per-mob counters in `procedural.rs`. See `FR-F4M-8.md`.
+
+## Robustness fixes
+
+* **`MobEvents::from_model_json` (`src/events.rs`)**: requires `model` to be a JSON object (`model.as_object()`), returning `ModelError` with path `model` for `null`, numbers, arrays, or strings.
+* **Particle key paths (`src/events.rs`)**: fixed `parse_particles` key validation (empty, overlong, or control-character keys) to report `model.particles["<name>"]` instead of `model.particles`.
+* **Tests**: `tests/robust_events.rs` (`from_model_json_rejects_non_object_model`) turned from `#[ignore]` into a passing test covering both non-object `model` values and particle key error paths; `tests/events.rs` and `tests/events_alloc.rs` updated for the `file: &str` parameter on `parse_animation_file` and `parse_controllers`.

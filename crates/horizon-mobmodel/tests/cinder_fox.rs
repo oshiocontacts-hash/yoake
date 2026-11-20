@@ -49,16 +49,20 @@ fn fox(route: Route) -> Fox {
     let mut warnings: Vec<String> = model.warnings.clone();
     let mut syms = Symbols::new(&["state"]);
     let parsed = match route {
-        Route::Geo => parse_animation_file(ANIM, &mut syms).expect("animation.json loads"),
-        Route::Bb => animations_from_bbmodel(model.animations.as_ref().expect("bbmodel has animations"), &mut syms)
-            .expect("bbmodel animations load"),
+        Route::Geo => parse_animation_file("cinder_fox.animation.json", ANIM, &mut syms).expect("animation.json loads"),
+        Route::Bb => animations_from_bbmodel(
+            "cinder_fox.bbmodel",
+            model.animations.as_ref().expect("bbmodel has animations"),
+            &mut syms,
+        )
+        .expect("bbmodel animations load"),
     };
     warnings.extend(parsed.warnings.iter().map(|w| w.to_string()));
     let mut lib = AnimationLibrary::new();
     for a in parsed.animations {
         lib.add(a).unwrap();
     }
-    let ctrl = parse_controllers(CTRL, &mut syms).expect("controller loads");
+    let ctrl = parse_controllers("cinder_fox.json", CTRL, &mut syms).expect("controller loads");
     warnings.extend(ctrl.warnings.iter().map(|w| w.to_string()));
     let (rig, rig_warnings) = Rig::new(model.skeleton.clone(), lib, ctrl.controllers).expect("rig binds");
     warnings.extend(rig_warnings.iter().map(|w| w.to_string()));

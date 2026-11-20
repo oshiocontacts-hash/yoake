@@ -216,7 +216,7 @@ pub fn parse_particles(file: &str, path: &str, value: &Value) -> Result<Particle
     for (name, v) in obj {
         let p = format!("{path}[{name:?}]");
         if name.is_empty() || name.chars().count() > limits::MAX_NAME_LEN || name.chars().any(char::is_control) {
-            return Err(merr(file, path, format!("particle name {name:?} must be 1 to {} characters", limits::MAX_NAME_LEN)));
+            return Err(merr(file, &p, format!("particle name {name:?} must be 1 to {} characters", limits::MAX_NAME_LEN)));
         }
         let id = match v {
             Value::String(s) => s.as_str(),
@@ -345,11 +345,12 @@ impl MobEvents {
         library: &AnimationLibrary,
         locators: &[Locator],
     ) -> Result<MobEvents, ModelError> {
-        let particles = match model.get("particles") {
+        let obj = model.as_object().ok_or_else(|| merr(type_file, "model", "expected a model object"))?;
+        let particles = match obj.get("particles") {
             Some(v) => parse_particles(type_file, "model.particles", v)?,
             None => ParticleTable::new(),
         };
-        let flags = match model.get("server_events") {
+        let flags = match obj.get("server_events") {
             Some(v) => parse_server_events(type_file, "model.server_events", v, library)?,
             None => vec![false; library.len()],
         };
