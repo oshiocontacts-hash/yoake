@@ -202,7 +202,7 @@ scoped handles, not replaceable integer IDs.
 
 Guest replacements reject NaN and infinity by default, including inside vectors.
 `yoake-value::policy::site_policy` declares argument and result rules; the generated
-`inject-sites.json` includes those rules for every site. All 56 sites are audited
+`inject-sites.json` includes those rules for every site. All 60 sites are audited
 for numeric and identity domains. Native arguments and native results are never
 subject to these new restrictions, preserving unmodified vanilla behavior.
 

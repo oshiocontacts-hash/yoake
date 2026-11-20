@@ -384,3 +384,7 @@ existing file (an update removes the old one with `remove_package` first).
 A `.yak` dropped into the mods folder by hand has no record and stays not-full-access.
 
 `chain_for` returns at once when no mod is loaded (no lookup, no allocation).
+
+## Level and chunk hook points (F3-8b, additive)
+
+Four new injected sites join the catalog (56 to 60): `level::before_open`, `level::after_open`, `level::before_close` and `worldgen::generate_chunk` (see MOD-GUIDE section 16). They add no engine-call ids and change no existing site, so the frozen 1.0 baseline holds. `worldgen::generate_chunk` takes a `&mut ModChunk` as a scoped handle, valid only during the call; its `ModChunk` calls are bound by `yoake-bindgen` when the bindings are regenerated with `crates/yoake-bindgen/regen.sh`.

@@ -175,6 +175,10 @@ pub fn site_policy(path: &str) -> Policy {
             (0, Vector(-30_000_000.0, 30_000_000.0)),
             (1, Number(0.0, 100.0)),
         ],
+        "worldgen::generate_chunk" => &[
+            (1, Number(-1_875_000.0, 1_875_000.0)),
+            (2, Number(-1_875_000.0, 1_875_000.0)),
+        ],
         "world::food::exhaustion_amount" => &[(0, Number(0.0, 40.0))],
         "game::split_orb_values" => &[(0, Number(0.0, u32::MAX as f64))],
         "world::level::tick::crop_growth_speed" => &[(2, Vector(-30_000_000.0, 30_000_000.0))],

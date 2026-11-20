@@ -674,6 +674,23 @@ The service calls of a sandboxed mod (`config`, `permissions`, `storage`) are gr
 field is still parsed so older mods load; `service.commands`, `service.chat` and `service.gpu` keep their own meaning.
 `service.http` was accepted by the manifest but no transport was ever connected to it; use `wasi:http` in a worker.
 
+## 16. Levels and world generation (F3-8b)
+
+Four injected hook points (all `side = "server"`, ids in `inject-sites.json`; every one is a no-op unless a mod subscribes):
+
+| Id | Arguments | Runs |
+| --- | --- | --- |
+| `level::before_open` | `&mut Game`, level id | before a level that is not open is read from its folder |
+| `level::after_open` | `&mut Game`, level id | after it opened and mods heard `LevelEvent.Load` |
+| `level::before_close` | `&mut Game`, level id | before an unload, delete or regenerate drops it, while chunks and files are still there |
+| `worldgen::generate_chunk` | level id, `cx`, `cz`, `&mut ModChunk` | once per chunk of a level made by a mod generator (`yoake:mod`), before the generator fills it |
+
+`worldgen::generate_chunk` is not called for the vanilla three levels or for flat, debug and noise levels, so vanilla terrain is untouched. A hook may write into the empty chunk through the `ModChunk` calls (`set_block`, `fill_layer`, `block`, `set_biome`); the level's generator then fills it, so a hook that wants to replace the terrain should be the generator itself (the `generator_register` service in a WebAssembly mod). It runs on a chunk-generating worker thread, so keep it short: a hook that takes longer than the module's call limit loses the chunk to the safety rule below.
+
+The WebAssembly services stay on the frozen enum-free side: `current_level(player)` (service 235) gives the real id of the level a player is in, whatever level it is.
+
+Generator safety. A mod generator that does not answer (module busy, trapped, over its per-call limit) is tried once more about a tick later. If that fails too, the chunk is left as the generator wrote it, marked not generated, and never saved: it is generated again the next time it loads. The first block anyone writes into it clears the mark, so a build in such a chunk is kept.
+
 ## 要確認 (not verified)
 
 1. **Client modules** are merged (MX3CL1) and tested through the loader, but not in a running game client: no client

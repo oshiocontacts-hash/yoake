@@ -1365,6 +1365,96 @@
     "client_required_capabilities": []
   },
   {
+    "id": "level::after_open#2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62",
+    "path": "level::after_open",
+    "signature_hash": "2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "string"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/levels.rs",
+    "argument_rules": [
+      {
+        "kind": "finite"
+      },
+      {
+        "kind": "finite"
+      }
+    ],
+    "result_rule": {
+      "kind": "finite"
+    },
+    "required_capabilities": [],
+    "client_required_capabilities": []
+  },
+  {
+    "id": "level::before_close#2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62",
+    "path": "level::before_close",
+    "signature_hash": "2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "string"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/levels.rs",
+    "argument_rules": [
+      {
+        "kind": "finite"
+      },
+      {
+        "kind": "finite"
+      }
+    ],
+    "result_rule": {
+      "kind": "finite"
+    },
+    "required_capabilities": [],
+    "client_required_capabilities": []
+  },
+  {
+    "id": "level::before_open#2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62",
+    "path": "level::before_open",
+    "signature_hash": "2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62",
+    "arguments": [
+      "scoped<&mutSelf>",
+      "string"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/game/levels.rs",
+    "argument_rules": [
+      {
+        "kind": "finite"
+      },
+      {
+        "kind": "finite"
+      }
+    ],
+    "result_rule": {
+      "kind": "finite"
+    },
+    "required_capabilities": [],
+    "client_required_capabilities": []
+  },
+  {
     "id": "mobs::animal_brain::targetable#6a280e20f4f62541857d28da6fdcebf69483ea0cfbb9670d696ffca8efc7ada1",
     "path": "mobs::animal_brain::targetable",
     "signature_hash": "6a280e20f4f62541857d28da6fdcebf69483ea0cfbb9670d696ffca8efc7ada1",
@@ -1882,6 +1972,48 @@
       "kind": "number",
       "maximum": 64.0,
       "minimum": 0.0
+    },
+    "required_capabilities": [],
+    "client_required_capabilities": []
+  },
+  {
+    "id": "worldgen::generate_chunk#9aa32618ca175702b7c51113c04c70311131f8a91ca820fb18989a4878f12055",
+    "path": "worldgen::generate_chunk",
+    "signature_hash": "9aa32618ca175702b7c51113c04c70311131f8a91ca820fb18989a4878f12055",
+    "arguments": [
+      "string",
+      "s32",
+      "s32",
+      "scoped<&mutModChunk<'_>>"
+    ],
+    "result": "unit",
+    "side": "server",
+    "allow": [
+      "head",
+      "return",
+      "overwrite"
+    ],
+    "source": "crates/horizon-client/src/mod_generator.rs",
+    "argument_rules": [
+      {
+        "kind": "finite"
+      },
+      {
+        "kind": "number",
+        "maximum": 1875000.0,
+        "minimum": -1875000.0
+      },
+      {
+        "kind": "number",
+        "maximum": 1875000.0,
+        "minimum": -1875000.0
+      },
+      {
+        "kind": "finite"
+      }
+    ],
+    "result_rule": {
+      "kind": "finite"
     },
     "required_capabilities": [],
     "client_required_capabilities": []
