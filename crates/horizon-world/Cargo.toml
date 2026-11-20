@@ -6,7 +6,12 @@ license.workspace = true
 rust-version.workspace = true
 description = "Horizon vanilla world data, NBT, regions and chunk storage"
 
+[build-dependencies]
+yoake-hook-ledger = { path = "../yoake-hook-ledger" }
+
 [dependencies]
+yoake-hook-macro = { path = "../yoake-hook-macro" }
+yoake-hook-rt = { path = "../yoake-hook-rt" }
 libm = "=0.2.16"
 log = "0.4"
 serde_json = { version = "1.0.151", features = ["raw_value"] }

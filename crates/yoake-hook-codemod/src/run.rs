@@ -73,6 +73,22 @@ struct ScanCtx<'a> {
     seen_locations: &'a mut BTreeMap<String, String>,
     seen_keys: &'a mut BTreeSet<String>,
     stats: &'a mut SummaryStats,
+    /// W5: functions with at most this many statements are not stamped (0 = no rule).
+    min_stmts: usize,
+    /// W5: keys stamped regardless of the size rule (`hook-ledger/stamp-allow.txt`).
+    allow_small: &'a BTreeSet<String>,
+}
+
+/// W5 size rule: a small body is excluded unless it is allow-listed or already live in the ledger.
+fn size_gate(ctx: &mut ScanCtx<'_>, fn_key: &str, block: &Block) -> Result<(), &'static str> {
+    if ctx.min_stmts == 0
+        || block.stmts.len() > ctx.min_stmts
+        || ctx.allow_small.contains(fn_key)
+        || ctx.ledger_set.shard_mut(ctx.crate_ident).live_id(fn_key).is_some()
+    {
+        return Ok(());
+    }
+    Err("small body")
 }
 
 struct FileVisitor<'a, 'b> {
@@ -229,7 +245,8 @@ impl VisitMut for FileVisitor<'_, '_> {
             &item_fn.vis,
             &item_fn.sig,
         );
-        match eligible::check_fn(&item_fn.attrs, &item_fn.sig) {
+        let gate = size_gate(self.ctx, &fn_key, &item_fn.block);
+        match eligible::check_fn(&item_fn.attrs, &item_fn.sig).and_then(|()| gate) {
             Ok(()) => {
                 let id = match assign_hook(self.ctx, &fn_key, &sig) {
                     Ok(id) => id,
@@ -430,8 +447,10 @@ impl VisitMut for FileVisitor<'_, '_> {
                 &method.vis,
                 &method.sig,
             );
-            let eligibility =
-                impl_check.and_then(|()| eligible::check_fn(&method.attrs, &method.sig));
+            let gate = size_gate(self.ctx, &fn_key, &method.block);
+            let eligibility = impl_check
+                .and_then(|()| eligible::check_fn(&method.attrs, &method.sig))
+                .and_then(|()| gate);
             match eligibility {
                 Ok(()) => {
                     let id = match assign_hook(self.ctx, &fn_key, &sig) {
@@ -728,8 +747,14 @@ pub fn execute(config: &Config) -> Result<bool, String> {
         return crate::callsite::execute(config);
     }
     let crate_ident = key::normalize_crate_name(&config.crate_name);
-    let targets = config
-        .modules
+    let module_args = modules::expand_star_modules(
+        &config.crate_root,
+        &config.crate_name,
+        &config.modules,
+        &config.exclude_modules,
+    )?;
+    let allow_small = read_allow_small(&config.ledger);
+    let targets = module_args
         .iter()
         .map(|m| modules::normalize_module_arg(m))
         .collect::<Result<Vec<_>, _>>()?;
@@ -753,6 +778,21 @@ pub fn execute(config: &Config) -> Result<bool, String> {
                     .or_insert_with(|| ex.reason.clone());
             }
         }
+    }
+
+    // W1: keys the verify loop withdrew (`hook-ledger/stamp-exclude.txt`): retire a live id, then record the
+    // manual exclusion in the ledger (the request file is only the transport between rounds).
+    for (key, reason) in crate::verify::read_excludes(&config.ledger) {
+        let shard = ledger_set.shard_mut(&crate_ident);
+        if shard.live_id(&key).is_some() {
+            shard
+                .tombstone(&key)
+                .map_err(|e| format!("failed to tombstone '{key}': {e}"))?;
+        }
+        shard
+            .exclude_manual(Kind::Fn, &key, &reason)
+            .map_err(|e| format!("failed to record manual exclusion '{key}': {e}"))?;
+        manual_keys.entry(key).or_insert(reason);
     }
 
     for (old_key, new_key) in &config.renames {
@@ -794,6 +834,8 @@ pub fn execute(config: &Config) -> Result<bool, String> {
             seen_locations: &mut seen_locations,
             seen_keys: &mut seen_keys,
             stats: &mut stats,
+            min_stmts: config.min_stmts,
+            allow_small: &allow_small,
         };
 
         let mut visitor = FileVisitor {
@@ -1273,6 +1315,19 @@ fn register_seen(
     Ok(())
 }
 
+/// `hook-ledger/stamp-allow.txt`: one fn key per line (`#` comments), stamped even when the body is small.
+fn read_allow_small(ledger: &Path) -> BTreeSet<String> {
+    std::fs::read_to_string(ledger.join("stamp-allow.txt"))
+        .map(|text| {
+            text.lines()
+                .map(|l| l.split('#').next().unwrap_or("").trim())
+                .filter(|l| !l.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn assign_hook(ctx: &mut ScanCtx<'_>, fn_key: &str, sig: &str) -> Result<u32, String> {
     if ctx.tombstones.contains(fn_key) {
         return Err(format!(
@@ -1450,6 +1505,8 @@ impl Stand {
             seen_locations: &mut seen_locations,
             seen_keys: &mut seen_keys,
             stats: &mut stats,
+            min_stmts: 0,
+            allow_small: &BTreeSet::new(),
         };
         let mut visitor = FileVisitor {
             file_path: &file.path,
