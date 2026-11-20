@@ -1301,7 +1301,7 @@ fn the_budget_defaults_to_8192_nodes_a_tick_and_reads_the_server_setting() {
 
 #[test]
 fn a_search_that_does_not_fit_waits_for_the_next_tick() {
-    let mut b = PathBudget::new(1500);
+    let mut b = PathBudget::new(1500).with_jitter(0);
     assert!(b.request(1, 100, 1024));
     b.charge(1024);
     assert_eq!(b.remaining(), 476);
@@ -1327,7 +1327,7 @@ fn a_search_that_does_not_fit_waits_for_the_next_tick() {
 #[test]
 fn mobs_take_turns_when_the_budget_cannot_serve_all_of_them() {
     // Room for two full searches a tick, three mobs asking in the same order every tick.
-    let mut b = PathBudget::new(2048);
+    let mut b = PathBudget::new(2048).with_jitter(0);
     let mut served = [0u32; 4];
     for tick in 1..=30i64 {
         for id in [1u32, 2, 3] {
@@ -1348,7 +1348,7 @@ fn mobs_take_turns_when_the_budget_cannot_serve_all_of_them() {
 
 #[test]
 fn a_waiting_mob_that_never_comes_back_does_not_block_the_others_for_long() {
-    let mut b = PathBudget::new(1024);
+    let mut b = PathBudget::new(1024).with_jitter(0);
     assert!(b.request(1, 1, 1024));
     b.charge(1024);
     assert!(!b.request(2, 1, 1024));
@@ -1360,6 +1360,7 @@ fn a_waiting_mob_that_never_comes_back_does_not_block_the_others_for_long() {
 #[test]
 fn the_engines_path_search_of_a_custom_mob_is_metered_and_a_vanilla_mobs_is_not() {
     budget::reset_for_thread(Some(100));
+    budget::set_retry_jitter(0);
     let fx = flat();
     let w = fx.world();
     let mut m = mob("{}", at(0.5, 0.5));
@@ -1381,6 +1382,52 @@ fn the_engines_path_search_of_a_custom_mob_is_metered_and_a_vanilla_mobs_is_not(
     assert!(m.create_path_to(&next, [8, 1, 0], 0).is_some());
     assert_eq!(budget::stats().granted, 2);
     budget::reset_for_thread(None);
+}
+
+#[test]
+fn a_refused_crowd_comes_back_spread_over_several_ticks() {
+    let crowd: Vec<u32> = (100..140).collect();
+    let refuse = |jitter: u32| {
+        let mut b = PathBudget::new(1024).with_jitter(jitter);
+        assert!(b.request(1, 10, 1024));
+        b.charge(1024);
+        for id in &crowd {
+            assert!(!b.request(*id, 10, 1024));
+        }
+        b
+    };
+    let b = refuse(super::budget::RETRY_JITTER);
+    let ticks: Vec<i64> = crowd.iter().map(|id| b.retry_at(*id).unwrap_or(11)).collect();
+    let mut distinct = ticks.clone();
+    distinct.sort_unstable();
+    distinct.dedup();
+    assert!(distinct.len() >= 3, "spread over several ticks: {distinct:?}");
+    assert!(ticks.iter().all(|t| (11..=14).contains(t)), "within the jitter: {ticks:?}");
+    // The same ids in the same tick always get the same delays.
+    let again = refuse(super::budget::RETRY_JITTER);
+    assert_eq!(ticks, crowd.iter().map(|id| again.retry_at(*id).unwrap_or(11)).collect::<Vec<_>>());
+    // Without jitter all of them come back in the next tick.
+    let flat_ = refuse(0);
+    assert!(crowd.iter().all(|id| flat_.retry_at(*id).is_none()));
+}
+
+#[test]
+fn a_put_off_mob_is_refused_until_its_delay_is_over_and_then_has_its_turn() {
+    let mut b = PathBudget::new(1024);
+    assert!(b.request(1, 10, 1024));
+    b.charge(1024);
+    let id = (100..400)
+        .find(|id| super::budget::jitter_for(*id, 10, 3) == 3)
+        .expect("some id gets the longest delay");
+    assert!(!b.request(id, 10, 1024));
+    assert_eq!(b.retry_at(id), Some(14));
+    for tick in 11..14 {
+        assert!(!b.request(id, tick, 1024), "still put off at {tick}");
+    }
+    assert_eq!(b.stats().backed_off, 3);
+    assert_eq!(b.stats().waited, 1, "the put-off requests are not new refusals");
+    assert!(b.request(id, 14, 1024), "its delay is over: it fits");
+    assert_eq!(b.retry_at(id), None);
 }
 
 // ---- categories and Yoake attributes -------------------------------------------------------
