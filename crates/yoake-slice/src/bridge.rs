@@ -34,6 +34,16 @@ pub struct InstallReport {
     pub failed: Vec<(u32, &'static str)>,
 }
 
+impl InstallReport {
+    /// W9b: adds what another bridge module did. `not_mine` is dropped: with several modules asked in turn, an id is
+    /// unknown only when no module installed it, and the caller works that out from `installed`.
+    pub fn merge(&mut self, other: InstallReport) {
+        self.installed.extend(other.installed);
+        self.not_bridgeable.extend(other.not_bridgeable);
+        self.failed.extend(other.failed);
+    }
+}
+
 static INSTALLED: Mutex<BTreeMap<u32, Result<(), &'static str>>> = Mutex::new(BTreeMap::new());
 
 /// Runs `register` for hook `id` at most once per process and returns its outcome (the first outcome on every later
