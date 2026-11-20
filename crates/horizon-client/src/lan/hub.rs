@@ -252,6 +252,16 @@ fn take_tracking(
 ) {
     let events = g.tracker.take_events();
     if !events.is_empty() {
+        // F4M-5b: the custom mobs it started tracking get their `horizon:mob_sync` snapshot (the game
+        // sends it after the tick; nothing is queued while no custom type is loaded).
+        if super::mob_sync::active() {
+            g.mob_sync_starts.extend(
+                events
+                    .iter()
+                    .filter(|e| e.start && crate::mobs::custom::get(&e.tracked.kind).is_some())
+                    .map(|e| e.entity),
+            );
+        }
         if sync_attachments {
             let started = events.iter().filter(|e| e.start);
             queue_snapshots(
@@ -4697,6 +4707,23 @@ mod tests {
         assert!(!apply_player_input(guest, 32));
         assert!(apply_player_input(guest, 0));
         assert!(!guest.sneaking);
+    }
+
+    /// `horizon:mob_sync` is read by a placed Horizon client and nobody else: a stock client (a
+    /// different brand) and a client that is not placed yet are sent nothing.
+    #[test]
+    fn only_a_placed_horizon_client_reads_mob_sync() {
+        use crate::lan::mob_sync::reads_mob_sync;
+        let (mut hub, _rx) = hub_with_a_guest();
+        let guest = &mut hub.guests[0];
+        guest.placed = true;
+        guest.brand = "vanilla".into();
+        assert!(!reads_mob_sync(guest));
+        guest.brand = "horizon".into();
+        assert!(reads_mob_sync(guest));
+        guest.placed = false;
+        assert!(!reads_mob_sync(guest));
+        assert!(guest.mob_sync_starts.is_empty(), "nothing is queued for it");
     }
 
     /// A mod's attack hit box is the box the player is attacked in, and only a Horizon client is

@@ -35,6 +35,13 @@ impl When {
 /// What the expressions of a server mob read.
 pub fn inputs(m: &Mob, w: &MobWorld) -> ExprInputs {
     let mut i = ExprInputs::default();
+    fill(&mut i, m, w);
+    i
+}
+
+/// Writes what the expressions of a server mob read into `i` (its `variables` are left alone: the
+/// animation controllers keep theirs from tick to tick).
+pub fn fill(i: &mut ExprInputs, m: &Mob, w: &MobWorld) {
     let flag = |b: bool| if b { 1.0 } else { 0.0 };
     i.set(Query::Health, m.health);
     i.set(Query::MaxHealth, m.attrs.max_health);
@@ -59,5 +66,4 @@ pub fn inputs(m: &Mob, w: &MobWorld) -> ExprInputs {
             };
         }
     }
-    i
 }

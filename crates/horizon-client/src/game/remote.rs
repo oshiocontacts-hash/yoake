@@ -514,6 +514,8 @@ pub(super) struct Remote {
     pub mod_net: bool,
     /// The synced attachments the server sent, by holder.
     pub attachments: HashMap<Holder, Attachments>,
+    /// The custom mobs' values, animation anchors and triggers the server sent (`horizon:mob_sync`).
+    pub custom_mobs: horizon_client::mobs::custom::remote::RemoteCustomMobs,
     /// The server samples far terrain for us, this far at most (`lod_net`).
     pub far_terrain: Option<horizon_client::lod_net::Offer>,
     pub(super) builtin: Arc<Builtin>,
@@ -1126,6 +1128,7 @@ impl Game<'_> {
             quiet_commands: false,
             mod_net: false,
             attachments: HashMap::new(),
+            custom_mobs: Default::default(),
             far_terrain: None,
             builtin,
             status: lang
@@ -3307,6 +3310,10 @@ impl Game<'_> {
                 self.remote_attack_hitbox(&p.data);
             }
             // The synced attachments of a holder the server shows the window.
+            // A custom mob's synced values, animation clocks and triggers.
+            C::CustomPayload(p) if p.channel == horizon_protocol::mob_sync::CHANNEL => {
+                self.remote_mob_sync(&p.data);
+            }
             C::CustomPayload(p) if p.channel == horizon_protocol::attachment_sync::CHANNEL => {
                 self.remote_attachment_sync(&p.data);
             }
@@ -3330,6 +3337,7 @@ impl Game<'_> {
                     r.reconfiguring = None;
                     r.attachments.clear();
                     r.level_keys = p.levels.clone();
+                    r.custom_mobs.clear();
                 }
                 // handleLogin makes a new MultiPlayerGameMode (carried index 0) and a
                 // new LocalPlayer (slot 0, no effects, riding nothing: the server
@@ -3627,6 +3635,7 @@ impl Game<'_> {
                         r.level_player_names.remove(&id);
                         r.level_player_textures.remove(&id);
                         r.attachments.remove(&Holder::Entity(id as u32));
+                        r.custom_mobs.remove(id);
                     }
                     self.remove_entity(id);
                 }

@@ -352,3 +352,64 @@ mod tests {
         assert_eq!(state.synced_value(&t, "warmth"), Some(&SyncedValue::I32(10)));
     }
 }
+
+#[cfg(test)]
+mod all_kinds_tests {
+    use super::*;
+    use crate::{
+        entity_nbt::{mob_from_nbt, mob_to_nbt},
+        mobs::{MobType, custom::build::mob_type},
+    };
+    use horizon_core::geometry::Vec3;
+    use horizon_mods::custom_mob::CustomMobFile;
+    use std::{collections::HashMap, sync::Arc};
+
+    /// A type with one value of every kind (and one that is not persistent).
+    fn all_kinds() -> HashMap<String, Arc<MobType>> {
+        let json = r#"{"template":"yoake:mob","size":{"width":1,"height":1},"synced":{
+            "a_bool":{"type":"bool","persistent":true},
+            "b_int":{"type":"i32","min":-5,"max":5,"persistent":true},
+            "c_float":{"type":"f32","persistent":true},
+            "d_text":{"type":"string","persistent":true},
+            "e_vec":{"type":"vec3","persistent":true},
+            "f_enum":{"type":"enum","values":["x","y","z"],"default":"x","persistent":true},
+            "g_temp":{"type":"i32"}}}"#;
+        let file = CustomMobFile::parse("demo:thing", json.as_bytes()).unwrap();
+        let t = Arc::new(CustomType::new(file, None).unwrap());
+        let kind = Arc::new(mob_type(&t));
+        HashMap::from([(kind.id.clone(), kind)])
+    }
+
+    /// Every kind of persistent value round trips, a value that is not persistent does not, and
+    /// loading marks nothing dirty (the first snapshot sends everything anyway).
+    #[test]
+    fn every_kind_of_persistent_synced_value_round_trips() {
+        let types = all_kinds();
+        let mut m = Mob::new(1, types["demo:thing"].clone(), Vec3::new(0.5, 64.0, 0.5), 0.0);
+        let t = m.kind.custom.clone().unwrap();
+        let s = m.extra.custom.as_mut().unwrap();
+        let set = [
+            ("a_bool", SyncedValue::Bool(true)),
+            ("b_int", SyncedValue::I32(-4)),
+            ("c_float", SyncedValue::F32(2.5)),
+            ("d_text", SyncedValue::Str("héllo \u{1F98A}".into())),
+            ("e_vec", SyncedValue::Vec3([1.0, -2.0, 3.5])),
+            ("f_enum", SyncedValue::Enum(2)),
+            ("g_temp", SyncedValue::I32(99)),
+        ];
+        for (name, v) in &set {
+            assert!(s.set_synced(&t, name, v.clone()), "{name}");
+        }
+        let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None);
+        let saved = tag.get("yoake").unwrap().get("synced").unwrap();
+        assert!(saved.get("g_temp").is_none(), "not persistent, not saved");
+        let back = mob_from_nbt(&tag, &types, 2, None).unwrap();
+        let b = back.extra.custom.as_ref().unwrap();
+        for (name, v) in &set[..6] {
+            assert_eq!(b.synced_value(&t, name), Some(v), "{name}");
+        }
+        assert_eq!(b.synced_value(&t, "g_temp"), Some(&SyncedValue::I32(0)), "back to the default");
+        assert_eq!(b.synced_dirty, 0);
+        assert_eq!(mob_to_nbt(&back, [1, 2, 3, 4], Some(&tag), None), tag);
+    }
+}

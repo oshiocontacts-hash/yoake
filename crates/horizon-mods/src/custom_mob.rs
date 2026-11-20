@@ -98,6 +98,11 @@ pub trait ModelInfo {
 pub struct LoadedModel {
     pub model: Option<horizon_mobmodel::Model>,
     pub animations: usize,
+    /// The model's skeleton with the type's animations and controllers bound (F4M-5b: the server
+    /// runs it). `None` without a model, or when the type lists no animation and no controller.
+    pub rig: Option<horizon_mobmodel::pose::Rig>,
+    /// The typed animation events of the rig (`model.server_events`, `model.particles`).
+    pub events: Option<horizon_mobmodel::events::MobEvents>,
 }
 
 impl LoadedModel {
@@ -544,6 +549,10 @@ pub struct Model {
     pub procedural: Vec<serde_json::Value>,
     #[serde(default)]
     pub particles: BTreeMap<String, String>,
+    /// The animations whose `Custom` timeline events the server runs (F4M-9, F4M-5b): `true`,
+    /// `false`, a list of animation names or an object of flags; checked when the model loads.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub server_events: Option<serde_json::Value>,
 }
 
 impl Default for Model {
@@ -561,6 +570,7 @@ impl Default for Model {
             item_slots: BTreeMap::new(),
             procedural: Vec::new(),
             particles: BTreeMap::new(),
+            server_events: None,
         }
     }
 }
@@ -1229,20 +1239,61 @@ impl CustomMobFile {
             }
         }
         let mut animations = 0;
+        let mut library = anim::AnimationLibrary::new();
+        let mut layers = Vec::new();
         for id in &self.model.animations {
             let path = file(id, ".animation.json");
             let text = String::from_utf8(read(&path)?).map_err(|e| format!("{path}: {e}"))?;
             let parsed =
                 anim::parse_animation_file(&text, &mut syms).map_err(|e| format!("{path}: {e}"))?;
             animations += parsed.animations.len();
+            for a in parsed.animations {
+                library.add(a).map_err(|e| format!("{path}: {e}"))?;
+            }
         }
         for id in &self.model.controllers {
             let path = file(id, ".json");
             let text = String::from_utf8(read(&path)?).map_err(|e| format!("{path}: {e}"))?;
-            controller::parse_controllers(&text, &mut syms).map_err(|e| format!("{path}: {e}"))?;
+            let parsed = controller::parse_controllers(&text, &mut syms)
+                .map_err(|e| format!("{path}: {e}"))?;
+            layers.extend(parsed.controllers);
         }
-        let loaded = LoadedModel { model, animations };
+        let mut loaded = LoadedModel {
+            model,
+            animations,
+            rig: None,
+            events: None,
+        };
         self.validate_model(&loaded)?;
+        // The rig the server runs: skeleton, animations and controllers bound by name, and the
+        // type's typed events (`server_events` picks the animations whose timeline the server
+        // runs). A type that lists neither animations nor controllers has none.
+        if let Some(model) = loaded.model.as_ref()
+            && (!library.is_empty() || !layers.is_empty())
+        {
+            let (rig, _warnings) =
+                horizon_mobmodel::pose::Rig::new(model.skeleton.clone(), library, layers)
+                    .map_err(|e| format!("{}: {e}", self.id))?;
+            let mut options = serde_json::Map::new();
+            options.insert(
+                "particles".into(),
+                serde_json::to_value(&self.model.particles).map_err(|e| e.to_string())?,
+            );
+            if let Some(flags) = &self.model.server_events {
+                options.insert("server_events".into(), flags.clone());
+            }
+            let animation_files = self.model.animations.join(", ");
+            let events = horizon_mobmodel::events::MobEvents::from_model_json(
+                &self.id,
+                &animation_files,
+                &serde_json::Value::Object(options),
+                rig.animations(),
+                &model.locators,
+            )
+            .map_err(|e| e.to_string())?;
+            loaded.rig = Some(rig);
+            loaded.events = Some(events);
+        }
         Ok(loaded)
     }
 

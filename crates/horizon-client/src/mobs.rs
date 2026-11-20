@@ -3477,6 +3477,11 @@ impl Mob {
         // LivingEntity.tick: CombatTracker.recheckStatus.
         let alive = self.alive();
         self.combat.recheck(alive, self.age);
+        // F4M-5b: a custom mob's server animation (triggers, controllers, timeline events) runs
+        // before its goals, so a damage frame it emits is seen by the goal in the same tick.
+        if self.kind.custom.is_some() {
+            custom::anim_sync::tick(self, w);
+        }
         ai::tick(self, w, level_random, events)
     }
     /// The section the mob is in, noted when it changes (`EntitySection` lists).

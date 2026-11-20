@@ -10,11 +10,13 @@
 //! New code for custom mobs lives under this directory (and `game/custom_mob_*.rs`) so that
 //! parallel work items do not collide in the shared mob files.
 pub mod ai;
+pub mod anim_sync;
 pub mod attrs;
 pub mod build;
 pub mod hitbox;
 pub mod persist;
 pub mod registry;
+pub mod remote;
 pub mod spawn;
 pub mod stats;
 
@@ -51,11 +53,17 @@ pub struct SyncedDef {
     pub values: Vec<String>,
     pub persistent: bool,
     pub sync: Sync,
+    /// Most updates per second the value asks for (1 to 20; 10 when the file says nothing).
+    pub rate: u32,
 }
 
 impl SyncedDef {
     fn new(name: &str, s: &Synced) -> Result<Self, String> {
         let mut def = Self {
+            rate: s
+                .sync_rate
+                .unwrap_or(horizon_protocol::mob_sync::DEFAULT_SYNC_RATE)
+                .clamp(1, horizon_protocol::mob_sync::TICKS_PER_SECOND),
             name: name.to_owned(),
             kind: s.kind.clone(),
             default: SyncedValue::Bool(false),
@@ -175,6 +183,10 @@ pub struct CustomType {
     pub loot_table: String,
     /// The tracked values in slot order (by name).
     pub synced: Vec<SyncedDef>,
+    /// The type's animation runtime (F4M-5b): `None` when it has no model with animations.
+    pub anim: Option<anim_sync::TypeAnim>,
+    /// Identifies the layout of the tracked values and controllers on the wire (`horizon:mob_sync`).
+    pub sync_version: u32,
 }
 
 impl CustomType {
@@ -231,7 +243,8 @@ impl CustomType {
             let (ns, path) = file.id.split_once(':').unwrap_or(("minecraft", &file.id));
             format!("{ns}:entities/{path}")
         });
-        Ok(Self {
+        let anim = model.and_then(anim_sync::TypeAnim::new);
+        let mut me = Self {
             id: file.id.clone(),
             file,
             category,
@@ -242,7 +255,11 @@ impl CustomType {
             despawn,
             loot_table,
             synced,
-        })
+            anim,
+            sync_version: 0,
+        };
+        me.sync_version = anim_sync::type_version(&me);
+        Ok(me)
     }
 
     /// The rule of a type that lists none (or whose entry matches none).
@@ -275,6 +292,17 @@ pub struct CustomState {
     pub events: Vec<String>,
     /// Where `sleep_in_bed_like` rests and what it counts as home; saved in the `yoake` compound.
     pub rest: RestMemory,
+    /// Bit `n` is set while tracked value `n` has changed since the sync layer last took the mask
+    /// ([`CustomState::take_dirty`]); only a real change sets it (F4M-5b).
+    pub synced_dirty: u32,
+    /// The server's animation state of the mob (F4M-5b); made by its first tick.
+    pub anim: Option<Box<anim_sync::MobAnim>>,
+    /// Bit `n` is set while hitbox part `n` is enabled (all of them when the mob is made).
+    pub hitbox_mask: u32,
+    /// `hitbox_mask` changed since the sync layer last took it.
+    pub hitbox_dirty: bool,
+    /// What the sync layer remembers of its sending (rate limits).
+    pub sync_out: crate::lan::mob_sync::SyncOut,
 }
 
 /// The places a rest goal remembers (block positions), kept with the mob across saves.
@@ -295,6 +323,14 @@ impl CustomState {
             attack: Default::default(),
             events: Vec::new(),
             rest: RestMemory::default(),
+            synced_dirty: 0,
+            anim: None,
+            hitbox_mask: match t.hitboxes.len() {
+                n if n >= 32 => u32::MAX,
+                n => (1u32 << n) - 1,
+            },
+            hitbox_dirty: false,
+            sync_out: Default::default(),
         }
     }
     pub fn synced_value(&self, t: &CustomType, name: &str) -> Option<&SyncedValue> {
@@ -306,13 +342,42 @@ impl CustomState {
         let Some(slot) = t.synced_slot(name) else {
             return false;
         };
-        match t.synced[slot].coerce(value) {
-            Some(v) => {
-                self.synced[slot] = v;
-                true
-            }
-            None => false,
+        self.set_synced_slot(t, slot, value)
+    }
+    /// [`set_synced`](Self::set_synced) by slot. A value equal to the one held is not a change: it
+    /// marks nothing dirty. False for a slot the type has no value for or a value of another type.
+    pub fn set_synced_slot(&mut self, t: &CustomType, slot: usize, value: SyncedValue) -> bool {
+        let Some(v) = t.synced.get(slot).and_then(|def| def.coerce(value)) else {
+            return false;
+        };
+        if let Some(held) = self.synced.get_mut(slot)
+            && *held != v
+        {
+            *held = v;
+            self.synced_dirty |= 1 << slot;
         }
+        true
+    }
+    /// The slots changed since the last call (bit `n` = slot `n`), and forgets them.
+    pub fn take_dirty(&mut self) -> u32 {
+        std::mem::take(&mut self.synced_dirty)
+    }
+    /// Turns hitbox part `part` on or off for the clients' crosshair (a part the type does not have
+    /// is refused); a real change is sent with the next delta.
+    pub fn set_hitbox_enabled(&mut self, t: &CustomType, part: usize, on: bool) -> bool {
+        if part >= t.hitboxes.len().min(32) {
+            return false;
+        }
+        let mask = if on {
+            self.hitbox_mask | (1 << part)
+        } else {
+            self.hitbox_mask & !(1 << part)
+        };
+        if mask != self.hitbox_mask {
+            self.hitbox_mask = mask;
+            self.hitbox_dirty = true;
+        }
+        true
     }
 }
 
@@ -416,6 +481,28 @@ pub(crate) mod tests {
         assert!(!s.set_synced(&t, "nothing", SyncedValue::Bool(true)));
         assert!(s.set_synced(&t, "state", SyncedValue::Enum(2)));
         assert!(!s.set_synced(&t, "state", SyncedValue::Enum(3)), "no such value");
+    }
+
+    /// Change detection: a real change sets its bit once, a repeat (or a value that is cut back to
+    /// the one held) sets none, and a refused value sets none.
+    #[test]
+    fn only_a_real_change_marks_a_value_dirty() {
+        let t = fox_type();
+        let mut s = CustomState::new(&t);
+        assert_eq!(s.take_dirty(), 0);
+        assert!(s.set_synced(&t, "warmth", SyncedValue::I32(3)));
+        assert!(s.set_synced(&t, "warmth", SyncedValue::I32(3)), "accepted, not a change");
+        assert_eq!(s.take_dirty(), 0b10, "warmth is slot 1");
+        assert_eq!(s.take_dirty(), 0, "taking forgets");
+        assert!(s.set_synced(&t, "warmth", SyncedValue::I32(99)));
+        assert_eq!(s.take_dirty(), 0b10);
+        assert!(s.set_synced(&t, "warmth", SyncedValue::I32(50)), "cut to 10 again");
+        assert_eq!(s.take_dirty(), 0);
+        assert!(!s.set_synced_slot(&t, 1, SyncedValue::Bool(true)));
+        assert!(!s.set_synced_slot(&t, 7, SyncedValue::Bool(true)));
+        assert!(s.set_synced_slot(&t, 0, SyncedValue::Enum(1)));
+        assert!(s.set_synced_slot(&t, 1, SyncedValue::I32(0)));
+        assert_eq!(s.take_dirty(), 0b11);
     }
 
     /// A custom mob of `category`, as the game makes one.
