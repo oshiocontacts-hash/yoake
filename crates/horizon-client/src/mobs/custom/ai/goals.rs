@@ -99,6 +99,9 @@ pub fn add(m: &mut Mob, g: &GoalDef) -> bool {
                 Stroll::avoiding_water(p.speed(1.0)).interval(p.int("interval", 60).max(1)),
             );
         }
+        // Spider-style wall climbing: the type has the engine's climber physics (see
+        // `build::mob_type`); the navigator may route up a wall at `cost` extra per block.
+        "climb" => m.ai.nav.climb_cost = Some(p.num("cost", 0.5).clamp(0.0, 32.0) as f32),
         "leap_at_target" => m.ai.goals.add(
             prio,
             LeapAtTarget::new(p.num("yd", 0.4).clamp(0.0, 2.0) as f32),

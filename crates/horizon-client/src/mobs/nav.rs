@@ -57,6 +57,8 @@ pub struct Navigation {
     pub below_surface: bool,
     /// WallClimberNavigation.pathToPosition
     climb_to: Option<[i32; 3]>,
+    /// A custom mob's `climb` goal: the extra path cost of a block of wall it climbs.
+    pub climb_cost: Option<f32>,
 }
 impl Default for Navigation {
     fn default() -> Self {
@@ -88,6 +90,7 @@ impl Default for Navigation {
             avoid_sun: false,
             below_surface: false,
             climb_to: None,
+            climb_cost: None,
         }
     }
 }
@@ -143,6 +146,7 @@ impl Mob {
             can_pass_doors: self.ai.nav.can_pass_doors,
             can_walk_over_fences: self.ai.nav.can_walk_over_fences,
             stands_on_lava: self.kind.flags.lava_walker,
+            climb_cost: self.ai.nav.climb_cost,
         }
     }
     /// `Mob.getMaxFallDistance` (normal difficulty), with `Creeper`'s
@@ -708,10 +712,35 @@ impl Mob {
         if let Some(path) = &self.ai.nav.path
             && !path.is_done()
         {
-            let target = self.path_foot_position(w, path, path.next);
+            let mut target = self.path_foot_position(w, path, path.next);
+            if self.ai.nav.climb_cost.is_some() {
+                target = self.climb_aim(w, path, target);
+            }
             let speed = self.ai.nav.speed_modifier;
             self.ai.mov.set_wanted(target.x, target.y, target.z, speed);
         }
+    }
+    /// A wall-climbing mob moves up a wall by pressing against it: on a vertical step of its
+    /// path it aims past the wall instead of at the column's centre.
+    fn climb_aim(&self, w: &MobWorld, path: &Path, target: Vec3) -> Vec3 {
+        let Some(prev) = path.next.checked_sub(1).map(|i| path.nodes[i]) else {
+            return target;
+        };
+        let n = path.nodes[path.next];
+        if prev.x != n.x || prev.z != n.z || prev.y == n.y {
+            return target;
+        }
+        let low = n.y.min(prev.y);
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            if w.solid(n.x + dx, low, n.z + dz) || w.solid(n.x + dx, low + 1, n.z + dz) {
+                return Vec3::new(
+                    target.x + f64::from(dx) * 0.9,
+                    target.y,
+                    target.z + f64::from(dz) * 0.9,
+                );
+            }
+        }
+        target
     }
     fn follow_the_path(&mut self, w: &MobWorld) {
         let mob_pos = self.temp_mob_pos(w);

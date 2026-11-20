@@ -101,6 +101,9 @@ fn intern(name: &str) -> &'static str {
 pub fn mob_type(t: &Arc<CustomType>) -> MobType {
     let def = species::def(Species::Custom);
     let f = &t.file;
+    let mut flags = def.flags(false);
+    // The `climb` goal: spider-style wall climbing (the engine's climber physics).
+    flags.climber = f.ai.goals.iter().chain(&f.ai.targets).any(|g| g.kind == "climb");
     let value = |name: &str, default: f64| t.builtin_value(name).unwrap_or(default);
     let mut attributes: HashMap<String, f64> = t
         .builtin
@@ -146,7 +149,7 @@ pub fn mob_type(t: &Arc<CustomType>) -> MobType {
         max_head_x_rot: def.max_head_x_rot(),
         max_head_y_rot: def.max_head_y_rot(),
         ambient_interval: def.ambient_interval(),
-        flags: def.flags(false),
+        flags,
         model: Arc::new(Part::parse("root", &serde_json::Value::Null)),
         layers: Default::default(),
         texture: f.model.textures.default.clone().unwrap_or_default(),

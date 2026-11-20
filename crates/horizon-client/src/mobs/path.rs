@@ -155,6 +155,9 @@ pub struct PathMob {
     pub can_walk_over_fences: bool,
     /// Striders stand on lava (`canStandOnFluid`).
     pub stands_on_lava: bool,
+    /// A custom mob that climbs walls (the `climb` goal): the extra path cost of one block of
+    /// wall. `None` for every vanilla mob.
+    pub climb_cost: Option<f32>,
 }
 impl PathMob {
     pub fn malus(&self, t: PathType) -> f32 {
@@ -976,6 +979,11 @@ impl<'a, 'w> Finder<'a, 'w> {
                 }
             }
         }
+        if let Some(cost) = self.mob.climb_cost
+            && self.eval == Evaluator::Walk
+        {
+            self.climb_neighbors(pos, current, cost, out);
+        }
         if let Evaluator::Amphibious { prefers_shallow } = self.eval {
             let up = self.find_accepted(px, py + 1, pz, (jump - 1).max(0), height, (0, 0), current);
             let down = self.find_accepted(px, py - 1, pz, jump, height, (0, 0), current);
@@ -997,6 +1005,39 @@ impl<'a, 'w> Finder<'a, 'w> {
                         node.cost_malus += 1.0;
                     }
                 }
+            }
+        }
+    }
+    /// A wall the mob can hold on to next to the block `(x, y, z)`: one of the four sides is
+    /// solid at the block's level or the one below.
+    fn wall_beside(&self, x: i32, y: i32, z: i32) -> bool {
+        [(1, 0), (-1, 0), (0, 1), (0, -1)]
+            .iter()
+            .any(|&(dx, dz)| self.w.solid(x + dx, y, z + dz) || self.w.solid(x + dx, y - 1, z + dz))
+    }
+    /// The vertical edges of a wall-climbing mob (the `climb` goal): up the face of a wall,
+    /// and down it while it hangs there, each block costing `cost` more than a step.
+    fn climb_neighbors(&mut self, pos: u32, current: PathType, cost: f32, out: &mut Vec<u32>) {
+        let (px, py, pz) = {
+            let n = &self.nodes[pos as usize];
+            (n.x, n.y, n.z)
+        };
+        let mut edges = vec![py + 1];
+        if current != PathType::Walkable {
+            edges.push(py - 1);
+        }
+        for y in edges {
+            if !self.wall_beside(px, y, pz) {
+                continue;
+            }
+            let t = self.cached(px, y, pz);
+            let malus = self.malus(t);
+            if malus < 0.0 || matches!(t, PathType::Water | PathType::Lava) {
+                continue;
+            }
+            let n = self.node_update_max(px, y, pz, t, malus.max(cost));
+            if self.neighbor_valid(Some(n), pos) {
+                out.push(n);
             }
         }
     }

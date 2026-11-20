@@ -48,7 +48,7 @@ pub fn support(kind: &str) -> Support {
         | "fly_wander" | "look_at_player" | "random_look" | "look_at_target" | "panic"
         | "tempt" | "flee" | "avoid" | "retreat_when_hurt" | "go_to_block" | "stay_near_home"
         | "patrol_around" | "leap_at_target" | "leap_attack" | "melee_attack"
-        | "ranged_attack" | "area_attack" => Goal,
+        | "ranged_attack" | "area_attack" | "climb" => Goal,
         "target_player" | "hurt_by_target" | "hurt_by" | "call_for_help" | "nearest_target"
         | "nearest_attackable" => Target,
         "follow_owner" | "sit" | "owner_hurt_target" | "owner_hurt_by" | "owner_target" => {
@@ -56,7 +56,7 @@ pub fn support(kind: &str) -> Support {
         }
         "breed" | "follow_parent" => Deferred("F4M-4c: needs the breedable data and offspring"),
         "eat_block" => Deferred("the engine's EatBlock goal is the sheep's; a data version needs a generic rewrite"),
-        "sleep_in_bed_like" | "climb" => {
+        "sleep_in_bed_like" => {
             Deferred("the schema row does not say what it does; needs a definition")
         }
         "open_door" => Deferred("the engine's door goals are private to raiders; needs a generic OpenDoorGoal"),

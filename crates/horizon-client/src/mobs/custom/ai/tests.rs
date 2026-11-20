@@ -47,13 +47,12 @@ fn every_schema_goal_type_has_a_status() {
             }
         }
     }
-    assert_eq!(running, 29);
+    assert_eq!(running, 30);
     deferred.sort();
     assert_eq!(
         deferred,
         [
             "breed",
-            "climb",
             "eat_block",
             "follow_owner",
             "follow_parent",
@@ -891,4 +890,76 @@ fn only_a_custom_mob_takes_frames() {
     let mut cow = crate::mobs::Mob::new(2, crate::mobs::sensor_scan_tests::kind(), at(0.5, 0.5), 0.0);
     assert!(!attacks::deliver_frame(&mut cow, "hit"));
     assert!(attacks::take_triggers(&mut cow).is_empty());
+}
+
+// ---- climb ---------------------------------------------------------------------------------
+
+/// A wall of stone along `x = 2`, `z` from -6 to 6 and three high, on the flat world.
+fn walled() -> crate::mobs::mob_hook_bench::BenchWorld {
+    let mut fx = flat();
+    for z in -6..=6 {
+        for y in 1..=3 {
+            fx.set_stone(2, y, z);
+        }
+    }
+    fx
+}
+
+#[test]
+fn a_climb_row_gives_the_engines_climber_physics_and_a_path_cost() {
+    let m = mob(&ai(r#"{"type":"climb","priority":2,"cost":1.5}"#), at(0.5, 0.5));
+    assert!(m.kind.flags.climber, "the spider's wall climbing");
+    assert_eq!(m.ai.nav.climb_cost, Some(1.5));
+    assert!(m.path_mob().climb_cost.is_some());
+    let plain = mob("{}", at(0.5, 0.5));
+    assert!(!plain.kind.flags.climber);
+    assert_eq!(plain.ai.nav.climb_cost, None);
+    let default = mob(&ai(r#"{"type":"climb"}"#), at(0.5, 0.5));
+    assert_eq!(default.ai.nav.climb_cost, Some(0.5));
+}
+
+#[test]
+fn the_navigator_routes_up_a_wall_only_for_a_mob_with_a_climb_row() {
+    let fx = walled();
+    let w = fx.world();
+    let mut climber = mob(&ai(r#"{"type":"climb","cost":0.2}"#), at(0.5, 0.5));
+    let path = climber.create_path_to(&w, [2, 4, 0], 0).expect("a path");
+    assert!(path.reached, "over the wall: {:?}", path.nodes);
+    assert!(path.nodes.iter().any(|n| n.y >= 4), "it goes up the face");
+    let mut walker = mob("{}", at(0.5, 0.5));
+    let path = walker.create_path_to(&w, [2, 4, 0], 0);
+    assert!(!path.is_some_and(|p| p.reached), "a plain ground mob cannot get onto the wall");
+}
+
+#[test]
+fn the_climb_cost_decides_between_the_wall_and_the_way_round() {
+    let fx = walled();
+    let w = fx.world();
+    let top = |m: &mut crate::mobs::Mob| {
+        m.create_path_to(&w, [4, 1, 0], 0)
+            .map(|p| (p.reached, p.nodes.iter().map(|n| n.y).max().unwrap_or(0)))
+    };
+    let mut cheap = mob(&ai(r#"{"type":"climb","cost":0.1}"#), at(0.5, 0.5));
+    cheap.attrs.follow_range = 32.0;
+    let (reached, highest) = top(&mut cheap).expect("a path");
+    assert!(reached && highest >= 4, "a cheap wall is climbed (highest {highest})");
+    let mut dear = mob(&ai(r#"{"type":"climb","cost":50}"#), at(0.5, 0.5));
+    dear.attrs.follow_range = 32.0;
+    let (reached, highest) = top(&mut dear).expect("a path");
+    assert!(reached && highest == 1, "a dear wall is walked round (highest {highest})");
+}
+
+#[test]
+fn a_climber_gets_up_the_wall_by_pressing_against_it() {
+    let fx = walled();
+    let w = fx.world();
+    let mut ctx = Ctx::new();
+    let mut m = mob(&ai(r#"{"type":"climb","cost":0.2}"#), at(0.5, 0.5));
+    assert!(m.nav_move_to(&w, [2.5, 4.0, 0.5], 1.0), "a path to the top of the wall");
+    run(&mut m, &w, &mut ctx, 200);
+    assert!(
+        m.position.y >= 3.9 && m.position.x > 1.9,
+        "on top of the wall, at {:?}",
+        m.position
+    );
 }

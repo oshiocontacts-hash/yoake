@@ -5363,6 +5363,25 @@ pub mod mob_hook_bench {
             }
         }
 
+        /// A stone block at `(x, y, z)` (the world's only block besides air).
+        #[yoake_hook(skip = "benchmark helper")]
+        pub fn set_stone(&mut self, x: i32, y: i32, z: i32) {
+            self.world.set(x, y, z, BlockStateId(1)).unwrap();
+        }
+
+        /// Air at `(x, y, z)`.
+        #[yoake_hook(skip = "benchmark helper")]
+        pub fn set_air(&mut self, x: i32, y: i32, z: i32) {
+            self.world.set(x, y, z, BlockStateId(0)).unwrap();
+        }
+
+        /// Lists `blocks` (ids) under the block tag `tag`.
+        #[yoake_hook(skip = "benchmark helper")]
+        pub fn set_tag(&mut self, tag: &str, blocks: &[&str]) {
+            self.block_tags
+                .insert(tag.to_owned(), blocks.iter().map(|b| (*b).to_owned()).collect());
+        }
+
         #[yoake_hook(skip = "benchmark helper")]
         pub fn world(&self) -> MobWorld<'_> {
             MobWorld {
