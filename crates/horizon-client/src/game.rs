@@ -3214,6 +3214,8 @@ pub(crate) struct Game<'a> {
     /// The open world's levels: the three vanilla ones, the saved and data pack level
     /// stems and the mods' (F3-3); each level's type, generator stem and save folder.
     level_registry: horizon_client::level_registry::LevelRegistry,
+    /// The chunk generators mods registered, for levels whose stem names one (F3-5).
+    mod_generators: horizon_client::mod_generator::ModGenerators,
     /// The dimension types of the levels past the vanilla three (F3-4).
     level_ctxs: std::collections::HashMap<Dim, level_facts::LevelCtx>,
     /// This game is that server thread's (game/integrated.rs).
@@ -19903,6 +19905,7 @@ impl<'a> Game<'a> {
             integrated: None,
             level_shapes: Default::default(),
             level_registry: Default::default(),
+            mod_generators: Default::default(),
             level_ctxs: Default::default(),
             serving: None,
             world_options: None,

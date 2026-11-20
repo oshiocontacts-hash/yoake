@@ -256,6 +256,7 @@ fn generator_sea_level(generator: &GeneratorSpec, noise_sea: &BTreeMap<String, i
         },
         GeneratorSpec::Flat(_) => Some(-63),
         GeneratorSpec::Debug => Some(63),
+        GeneratorSpec::Mod { .. } => None,
     }
 }
 
@@ -457,16 +458,8 @@ impl LevelRegistry {
                 error,
             })?
             .clone();
-        // Superflat and debug generators are built for the Overworld only
-        // until F3-5 builds a generator for every level.
-        if !matches!(stem.generator, GeneratorSpec::Noise { .. }) {
-            return Err(LevelError::Unsupported {
-                id: id.to_owned(),
-                reason: "only noise generators run outside the three vanilla levels for now \
-                         (flat and debug generators for any level come with F3-5)"
-                    .to_owned(),
-            });
-        }
+        // Noise, superflat, debug and mod generators all run in any level (F3-5); a mod's is
+        // looked up when the level opens, since mods register after the world is read.
         let shape = shape_of(&dimension_type).map_err(|reason| LevelError::Unsupported {
             id: id.to_owned(),
             reason: format!("its dimension type's shape is refused: {reason}"),
@@ -681,6 +674,40 @@ mod tests {
     }
 
     /// The sea level is the generator's: the named noise settings', an inline one's, else the type's rule.
+    /// F3-5: superflat, debug, mod and every biome-source variant are levels of their own.
+    #[test]
+    fn flat_debug_mod_and_checkerboard_stems_are_levels() {
+        let with = |generator: Value| {
+            let mut s = grid_stem("minecraft:overworld");
+            s["generator"] = generator;
+            s
+        };
+        let o = overrides_with(
+            &[
+                ("a:flat", with(serde_json::json!({"type":"minecraft:flat","settings":{"biome":"minecraft:plains","layers":[{"block":"minecraft:stone","height":3}]}}))),
+                ("a:debug", with(serde_json::json!({"type":"minecraft:debug"}))),
+                ("a:mod", with(serde_json::json!({"type":"yoake:mod","id":"mymod:floor","settings":{"depth":3}}))),
+                ("a:checker", with(serde_json::json!({"type":"minecraft:noise","settings":"minecraft:overworld",
+                    "biome_source":{"type":"minecraft:checkerboard","biomes":["minecraft:plains","minecraft:desert"],"scale":2}}))),
+                ("a:fixed", with(serde_json::json!({"type":"minecraft:noise","settings":"minecraft:overworld",
+                    "biome_source":{"type":"minecraft:fixed","biome":"minecraft:desert"}}))),
+                ("a:no_mod_id", with(serde_json::json!({"type":"yoake:mod"}))),
+                ("a:bad_mod_id", with(serde_json::json!({"type":"yoake:mod","id":"nocolon"}))),
+            ],
+            &[],
+        );
+        let reg = build(&o, &[]);
+        let ids: Vec<_> = reg.ids().skip(3).collect();
+        assert_eq!(ids, ["a:checker", "a:debug", "a:fixed", "a:flat", "a:mod"], "{:?}", reg.problems());
+        let sea = |id: &str| reg.get(id).unwrap().sea_level;
+        assert_eq!((sea("a:flat"), sea("a:debug"), sea("a:mod")), (Some(-63), Some(63), None));
+        let problems: Vec<_> = reg.problems().iter().map(|p| p.id.as_str()).collect();
+        assert_eq!(problems, ["a:bad_mod_id", "a:no_mod_id"]);
+        // The stem a mod level has survives as the generator reads it.
+        let stem = reg.generator_stem("a:mod").unwrap();
+        assert_eq!(stem["generator"]["id"], "mymod:floor");
+    }
+
     #[test]
     fn the_sea_level_comes_from_the_generators_noise_settings() {
         let stem = |settings: Value| {
@@ -770,14 +797,11 @@ mod tests {
         no_type.as_object_mut().unwrap().remove("type");
         let mut bad_grid = grid_stem("minecraft:overworld");
         bad_grid["generator"]["biome_source"]["cells"] = serde_json::json!(["minecraft:plains"]);
-        let mut flat = grid_stem("minecraft:overworld");
-        flat["generator"] = serde_json::json!({"type":"minecraft:flat","settings":{}});
         let mut o = overrides_with(
             &[
                 ("a:unknown_type", grid_stem("nope:missing")),
                 ("a:no_type", no_type),
                 ("a:bad_grid", bad_grid),
-                ("a:flat", flat),
                 ("a:../escape", grid_stem("minecraft:overworld")),
                 ("a:good", grid_stem("minecraft:overworld")),
             ],
@@ -798,7 +822,6 @@ mod tests {
         assert!(msg("a:unknown_type").contains("unknown dimension type `nope:missing`"));
         assert!(msg("a:no_type").contains("missing field `type`"));
         assert!(msg("a:bad_grid").contains("biome source"));
-        assert!(msg("a:flat").contains("F3-5"));
         assert!(msg("a:../escape").contains("not usable"));
         assert!(msg("a:not_json").contains("invalid JSON"));
         assert!(msg("a:bad_type").contains("dimension type"));

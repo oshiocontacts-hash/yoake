@@ -127,6 +127,7 @@ pub mod recipe_book;
 pub mod recipe_book_screen;
 pub mod reconnect;
 pub mod level_registry;
+pub mod mod_generator;
 pub mod save;
 pub mod scoreboard_cmd;
 pub mod screen_layout;

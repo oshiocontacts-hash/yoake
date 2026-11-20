@@ -190,6 +190,7 @@ impl Game<'_> {
             entry.stem_json.as_ref(),
             self.level.seed,
             &self.level.enabled_features,
+            &self.mod_generators,
         )?;
         // F3-4: a level past the vanilla three shades blocks as its type says.
         if !matches!(dim, Dim::Overworld | Dim::Nether | Dim::End) {
@@ -803,6 +804,21 @@ impl Game<'_> {
         self.level_registry
             .register_level(id, stem, data.source_catalog())?;
         Ok(Dim::intern(id))
+    }
+
+    /// Registers a chunk generator for levels whose stem is
+    /// `{"type": "yoake:mod", "id": <id>}`, before the world starts ticking (F3-5). The native side
+    /// of the mod generator API; WASM mods reach it with F3-8.
+    #[allow(dead_code)] // The mod API reaches it with F3-8.
+    pub(super) fn register_mod_generator(
+        &mut self,
+        id: &str,
+        factory: std::sync::Arc<dyn horizon_client::mod_generator::ModGeneratorFactory>,
+    ) -> std::result::Result<(), String> {
+        if self.level_registry.is_frozen() {
+            return Err("the world already started ticking".to_owned());
+        }
+        self.mod_generators.register(id, factory)
     }
 
     /// Save every parked level (`MinecraftServer.saveAllChunks`); the level

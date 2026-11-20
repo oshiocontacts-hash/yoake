@@ -283,6 +283,12 @@ fn a_nether_like_pack_level_follows_its_rules() {
 /// Streams the level in place until the final chunk `(cx, cz)` is in, and hashes its blocks and
 /// biomes (FNV-1a over every block id and a biome sample per 4x4x4 cell).
 fn generated_chunk_hash(game: &mut Game<'_>, cx: i32, cz: i32) -> u64 {
+    let chunk = generated_chunk(game, cx, cz);
+    hash_chunk(game, &chunk)
+}
+
+/// Streams the level in place until the final chunk (cx, cz) is in.
+fn generated_chunk(game: &mut Game<'_>, cx: i32, cz: i32) -> std::sync::Arc<horizon_client::chunk::Chunk> {
     game.streaming.forced.insert((cx, cz));
     game.streaming.center = (cx, cz);
     game.streaming.radius = 2;
@@ -292,7 +298,10 @@ fn generated_chunk_hash(game: &mut Game<'_>, cx: i32, cz: i32) -> u64 {
         assert!(started.elapsed().as_secs() < 240, "chunk {cx} {cz} never finished generating");
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    let chunk = game.world.chunks.get(&(cx, cz)).unwrap().clone();
+    game.world.chunks.get(&(cx, cz)).unwrap().clone()
+}
+
+fn hash_chunk(game: &Game<'_>, chunk: &horizon_client::chunk::Chunk) -> u64 {
     let shape = game.world.shape;
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     let mut put = |v: u64| {
@@ -331,5 +340,149 @@ fn vanilla_chunks_hash_as_they_did_before_the_generator_work() {
             ("minecraft:the_end", 2685422101413284537),
         ];
         assert_eq!(got, EXPECTED);
+    });
+}
+
+/// Superflat and checkerboard-biome pack levels, and the level of a mod's generator (F3-5).
+fn write_generator_pack(world: &std::path::Path) {
+    write(world, "datapacks/gen/pack.mcmeta", r#"{"pack":{"pack_format":1,"description":"x"}}"#);
+    write(
+        world,
+        "datapacks/gen/data/mypack/dimension/plain.json",
+        r#"{"type":"minecraft:overworld","generator":{"type":"minecraft:flat","settings":{
+        "biome":"minecraft:plains","features":false,"lakes":false,
+        "layers":[{"block":"minecraft:bedrock","height":1},{"block":"minecraft:stone","height":2},
+        {"block":"minecraft:dirt","height":1},{"block":"minecraft:grass_block","height":1}]}}}"#,
+    );
+    write(
+        world,
+        "datapacks/gen/data/mypack/dimension/checker.json",
+        r#"{"type":"minecraft:overworld","generator":{"type":"minecraft:noise","settings":"minecraft:overworld",
+        "biome_source":{"type":"minecraft:checkerboard","biomes":["minecraft:plains","minecraft:desert"],"scale":0}}}"#,
+    );
+    write(
+        world,
+        "datapacks/gen/data/mypack/dimension/void.json",
+        r#"{"type":"minecraft:overworld","generator":{"type":"minecraft:debug"}}"#,
+    );
+}
+
+/// A generator a test mod registers: `depth` layers of stone from the level's floor.
+struct FloorFactory;
+struct Floor {
+    stone: u32,
+    depth: i32,
+}
+impl horizon_client::mod_generator::ModGeneratorFactory for FloorFactory {
+    fn create(
+        &self,
+        c: &horizon_client::mod_generator::ModGeneratorContext,
+    ) -> Result<std::sync::Arc<dyn horizon_client::mod_generator::ModColumnSource>, String> {
+        let depth = c.settings["depth"].as_i64().unwrap_or(1) as i32;
+        let stone = c.block("minecraft:stone").ok_or("no stone")?;
+        Ok(std::sync::Arc::new(Floor { stone, depth }))
+    }
+}
+impl horizon_client::mod_generator::ModColumnSource for Floor {
+    fn generate(&self, chunk: &mut horizon_client::mod_generator::ModChunk<'_>) {
+        let floor = chunk.shape.min_y;
+        for y in floor..floor + self.depth {
+            chunk.fill_layer(y, self.stone);
+        }
+        chunk.set_biome("minecraft:desert");
+    }
+}
+
+/// F3-5: a superflat level, a checkerboard-biome level and a debug level of a data pack open,
+/// generate their own terrain and save under their own folders.
+#[test]
+#[ignore = "needs HORIZON_TEST_RESOURCES"]
+fn flat_checkerboard_and_debug_pack_levels_generate_and_save() {
+    with_world(write_generator_pack, |game, world| {
+        assert!(game.level_registry.problems().is_empty(), "{:?}", game.level_registry.problems());
+        let id = |name: &str| game.pack.assets.registry.default_state(name).unwrap().0;
+        let (bedrock, stone, dirt, grass) = (
+            id("minecraft:bedrock"),
+            id("minecraft:stone"),
+            id("minecraft:dirt"),
+            id("minecraft:grass_block"),
+        );
+        let barrier = id("minecraft:barrier");
+        let plains = game.res.biomes().id("minecraft:plains");
+        let desert = game.res.biomes().id("minecraft:desert");
+        // Superflat: the layers from the level's floor, air above, the layer biome.
+        let plain = game.level_dim("mypack:plain").expect("registered");
+        game.enter_level(None, plain).unwrap();
+        let chunk = generated_chunk(game, 0, 0);
+        let floor = game.world.shape.min_y;
+        for (i, want) in [bedrock, stone, stone, dirt, grass, 0].into_iter().enumerate() {
+            assert_eq!(chunk.get(5, floor + i as i32, 9), want, "layer {i}");
+        }
+        assert_eq!(chunk.biome(3, floor, 3), plains);
+        // An edit saves under the level's own folder.
+        game.level_set([1, floor + 5, 1], horizon_world::registry::BlockStateId(stone)).unwrap();
+        game.save_level(true).unwrap();
+        let region = game.level_registry.save_dir(world, "mypack:plain").join("region");
+        let saved = std::fs::read_dir(&region)
+            .unwrap_or_else(|e| panic!("{}: {e}", region.display()))
+            .count();
+        assert!(saved > 0, "no region file in {}", region.display());
+        game.enter_level(None, Dim::Overworld).unwrap();
+
+        // Checkerboard: the noise terrain with the two biomes in alternating quarts.
+        let checker = game.level_dim("mypack:checker").expect("registered");
+        game.enter_level(None, checker).unwrap();
+        let chunk = generated_chunk(game, 0, 0);
+        let y = game.world.shape.min_y + 100;
+        // `CheckerboardColumnBiomeSource`: a cell is `1 << (scale + 2)` quarts, so scale 0 is a
+        // chunk; neighbouring chunks hold the two biomes in turn.
+        let next = generated_chunk(game, 1, 0);
+        let (a, b) = (chunk.biome(0, y, 0), next.biome(0, y, 0));
+        assert_eq!([a, b].into_iter().collect::<std::collections::BTreeSet<_>>(), [plains, desert].into_iter().collect());
+        for (x, z) in [(0, 0), (4, 12), (12, 4), (15, 15)] {
+            assert_eq!(chunk.biome(x, y, z), a, "one biome in a chunk");
+            assert_eq!(next.biome(x, y, z), b, "one biome in a chunk");
+        }
+        game.enter_level(None, Dim::Overworld).unwrap();
+
+        // Debug: the barrier floor.
+        let debug = game.level_dim("mypack:void").expect("registered");
+        game.enter_level(None, debug).unwrap();
+        let chunk = generated_chunk(game, 0, 0);
+        assert_eq!(chunk.get(3, 60, 3), barrier);
+        game.enter_level(None, Dim::Overworld).unwrap();
+    });
+}
+
+/// F3-5: a level whose stem names a mod's generator opens through the registered factory, and
+/// without the registration it does not open.
+#[test]
+#[ignore = "needs HORIZON_TEST_RESOURCES"]
+fn a_mod_generator_makes_the_chunks_of_its_level() {
+    with_moon_game(|game, _| {
+        let stem = serde_json::json!({
+            "type": "minecraft:overworld",
+            "generator": {"type": "yoake:mod", "id": "testmod:floor", "settings": {"depth": 3}}
+        });
+        let dim = game.register_mod_level("mypack:floor", stem).expect("the stem is valid");
+        // No factory yet: the level is registered but cannot open, and says why.
+        let error = game.enter_level(None, dim).unwrap_err().to_string();
+        assert!(error.contains("testmod:floor") && error.contains("no mod registered"), "{error}");
+        assert_eq!(game.dim, Dim::Overworld);
+        assert!(game.register_mod_generator("nocolon", std::sync::Arc::new(FloorFactory)).is_err());
+        game.register_mod_generator("testmod:floor", std::sync::Arc::new(FloorFactory)).unwrap();
+        assert!(game.register_mod_generator("testmod:floor", std::sync::Arc::new(FloorFactory)).is_err());
+        game.enter_level(None, dim).unwrap();
+        let chunk = generated_chunk(game, 2, -1);
+        let floor = game.world.shape.min_y;
+        let stone = game.pack.assets.registry.default_state("minecraft:stone").unwrap().0;
+        for y in floor..floor + 3 {
+            assert_eq!(chunk.get(7, y, 7), stone, "y {y}");
+        }
+        assert_eq!(chunk.get(7, floor + 3, 7), 0);
+        assert_eq!(chunk.biome(0, floor, 0), game.res.biomes().id("minecraft:desert"));
+        // Vanilla levels are not touched by a mod's generator.
+        game.enter_level(None, Dim::Overworld).unwrap();
+        assert_eq!(game.level_facts(), super::level_facts::LevelFacts::OVERWORLD);
     });
 }
