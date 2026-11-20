@@ -120,7 +120,7 @@ yoake-hook-bench = []
 # MX3V1 vertical slice: a WASM core module hooks ArmorStand::tick_settle (docs/yoake2/reports/MX3V1.md). Off by default.
 # It does not turn on `yoake-hook-bench`: that feature exposes typed hook registration (`entities::hook_bench`) and is
 # for the bench and the slice tests only (their `required-features` name it); guests reach hooks through the bridge.
-yoake2-slice = ["dep:yoake-slice", "horizon-items/yoake2-slice", "horizon-world/yoake2-slice"]
+yoake2-slice = ["dep:yoake-slice", "horizon-items/yoake2-slice", "horizon-world/yoake2-slice", "horizon-client-render/yoake2-slice", "horizon-core/yoake2-slice", "horizon-protocol/yoake2-slice", "horizon-command/yoake2-slice"]
 dev-capture = ["horizon-client-render/dev-capture", "horizon-protocol/dev-capture"]
 default = ["audio", "controllers"]
 # Sound output. Without it (and `controllers`) the program links neither libasound nor libudev on

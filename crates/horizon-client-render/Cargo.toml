@@ -7,6 +7,9 @@ rust-version = "1.90"
 description = "The client's world data, rendering and screens: chunks, meshing, light, streaming, the renderer, the HUD, menus and settings; no gameplay"
 
 [dependencies]
+yoake-hook-macro = { path = "../yoake-hook-macro" }
+yoake-hook-rt = { path = "../yoake-hook-rt" }
+yoake-slice = { path = "../yoake-slice", optional = true }
 horizon-cosmetics = { path = "../horizon-cosmetics" }
 # The GUI atlas's pixels, kept compressed once uploaded (hud.rs `pack_pixels`).
 lz4_flex = { version = "0.14", default-features = false, features = ["std", "safe-encode", "safe-decode", "checked-decode"] }
@@ -71,6 +74,8 @@ wgpu = { version = "30.0.1", default-features = false, features = ["dx12"] }
 wgpu = { version = "30.0.1", default-features = false, features = ["gles"] }
 
 [features]
+# W10: the generated hook bridges (the stamping overlay adds them) need the slice runtime
+yoake2-slice = ["dep:yoake-slice"]
 dev-capture = []
 # Sound output: horizon-client's `audio` feature.
 audio = ["dep:cpal"]
@@ -78,6 +83,7 @@ audio = ["dep:cpal"]
 test-support = []
 
 [build-dependencies]
+yoake-hook-ledger = { path = "../yoake-hook-ledger" }
 horizon-mod-api-gen = { path = "../horizon-mod-api-gen" }
 
 [lints]

@@ -1821,6 +1821,10 @@ dependencies = [
  "ureq",
  "wgpu",
  "winit",
+ "yoake-hook-ledger",
+ "yoake-hook-macro",
+ "yoake-hook-rt",
+ "yoake-slice",
  "zip",
  "zune-jpeg",
 ]
@@ -1833,6 +1837,10 @@ dependencies = [
  "horizon-core",
  "horizon-protocol",
  "horizon-world",
+ "yoake-hook-ledger",
+ "yoake-hook-macro",
+ "yoake-hook-rt",
+ "yoake-slice",
 ]
 
 [[package]]
@@ -1840,6 +1848,10 @@ name = "horizon-core"
 version = "0.1.0"
 dependencies = [
  "libm",
+ "yoake-hook-ledger",
+ "yoake-hook-macro",
+ "yoake-hook-rt",
+ "yoake-slice",
  "yoake-value",
 ]
 
@@ -1904,6 +1916,9 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+ "yoake-hook-ledger",
+ "yoake-hook-macro",
+ "yoake-hook-rt",
  "yoake-inject-macro",
  "yoake-inject-rt",
  "yoake-slice",
@@ -2041,6 +2056,10 @@ dependencies = [
  "serde_json",
  "sha1",
  "sha2",
+ "yoake-hook-ledger",
+ "yoake-hook-macro",
+ "yoake-hook-rt",
+ "yoake-slice",
 ]
 
 [[package]]

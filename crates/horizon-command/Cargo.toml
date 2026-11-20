@@ -7,10 +7,20 @@ rust-version = "1.90"
 description = "Commands (Brigadier): the vanilla command tree, argument types, selectors, parsing, suggestions and the network form of the tree"
 
 [dependencies]
+yoake-hook-macro = { path = "../yoake-hook-macro" }
+yoake-hook-rt = { path = "../yoake-hook-rt" }
+yoake-slice = { path = "../yoake-slice", optional = true }
 horizon-client-core = { path = "../horizon-client-core" }
 horizon-core = { path = "../horizon-core" }
 horizon-protocol = { path = "../horizon-protocol" }
 horizon-world = { path = "../horizon-world" }
+
+[build-dependencies]
+yoake-hook-ledger = { path = "../yoake-hook-ledger" }
+
+[features]
+# W10: the generated hook bridges (the stamping overlay adds them) need the slice runtime
+yoake2-slice = ["dep:yoake-slice"]
 
 [lints]
 workspace = true

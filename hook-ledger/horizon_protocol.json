@@ -1,0 +1,4297 @@
+{
+  "crate": "horizon_protocol",
+  "entries": [
+    {
+      "id": 10203,
+      "key": "horizon_protocol::adapter::ids::lookup",
+      "sig": "02a45c6104589886",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10204,
+      "key": "horizon_protocol::adapter::ids::<Guard as Drop>::drop",
+      "sig": "43116095add2f77b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10205,
+      "key": "horizon_protocol::adapter::session::Session::clientbound",
+      "sig": "c7b5fe918dd7c41e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10206,
+      "key": "horizon_protocol::adapter::session::Session::serverbound",
+      "sig": "2c167e388d72dee0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10207,
+      "key": "horizon_protocol::adapter::session::Session::intention",
+      "sig": "02a1ed957ecd2bae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10208,
+      "key": "horizon_protocol::adapter::translate::clientbound",
+      "sig": "3be808bcb3d46589",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10209,
+      "key": "horizon_protocol::adapter::translate::serverbound",
+      "sig": "48d43c58a08abce6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10210,
+      "key": "horizon_protocol::adapter::translate::spawn_info",
+      "sig": "a781049eb1196e28",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10211,
+      "key": "horizon_protocol::adapter::translate::login",
+      "sig": "d1454c4c4f6a3737",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10212,
+      "key": "horizon_protocol::adapter::translate::respawn",
+      "sig": "a61d9075997dd736",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10213,
+      "key": "horizon_protocol::adapter::translate::chunk",
+      "sig": "80ead9588ac4b8d6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10214,
+      "key": "horizon_protocol::adapter::translate::light",
+      "sig": "74b39e1ba3141d5f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10215,
+      "key": "horizon_protocol::adapter::translate::light_update",
+      "sig": "8e8faf53c8f768f8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10216,
+      "key": "horizon_protocol::adapter::translate::renumber_states",
+      "sig": "1b7c1f00b5f188b0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10217,
+      "key": "horizon_protocol::adapter::translate::advancements",
+      "sig": "86feb8a687e36a32",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10218,
+      "key": "horizon_protocol::adapter::translate::particles",
+      "sig": "be9449ced049eda0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10219,
+      "key": "horizon_protocol::adapter::translate::move_entity",
+      "sig": "112e9d0d9ad24b2c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10220,
+      "key": "horizon_protocol::adapter::translate::position_sync",
+      "sig": "5e41b2fd60eea325",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10221,
+      "key": "horizon_protocol::adapter::translate::animate",
+      "sig": "bed04c8a45de6156",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10222,
+      "key": "horizon_protocol::adapter::translate::v1_21_11::chunk",
+      "sig": "ff7cbccb8f4c2847",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10223,
+      "key": "horizon_protocol::adapter::translate::v1_21_11::set_time",
+      "sig": "c06c642bdb8a24bc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10224,
+      "key": "horizon_protocol::adapter::translate::v1_21_11::interact",
+      "sig": "33fec0565d6826fa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10225,
+      "key": "horizon_protocol::adapter::translate::v1_21_11::attack",
+      "sig": "61573d28487d0830",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10226,
+      "key": "horizon_protocol::adapter::translate::v26_1::login",
+      "sig": "d1454c4c4f6a3737",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10227,
+      "key": "horizon_protocol::adapter::translate::v26_1::team",
+      "sig": "828a8dcdde36435d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10228,
+      "key": "horizon_protocol::adapter::translate::v26_1::spectate",
+      "sig": "f7816e1ab0528dad",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10229,
+      "key": "horizon_protocol::attachment_sync::encode",
+      "sig": "1e332501eb04fa63",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10230,
+      "key": "horizon_protocol::attachment_sync::split",
+      "sig": "3b5e55430b4bcddd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10231,
+      "key": "horizon_protocol::attachment_sync::decode",
+      "sig": "ee2d370ea35013aa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10232,
+      "key": "horizon_protocol::buf::Reader::count",
+      "sig": "f7129e00659f1889",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10233,
+      "key": "horizon_protocol::buf::Reader::string",
+      "sig": "ea0656722685656c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10234,
+      "key": "horizon_protocol::buf::Reader::nbt",
+      "sig": "ac95b25c0601ae46",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10235,
+      "key": "horizon_protocol::buf::<Str as Codec<String>>::read",
+      "sig": "255a4979fc80c0a6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10236,
+      "key": "horizon_protocol::buf::<Str as Codec<String>>::write",
+      "sig": "4607f5b22b6e138a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10237,
+      "key": "horizon_protocol::buf::<Bytes as Codec<Vec<u8>>>::read",
+      "sig": "73d0b8c54e77448a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10238,
+      "key": "horizon_protocol::buf::<Bytes as Codec<Vec<u8>>>::write",
+      "sig": "f94211f8a330c09a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10239,
+      "key": "horizon_protocol::buf::<Rest as Codec<Vec<u8>>>::read",
+      "sig": "73d0b8c54e77448a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10240,
+      "key": "horizon_protocol::buf::<Rest as Codec<Vec<u8>>>::write",
+      "sig": "f94211f8a330c09a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10241,
+      "key": "horizon_protocol::buf::<Nbt as Codec<Tag>>::read",
+      "sig": "1ac9107ec83349a9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10242,
+      "key": "horizon_protocol::buf::<Nbt as Codec<Tag>>::write",
+      "sig": "685eb50375de9a13",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10243,
+      "key": "horizon_protocol::buf::<Longs as Codec<Vec<i64>>>::read",
+      "sig": "616bcac3202d3420",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10244,
+      "key": "horizon_protocol::buf::<Longs as Codec<Vec<i64>>>::write",
+      "sig": "82605cea568d3256",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10245,
+      "key": "horizon_protocol::buf::<OptVarInt as Codec<Option<i32>>>::read",
+      "sig": "518b53c2e4bb416a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10246,
+      "key": "horizon_protocol::buf::<OptVarInt as Codec<Option<i32>>>::write",
+      "sig": "25e8941af060e066",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10247,
+      "key": "horizon_protocol::buf::<VarVec3i as Codec<[i32;3]>>::read",
+      "sig": "80383aeafbaacf49",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10248,
+      "key": "horizon_protocol::buf::<VarVec3i as Codec<[i32;3]>>::write",
+      "sig": "7735990d215d140f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10249,
+      "key": "horizon_protocol::buf::<Vec3d as Codec<[f64;3]>>::read",
+      "sig": "fafaec581f01ff0b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10250,
+      "key": "horizon_protocol::buf::<Vec3d as Codec<[f64;3]>>::write",
+      "sig": "0cfdcbe3ea3359b9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10251,
+      "key": "horizon_protocol::buf::<Pos as Codec<[i32;3]>>::read",
+      "sig": "80383aeafbaacf49",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10252,
+      "key": "horizon_protocol::buf::<Pos as Codec<[i32;3]>>::write",
+      "sig": "7735990d215d140f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10253,
+      "key": "horizon_protocol::buf::<ChunkPos as Codec<[i32;2]>>::read",
+      "sig": "cf51dcf1711122c8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10254,
+      "key": "horizon_protocol::buf::<ChunkPos as Codec<[i32;2]>>::write",
+      "sig": "ab6d6b3333f9ee8a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10255,
+      "key": "horizon_protocol::buf::<SectionPos as Codec<[i32;3]>>::read",
+      "sig": "80383aeafbaacf49",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10256,
+      "key": "horizon_protocol::buf::<SectionPos as Codec<[i32;3]>>::write",
+      "sig": "7735990d215d140f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10257,
+      "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::read",
+      "sig": "73d0b8c54e77448a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10258,
+      "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::write",
+      "sig": "f94211f8a330c09a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10259,
+      "key": "horizon_protocol::buf::<LpVec3 as Codec<[f64;3]>>::read",
+      "sig": "fafaec581f01ff0b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10260,
+      "key": "horizon_protocol::buf::<LpVec3 as Codec<[f64;3]>>::write",
+      "sig": "0cfdcbe3ea3359b9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10261,
+      "key": "horizon_protocol::chunk::storage_get",
+      "sig": "062175368a4b0c10",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10262,
+      "key": "horizon_protocol::chunk::Paletted::read",
+      "sig": "e4f29598440a3530",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10263,
+      "key": "horizon_protocol::chunk::Paletted::from_values",
+      "sig": "f12707d5260bf19f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10264,
+      "key": "horizon_protocol::chunk::Paletted::from_palette",
+      "sig": "3cfbca972b67cded",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10265,
+      "key": "horizon_protocol::chunk::Paletted::from_values_slow",
+      "sig": "abcca3d90933d08b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10266,
+      "key": "horizon_protocol::chunk::Section::write",
+      "sig": "fe4751f411c957d1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10267,
+      "key": "horizon_protocol::chunk::<Heightmaps as Codec<Vec<(i32,Vec<i64>)>>>::read",
+      "sig": "b0c2151dc9b8b11b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10268,
+      "key": "horizon_protocol::chunk::<Heightmaps as Codec<Vec<(i32,Vec<i64>)>>>::write",
+      "sig": "e62643b19c1b0855",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10269,
+      "key": "horizon_protocol::chunk::<Layers as Codec<Vec<Vec<u8>>>>::read",
+      "sig": "37c325a686eda6aa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10270,
+      "key": "horizon_protocol::chunk::<Layers as Codec<Vec<Vec<u8>>>>::write",
+      "sig": "6852165bd90bf1ca",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10271,
+      "key": "horizon_protocol::connection::CaptureFences::prepare[cfg(feature=\"dev-capture\")]",
+      "sig": "2edc080d87c0bfdf",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10272,
+      "key": "horizon_protocol::connection::CaptureFences::apply_input[cfg(feature=\"dev-capture\")]",
+      "sig": "117d2ba55632a87b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10273,
+      "key": "horizon_protocol::connection::CaptureFences::apply_output[cfg(feature=\"dev-capture\")]",
+      "sig": "8aa5f5a0da3a7c22",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10274,
+      "key": "horizon_protocol::connection::<End as Drop>::drop",
+      "sig": "43116095add2f77b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10275,
+      "key": "horizon_protocol::connection::Pipe::pair",
+      "sig": "33ad0de38cacc358",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10276,
+      "key": "horizon_protocol::connection::<Pipe as Read>::read",
+      "sig": "9dcba0e7b36ff072",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10277,
+      "key": "horizon_protocol::connection::<Pipe as Write>::write",
+      "sig": "b52052a5c9a93de9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10278,
+      "key": "horizon_protocol::connection::<Pipe as Write>::flush",
+      "sig": "f1711ec24abe5776",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10279,
+      "key": "horizon_protocol::connection::<Stream as Read>::read",
+      "sig": "9dcba0e7b36ff072",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10280,
+      "key": "horizon_protocol::connection::<Stream as Write>::write",
+      "sig": "b52052a5c9a93de9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10281,
+      "key": "horizon_protocol::connection::<Stream as Write>::flush",
+      "sig": "f1711ec24abe5776",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10282,
+      "key": "horizon_protocol::connection::Connection::connect_addresses",
+      "sig": "53073ec6c3bdf5e1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10283,
+      "key": "horizon_protocol::connection::Connection::enable_encryption",
+      "sig": "bc008db526459508",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10284,
+      "key": "horizon_protocol::connection::ConnReader::fill",
+      "sig": "ad02eef55e75de43",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10285,
+      "key": "horizon_protocol::connection::ConnWriter::send_contents",
+      "sig": "81d99699a76be66b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10286,
+      "key": "horizon_protocol::crypto::java_hex_digest",
+      "sig": "cc0b6e2d78abf838",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10287,
+      "key": "horizon_protocol::crypto::server_hash",
+      "sig": "141c0710abe51ed1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10288,
+      "key": "horizon_protocol::crypto::md5",
+      "sig": "b0a3b5bbad6d3dab",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10289,
+      "key": "horizon_protocol::crypto::offline_uuid",
+      "sig": "685e9803cb26ffe8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10290,
+      "key": "horizon_protocol::crypto::blocks::imp::round_keys[cfg(all(target_arch=\"aarch64\",target_feature=\"aes\"))]",
+      "sig": "46d02d72efdee05e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10291,
+      "key": "horizon_protocol::entity_data::read_profile",
+      "sig": "8ff38ca3849a33f2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10292,
+      "key": "horizon_protocol::entity_data::write_profile",
+      "sig": "fd7d014074c65aa6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10293,
+      "key": "horizon_protocol::entity_data::Particle::read",
+      "sig": "5ffa59bf048257fd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10294,
+      "key": "horizon_protocol::entity_data::<EntityData as Codec<Vec<(u8,i32,Value)>>>::read",
+      "sig": "04486fb31e6e5a3e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10295,
+      "key": "horizon_protocol::entity_data::<EntityData as Codec<Vec<(u8,i32,Value)>>>::write",
+      "sig": "c45ae5612f89ee66",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10296,
+      "key": "horizon_protocol::frame::prefixed",
+      "sig": "79d69723aad999d6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10297,
+      "key": "horizon_protocol::frame::<Inflater as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10298,
+      "key": "horizon_protocol::frame::Inflater::inflate",
+      "sig": "cca44a42c14b5cbc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10299,
+      "key": "horizon_protocol::frame::body",
+      "sig": "8efff987c58affca",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10300,
+      "key": "horizon_protocol::hash_ops::crc32c",
+      "sig": "fb58048a56313aeb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10301,
+      "key": "horizon_protocol::hash_ops::HashOps::create_map",
+      "sig": "23266063002e0ebe",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10302,
+      "key": "horizon_protocol::item::FireworkExplosion::write",
+      "sig": "fe4751f411c957d1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10303,
+      "key": "horizon_protocol::item::SkinPatch::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10304,
+      "key": "horizon_protocol::item::Component::banner_layers",
+      "sig": "cc8d513dae9727ea",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10305,
+      "key": "horizon_protocol::item::WirePatch::adds",
+      "sig": "a3243e4e8e3c2cfa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10306,
+      "key": "horizon_protocol::item::WirePatch::decode",
+      "sig": "f45c6574ba687950",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10307,
+      "key": "horizon_protocol::item::<WirePatch as PartialEq>::eq",
+      "sig": "398ce4253199ec58",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10308,
+      "key": "horizon_protocol::item::<Slot as Codec<Option<Stack>>>::read",
+      "sig": "5f97c54681c891bc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10309,
+      "key": "horizon_protocol::item::<Slot as Codec<Option<Stack>>>::write",
+      "sig": "876c3908d28b7f40",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10310,
+      "key": "horizon_protocol::item::read_stack",
+      "sig": "118a44c46a636404",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10311,
+      "key": "horizon_protocol::item::<DelimitedSlot as Codec<Option<Stack>>>::read",
+      "sig": "5f97c54681c891bc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10312,
+      "key": "horizon_protocol::item::<DelimitedSlot as Codec<Option<Stack>>>::write",
+      "sig": "876c3908d28b7f40",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10313,
+      "key": "horizon_protocol::item::<Template as Codec<Stack>>::read",
+      "sig": "8d89ac775ae2f055",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10314,
+      "key": "horizon_protocol::item::<Template as Codec<Stack>>::write",
+      "sig": "4aca65ee6c6007c2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10315,
+      "key": "horizon_protocol::item::<HashedSlot as Codec<Option<Hashed>>>::read",
+      "sig": "d2a52d300d5e9325",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10316,
+      "key": "horizon_protocol::item::<HashedSlot as Codec<Option<Hashed>>>::write",
+      "sig": "9c545ae84ae3daf7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10317,
+      "key": "horizon_protocol::item::custom::<InstallError as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10318,
+      "key": "horizon_protocol::item::custom::install",
+      "sig": "114be91a28afc440",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10319,
+      "key": "horizon_protocol::item::custom::validate",
+      "sig": "cd4c3993ad6912a9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10320,
+      "key": "horizon_protocol::item::hash::<NoNames as Names>::name",
+      "sig": "37075675df034581",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10321,
+      "key": "horizon_protocol::item::hash::explosion",
+      "sig": "2ceec1c4b8ff871d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10322,
+      "key": "horizon_protocol::item::hash::template",
+      "sig": "7f731325e2788281",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10323,
+      "key": "horizon_protocol::item::hash::gameplay::swing",
+      "sig": "f28657cb084523e6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10324,
+      "key": "horizon_protocol::item::hash::gameplay::kinetic_condition",
+      "sig": "a6a7f06488b35119",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10325,
+      "key": "horizon_protocol::item::hash::gameplay::partial_predicate",
+      "sig": "76cd77e69ecf4716",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10326,
+      "key": "horizon_protocol::item::hash::gameplay::block_predicate",
+      "sig": "700825ca82e4c10c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10327,
+      "key": "horizon_protocol::item::hash::raw::typed_data",
+      "sig": "676202c9d70f6ea4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10328,
+      "key": "horizon_protocol::item::hash::raw::effect_details",
+      "sig": "f4bb731ffb88a6db",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10329,
+      "key": "horizon_protocol::item::hash::raw::potion_tail",
+      "sig": "c959b81a9f457c9e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10330,
+      "key": "horizon_protocol::item::hash::raw::trim_pattern",
+      "sig": "55258a5e44804b83",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10331,
+      "key": "horizon_protocol::item::hash::raw::instrument",
+      "sig": "9e17a0141fc59b68",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10332,
+      "key": "horizon_protocol::item::hash::raw::code",
+      "sig": "948f9cf79d1f3041",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10333,
+      "key": "horizon_protocol::item::skip::effect_details",
+      "sig": "e92314cc58f94e18",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10334,
+      "key": "horizon_protocol::item::skip::block_predicate",
+      "sig": "322461cd1ecbf4b1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10335,
+      "key": "horizon_protocol::item::skip::attribute_modifier",
+      "sig": "0dbfe6777a4e70ac",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10336,
+      "key": "horizon_protocol::item::skip::tool",
+      "sig": "3dfb84025f6f6516",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10337,
+      "key": "horizon_protocol::item::skip::equippable",
+      "sig": "70c09dc320622e38",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10338,
+      "key": "horizon_protocol::item::skip::blocks_attacks",
+      "sig": "20bd99dcaade9b18",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10339,
+      "key": "horizon_protocol::item::skip::kinetic_weapon",
+      "sig": "ad13cddad3595014",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10340,
+      "key": "horizon_protocol::item::skip::firework_explosion",
+      "sig": "891a942e5dd355f5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10341,
+      "key": "horizon_protocol::mod_list::encode",
+      "sig": "58e24ced16da7540",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10342,
+      "key": "horizon_protocol::mod_list::decode",
+      "sig": "760f401cbc766b61",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10343,
+      "key": "horizon_protocol::mod_list::compare",
+      "sig": "688f84196d8c3f31",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10344,
+      "key": "horizon_protocol::mod_list::native::validate",
+      "sig": "eea126381d114354",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10345,
+      "key": "horizon_protocol::mod_list::native::digest",
+      "sig": "7b3ef87412f1fb94",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10346,
+      "key": "horizon_protocol::mod_list::native::Snapshot::new",
+      "sig": "0b31e9b17857c87a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10347,
+      "key": "horizon_protocol::mod_list::native::encode",
+      "sig": "e23cc9a6aaf6dbbe",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10348,
+      "key": "horizon_protocol::mod_list::native::decode",
+      "sig": "f6b863e949dcd10f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10349,
+      "key": "horizon_protocol::mod_list::native::Difference::reason",
+      "sig": "4b1ccff5070a9aec",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10350,
+      "key": "horizon_protocol::mod_net::encode",
+      "sig": "1e332501eb04fa63",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10351,
+      "key": "horizon_protocol::mod_net::decode",
+      "sig": "ee2d370ea35013aa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10352,
+      "key": "horizon_protocol::mod_transfer::parse_hex",
+      "sig": "1c329cda829b3cd2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10353,
+      "key": "horizon_protocol::mod_transfer::Offer::new",
+      "sig": "7f6b744cb25773e6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10354,
+      "key": "horizon_protocol::mod_transfer::Offer::encode",
+      "sig": "b215f30cbc2f11ee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10355,
+      "key": "horizon_protocol::mod_transfer::Offer::decode_body",
+      "sig": "bf1588a6513d5964",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10356,
+      "key": "horizon_protocol::mod_transfer::Message::decode",
+      "sig": "380d1e6bb748c3c5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10357,
+      "key": "horizon_protocol::mod_transfer::refuse",
+      "sig": "387d09d0527a9954",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10358,
+      "key": "horizon_protocol::mod_transfer::chunk",
+      "sig": "13fe16b9d5181e2a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10359,
+      "key": "horizon_protocol::packets::<Empty as Codec<Empty>>::read",
+      "sig": "94baac9a20cff518",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10360,
+      "key": "horizon_protocol::packets::<Empty as Codec<Empty>>::write",
+      "sig": "0741fac45ede96cb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10361,
+      "key": "horizon_protocol::packets::configuration::<ServerLink as Codec<ServerLink>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10362,
+      "key": "horizon_protocol::packets::configuration::<ServerLink as Codec<ServerLink>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10363,
+      "key": "horizon_protocol::packets::configuration::<ClickPayload as Codec<Option<Tag>>>::read",
+      "sig": "2e2c87fbc2eae5bc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10364,
+      "key": "horizon_protocol::packets::configuration::<ClickPayload as Codec<Option<Tag>>>::write",
+      "sig": "2868f1877c4fcbec",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10365,
+      "key": "horizon_protocol::packets::configuration::<ClientInformation as Codec<ClientInformation>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10366,
+      "key": "horizon_protocol::packets::configuration::<ClientInformation as Codec<ClientInformation>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10367,
+      "key": "horizon_protocol::packets::play::<NetCost as From<Stack>>::from",
+      "sig": "aa608585ef3e709d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10368,
+      "key": "horizon_protocol::packets::play::<Stack as From<NetCost>>::from",
+      "sig": "8ce7f50a44cba150",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10369,
+      "key": "horizon_protocol::packets::play::<Offers as Codec<Vec<NetOffer>>>::read",
+      "sig": "e9aa02b783342eac",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10370,
+      "key": "horizon_protocol::packets::play::<Offers as Codec<Vec<NetOffer>>>::write",
+      "sig": "038339f03d84eed4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10371,
+      "key": "horizon_protocol::packets::play::<HolderId as Codec<i32>>::read",
+      "sig": "6f6eb5d189fa8647",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10372,
+      "key": "horizon_protocol::packets::play::<HolderId as Codec<i32>>::write",
+      "sig": "84b119c1fbcbe689",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10373,
+      "key": "horizon_protocol::packets::play::<DialogHolder as Codec<DialogHolder>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10374,
+      "key": "horizon_protocol::packets::play::<DialogHolder as Codec<DialogHolder>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10375,
+      "key": "horizon_protocol::packets::play::<PositionPath as Codec<PositionPath>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10376,
+      "key": "horizon_protocol::packets::play::<PositionPath as Codec<PositionPath>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10377,
+      "key": "horizon_protocol::packets::play::<MapPatchOpt as Codec<Option<MapPatch>>>::read",
+      "sig": "ee8b8bd14e7d1340",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10378,
+      "key": "horizon_protocol::packets::play::<MapPatchOpt as Codec<Option<MapPatch>>>::write",
+      "sig": "968c8b99078dfc12",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10379,
+      "key": "horizon_protocol::packets::play::<PackedSignature as Codec<(i32,Option<Vec<u8>>)>>::read",
+      "sig": "3a109cfc0621c1bc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10380,
+      "key": "horizon_protocol::packets::play::<PackedSignature as Codec<(i32,Option<Vec<u8>>)>>::write",
+      "sig": "fb2e701727d1584e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10381,
+      "key": "horizon_protocol::packets::play::<Signature as Codec<Vec<u8>>>::read",
+      "sig": "73d0b8c54e77448a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10382,
+      "key": "horizon_protocol::packets::play::<Signature as Codec<Vec<u8>>>::write",
+      "sig": "f94211f8a330c09a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10383,
+      "key": "horizon_protocol::packets::play::<FilterMask as Codec<(i32,Vec<i64>)>>::read",
+      "sig": "1457211193cdb42f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10384,
+      "key": "horizon_protocol::packets::play::<FilterMask as Codec<(i32,Vec<i64>)>>::write",
+      "sig": "efe2a65be4881555",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10385,
+      "key": "horizon_protocol::packets::play::<PlayerInfoUpdate as Codec<PlayerInfoUpdate>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10386,
+      "key": "horizon_protocol::packets::play::<PlayerInfoUpdate as Codec<PlayerInfoUpdate>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10387,
+      "key": "horizon_protocol::packets::play::<Equipment as Codec<Vec<(u8,Option<Stack>)>>>::read",
+      "sig": "ec7e01fcf3408a16",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10388,
+      "key": "horizon_protocol::packets::play::<Equipment as Codec<Vec<(u8,Option<Stack>)>>>::write",
+      "sig": "e423d4b70855c1e0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10389,
+      "key": "horizon_protocol::packets::play::<SoundHolder as Codec<(i32,Option<(String,Option<f32>)>)>>::read",
+      "sig": "acd0d81d695c73d5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10390,
+      "key": "horizon_protocol::packets::play::<SoundHolder as Codec<(i32,Option<(String,Option<f32>)>)>>::write",
+      "sig": "0df876c2d227cb4d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10391,
+      "key": "horizon_protocol::packets::play::<NumberFormat as Codec<NumberFormat>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10392,
+      "key": "horizon_protocol::packets::play::<NumberFormat as Codec<NumberFormat>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10393,
+      "key": "horizon_protocol::packets::play::<SetObjective as Codec<SetObjective>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10394,
+      "key": "horizon_protocol::packets::play::<SetObjective as Codec<SetObjective>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10395,
+      "key": "horizon_protocol::packets::play::<LevelParticles as Codec<LevelParticles>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10396,
+      "key": "horizon_protocol::packets::play::<LevelParticles as Codec<LevelParticles>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10397,
+      "key": "horizon_protocol::packets::play::<Explode as Codec<Explode>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10398,
+      "key": "horizon_protocol::packets::play::<Explode as Codec<Explode>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10399,
+      "key": "horizon_protocol::packets::play::<SetPlayerTeam as Codec<SetPlayerTeam>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10400,
+      "key": "horizon_protocol::packets::play::<SetPlayerTeam as Codec<SetPlayerTeam>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10401,
+      "key": "horizon_protocol::packets::play::<StopSound as Codec<StopSound>>::read",
+      "sig": "2b0ed3834ca24fe8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10402,
+      "key": "horizon_protocol::packets::play::<StopSound as Codec<StopSound>>::write",
+      "sig": "92264f144dc6855f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10403,
+      "key": "horizon_protocol::packets::play::<Commands as Codec<Commands>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10404,
+      "key": "horizon_protocol::packets::play::<Commands as Codec<Commands>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10405,
+      "key": "horizon_protocol::packets::play::<UpdateAdvancements as Codec<UpdateAdvancements>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10406,
+      "key": "horizon_protocol::packets::play::<UpdateAdvancements as Codec<UpdateAdvancements>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10407,
+      "key": "horizon_protocol::packets::play::<StatList as Codec<Vec<(i32,i32,i32)>>>::read",
+      "sig": "3b04db5459145ad8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10408,
+      "key": "horizon_protocol::packets::play::<StatList as Codec<Vec<(i32,i32,i32)>>>::write",
+      "sig": "461cad1d3c70235a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10409,
+      "key": "horizon_protocol::packets::play::<BossEvent as Codec<BossEvent>>::read",
+      "sig": "93e12d4e5501cb5a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10410,
+      "key": "horizon_protocol::packets::play::<BossEvent as Codec<BossEvent>>::write",
+      "sig": "fafb451a49bb8d8c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10411,
+      "key": "horizon_protocol::packets::play::<TrackedWaypoint as Codec<TrackedWaypoint>>::read",
+      "sig": "f7b092dcd4122d44",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10412,
+      "key": "horizon_protocol::packets::play::<TrackedWaypoint as Codec<TrackedWaypoint>>::write",
+      "sig": "c8290d5a68a5c232",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10413,
+      "key": "horizon_protocol::packets::play::<Fixed3 as Codec<[u8;3]>>::read",
+      "sig": "df649fbcf1354a80",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10414,
+      "key": "horizon_protocol::packets::play::<Fixed3 as Codec<[u8;3]>>::write",
+      "sig": "d2c36de5cf58a38c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10415,
+      "key": "horizon_protocol::packets::play::<ArgumentSignatures as Codec<Vec<(String,Vec<u8>)>>>::read",
+      "sig": "22911e203a489e5c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10416,
+      "key": "horizon_protocol::packets::play::<ArgumentSignatures as Codec<Vec<(String,Vec<u8>)>>>::write",
+      "sig": "19bcd6be279d2146",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10417,
+      "key": "horizon_protocol::packets::play::<ChangedSlots as Codec<Vec<(i16,Option<Hashed>)>>>::read",
+      "sig": "eea122c171368f02",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10418,
+      "key": "horizon_protocol::packets::play::<ChangedSlots as Codec<Vec<(i16,Option<Hashed>)>>>::write",
+      "sig": "527bc0bdba9dd5c8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10419,
+      "key": "horizon_protocol::packets::play::<SetStructureBlock as Codec<SetStructureBlock>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10420,
+      "key": "horizon_protocol::packets::play::<SetStructureBlock as Codec<SetStructureBlock>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10421,
+      "key": "horizon_protocol::packets::play::<BookPages as Codec<Vec<String>>>::read",
+      "sig": "8d83ade46ac79112",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10422,
+      "key": "horizon_protocol::packets::play::<BookPages as Codec<Vec<String>>>::write",
+      "sig": "6c5f0cdb2746eece",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10423,
+      "key": "horizon_protocol::packets::play::<SignSide as Codec<bool>>::read",
+      "sig": "4d8ee850a92bf72f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10424,
+      "key": "horizon_protocol::packets::play::<SignSide as Codec<bool>>::write",
+      "sig": "dd7cce8de93328a3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10425,
+      "key": "horizon_protocol::packets::play::<SignLines as Codec<[String;4]>>::read",
+      "sig": "a33dba369aa03cdf",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10426,
+      "key": "horizon_protocol::packets::play::<SignLines as Codec<[String;4]>>::write",
+      "sig": "91dea81e89c675f7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10427,
+      "key": "horizon_protocol::packets::play::<Cursor as Codec<[f32;3]>>::read",
+      "sig": "2c227e896db9f326",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10428,
+      "key": "horizon_protocol::packets::play::<Cursor as Codec<[f32;3]>>::write",
+      "sig": "7458ecafaaf11510",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10429,
+      "key": "horizon_protocol::packets::recipes::HolderSet::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10430,
+      "key": "horizon_protocol::packets::recipes::read_list",
+      "sig": "cb39911634c84bee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10431,
+      "key": "horizon_protocol::packets::recipes::<RecipeDisplay as Codec<RecipeDisplay>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10432,
+      "key": "horizon_protocol::packets::recipes::<RecipeDisplay as Codec<RecipeDisplay>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10433,
+      "key": "horizon_protocol::packets::recipes::RecipeBookEntry::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10434,
+      "key": "horizon_protocol::packets::recipes::<RecipeBookAdd as Codec<RecipeBookAdd>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10435,
+      "key": "horizon_protocol::packets::recipes::<RecipeBookAdd as Codec<RecipeBookAdd>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10436,
+      "key": "horizon_protocol::packets::recipes::<RecipeBookRemove as Codec<RecipeBookRemove>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10437,
+      "key": "horizon_protocol::packets::recipes::<RecipeBookRemove as Codec<RecipeBookRemove>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10438,
+      "key": "horizon_protocol::packets::recipes::<RecipeBookSettings as Codec<RecipeBookSettings>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10439,
+      "key": "horizon_protocol::packets::recipes::<RecipeBookSettings as Codec<RecipeBookSettings>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10440,
+      "key": "horizon_protocol::packets::recipes::<RecipeBookSeenRecipe as Codec<RecipeBookSeenRecipe>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10441,
+      "key": "horizon_protocol::packets::recipes::<RecipeBookSeenRecipe as Codec<RecipeBookSeenRecipe>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10442,
+      "key": "horizon_protocol::packets::recipes::<RecipeBookChangeSettings as Codec<RecipeBookChangeSettings>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10443,
+      "key": "horizon_protocol::packets::recipes::<RecipeBookChangeSettings as Codec<RecipeBookChangeSettings>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10444,
+      "key": "horizon_protocol::packets::recipes::<PlaceGhostRecipe as Codec<PlaceGhostRecipe>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10445,
+      "key": "horizon_protocol::packets::recipes::<PlaceGhostRecipe as Codec<PlaceGhostRecipe>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10446,
+      "key": "horizon_protocol::packets::recipes::<PlaceRecipe as Codec<PlaceRecipe>>::read",
+      "sig": "1ec5abadeb3677a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10447,
+      "key": "horizon_protocol::packets::recipes::<PlaceRecipe as Codec<PlaceRecipe>>::write",
+      "sig": "32a003a9d7619add",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10448,
+      "key": "horizon_protocol::quiet::encode",
+      "sig": "395da81af505b325",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10449,
+      "key": "horizon_protocol::quiet::decode",
+      "sig": "c3fcc79bf858f289",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10450,
+      "key": "horizon_protocol::registry::Builtin::parse",
+      "sig": "f30146428e17624d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10451,
+      "key": "horizon_protocol::registry::Dynamic::dimension",
+      "sig": "7096d09ecd5ae5b0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10452,
+      "key": "horizon_protocol::resolver::dns::query_srv",
+      "sig": "47a7efb6ab3df811",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10453,
+      "key": "horizon_protocol::resolver::dns::ask_udp",
+      "sig": "beb566745b7c02a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10454,
+      "key": "horizon_protocol::resolver::dns::ask_tcp",
+      "sig": "6da7be9b6e97b281",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10455,
+      "key": "horizon_protocol::resolver::dns::encode_query",
+      "sig": "3bbe6bfda15848b1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10456,
+      "key": "horizon_protocol::resolver::dns::parse_answer",
+      "sig": "aaf01fce9cc09563",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10457,
+      "key": "horizon_protocol::resolver::dns::read_name",
+      "sig": "4208b6475f242cbf",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10458,
+      "key": "horizon_protocol::rsa::Big::mul_small_add",
+      "sig": "017219c29131118b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10459,
+      "key": "horizon_protocol::rsa::Big::div_small",
+      "sig": "f54807688778090f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10460,
+      "key": "horizon_protocol::rsa::Mont::new",
+      "sig": "9dbcaefce6acf345",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10461,
+      "key": "horizon_protocol::rsa::Mont::mul",
+      "sig": "fcfc53990adca406",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10462,
+      "key": "horizon_protocol::rsa::Mont::pow",
+      "sig": "5932844dd326548d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10463,
+      "key": "horizon_protocol::rsa::RsaPublicKey::from_der",
+      "sig": "4e2b0c7b93303ae8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10464,
+      "key": "horizon_protocol::rsa::RsaPublicKey::apply",
+      "sig": "2ba7e5b96a2e4176",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10465,
+      "key": "horizon_protocol::rsa::RsaPublicKey::encrypt",
+      "sig": "82044bfcb220b12e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10466,
+      "key": "horizon_protocol::rsa::emsa_pkcs1",
+      "sig": "8ec2ea992ecffbfd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10467,
+      "key": "horizon_protocol::rsa::candidate",
+      "sig": "cb2b67f22a6a2152",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10468,
+      "key": "horizon_protocol::rsa::probably_prime",
+      "sig": "4c36fe730abaff39",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10469,
+      "key": "horizon_protocol::rsa::der_element",
+      "sig": "2dc3194addba427a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10470,
+      "key": "horizon_protocol::rsa::<RsaPrivateKey as Debug>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10471,
+      "key": "horizon_protocol::rsa::RsaPrivateKey::generate",
+      "sig": "3552a8154df334dd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10472,
+      "key": "horizon_protocol::rsa::RsaPrivateKey::public_der",
+      "sig": "fec1e8c617811ded",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10473,
+      "key": "horizon_protocol::rsa::RsaPrivateKey::decrypt",
+      "sig": "33577c232659a861",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10474,
+      "key": "horizon_protocol::rsa::RsaPrivateKey::from_der",
+      "sig": "7b79dd7a6070fa5e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10475,
+      "key": "horizon_protocol::rsa::RsaPrivateKey::sign",
+      "sig": "54f43b9ad15d92d8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10476,
+      "key": "horizon_protocol::secure_chat::ProfileKey::signed_payload",
+      "sig": "5aa47a1a2ed0cb6c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10477,
+      "key": "horizon_protocol::secure_chat::ChatSession::validate",
+      "sig": "bd9ac18abd82e9eb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10478,
+      "key": "horizon_protocol::secure_chat::signed_payload",
+      "sig": "8b25268175213804",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10479,
+      "key": "horizon_protocol::secure_chat::Chain::unpack",
+      "sig": "207b122f19a617fc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10480,
+      "key": "horizon_protocol::secure_chat::MessageValidator::validate",
+      "sig": "0195013766795459",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10481,
+      "key": "horizon_protocol::secure_chat::<LastSeenValidator as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10482,
+      "key": "horizon_protocol::secure_chat::LastSeenValidator::apply_update",
+      "sig": "f234eb05c79f35d1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10483,
+      "key": "horizon_protocol::secure_chat::<SignatureCache as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10484,
+      "key": "horizon_protocol::secure_chat::Encoder::sign",
+      "sig": "101250452879f560",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10485,
+      "key": "horizon_protocol::secure_chat::<LastSeenTracker as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10486,
+      "key": "horizon_protocol::secure_chat::LastSeenTracker::add_pending",
+      "sig": "be483c1530a98733",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10487,
+      "key": "horizon_protocol::secure_chat::LastSeenTracker::update",
+      "sig": "d1fe644cfd446470",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10488,
+      "key": "horizon_protocol::servers::ServerEntry::to_tag",
+      "sig": "473db45a2767f241",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10489,
+      "key": "horizon_protocol::servers::prepend",
+      "sig": "81d3adb68fe1a349",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10490,
+      "key": "horizon_protocol::servers::write",
+      "sig": "b59b1eee478f0d64",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10491,
+      "key": "horizon_protocol::servers::parse_address",
+      "sig": "d6226d83b3542368",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10492,
+      "key": "horizon_protocol::text::format_java",
+      "sig": "b7d6380d081724cf",
+      "status": "live",
+      "kind": "fn"
+    }
+  ],
+  "excluded": [
+    {
+      "key": "horizon_protocol::adapter::ServerVersion::at_most",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ServerVersion::clientbound_id",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ServerVersion::from_protocol",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ServerVersion::ids",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ServerVersion::map",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ServerVersion::name",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ServerVersion::protocol",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ServerVersion::serverbound_body",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ServerVersion::serverbound_id",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::Ids::state_bits",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::Remap::down",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::Remap::up",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::active",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::apply",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::block_state",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::component",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::entity_data_serializer",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::entity_type",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::item",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::particle",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::quirks",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::renumbering",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::slot_display",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::ids::sound_event",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::session::Session::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::session::Session::next_incoming",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::session::Session::reading",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::session::Session::set_reading",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::session::Session::set_writing",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::session::Session::take_outgoing",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::session::Session::writing",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::session::from_u8",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::session::to_u8",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::translate::Ids::by_registry",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::translate::decode_play",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::translate::redecode",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::translate::strip_id",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::translate::tags",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::translate::v1_21_11::clientbound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::translate::v1_21_11::entity_data",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::translate::v1_21_11::world_clocks",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::translate::v26_1::clientbound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::v1_21_11::clientbound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::v1_21_11::serverbound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::v26_1_2::clientbound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::v26_1_2::serverbound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::v26_2::clientbound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::adapter::v26_2::serverbound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::<BytesN<N> as Codec<Vec<u8>>>::read",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::<BytesN<N> as Codec<Vec<u8>>>::write",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::<List<C> as Codec<Vec<T>>>::read",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::<List<C> as Codec<Vec<T>>>::write",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::<Opt<C> as Codec<Option<T>>>::read",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::<Opt<C> as Codec<Option<T>>>::write",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::<StrN<N> as Codec<String>>::read",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::<StrN<N> as Codec<String>>::write",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::LpVec3::pack",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::LpVec3::quantize",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::LpVec3::sanitize",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::LpVec3::unpack",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::array",
+      "reason": "const generics",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::bool",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::byte_array",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::bytes",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::f32",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::f64",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::fixed_longs",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::i16",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::i32",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::i64",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::i8",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::long_array",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::position",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::remaining",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::rest",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::since",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::u16",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::u32",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::u8",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::uuid",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::varint",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::varlong",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::bool",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::byte_array",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::bytes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::f32",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::f64",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::i16",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::i32",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::i64",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::i8",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::long_array",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::nbt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::string",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::u16",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::u32",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::u8",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::uuid",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::varint",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Writer::varlong",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::bit",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::pack_block_pos",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::pack_degrees",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::set_bit",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::unpack_block_pos",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::unpack_degrees",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::varint_size",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::write_varint",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::ChunkData::from_sections",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::ChunkData::sections",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::LightData::layers",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::Paletted::get",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::Paletted::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::Section::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::Strategy::configuration",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::Strategy::entries",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::nibble",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::pack",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::storage_len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::CaptureFenceId::decode[cfg(feature=\"dev-capture\")]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::CaptureFenceId::encode[cfg(feature=\"dev-capture\")]",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::CaptureFences::expected[cfg(feature=\"dev-capture\")]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::CaptureFences::input_applied[cfg(feature=\"dev-capture\")]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::CaptureFences::output_applied[cfg(feature=\"dev-capture\")]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Channel::close",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Closer::close",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::ConnReader::closer",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::ConnReader::packet",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::ConnReader::read_raw",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::ConnReader::recv",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::ConnReader::set_read_timeout",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::ConnWriter::send",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::ConnWriter::shutdown",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::ConnWriter::write_raw",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::adapt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::capture_fences[cfg(feature=\"dev-capture\")]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::connect",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::connect_server",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::connect_server_with_address",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::from_stream",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::is_memory",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::is_social",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::local",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::over",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::recv",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::send",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::set_compression",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::social",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Connection::split",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Pipe::capture_fences[cfg(feature=\"dev-capture\")]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Pipe::shutdown",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Pipe::try_clone",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Stream::set_read_timeout",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Stream::shutdown",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::Stream::try_clone",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::ipv4_first",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::Cfb8::decrypt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::Cfb8::encrypt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::Cfb8::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::Blocks::cfb8_encrypt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::Blocks::encrypt_block",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::Blocks::encrypt_lanes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::Blocks::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::imp::Key::cfb8_encrypt[cfg(all(target_arch=\"aarch64\",target_feature=\"aes\"))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::imp::Key::cfb8_encrypt[cfg(not(all(target_arch=\"aarch64\",target_feature=\"aes\")))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::imp::Key::encrypt_block[cfg(all(target_arch=\"aarch64\",target_feature=\"aes\"))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::imp::Key::encrypt_block[cfg(not(all(target_arch=\"aarch64\",target_feature=\"aes\")))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::imp::Key::encrypt_lanes[cfg(all(target_arch=\"aarch64\",target_feature=\"aes\"))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::imp::Key::encrypt_lanes[cfg(not(all(target_arch=\"aarch64\",target_feature=\"aes\")))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::imp::Key::new[cfg(all(target_arch=\"aarch64\",target_feature=\"aes\"))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::imp::Key::new[cfg(not(all(target_arch=\"aarch64\",target_feature=\"aes\")))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::imp::cfb8_encrypt[cfg(all(target_arch=\"aarch64\",target_feature=\"aes\"))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::imp::encrypt[cfg(all(target_arch=\"aarch64\",target_feature=\"aes\"))]",
+      "reason": "const generics",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::imp::load[cfg(all(target_arch=\"aarch64\",target_feature=\"aes\"))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::blocks::imp::store[cfg(all(target_arch=\"aarch64\",target_feature=\"aes\"))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::generate_secret",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::random_bytes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::crypto::uuid_string",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::entity_data::Particle::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::entity_data::read_properties",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::entity_data::read_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::entity_data::write_properties",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::entity_data::write_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::frame::contents",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::frame::encode",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::frame::header",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashCode::as_bytes",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashCode::as_int",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_boolean",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_byte",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_byte_list",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_double",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_f32",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_float",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_int",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_int_list",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_list",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_long",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_long_list",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_short",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_string",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::create_string_units",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::empty_list",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::empty_map",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::HashOps::from_nbt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::Hasher::byte",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::Hasher::bytes",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::Hasher::hash",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::RecordHash::build",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::RecordHash::field",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::RecordHash::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::hash_ops::RecordHash::optional",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::ids::name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::Component::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::Component::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::FireworkExplosion::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::Hashed::of",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::SkinPatch::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::Stack::component",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::Stack::damage",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::Stack::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::custom::contains",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::custom::entries",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::custom::id",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::custom::name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::custom::permitted",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::filterable",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::filtered_variants",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::Component::code",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::Component::hash",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::Hashed::create",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::enchantments",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::entry",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::exact::Shape::of",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::exact::Shape::plain",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::exact::Shape::stacks",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::exact::Shape::with",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::exact::components",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::exact::predicate",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::exact::shape",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::exact::units",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::exact::walk",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::filterable",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::bool_or",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::boolean",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::code",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::consume_effect",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::fixed_float",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::fixed_int",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::float",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::float_or",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::holder",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::holder_set",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::ident",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::int",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::int_or",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::list",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::optional",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::resolvable",
+      "reason": "nested callable borrow",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::sound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::gameplay::sound_or",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::int_list",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::or_default",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::pick",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::banner_pattern",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::dye",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::float",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::four_texts",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::holder_or",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::int",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::int_record",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::list",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::mob_effect",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::named",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::optional",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::profile",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::registry_entry",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::template_code",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::trim_material",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::typed_with_id",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::string",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::text",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::boolean",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::component",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::consume_effect",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::f32",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::holder",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::holder_set",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::i32",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::ident",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::list",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::mob_effect",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::nbt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::optional",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::potion_effects_and_name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::resolvable",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::sound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::string",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::template",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::trim_material",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::skip::varint",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::Difference::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::Difference::reason",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::Side::code",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::Side::from_code",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::is_set",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::local",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::native::Difference::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::native::Negotiation::payload",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::native::Negotiation::receive_capabilities",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::native::Negotiation::supported",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::native::compare",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::native::has_shared",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::native::install",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::native::local",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::set_local",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_list::shared",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_net::channel_ok",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::ClientSync<K>::abort",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::ClientSync<K>::fail",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::ClientSync<K>::fetching",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::ClientSync<K>::into_sink",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::ClientSync<K>::next_request",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::ClientSync<K>::on_message",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::ClientSync<K>::staged",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::ClientSync<K>::start",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::ClientSync<K>::wanted",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::HostSession<S>::begin",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::HostSession<S>::finish",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::HostSession<S>::handle",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::HostSession<S>::new",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::HostSession<S>::next_chunk",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::HostSession<S>::offer",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::HostSession<S>::transferring",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::Negotiation::offer_payload",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::Negotiation::receive_capabilities",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::Negotiation::supported",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::Offer::entries",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::Offer::find",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::Offer::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::RefuseReason::code",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::RefuseReason::from_code",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::RefuseReason::text",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::done",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::hex",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::request",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mod_transfer::text_ok",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::configuration::ClientInformation::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::play::ArgumentProperties::decode",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::play::ArgumentProperties::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::play::ChunkBiomeData::biomes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::play::ChunkBiomeData::from_biomes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::play::PositionPath::end",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::play::VecDelta::apply",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::play::VecDelta::end",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::play::VecDelta::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::play::VecDelta::steps",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::play::VecDelta::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::play::boss_flags",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::play::read_argument_properties",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::play::split_flags",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::recipes::HolderSet::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::recipes::RecipeDisplay::result",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::recipes::SlotDisplay::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::recipes::SlotDisplay::read_at",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::recipes::SlotDisplay::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::packets::recipes::write_list",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::quiet::string_size",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::<SyncedNames as Names>::name",
+      "reason": "calls trait method without trait in scope",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Builtin::find",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Builtin::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Builtin::load",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::DimensionType::sections",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::DimensionType::vanilla",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Dynamic::add",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Dynamic::add_item_tags",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Dynamic::add_tags",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Dynamic::data",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Dynamic::id",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Dynamic::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Dynamic::item_in_tag",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Dynamic::len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Dynamic::name",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Ids::from_names",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Ids::id",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::Ids::name",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::registry::ceil_log2",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::resolver::dns::name_servers[cfg(any(unix,test))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::resolver::dns::parse_reply",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::resolver::dns::scoped[cfg(any(windows,test))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::resolver::dns::system_name_servers[cfg(not(any(unix,windows)))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::resolver::dns::system_name_servers[cfg(unix)]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::resolver::dns::system_name_servers[cfg(windows)]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::resolver::resolve",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::resolver::resolve_with",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::resolver::server_redirect",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::resolver::srv_redirect",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::Big::bit",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::Big::bits",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::Big::from_be_bytes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::Big::ge",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::Big::is_one",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::Big::mul",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::Big::sub_assign",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::Big::to_be_bytes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::RsaPublicKey::size",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::RsaPublicKey::verify",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::SignatureHash::digest",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::SignatureHash::prefix",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::der",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::der_integer",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::prime",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::rsa::strip",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::Chain::keyed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::Chain::session",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::Chain::set_broken",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::ChatSession::data",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::DecodeError::key",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::Encoder::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::Encoder::session",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::LastSeenTracker::ignore_pending",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::LastSeenTracker::offset",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::LastSeenTracker::take_offset",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::LastSeenValidator::add_pending",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::LastSeenValidator::apply_offset",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::LastSeenValidator::tracked_count",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::MessageValidator::fallback",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::MessageValidator::keyed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::MessageValidator::update_and_validate",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::MessageValidator::validate_chain",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::ProfileKey::has_expired",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::ProfileKey::has_expired_with",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::ProfileKey::signed_by",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::SignatureCache::pack",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::SignatureCache::push",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::SignatureCache::unpack",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::checksum",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::java_hash",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::secure_chat::signature",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::servers::ServerEntry::from_tag",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::servers::ServerEntry::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::servers::load",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::servers::save",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::text::append",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::text::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::text::literal",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::text::plain",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::text::string",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::text::translatable",
+      "reason": "small body",
+      "kind": "fn"
+    }
+  ]
+}
