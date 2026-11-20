@@ -1273,7 +1273,11 @@ impl Game<'_> {
         };
         // A world whose packs change biomes sends its own biome registry.
         let packed = self.world_biomes.clone().filter(|b| b.has_packs());
+        // F3-4: the levels past the vanilla three go to clients with their
+        // dimension types, which the shared resource preload does not hold.
+        let net_levels = self.level_registry.network_levels();
         if packed.is_some()
+            || !net_levels.is_empty()
             || sync.features.iter().any(|f| !features.contains(f))
             || features.iter().any(|f| !sync.features.contains(f))
         {
@@ -1286,6 +1290,7 @@ impl Game<'_> {
                 packed.as_deref(),
             )?;
             world_sync.features = features;
+            world_sync.add_levels(net_levels);
             sync = Arc::new(world_sync);
         }
         self.sync_dialog_ids(&sync);
@@ -1417,7 +1422,8 @@ impl Game<'_> {
             .guests
             .iter()
             .filter(|g| g.placed)
-            .map(|g| (g.conn, super::Dim::from_id(&g.dimension)))
+            // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+            .map(|g| (g.conn, super::Dim::lookup_or_overworld(&g.dimension)))
             .collect();
         for (conn, dim) in open {
             if self.enter_level(Some(host), dim).is_ok() {
@@ -1471,7 +1477,8 @@ impl Game<'_> {
             .filter(|g| g.placed && g.dimension == dim && Some(g.uuid) != but)
             .filter_map(|g| g.vehicle)
             .collect();
-        if host && super::Dim::from_id(dim) == self.dim {
+        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+        if host && super::Dim::lookup_or_overworld(dim) == self.dim {
             others.extend(self.riding);
         }
         others
@@ -1489,7 +1496,8 @@ impl Game<'_> {
     ) -> Option<(horizon_world::nbt::Tag, [i32; 4])> {
         vehicle?;
         let back = self.dim;
-        let theirs = super::Dim::from_id(dim);
+        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+        let theirs = super::Dim::lookup_or_overworld(dim);
         if theirs != back
             && let Err(e) = self.enter_level(host.as_deref_mut(), theirs)
         {
@@ -1997,7 +2005,8 @@ impl Game<'_> {
                     // (`ServerPlayer.disconnect` -> `doCloseContainer`).
                     if guest.placed {
                         let back = self.dim;
-                        let theirs = super::Dim::from_id(&guest.dimension);
+                        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+                        let theirs = super::Dim::lookup_or_overworld(&guest.dimension);
                         if self.enter_level(Some(&mut host), theirs).is_ok() {
                             let conn = guest.conn;
                             let at = host.hub.guests.len();
@@ -2634,7 +2643,18 @@ impl Game<'_> {
         }
         // A server places each player in their own level (`PlayerList.placeNewPlayer`).
         let back = self.dim;
-        let level = super::Dim::from_id(&g.dimension);
+        // F3-3: the player's saved level is looked up in the world's registry; one the world
+        // does not have (its pack was removed) is the Overworld, never another level's folder.
+        if !self.level_registry.contains(&g.dimension) {
+            log::warn!(
+                "Horizon: {} was last in level {}, which this world does not have; \
+                 placing them in the Overworld",
+                g.name,
+                g.dimension
+            );
+            g.dimension = super::Dim::Overworld.id().to_owned();
+        }
+        let level = super::Dim::lookup_or_overworld(&g.dimension);
         let elsewhere = level != back;
         if !elsewhere {
             g.dimension = in_place;

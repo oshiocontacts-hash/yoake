@@ -70,7 +70,8 @@ impl Game<'_> {
             self.lan = Some(host);
             return Err("command harness: owner is not connected".into());
         };
-        let (conn, dim, back) = (guest.conn, super::Dim::from_id(&guest.dimension), self.dim);
+        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+        let (conn, dim, back) = (guest.conn, super::Dim::lookup_or_overworld(&guest.dimension), self.dim);
         if let Err(error) = self.enter_level(Some(&mut host), dim) {
             self.lan = Some(host);
             return Err(error);
@@ -264,7 +265,8 @@ impl Game<'_> {
                     let block = op["block"].as_str().unwrap_or("minecraft:sand");
                     let no_gravity = op["no_gravity"].as_bool().unwrap_or(false);
                     let back = self.dim;
-                    self.enter_level(None, super::Dim::from_id(dimension))?;
+                    // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+                    self.enter_level(None, super::Dim::lookup_or_overworld(dimension))?;
                     let facts = self.res.facts();
                     let matches = |f: &super::FallingBlock| {
                         &*facts.get(f.state).name == block && f.no_gravity == no_gravity

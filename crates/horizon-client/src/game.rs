@@ -139,6 +139,12 @@ mod friends;
 mod functions;
 mod game_mode;
 mod game_tests;
+#[cfg(test)]
+mod dim_tests;
+mod level_facts;
+mod level_manager;
+#[cfg(test)]
+mod level_registry_tests;
 mod gamemode_switcher;
 mod ghasts;
 mod glowing;
@@ -278,6 +284,7 @@ mod native_mounts;
 pub(crate) mod native_mouse_buttons;
 pub(crate) mod native_name_lines;
 mod native_net;
+mod native_s1;
 mod native_panel;
 mod native_panel_recipes;
 mod native_perms;
@@ -1054,6 +1061,11 @@ struct GameLevel<'w> {
     collision: &'w BlockCollisionRegistry<'w>,
     events: &'w mut Vec<LevelEvent>,
     dimension: LevelDimension,
+    /// The rules of the level's dimension type (F3-4b).
+    type_rules: horizon_world::level::LevelRules,
+    /// The id of the level (a pack's or mod's has its own; `dimension` is one of the three vanilla
+    /// values mods have always seen, the Overworld for a level past them).
+    level_id: &'static str,
     darken: i32,
     /// The environment of the level's dimension (`SUN_ANGLE`).
     environment: &'w Environment,
@@ -1875,6 +1887,12 @@ impl LevelAccess for GameLevel<'_> {
     fn dimension(&self) -> LevelDimension {
         self.dimension
     }
+    fn level_rules(&self) -> horizon_world::level::LevelRules {
+        self.type_rules
+    }
+    fn level_id(&self) -> &str {
+        self.level_id
+    }
     /// `Level.isUnobstructed`: the placed state's collision shape against the player.
     /// `Level.isUnobstructed(state, pos, CollisionContext.of(player))`: no
     /// entity that blocks building is in the state's collision shape.
@@ -2666,6 +2684,11 @@ pub(crate) struct Game<'a> {
     ime_allowed: bool,
     /// The candidate window's area last given to the window, in pixels.
     ime_area: Option<[i32; 4]>,
+    /// What the open mod screen's mod asked of the IME: `None` until it calls
+    /// `ime_set_allowed` (then the engine keeps its old mod-screen behaviour).
+    mod_ime_allowed: Option<bool>,
+    /// The open mod screen's candidate rectangle, in GUI-scaled coordinates.
+    mod_ime_area: Option<[f32; 4]>,
     /// When the window lost focus, while it is still without
     /// (`Minecraft.lastActiveTime`: pausing waits 500 ms).
     focus_lost: Option<Instant>,
@@ -3159,6 +3182,8 @@ pub(crate) struct Game<'a> {
     native_streams: Option<native_streams::NativeStreams>,
     /// Native mods' messages waiting (`game/native_net.rs`).
     native_net: native_net::NativeNet,
+    /// Client sounds queued by hooks with a shared view of the game (`game/native_s1.rs`).
+    native_s1: native_s1::NativeS1,
     native_server_ops: native_server_ops::NativeServerOps,
     /// The mod whose own screen is open (`Screen::Mod`).
     native_mod_screen: Option<String>,
@@ -3204,6 +3229,13 @@ pub(crate) struct Game<'a> {
     integrated: Option<integrated::Integrated>,
     /// The shapes of the open world's levels, from its dimension types.
     level_shapes: horizon_client::chunk::LevelShapes,
+    /// The open world's levels: the three vanilla ones, the saved and data pack level
+    /// stems and the mods' (F3-3); each level's type, generator stem and save folder.
+    level_registry: horizon_client::level_registry::LevelRegistry,
+    /// The chunk generators mods registered, for levels whose stem names one (F3-5).
+    mod_generators: horizon_client::mod_generator::ModGenerators,
+    /// The dimension types of the levels past the vanilla three (F3-4).
+    level_ctxs: std::collections::HashMap<Dim, level_facts::LevelCtx>,
     /// This game is that server thread's (game/integrated.rs).
     serving: Option<integrated::Serving>,
     /// The open world is shared behind an invite code (game/friends.rs).
@@ -3424,26 +3456,81 @@ pub(crate) struct Game<'a> {
     /// The local player as a model (third person, the inventory).
     player_model: Option<Mob>,
 }
+/// A level (dimension) key, interned: the three vanilla ids sit at the fixed
+/// indices 0/1/2 and any other resource id (a pack or mod level) gets the next
+/// free index. The vanilla names stay as associated consts so existing
+/// `Dim::Overworld` uses and patterns keep compiling (F3-0).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-enum Dim {
-    Overworld,
-    Nether,
-    End,
-}
-impl Dim {
-    fn id(self) -> &'static str {
-        match self {
-            Self::Overworld => "minecraft:overworld",
-            Self::Nether => "minecraft:the_nether",
-            Self::End => "minecraft:the_end",
-        }
+struct Dim(u16);
+/// Process-wide interner of dimension ids. Ids are leaked on purpose: the set
+/// of distinct ids is small and bounded by what packs and mods declare.
+mod dim_interner {
+    use std::collections::HashMap;
+    use std::sync::{OnceLock, RwLock};
+    pub(super) const VANILLA: [&str; 3] =
+        ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"];
+    #[derive(Default)]
+    struct Table {
+        ids: Vec<&'static str>,
+        index: HashMap<&'static str, u16>,
     }
-    fn from_id(id: &str) -> Self {
-        match id {
-            "minecraft:the_nether" => Self::Nether,
-            "minecraft:the_end" => Self::End,
-            _ => Self::Overworld,
+    fn table() -> &'static RwLock<Table> {
+        static T: OnceLock<RwLock<Table>> = OnceLock::new();
+        T.get_or_init(|| {
+            let mut t = Table::default();
+            for (i, id) in VANILLA.iter().enumerate() {
+                t.ids.push(id);
+                t.index.insert(id, i as u16);
+            }
+            RwLock::new(t)
+        })
+    }
+    pub(super) fn lookup(id: &str) -> Option<u16> {
+        table().read().unwrap_or_else(|e| e.into_inner()).index.get(id).copied()
+    }
+    pub(super) fn intern(id: &str) -> u16 {
+        if let Some(i) = lookup(id) {
+            return i;
         }
+        let mut t = table().write().unwrap_or_else(|e| e.into_inner());
+        if let Some(&i) = t.index.get(id) {
+            return i;
+        }
+        let i = u16::try_from(t.ids.len()).expect("too many dimensions");
+        let leaked: &'static str = Box::leak(id.to_owned().into_boxed_str());
+        t.ids.push(leaked);
+        t.index.insert(leaked, i);
+        i
+    }
+    pub(super) fn id(index: u16) -> &'static str {
+        // The vanilla levels are asked for every frame: answer them without the lock.
+        if let Some(id) = VANILLA.get(index as usize) {
+            return id;
+        }
+        table().read().unwrap_or_else(|e| e.into_inner()).ids[index as usize]
+    }
+}
+#[allow(non_upper_case_globals)]
+impl Dim {
+    // Kept in the old enum spelling so call sites and patterns are unchanged.
+    const Overworld: Dim = Dim(0);
+    const Nether: Dim = Dim(1);
+    const End: Dim = Dim(2);
+    fn id(self) -> &'static str {
+        dim_interner::id(self.0)
+    }
+    /// The interned level for a known id (vanilla or already interned).
+    fn lookup(id: &str) -> Option<Self> {
+        dim_interner::lookup(id).map(Self)
+    }
+    /// The level for an id, registering it when new.
+    fn intern(id: &str) -> Self {
+        Self(dim_interner::intern(id))
+    }
+    /// Today's behaviour: an unknown id is the Overworld. Every call site that
+    /// uses this says so; F3-3/F3-4 flip them one by one.
+    fn lookup_or_overworld(id: &str) -> Self {
+        Self::lookup(id).unwrap_or(Self::Overworld)
     }
     /// The level's shape in a world of vanilla's dimension types.
     fn shape(self) -> horizon_client::save::LevelShape {
@@ -3452,6 +3539,8 @@ impl Dim {
             Self::Overworld => LevelShape::OVERWORLD,
             Self::Nether => LevelShape::NETHER,
             Self::End => LevelShape::END,
+            // F3-4: dimension-type query
+            _ => LevelShape::OVERWORLD,
         }
     }
 }
@@ -3913,6 +4002,7 @@ impl Game<'_> {
         let burn_immune = self.wears_burn_from_stepping_immunity();
         let nudge = self.closest_space_nudge();
         let blind = self.potions.effects.get("blindness").is_some();
+        let fast_lava = self.level_facts().rules.fast_lava;
         let Some(player) = self.player.as_mut() else {
             return;
         };
@@ -3934,7 +4024,7 @@ impl Game<'_> {
         player.leather_boots = leather_boots;
         player.freeze_immune = freeze_immune;
         player.burn_from_stepping_immune = burn_immune;
-        player.fluids.fast_lava = self.dim == Dim::Nether;
+        player.fluids.fast_lava = fast_lava;
     }
     fn held_slot(&self) -> usize {
         match self.hand {
@@ -4288,9 +4378,9 @@ impl Game<'_> {
         block_entity: Option<horizon_world::nbt::Tag>,
     ) -> horizon_world::loot::NativeLootPlace {
         let (rain, thunder) = self.world.weather.levels(1.0);
-        // Level.canHaveWeather: sky light, no ceiling and not the End.
-        let weather =
-            self.world.shape.sky_light && !self.world.shape.has_ceiling && self.dim != Dim::End;
+        // Level.canHaveWeather: sky light, no ceiling and not the End (a level
+        // past the vanilla three: its type's sky has weather).
+        let weather = self.level_facts().weather;
         horizon_world::loot::NativeLootPlace {
             origin: Some(origin),
             block_entity,
@@ -4747,10 +4837,13 @@ impl Game<'_> {
             })
             .collect();
         let guest_boxes = self.lan_block_trigger_boxes();
+        let type_rules = self.level_facts().rules;
         let dimension = match self.dim {
             Dim::Overworld => LevelDimension::Overworld,
             Dim::Nether => LevelDimension::Nether,
             Dim::End => LevelDimension::End,
+            // The hooks name one of the three; the rules come from the type (`type_rules`).
+            _ => LevelDimension::Overworld,
         };
         let rules = self.level_rules();
         let fire_players: Vec<[f64; 3]> = self
@@ -4819,12 +4912,10 @@ impl Game<'_> {
             collision: self.collision,
             events: &mut self.level_events,
             dimension,
+            type_rules,
+            level_id: self.dim.id(),
             darken,
-            environment: match dimension {
-                LevelDimension::Overworld => self.res.environment(),
-                LevelDimension::Nether => self.res.nether_environment(),
-                LevelDimension::End => self.res.end_environment(),
-            },
+            environment: level_facts::environment_for(self.dim, &self.level_ctxs, &self.res),
             raining: rain > 0.2,
             thundering: thunder > 0.9,
             player_box,
@@ -11425,18 +11516,15 @@ impl Game<'_> {
         // A native shader pack's sun shadows already fall under the entities in the Overworld:
         // the round blob would be a second one. The Nether and the End have no sun to cast them.
         let pack_shadows = self.renderer.as_ref().is_some_and(|r| {
-            r.pack_entity_shadows() || (self.dim == Dim::Overworld && r.native_shadow())
+            r.pack_entity_shadows()
+                || (self.level_facts().sky == level_facts::SkyKind::Overworld && r.native_shadow())
         });
         let shadow_sprite = (self.settings.entity_shadows && !pack_shadows)
             .then(|| self.gui.atlas.sprites.get("misc/shadow").copied())
             .flatten();
         if let Some(sprite) = shadow_sprite {
             // DimensionType.ambientLight: the_nether 0.1, the_end 0.25.
-            let ambient = match self.dim {
-                Dim::Nether => 0.1,
-                Dim::End => 0.25,
-                Dim::Overworld => 0.0,
-            };
+            let ambient = self.level_facts().ambient;
             let darken = self.sky_darken();
             let a = alpha;
             let lerp = |p: Vec3, q: Vec3| {
@@ -11504,7 +11592,7 @@ impl Game<'_> {
                 emissive: &self.gui.atlas.emissive,
                 translucent_sprites: &self.gui.atlas.translucent,
                 atlas_revision: self.gui.atlas.revision,
-                nether: self.dim == Dim::Nether,
+                nether: self.level_facts().nether_light,
                 lid: &lid,
                 sign: &|p| match self.world.block_entities.get(&(p[0], p[1], p[2])) {
                     Some(BlockEntity::Sign(sign)) => Some(sign),
@@ -11916,6 +12004,21 @@ impl Game<'_> {
                 .end_environment()
                 .sample(self.world.day_time, None, None);
             return (15.0 - 15.0 * sky.sky_light_level).round() as i32;
+        }
+        if !matches!(self.dim, Dim::Overworld) {
+            // A level past the vanilla three: its own sky's light level, with
+            // the weather darkening it where the level has weather.
+            let (rain, thunder) = if self.level_facts().weather {
+                self.world.weather.levels(1.0)
+            } else {
+                (0.0, 0.0)
+            };
+            return horizon_client::environment::sky_darken(
+                self.dim_environment(),
+                self.world.day_time,
+                rain,
+                thunder,
+            );
         }
         let (rain, thunder) = self.world.weather.levels(1.0);
         // Sampled once per (time, weather): every mob asks each tick.
@@ -12627,6 +12730,7 @@ impl Game<'_> {
         let world_loading::PreparedWorld {
             save_root,
             shapes,
+            registry,
             level,
             world,
             streaming,
@@ -12635,7 +12739,21 @@ impl Game<'_> {
             rand_sequences,
             locator,
         } = prepared;
-        let dim = Dim::from_id(&level.dimension);
+        // F3-3: the level the world was prepared in is one of its registered levels
+        // (`prepare_world` fell back to the Overworld for one it does not have).
+        let dim = registry
+            .contains(&level.dimension)
+            .then(|| Dim::intern(&level.dimension))
+            .unwrap_or(Dim::Overworld);
+        self.level_registry = registry;
+        // The generators mods staged before the world opened, with the ones registered since.
+        for id in horizon_client::mod_generator::staged().1.ids().map(str::to_owned).collect::<Vec<_>>() {
+            if !self.mod_generators.contains(&id)
+                && let Some(factory) = horizon_client::mod_generator::staged().1.factory(&id)
+            {
+                let _ = self.mod_generators.register(&id, factory);
+            }
+        }
         self.level_shapes = shapes;
         self.world_root = save_root.clone();
         self.index_saved_attachment_usage(&level);
@@ -12745,6 +12863,8 @@ impl Game<'_> {
         book.recipes.retain(|r| index.contains(r));
         book.to_be_displayed.retain(|r| index.contains(r));
         self.dim = dim;
+        self.level_ctxs.clear();
+        self.ensure_level_ctx(None, None);
         self.audio.set_world(dim.id());
         // LevelStorageAccess.getIconFile: this save's icon.png is what the
         // Select World list shows.
@@ -12798,8 +12918,12 @@ impl Game<'_> {
             r.clear_sections(self.world.layout());
         }
         self.apply_settings();
-        self.streaming.sky_light = dim != Dim::Nether;
-        self.streaming.nether_shading = dim == Dim::Nether;
+        self.streaming.sky_light = if matches!(dim, Dim::Overworld | Dim::Nether | Dim::End) {
+            dim != Dim::Nether
+        } else {
+            self.world.shape.sky_light
+        };
+        self.streaming.nether_shading = self.level_facts().nether_light;
         self.load_world_state();
         // The level the world opens in, before any of its chunks.
         self.native_level_opened(dim);
@@ -15032,7 +15156,12 @@ impl Game<'_> {
                 };
             }
         }
-        if problem.is_none() && !(self.dim == Dim::Overworld && self.sky_darken() >= 4) {
+        let sleeps = match self.level_facts().beds.sleep {
+            level_facts::Sleep::Always => true,
+            level_facts::Sleep::WhenDark => self.sky_darken() >= 4,
+            level_facts::Sleep::Never => false,
+        };
+        if problem.is_none() && !sleeps {
             problem = Some("not_possible_now");
         }
         // Creative players skip the monster check (`!this.isCreative()`).
@@ -16160,7 +16289,7 @@ impl Game<'_> {
         // visual/water_fog_color: no dimension sets it, its default is #050533.
         let water_fog = blend(|b| Some(b.water_fog), [0.0; 3]);
         let mut sky = environment.sample(self.world.day_time, Some(biome_sky), Some(biome_fog));
-        let (rain, thunder) = if self.dim == Dim::Overworld {
+        let (rain, thunder) = if self.level_facts().weather {
             self.world.weather.levels(alpha as f32)
         } else {
             (0.0, 0.0)
@@ -16403,13 +16532,13 @@ impl Game<'_> {
         }
         let (celestial, stars) = if title {
             (Vec::new(), None)
-        } else if self.dim == Dim::Overworld
+        } else if self.level_facts().sky == level_facts::SkyKind::Overworld
             && self.potions.effects.get("darkness").is_none()
             && self.potions.effects.get("blindness").is_none()
         {
             // Camera.doesMobEffectBlockSky: no sun, moon or stars.
             self.celestial_geometry(&sky, rain)
-        } else if self.dim == Dim::End && self.settings.horizon.sky {
+        } else if self.level_facts().sky == level_facts::SkyKind::End && self.settings.horizon.sky {
             (self.end_flash_geometry(), None)
         } else {
             (Vec::new(), None)
@@ -16443,7 +16572,7 @@ impl Game<'_> {
         if !title {
             self.end_geometry(camera, &mut entities);
         }
-        let weather = if !title && self.dim == Dim::Overworld && self.settings.horizon.weather {
+        let weather = if !title && self.level_facts().weather && self.settings.horizon.weather {
             horizon_client::spans::time("weather", || self.weather_geometry(camera, alpha))
         } else {
             Vec::new()
@@ -16491,7 +16620,7 @@ impl Game<'_> {
         let frame = Frame {
             weather: &weather,
             weather_time: horizon_client::weather::Time::new(self.world.game_time, alpha as f32),
-            nether_lighting: self.dim == Dim::Nether,
+            nether_lighting: self.level_facts().nether_light,
             camera,
             yaw,
             pitch,
@@ -16532,15 +16661,19 @@ impl Game<'_> {
                     ),
                     horizon_client::fog::FogType::Lava | horizon_client::fog::FogType::PowderSnow
                 ),
-            skybox: self.dim == Dim::Overworld && self.settings.horizon.sky,
-            end_sky: self.dim == Dim::End && self.settings.horizon.sky,
+            skybox: self.level_facts().sky == level_facts::SkyKind::Overworld
+                && self.settings.horizon.sky,
+            end_sky: self.level_facts().sky == level_facts::SkyKind::End && self.settings.horizon.sky,
             end_sky_sprite: self
                 .gui
                 .atlas
                 .sprites
                 .get("environment/end_sky")
                 .map(|r| [r.u0, r.v0, r.u1, r.v1]),
-            environment_fog: (self.dim == Dim::Nether).then_some((sky.fog_start, sky.fog_end)),
+            environment_fog: self
+                .level_facts()
+                .fog_distance
+                .then_some((sky.fog_start, sky.fog_end)),
             cave_culling,
             water_fog,
             fog: Some(self.frame_fog(camera, &sky, biome, water_fog)),
@@ -16555,7 +16688,7 @@ impl Game<'_> {
             glint_alpha: self.glint_frame.alpha,
             glint_ticks: self.glint_frame.scroll_ticks(),
             clouds: (!title
-                && self.dim == Dim::Overworld
+                && self.level_facts().sky == level_facts::SkyKind::Overworld
                 && horizon_client::clouds::visible(&self.settings.clouds, sky.cloud_color[3]))
             .then(|| self.gui.atlas.sprites.get("horizon/white"))
             .flatten()
@@ -18121,9 +18254,7 @@ impl Game<'_> {
                 WindowEvent::Ime(winit::event::Ime::Preedit(text, cursor)) => {
                     self.ime_preedit(&text, cursor)
                 }
-                WindowEvent::Ime(winit::event::Ime::Disabled) => {
-                    horizon_client::preedit::set_preedit(None)
-                }
+                WindowEvent::Ime(winit::event::Ime::Disabled) => self.ime_disabled(),
                 WindowEvent::Resized(size) => {
                     if let Some(r) = &mut self.renderer {
                         r.resize(size.width, size.height);
@@ -18906,6 +19037,10 @@ impl Game<'_> {
                     let PhysicalKey::Code(key) = event.physical_key else {
                         return Ok(());
                     };
+                    // `native_key_pre`: a mod that consumes the key keeps it from everything below.
+                    if self.native_key_pre_event(key, event.state == ElementState::Pressed, event.repeat) {
+                        return Ok(());
+                    }
                     self.native_key_event(key, event.state == ElementState::Pressed, event.repeat);
                     // Screen.keyPressed sees the physical key, repeats included.
                     if event.state == ElementState::Pressed
@@ -19478,6 +19613,8 @@ impl<'a> Game<'a> {
             focused: start_focused,
             ime_allowed: false,
             ime_area: None,
+            mod_ime_allowed: None,
+            mod_ime_area: None,
             focus_lost: None,
             modifiers: winit::keyboard::ModifiersState::empty(),
             fullscreen: horizon_client::window::FullscreenState::new(false),
@@ -19789,6 +19926,7 @@ impl<'a> Game<'a> {
             native_mix_cursors,
             native_streams: None,
             native_net: Default::default(),
+            native_s1: Default::default(),
             native_server_ops: Default::default(),
             native_mod_screen: None,
             native_title_mod_screen_return: None,
@@ -19804,6 +19942,9 @@ impl<'a> Game<'a> {
             lan: None,
             integrated: None,
             level_shapes: Default::default(),
+            level_registry: Default::default(),
+            mod_generators: Default::default(),
+            level_ctxs: Default::default(),
             serving: None,
             world_options: None,
             options_to_world_options: false,

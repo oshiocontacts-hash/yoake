@@ -601,6 +601,11 @@ impl ChunkEncoder {
         // The heightmaps depend on the level's height.
         self.heights.get_mut().unwrap().clear();
     }
+    /// The sections of the column a level of the shape set by `set_dimension`
+    /// sends, from the column's lowest (for tests of a level's shape).
+    pub fn wire_sections(&self) -> std::ops::Range<usize> {
+        self.sections.clone()
+    }
     pub fn entity_type(&self, state: u32) -> Option<i32> {
         self.entity_types
             .get(state as usize)

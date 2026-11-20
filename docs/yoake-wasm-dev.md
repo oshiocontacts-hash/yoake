@@ -82,10 +82,7 @@ export_mod!(Hello);
   `wasi:filesystem/{types,preopens}`. stdin is empty, the environment and the arguments are empty,
   `std::process::exit` traps the mod (only that mod is disabled), the clock never blocks the host:
   `thread::sleep` and `pollable.block()` on a clock wait of more than 2 ms trap the mod (shorter waits
-  return at once), the filesystem has **no
-  preopened directory** (every `std::fs` call fails; the interfaces are linked only because `std`
-  imports them) and there are **no sockets** (a component that imports `wasi:sockets/*`, or any
-  other interface outside `yoake:mods/*` and the list above, is rejected at load). The example is
+  return at once), the filesystem has the preopens `/data` (the mod's own folder `mod-data/<id>`), `/game` and, with `[wasm] host_filesystem = true`, `/host/<letter>` (FR-F2), and the main instance may not use sockets or `wasi:http` (they are linked, but the context denies them; use a worker, `docs/yoake2/MOD-GUIDE.md` section 14). A component that imports any interface outside `yoake:mods/*`, `yoake:mods/worker@1.3.0` and the list above is rejected at load. The example is
   `crates/yoake-wasm-sdk/examples/hello-std`.
 - For the smallest modules turn `std` off (`default-features = false, features = ["runtime"]`) and
   write `#![no_std]`: the SDK ships its own allocator and panic handler (feature `runtime`) and
@@ -564,6 +561,78 @@ returns `Ok(None)` and the caller should not draw that label. Calling outside `h
 The tab list draws later and can cover top-center labels; side corners and arbitrary overlays are
 not reserved either. The original `services::hud_place` remains unchanged.
 
+### 画面入力・インベントリ・音・食料・ブロックエンティティ（FR-S1）
+
+ここは `client-full` / `server-full` の小さなサービスです。どれも、使う MOD がなければ何も変わりません。
+
+* **画面の入力フックから送信する。** `net-send-to-server` は、クライアントのホストを持つフックならどこからでも呼べます。
+  `screen-key-pressed-pre`、`screen-char-typed-pre`、`screen-mouse-*`、`screen-click` も含みます。
+  以前は読み取り専用のフックで `unsupported` でした。確認と上限は変わりません（1 ティック 32 通、サーバーが MOD メッセージを扱うこと、参加済みであること）。
+* **回転できるテクスチャー付き四角形。** `hud-command::quad` の `sprite` を指定すると、いまは描かれます。
+  `sprite` は GUI アトラスのスプライト名か、`texture:<id>` です。`corners` は左上から順に回る 4 点、`uv` は各角の UV（0〜1）です。
+  回転は角を回して渡します。SDK の `client::rotated_corners(x, y, w, h, degrees, pivot)` が使えます。
+  `hud-command::texture` も、`id` が `client::gui_texture_id(&texture)`（サービス 225）の値なら描かれます。
+  `id` は GUI テクスチャーを捨てるか、MOD のリソースを解放するまで有効です。
+  知らない `id` は何も描きません。`item-decorations` などの戻り値のコマンドでも使えます。
+  テクスチャー四角形の UV は、1 つ目と 3 つ目の角の長方形として使います。
+* **クライアントのインベントリ読み取り。** `screen_carried()`（221、`service.screen`）は、開いている画面のカーソル上のスタックを返します。
+  `local_player_stacks()`（222、`service.client-view`）は、ローカルプレイヤーの持ち物を返します。
+  メインインベントリ（ホットバーが先）、防具、オフハンドの順で、空きスロットとカーソルは含みません。
+* **ブロックエンティティの書き戻し。** `block-entity-tick`、`menu-button`、`menu-button-v2`、`menu-quick-move` が返す `entity`（`nbt`、`items`、`data`）を、エンジンが適用します。
+  中身が変わったときだけ書き込み、ブロックエンティティは「変更あり」になります。保存と、コンテナの変化の通知は、既存の経路のままです。
+  クライアントへの反映は、既存の `block-entity-sync`（58）で行います。チャンクの送信やブロックの更新で出る更新タグも、これまでどおりです。
+  `block-entity-read` と `block-entity-patch-call`（59・60）は、これまでどおり `unsupported` です。
+  フルワールドの MOD には、それが指すハンドルを渡す所がありません。読み取りは `entity` 引数、書き込みは戻り値を使ってください。
+* **クライアントだけの音。** `play_local_sound(sound_id, volume, pitch)`（223）は、位置を持たない UI 音です。
+  `play_local_sound_at(position, sound_id, volume, pitch)`（224）は、ワールド内の位置の音です。どちらも `service.audio` が必要です。
+  音は次のフレームの頭に鳴るので、読み取り専用のフックからも呼べます。ID は `namespace:path`、音量は 0〜16、ピッチは 0〜8 です。
+  待てるのは 64 個までです。
+* **食料。** サーバーの `player_set_food(player, food, saturation)`（226、`player-write`）は、食料レベル（0〜20）と満腹度（0 から食料レベルまで）を設定します。
+  `food-level-changed` フックには、ほかの変化と同じく聞こえます。
+  アイテムごとの食料値を決めるフックは、まだありません。
+* **ワールドの事前キーフック。** `key-pre(key, pressed, repeat, modifiers) -> bool` は、プレイ中のキーを、キーバインドより前に受け取ります。
+  `true` を返すとキーは消費され、キーバインドも `key` フックも見ません。Escape は渡されないので、ポーズメニューは必ず開きます。
+  押下を消費したら、そのキーの離しも消費してください。そうしないと、押下で始まったバインドが押されたままになることがあります。
+  画面、タイトル画面、プロンプトの上では呼ばれません。
+  `input-key` は、固定された WIT の型が ABI の `key-event` なので、そのままです。キーの内容が欲しいときは `key-pre` と `key` を使ってください。
+
+### Screen input, inventory, sound, food and block entities (FR-S1)
+
+Small services of `client-full` / `server-full`. None of them changes anything unless a mod uses it.
+
+* **Sending from screen input hooks.** `net-send-to-server` may now be called from any hook that has the client host,
+  including `screen-key-pressed-pre`, `screen-char-typed-pre`, `screen-mouse-*` and `screen-click`. It used to answer
+  `unsupported` in read-only hooks. The checks and caps are unchanged (32 messages a tick, the server must carry mod
+  messages, the player must have joined).
+* **Textured, turnable GUI quads.** A `hud-command::quad` with a `sprite` is now drawn (it used to be skipped).
+  `sprite` is a GUI atlas sprite name or `texture:<id>`. `corners` are four points round the shape from the top left and
+  `uv` the UVs of those corners (0 to 1). To turn a quad, turn its corners: the SDK has
+  `client::rotated_corners(x, y, w, h, degrees, pivot)`. `hud-command::texture` is drawn too when its `id` is the value of
+  `client::gui_texture_id(&texture)` (service 225). The id stays valid until the texture is dropped or the mod's resources
+  are released; an unknown id draws nothing. Both work in the commands a hook returns (`item-decorations`, `hud`, `screen-render-post`
+  and so on). A texture quad uses the rectangle between its first and third UV.
+* **Client inventory reads.** `screen_carried()` (221, `service.screen`) is the stack on the cursor of the open screen.
+  `local_player_stacks()` (222, `service.client-view`) lists the local player's stacks as the client sees them: the main
+  inventory (hotbar first), the armor and the off hand, without empty slots and without the cursor.
+* **Block entity write-back.** The `entity` that `block-entity-tick`, `menu-button`, `menu-button-v2` and
+  `menu-quick-move` return (`nbt`, `items`, `data`) is now applied. It is written only when it differs, which marks the block
+  entity changed; saving and container-change notifications go the usual way. To show the change to clients call the existing
+  `block-entity-sync` (58); the update tag sent with chunks and block updates is unchanged. `block-entity-read` and
+  `block-entity-patch-call` (59, 60) still answer `unsupported`: a full-world mod has no place to get the handle they take.
+  Read through the `entity` argument and write through the return value.
+* **Client-only sound.** `play_local_sound(sound_id, volume, pitch)` (223) is a UI sound with no position;
+  `play_local_sound_at(position, sound_id, volume, pitch)` (224) is a sound at a place in the world. Both need `service.audio`.
+  The sound plays at the start of the next frame, so read-only hooks may call them. The id is `namespace:path`, volume 0 to 16,
+  pitch 0 to 8, and at most 64 sounds wait.
+* **Food.** The server's `player_set_food(player, food, saturation)` (226, `player-write`) sets the food level (0 to 20)
+  and saturation (0 up to the food level). The `food-level-changed` hook hears it like any other change. There is no
+  per-item food value hook yet.
+* **Cancellable key hook in the world.** `key-pre(key, pressed, repeat, modifiers) -> bool` gets a key while playing, before
+  the key bindings. Returning `true` consumes it: no binding and no `key` hook see it. Escape is never offered, so the pause
+  menu always opens. If you consume a press, consume its release too, or a binding it started may stay held. It is not
+  called over a screen, the title screen or a prompt. `input-key` stays unwired: its frozen WIT type is the ABI `key-event`;
+  use `key-pre` and `key` for key data.
+
 ### What the host applies / does not
 
 * HUD commands: text (plain), rect, gradient (strips), flat quads, sprites, items, clip/scale/blend runs.
@@ -572,22 +641,26 @@ not reserved either. The original `services::hud_place` remains unchanged.
 * Corner reservations and world-stage draws: applied. Client imports forward key bindings, view hits,
   display names and namespace ownership, GUI items, screen kind and slot rectangles, world quads,
   lines and billboards (including `world-pre-post`), post shaders, map tiles and colors, players and
-  entities, camera overrides, writable GUI textures, PCM streams, mob-as-player, HUD placement, and
+  entities, camera overrides, writable GUI textures, PCM streams, mob-as-player, HUD placement, screen-carried / local-player-stacks reads, client-only local sounds, `gui-texture-id` (ABI IDs 221–225; the server catalog adds 226, `interface_version` 1.5.0), mod-screen IME enablement/candidate areas (ABI IDs 201–202), and
   runtime item/block sprite overrides (`item-sprite-set`, `item-sprite-reset`, `block-sprite-set`,
   `block-sprite-reset` — ABI IDs 211–214; plus read-only `item-sprite-pixels` / `block-sprite-pixels` — 215–216, `interface_version` 1.3.0). Runtime sprite overrides patch only the changed item
   sub-rectangle in the shared atlas or the changed mipmapped block texture layer, refuse mismatched
   pixel dimensions/byte lengths, allow replacing vanilla or other mods' sprites, re-apply across
   resource-pack reloads (skipping mismatched pack resolutions cleanly with a warning), and reset
-  entries still owned by an unloading WASM mod.
-  The catalog is `crates/horizon-mod-api-gen/abi-subset-client.json` (ABI IDs 163–197, 199–200,
-  and 211–216). `*-sprite-pixels` return `(width, height, rgba8)` of the current sprite (a mod override
+  entries still owned by an unloading WASM mod. A block's item icon (the block shown in an inventory)
+  is a separate copy in the item atlas: to change both the placed block and its icon, call both
+  `block-sprite-set` and `item-sprite-set`. While an item sprite is overridden, the HUD atlas
+  animation skips that rect (an animated item stays on the mod's image until `item-sprite-reset` or
+  the mod's unload, then resumes).
+  The catalog is `crates/horizon-mod-api-gen/abi-subset-client.json` (ABI IDs 163–197, 199–202,
+  211–216 and 221–225; the server catalog adds 226). `*-sprite-pixels` return `(width, height, rgba8)` of the current sprite (a mod override
   included, an animated texture as its first frame) from the CPU copies of the atlases, so no GPU
   readback and no extra memory; block pixels are at the array layer size (`sprite_size`).
   Native services run under the calling WASM package's stable identity, so namespace validation and
   native per-mod limits also apply to WASM. Texture resources are instance-owned and capped at 64;
   failed creation does not consume a slot. Unsupported hook context returns an error, not a dummy
-  success. The `client-services-demo` guest exercises real key, line, post-shader and bounded
-  texture-write imports, including error propagation, in the runtime integration tests.
+  success. The `client-services-demo` guest exercises real key, line, post-shader, bounded
+  texture-write and IME imports, including error propagation, in the runtime integration tests.
 * Server services: `server-services` (`crates/horizon-mod-api-gen/abi-subset-server.json`) answer,
   except four (below). Each validates its arguments (finite numbers, sizes, registry ids, UUIDs) and fails
   closed (an `Err` changes nothing). Mods are trusted inside the game: they may change other players'

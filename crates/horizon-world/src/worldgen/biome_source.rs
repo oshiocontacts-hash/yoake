@@ -1,6 +1,8 @@
-//! Fixed, checkerboard and End biome-source queries. Registry codecs are separate.
+//! Fixed, checkerboard, End and grid biome-source queries. Registry codecs are separate.
 mod codec;
+mod grid;
 mod runtime;
+pub use grid::{GridBiomeSource, GridError, MAX_GRID_CELLS};
 pub use codec::{BiomeSet, BiomeSourceCatalog, BiomeSourceDefinition};
 use horizon_core::density::{DensitySampler, SampleError, SamplerContext};
 pub use runtime::{BiomeSourceError, BiomeSourceResolver, ResolvedBiomeSource};

@@ -1300,7 +1300,7 @@ impl Game<'_> {
         if emptied.is_none() {
             return Ok((self.dispense_default(pos, facing, stack), CLICK));
         }
-        if self.dim == super::Dim::Nether
+        if self.level_facts().ultrawarm
             && matches!(
                 content,
                 BucketContent::Fluid(FluidKind::Water) | BucketContent::MobWater

@@ -97,7 +97,7 @@ impl Behaviours {
 
 impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     fn fast_lava(&self) -> bool {
-        self.level.dimension() == Dimension::Nether
+        self.level.level_rules().fast_lava
     }
     /// `Fluid.getTickDelay`.
     pub(crate) fn fluid_tick_delay(&self, kind: FluidKind) -> i32 {

@@ -41,7 +41,8 @@ impl Game<'_> {
             let guests = &host.hub.guests;
             far.retain(|c| guests.iter().any(|g| g.conn == c));
         }
-        let dim = Dim::from_id(&guest.dimension);
+        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+        let dim = Dim::lookup_or_overworld(&guest.dimension);
         let source = self.lod_source_in(dim);
         let now = std::time::Instant::now();
         match far.request(conn, data, guest.position, source.is_some(), now) {

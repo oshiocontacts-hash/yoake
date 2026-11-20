@@ -429,6 +429,7 @@ server_services! {
     qa_record(event: String, json: String) -> Result<(), String> = unsupported();
     break_block_as(dimension: String, player: String, position: st::BlockPos) -> Result<bool, String> = unsupported();
     player_sneaking(player: String) -> Result<bool, String> = unsupported();
+    player_set_food(food: i32, player: String, saturation: f32) -> Result<(), String> = unsupported();
     container_slots(dimension: String, position: st::BlockPos) -> Result<Vec<Option<st::ItemStack>>, String> = unsupported();
     container_set_slots(dimension: String, position: st::BlockPos, slots: Vec<Option<st::ItemStack>>) -> Result<(), String> = unsupported();
     containers_in(center: st::Vec3, dimension: String, radius: f64) -> Result<Vec<st::ContainerRef>, String> = unsupported();

@@ -10,7 +10,7 @@ use horizon_client::shader_options::ShaderOptions;
 use horizon_client::text::Text;
 use horizon_shaders::{BlockIds, Macros, Pack, Properties, dimension_folder_named, load_post};
 
-use super::{Dim, Game};
+use super::Game;
 use horizon_client::gfx::pack_draw::EntitySpan;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
@@ -202,11 +202,7 @@ impl Game<'_> {
             return PackInputs::default();
         }
         let name = picked;
-        let dimension = match self.dim {
-            Dim::Overworld => 0,
-            Dim::Nether => -1,
-            Dim::End => 1,
-        };
+        let dimension = self.level_facts().shader_dimension();
         let path = crate::yak_mods::shaders::path(&name, &Self::shader_packs_dir());
         if horizon_shader_api::package::is_pack(&path) {
             // One of Horizon's own packs (game/native_shaders.rs).

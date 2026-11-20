@@ -39,6 +39,55 @@ impl GameHost {
     }
 }
 
+/// Most stacks `local_player_stacks` returns: the main inventory, the armor and the off hand.
+const MAX_LOCAL_STACKS: usize = 41;
+
+fn client_item(stack: &ItemStack) -> ct::ItemStack {
+    let wire = full::item_w(stack);
+    ct::ItemStack {
+        item: wire.id,
+        count: wire.count,
+        components: wire.components,
+    }
+}
+
+/// GUI textures a mod named through `gui_texture_id`, by that id (`<mod>#<handle>`): the id lets
+/// a returned `hud-command` (a `texture` command, or a quad whose sprite is `texture:<id>`) draw
+/// a texture it cannot hold a handle to. Entries go when the texture is dropped or the mod's
+/// resources are released.
+static NAMED_TEXTURES: Mutex<Option<HashMap<String, NativeGuiTexture>>> = Mutex::new(None);
+
+pub(super) fn named_texture_id(mod_id: &str, texture: u64) -> String {
+    format!("{mod_id}#{texture}")
+}
+
+pub(super) fn register_named_texture(id: &str, texture: NativeGuiTexture) {
+    NAMED_TEXTURES
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .get_or_insert_with(HashMap::new)
+        .insert(id.to_owned(), texture);
+}
+
+pub(super) fn unregister_named_texture(id: &str) {
+    if let Some(map) = NAMED_TEXTURES
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .as_mut()
+    {
+        map.remove(id);
+    }
+}
+
+pub(super) fn named_texture(id: &str) -> Option<NativeGuiTexture> {
+    NAMED_TEXTURES
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .as_ref()?
+        .get(id)
+        .cloned()
+}
+
 fn read_host<'borrow>(invocation: &'borrow Invocation<'_>) -> Result<&'borrow dyn Host, String> {
     invocation
         .host
@@ -594,6 +643,18 @@ impl ClientServices for GameHost {
         })
     }
 
+    fn ime_set_allowed(&mut self, allowed: bool) -> Result<(), String> {
+        self.client_call(|invocation| {
+            write_host(invocation)?.ime_set_allowed(self.native_id, allowed)
+        })
+    }
+
+    fn ime_set_cursor_area(&mut self, h: f32, w: f32, x: f32, y: f32) -> Result<(), String> {
+        self.client_call(|invocation| {
+            write_host(invocation)?.ime_set_cursor_area(self.native_id, [x, y, w, h])
+        })
+    }
+
     fn hud_place_v2(
         &mut self,
         corner: ct::HudCornerV2,
@@ -674,5 +735,77 @@ impl ClientServices for GameHost {
             let ([width, height], rgba) = read_host(invocation)?.block_sprite_pixels(&texture_id)?;
             Ok((width, height, rgba))
         })
+    }
+
+    fn screen_carried(&mut self) -> Result<Option<ct::ItemStack>, String> {
+        self.client_call(|invocation| {
+            Ok(read_host(invocation)?
+                .screen_carried_stack()
+                .map(client_item))
+        })
+    }
+
+    fn local_player_stacks(&mut self) -> Result<Vec<ct::ItemStack>, String> {
+        self.client_call(|invocation| {
+            Ok(read_host(invocation)?
+                .local_player_stacks()
+                .iter()
+                .take(MAX_LOCAL_STACKS)
+                .map(client_item)
+                .collect())
+        })
+    }
+
+    fn play_local_sound(
+        &mut self,
+        pitch: f32,
+        sound_id: String,
+        volume: f32,
+    ) -> Result<(), String> {
+        self.client_call(|invocation| {
+            if read_host(invocation)?.queue_local_sound(&sound_id, None, volume, pitch) {
+                Ok(())
+            } else {
+                Err(
+                    "sound refused: not a client, a bad id or value, or too many waiting"
+                        .to_owned(),
+                )
+            }
+        })
+    }
+
+    fn play_local_sound_at(
+        &mut self,
+        pitch: f32,
+        position: ct::Vec3,
+        sound_id: String,
+        volume: f32,
+    ) -> Result<(), String> {
+        self.client_call(|invocation| {
+            if read_host(invocation)?.queue_local_sound(
+                &sound_id,
+                Some(point(position)),
+                volume,
+                pitch,
+            ) {
+                Ok(())
+            } else {
+                Err(
+                    "sound refused: not a client, a bad id or value, or too many waiting"
+                        .to_owned(),
+                )
+            }
+        })
+    }
+
+    fn gui_texture_id(&mut self, texture: u64) -> Result<String, String> {
+        let handle = self
+            .textures
+            .get(&texture)
+            .ok_or("invalid or foreign GUI texture")?
+            .clone();
+        let id = named_texture_id(&self.id, texture);
+        register_named_texture(&id, handle);
+        Ok(id)
     }
 }

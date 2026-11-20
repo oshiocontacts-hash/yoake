@@ -128,6 +128,11 @@ pub(super) struct Levels {
 
 impl Levels {
     /// A parked level, without opening or loading it.
+    /// Closes the level `dim` not in place, if it is open, dropping its streaming and files.
+    pub(super) fn drop_parked(&mut self, dim: Dim) -> bool {
+        self.parked.remove(&dim).is_some()
+    }
+
     pub(super) fn parked_world(&self, dim: Dim) -> Option<&World> {
         self.parked.get(&dim).map(|level| &level.world)
     }
@@ -168,21 +173,43 @@ impl Levels {
 impl Game<'_> {
     /// A new level for `dim`, opened from the save (`MinecraftServer.createLevels`).
     fn open_level(&self, dim: Dim) -> Result<Parked> {
-        let (streaming, save, locator) = super::world_loading::make_streaming(
+        // F3-3: any level of the registry opens, with its own type, generator and save folder;
+        // an id the world does not have never opens (it would share another level's folder).
+        let Some(entry) = self.level_registry.get(dim.id()) else {
+            return Err(format!(
+                "level {} is not one of this world's levels (registered: {})",
+                dim.id(),
+                self.level_registry.ids().collect::<Vec<_>>().join(", ")
+            )
+            .into());
+        };
+        let shape = entry.shape;
+        let (mut streaming, save, locator) = super::world_loading::make_streaming(
             &self.res,
             &self.pack,
             &self.options,
             &self.settings,
             &self.world_root,
             dim,
-            self.level_shapes.get(dim.id()),
-            self.level.seed,
+            shape,
+            entry.stem_json.as_ref(),
+            // The level's own seed when its stem gives one (F3-7), else the world's as in vanilla.
+            self.level_registry.seed(dim.id(), self.level.seed),
             &self.level.enabled_features,
+            &self.mod_generators,
+            self.level_registry.save_dir(&self.world_root, dim.id()),
         )?;
-        let mut world = World::new(self.res.facts().air, self.level.seed);
+        // F3-4: a level past the vanilla three shades blocks as its type says.
+        if !matches!(dim, Dim::Overworld | Dim::Nether | Dim::End) {
+            streaming.nether_shading = entry.dimension_type.cardinal_light == "nether";
+        }
+        let mut world = World::new(
+            self.res.facts().air,
+            self.level_registry.seed(dim.id(), self.level.seed),
+        );
         world.attachments = save.load_attachments();
-        world.shape = self.level_shapes.get(dim.id());
-        world.fast_lava = dim == Dim::Nether;
+        world.shape = shape;
+        world.fast_lava = super::world_loading::level_fast_lava(&self.level_registry, dim);
         Ok(Parked {
             world,
             streaming,
@@ -341,6 +368,7 @@ impl Game<'_> {
             }
             p.idle = 0;
             let left = std::mem::replace(&mut self.dim, target);
+            self.ensure_level_ctx(None, None);
             self.levels.parked.insert(left, p);
             if opened {
                 // The new streaming's radius and meshing options.
@@ -414,6 +442,8 @@ impl Game<'_> {
     /// run. The native server tick hook brackets it (`ServerTickStart` before
     /// the first level, `ServerTickEnd` after the last).
     pub(super) fn tick_server(&mut self, paused: bool) -> Result<()> {
+        // The world's levels are fixed once it ticks (F3-6 adds run-time creation).
+        self.level_registry.freeze();
         self.native_drain_permission_refresh();
         self.native_server_ops_tick_start()?;
         // `tickRateManager.tick()` once per server tick, before any level
@@ -621,7 +651,8 @@ impl Game<'_> {
             .lan
             .as_ref()
             .map_or(&[][..], |h| h.hub.guests.as_slice());
-        let mut dims: Vec<Dim> = [Dim::Overworld, Dim::Nether, Dim::End]
+        let mut dims: Vec<Dim> = self
+            .registered_dims()
             .into_iter()
             .filter(|d| {
                 let forced = if *d == self.dim {
@@ -740,9 +771,64 @@ impl Game<'_> {
     /// (`MinecraftServer.stopServer`'s `level.close()` loop), in vanilla's
     /// order of its levels: the Overworld, the Nether, the End.
     pub(super) fn native_levels_closing(&mut self) {
-        for dim in [Dim::Overworld, Dim::Nether, Dim::End] {
+        for dim in self.registered_dims() {
             self.native_level_closed(dim);
         }
+    }
+
+    /// The world's levels as handles, in registry order (the three vanilla ones first).
+    pub(super) fn registered_dims(&self) -> Vec<Dim> {
+        self.level_registry.ids().map(Dim::intern).collect()
+    }
+
+    /// The level `id` names, when this world has it (F3-3). A process-wide interned id of
+    /// another world's level is not one of this world's.
+    pub(super) fn level_dim(&self, id: &str) -> Option<Dim> {
+        self.level_registry.contains(id).then(|| Dim::intern(id))
+    }
+
+    /// Registers a level for a mod, from its level stem JSON, before the world starts
+    /// ticking (F3-3). Creating and deleting levels while the world runs is F3-6.
+    #[allow(dead_code)] // The mod API reaches it with F3-6.
+    pub(super) fn register_mod_level(
+        &mut self,
+        id: &str,
+        stem: serde_json::Value,
+    ) -> std::result::Result<Dim, horizon_client::level_registry::LevelError> {
+        use horizon_client::level_registry::LevelError;
+        let overrides = super::world_loading::world_worldgen_overrides(
+            &self.world_root,
+            &self.options.resources,
+            self.res.biomes(),
+            &self.level.enabled_features,
+        );
+        let data = horizon_client::vanillagen::shared_data_with(
+            &self.options.resources.join("worldgen"),
+            &overrides,
+            self.pack.assets.registry,
+        )
+        .map_err(|e| LevelError::Unsupported {
+            id: id.to_owned(),
+            reason: format!("the worldgen data is not available: {e}"),
+        })?;
+        self.level_registry
+            .register_level(id, stem, data.source_catalog())?;
+        Ok(Dim::intern(id))
+    }
+
+    /// Registers a chunk generator for levels whose stem is
+    /// `{"type": "yoake:mod", "id": <id>}`, before the world starts ticking (F3-5). The native side
+    /// of the mod generator API; WASM mods reach it with F3-8.
+    #[allow(dead_code)] // The mod API reaches it with F3-8.
+    pub(super) fn register_mod_generator(
+        &mut self,
+        id: &str,
+        factory: std::sync::Arc<dyn horizon_client::mod_generator::ModGeneratorFactory>,
+    ) -> std::result::Result<(), String> {
+        if self.level_registry.is_frozen() {
+            return Err("the world already started ticking".to_owned());
+        }
+        self.mod_generators.register(id, factory)
     }
 
     /// Save every parked level (`MinecraftServer.saveAllChunks`); the level

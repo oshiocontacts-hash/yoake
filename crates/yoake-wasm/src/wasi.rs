@@ -5,9 +5,9 @@
 //! mod). A guest can never block a host thread: the monotonic clock's `subscribe-duration` and
 //! `subscribe-instant` are our own ([`BoundedClock`]): a wait that is not already (nearly) due
 //! traps the mod instead of making `pollable.block()` or `thread::sleep` sleep the host thread, and
-//! every other pollable a guest can hold (the output streams, the empty stdin) is always ready. The filesystem interfaces are linked (std imports them unconditionally) but the guest
-//! has **no preopened directory**, so there is nothing it can open. Sockets are neither
-//! importable nor linked.
+//! every other pollable a guest can hold (the output streams, the empty stdin) is always ready. The mod gets `/data`, `/game` and optionally `/host/<letter>` preopens (`yoake_mod_io::files`).
+//! Sockets and `wasi:http` are linked, but the main instance may not use the network (the context denies it); network goes
+//! through the mod's worker (`yoake_mod_io::worker`), which has full WASI p2.
 
 use std::io;
 use std::pin::Pin;
@@ -47,6 +47,15 @@ pub const WASI_IMPORT_INTERFACES: &[&str] = &[
     "random/random",
     "random/insecure",
     "random/insecure-seed",
+    "sockets/network",
+    "sockets/instance-network",
+    "sockets/ip-name-lookup",
+    "sockets/tcp",
+    "sockets/tcp-create-socket",
+    "sockets/udp",
+    "sockets/udp-create-socket",
+    "http/types",
+    "http/outgoing-handler",
 ];
 
 /// `name` is the import name without its `wasi:` prefix, such as `cli/stdout@0.2.6`.
@@ -239,14 +248,37 @@ impl AsyncWrite for Pipe {
     }
 }
 
-/// Links exactly the allowed interfaces: everything in [`WASI_IMPORT_INTERFACES`], nothing else
-/// (no sockets, no name lookup).
-pub(crate) fn add_to_linker<T: WasiView>(linker: &mut Linker<T>) -> wasmtime::Result<()> {
+/// `wasi:http` hooks of the main instance: outgoing requests are refused (a request can wait for
+/// seconds, and the main instance must never block the game thread). Network goes through the
+/// mod's worker. [`Sandbox::set_main_network`](crate::Sandbox::set_main_network) lifts this.
+pub(crate) struct MainHttpHooks;
+
+impl wasmtime_wasi_http::WasiHttpHooks for MainHttpHooks {
+    fn send_request(
+        &mut self,
+        _request: http::Request<wasmtime_wasi_http::WasiBody>,
+        _options: Option<wasmtime_wasi_http::RequestOptions>,
+        _fut: Box<dyn std::future::Future<Output = wasmtime_wasi_http::Result<()>> + Send>,
+    ) -> Box<
+        dyn std::future::Future<
+                Output = wasmtime_wasi_http::Result<(
+                    http::Response<wasmtime_wasi_http::WasiBody>,
+                    Box<dyn std::future::Future<Output = wasmtime_wasi_http::Result<()>> + Send>,
+                )>,
+            > + Send,
+    > {
+        Box::new(async { Err(wasmtime_wasi_http::Error::HttpRequestDenied) })
+    }
+}
+
+/// Links exactly the allowed interfaces: everything in [`WASI_IMPORT_INTERFACES`], nothing else.
+pub(crate) fn add_to_linker<T: WasiView + wasmtime_wasi_http::WasiHttpView>(linker: &mut Linker<T>) -> wasmtime::Result<()> {
     use wasmtime_wasi::cli::{WasiCli, WasiCliView as _};
     use wasmtime_wasi::filesystem::{WasiFilesystem, WasiFilesystemView as _};
-    use wasmtime_wasi::p2::bindings::{cli, filesystem, random, sync};
+    use wasmtime_wasi::p2::bindings::{cli, filesystem, random, sockets, sync};
     use wasmtime_wasi::random::WasiRandom;
     use wasmtime_wasi::clocks::WasiClocksView as _;
+    use wasmtime_wasi::sockets::{WasiSockets, WasiSocketsView as _};
 
     // io (sync), clocks, random, stdin/stdout/stderr: the `wasi:http/proxy` subset of WASI.
     wasmtime_wasi::p2::add_to_linker_proxy_interfaces_sync(linker)?;
@@ -265,6 +297,17 @@ pub(crate) fn add_to_linker<T: WasiView>(linker: &mut Linker<T>) -> wasmtime::Re
     cli::terminal_stderr::add_to_linker::<T, WasiCli>(linker, T::cli)?;
     filesystem::preopens::add_to_linker::<T, WasiFilesystem>(linker, T::filesystem)?;
     sync::filesystem::types::add_to_linker::<T, WasiFilesystem>(linker, T::filesystem)?;
+    // Sockets and http are linked so a component that imports them loads; whether the main instance may
+    // use them is the WASI context's decision (denied unless `Sandbox::set_main_network(true)`).
+    let options = sync::LinkOptions::default();
+    sockets::tcp_create_socket::add_to_linker::<T, WasiSockets>(linker, T::sockets)?;
+    sockets::instance_network::add_to_linker::<T, WasiSockets>(linker, T::sockets)?;
+    sockets::network::add_to_linker::<T, WasiSockets>(linker, &(&options).into(), T::sockets)?;
+    sockets::ip_name_lookup::add_to_linker::<T, WasiSockets>(linker, T::sockets)?;
+    sync::sockets::tcp::add_to_linker::<T, WasiSockets>(linker, T::sockets)?;
+    sync::sockets::udp::add_to_linker::<T, WasiSockets>(linker, T::sockets)?;
+    sync::sockets::udp_create_socket::add_to_linker::<T, WasiSockets>(linker, T::sockets)?;
+    wasmtime_wasi_http::p2::add_only_http_to_linker_sync(linker)?;
     Ok(())
 }
 
@@ -274,14 +317,14 @@ mod tests {
 
     #[test]
     fn only_the_documented_wasi_subset_is_importable() {
-        for name in ["cli/stdout@0.2.6", "clocks/monotonic-clock@0.2.0", "random/random@0.2.6", "filesystem/preopens@0.2.6", "io/streams@0.2.6", "cli/exit@0.2.3"] {
+        for name in ["cli/stdout@0.2.6", "clocks/monotonic-clock@0.2.0", "random/random@0.2.6", "filesystem/preopens@0.2.6", "io/streams@0.2.6", "cli/exit@0.2.3", "sockets/tcp@0.2.6", "sockets/network@0.2.6", "sockets/ip-name-lookup@0.2.6", "http/types@0.2.6", "http/outgoing-handler@0.2.6"] {
             assert!(allowed_import(name), "{name}");
         }
         for name in [
-            "sockets/tcp@0.2.6",
-            "sockets/network@0.2.6",
-            "sockets/ip-name-lookup@0.2.6",
-            "http/types@0.2.6",
+            "sockets/tcp@0.3.0",
+            "http/types@0.3.0",
+            "http/handler@0.2.6",
+            "cli/command@0.2.6",
             "cli/stdout@0.3.0",
             "cli/stdout",
             "cli/run@0.2.6",

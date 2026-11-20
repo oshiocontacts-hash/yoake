@@ -402,6 +402,8 @@ Rules the manifest checker enforces for a full-access mod:
 | `[wasm] interface` | `"1.0"` (major must be 1; a minor of 1 or higher needs another world, so use `1.0`) |
 | `[wasm] server` | a file **directly** under `bin/wasm/` ending in `.wasm`; required in this tree; no `wasm.client` (section 6) |
 | `[wasm] permissions` | not allowed: a full-access mod is all-or-nothing |
+| `[wasm] worker` | optional: a component directly under `bin/wasm/` (section 14) |
+| `[wasm] host_filesystem` | optional boolean: `/host/<letter>` preopens (section 14) |
 | `[side]` | `server = true` |
 
 Optional keys include `name_ja`, `license`, `homepage`, `dependencies`, `optional`, `conflicts`. A `README.md`,
@@ -529,6 +531,148 @@ status's meaning or the wire format is a major change. Binding ids are append-on
 working across engine updates of the same major version.
 
 A mod's own `version` in `yak.toml` is separate: bump it for each release, and expect the player to allow each new file.
+
+## 14. IME for mod screens (sandboxed `client-full`, not full-access)
+
+The sandboxed component API has IME support for a mod-owned screen. It is not exposed to full-access core modules:
+there are no ledger hook ids or `engine_call` bindings for it in this tree. Do not register service ids 201/202 as
+full-access hook ids; those ids belong only to the sandboxed client-service catalog.
+
+A `client-full` mod subscribes to `hook::SCREEN_INIT_POST`, `hook::FRAME`, `hook::IME_PREEDIT`, and
+`hook::IME_COMMIT`. The services need write access to the host, which `screen_init_post` does not have (the calls
+return `Err` there), so the mod notes the screen opening and calls them from `frame`, retrying until they succeed. On
+its own open mod screen, it enables input and places the candidate window:
+
+```rust
+use yoake_wasm_sdk::full::client::{ime_set_allowed, ime_set_cursor_area};
+
+fn screen_init_post(&mut self, _screen: et::NativeScreenView) {
+    self.pending = true; // IME state resets each time a mod screen opens
+}
+
+fn frame(&mut self, _elapsed: u64) {
+    if self.pending
+        && ime_set_allowed(true).is_ok()
+        && ime_set_cursor_area(32.0, 48.0, 180.0, 20.0).is_ok()
+    {
+        self.pending = false;
+    }
+}
+
+fn ime_preedit(&mut self, text: String, cursor: Option<(u32, u32)>) {
+    // Draw `text` in the mod's text field. Cursor offsets are UTF-8 bytes.
+}
+
+fn ime_commit(&mut self, text: String) {
+    // Insert the committed text once.
+}
+```
+
+`ime_set_allowed` is service **201**, and `ime_set_cursor_area` is **202**. The rectangle is `(x, y, w, h)` in
+GUI-scaled coordinates, not physical window pixels. Coordinates must be finite and the size nonnegative. The services
+return `Err` unless the caller owns the currently open mod screen. The state resets whenever a mod screen opens or
+closes. A mod screen whose mod never calls either service behaves exactly as before (IME on for a title-menu mod
+screen, off for an in-game one); once it calls one, the screen follows the mod. No `[wasm] permissions` entry is
+needed or accepted for `service.ime`.
+
+**Argument order trap:** the generator sorts service arguments alphabetically, so the raw WIT import
+`services::ime_set_cursor_area` takes `(h, w, x, y)`. Always call the SDK wrapper
+`yoake_wasm_sdk::full::client::ime_set_cursor_area(x, y, w, h)`, which reorders them.
+
+Preedit and commit hooks run only on an open mod screen and only for subscribers. Empty preedit clears the composition;
+`Ime::Disabled` sends `("", None)`. Commit arrives before the existing per-character `screen_char_typed_pre` hooks, which
+still run: use one route for insertion, not both. See `docs/guide-ja/10-ime.md` and
+`crates/yoake-wasm-sdk/examples/ime/` for the complete sandboxed example.
+
+## 15. Files, network and workers (FR-F2)
+
+Yoake mods are used inside one group, so a mod may do what a Forge or Fabric mod can: use files and the network. Two
+rules stay: with no mod installed nothing changes, and **the game thread never waits for a mod**. Files are short and
+synchronous, so a mod may use them on the game thread. Network can wait for seconds, so it goes through a **worker**.
+
+This section holds for both kinds of mod: full-access core modules (this guide) and sandboxed components
+(`docs/yoake-wasm-dev.md`).
+
+### Folders
+
+| guest path | host folder | access |
+|---|---|---|
+| `/data` | `<game dir>/mod-data/<mod id>/` (created on first start) | read and write |
+| `/game` | the instance game directory | read and write |
+| `/host/<letter>` | every local drive root, for example `/host/c` (`/host/root` on Unix) | read and write; **only** with `[wasm] host_filesystem = true` |
+
+Persistent storage is just files under `/data`; there is no separate storage API.
+
+Full-access mods are built with Rust `std` for **`wasm32-wasip1`** to use `std::fs`:
+
+```sh
+rustup target add wasm32-wasip1
+rustc --edition 2024 --target wasm32-wasip1 --crate-type cdylib -C panic=abort -o my_mod.wasm src/lib.rs
+```
+
+The guest still exports `yoake_init` and `yoake_hook` and imports the usual `env` functions. A `no_std` guest that
+imports nothing from `wasi_snapshot_preview1` loads exactly as before. What the WASI imports give you:
+
+- `println!` and `eprintln!` become log lines `wasm mod <id> [stdout]: ...` and `[stderr]: ...` (the same lines the
+  sandboxed route writes).
+- Wall clock, monotonic clock and random work.
+- **Waiting is limited.** `thread::sleep` (WASI `poll_oneoff`) with a wait over 2 ms traps the mod; a shorter wait
+  returns at once. File calls count against the hook's time (the watchdog logs a slow hook). Copy big files in a worker.
+
+### Workers
+
+A mod may declare a worker, a WebAssembly **component** that the engine runs on its own OS thread:
+
+```toml
+[wasm]
+interface = "1.0"
+world = "full-access"
+server = "bin/wasm/my_mod.wasm"
+worker = "bin/wasm/my_worker.wasm"   # a component, world `worker-mod`
+host_filesystem = false               # optional
+```
+
+The worker has full WASI preview 2: files as above, `wasi:sockets` (TCP, UDP, name lookup), `wasi:http` outgoing
+requests, blocking waits and real clocks. It has **no engine handles**. It talks to its mod only through byte messages.
+The WIT is `crates/yoake-wasm/wit-worker/yoake-worker.wit` (package `yoake:mods@1.6.0`, an additive minor: new
+interfaces only, nothing of 1.0 to 1.2 changed):
+
+| side | calls |
+|---|---|
+| mod, full-access core module | `yoake_worker_send(ptr, len) -> i32`, `yoake_worker_recv(ptr, cap) -> i32` (module `env`); SDK: `yoake_guest_sdk::worker::{send, recv}` |
+| mod, sandboxed component | `worker-send(list<u8>) -> result<_, string>`, `worker-recv() -> option<list<u8>>` (interface `yoake:mods/worker@1.6.0`) |
+| worker component | imports `host-send`, `host-recv` (blocks until a message or until the worker is stopped), `host-try-recv` (interface `yoake:mods/worker-host@1.6.0`); exports `run: func()` (interface `yoake:mods/worker-run@1.6.0`) |
+
+Rules:
+
+- Each direction has a queue of at most **1024 messages and 16 MiB**. When it is full, the send returns an error
+  (`queue-full`, or `-1` in the core ABI); it never blocks. A message over 16 MiB is `too-large` (`-3`).
+- `yoake_worker_send` returns `0` ok, `-1` queue full, `-2` no worker (none declared, or it stopped), `-3` too large,
+  `-4` bad pointer. `yoake_worker_recv` returns the length (> 0), `0` for none, `-n` when the next message needs `n`
+  bytes (it stays queued), `i32::MIN` for no worker, `i32::MIN + 1` for a bad pointer. The core ABI treats an empty
+  message as "none".
+- `run` is called once on the worker thread; when it returns, the worker ends. A trap, a panic or `exit` ends only the
+  worker: the line `wasm mod <id> worker: ended, the worker is disabled: ...` is logged, the mod goes on and its sends
+  return `closed` / `-2`.
+- The worker stops when the mod is unloaded (hot reload, leaving the world) or the game exits: its queues are closed, a
+  blocked `host-recv` returns `none`, and guest code is interrupted within about 10 ms. A worker blocked inside a
+  socket call is let go after 0.5 s.
+- A package with both a client and a server module gets one worker per instance.
+- The worker's stdout and stderr go to the log as `wasm mod <id> worker [stdout]: ...`.
+
+Example (worker side, Rust with `wit-bindgen`): `crates/yoake-wasm-sdk/examples/f2-io` (`--features worker`).
+
+### Network in the main instance
+
+A sandboxed component's main instance links `wasi:sockets` and `wasi:http`, but the context denies them: a connect or a
+request returns an access-denied error. A call that could wait would stop the game thread. Do network in the worker.
+(`Sandbox::set_main_network(true)` lifts this for tools and tests; it is not used by the game.)
+
+### Services are no longer gated
+
+The service calls of a sandboxed mod (`config`, `permissions`, `storage`) are granted without `[wasm] permissions`. The
+field is still parsed so older mods load; `service.commands`, `service.chat` and `service.gpu` keep their own meaning.
+`service.http` was accepted by the manifest but no transport was ever connected to it; use `wasi:http` in a worker.
 
 ## 要確認 (not verified)
 

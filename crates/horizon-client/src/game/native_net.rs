@@ -25,7 +25,7 @@ pub(super) struct NativeNet {
     from_counts: HashMap<u128, u32>,
     to_players: Vec<(u128, Vec<u8>)>,
     to_counts: HashMap<u128, u32>,
-    pub(super) to_server: u32,
+    pub(super) to_server: std::sync::atomic::AtomicU32,
     config_outbox: yoake_wasm::config_sync::Outbox,
     config_inbox: yoake_wasm::config_sync::Inbox,
 }
@@ -197,6 +197,17 @@ impl Game<'_> {
         channel: &str,
         data: &[u8],
     ) -> Result<(), String> {
+        self.native_net_send_to_server_shared(channel, data)
+    }
+
+    /// `native_net_send_to_server` for a hook that holds only a shared view of the game (the
+    /// screen key and mouse hooks): the same checks, the same 32 a tick, and the same send.
+    /// Ok means accepted; an error says why not (a vanilla server, not joined, past the cap).
+    pub(super) fn native_net_send_to_server_shared(
+        &self,
+        channel: &str,
+        data: &[u8],
+    ) -> Result<(), String> {
         // Not joined first: the announcement may still be on its way, and a
         // mod that gives up on "carries no mod messages" never tries again.
         let Some(remote) = self.remote.as_ref() else {
@@ -210,10 +221,17 @@ impl Game<'_> {
             return Err("the server carries no mod messages".into());
         }
         let payload = payload(channel, data)?;
-        if self.native_net.to_server >= PER_TICK {
+        if self
+            .native_net
+            .to_server
+            .load(std::sync::atomic::Ordering::Relaxed)
+            >= PER_TICK
+        {
             return Err(format!("past {PER_TICK} messages this tick"));
         }
-        self.native_net.to_server += 1;
+        self.native_net
+            .to_server
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self.send(S::CustomPayload(CustomPayload {
             channel: mod_net::CHANNEL.into(),
             data: payload,

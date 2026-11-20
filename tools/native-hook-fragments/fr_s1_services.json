@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "net_send_to_server_shared", "target": "horizon_client::game::native_net::Game<'_>::native_net_send_to_server_shared"},
+    {"name": "queue_local_sound", "target": "horizon_client::game::native_s1::Game<'_>::native_queue_local_sound"},
+    {"name": "local_player_stacks", "target": "horizon_client::game::native_s1::Game<'_>::native_local_player_stacks"},
+    {"name": "sprite_quad", "target": "horizon_client::game::native_s1::Game<'_>::native_sprite_quad"},
+    {"name": "player_set_food", "target": "horizon_client::game::native_s1::Game<'_>::native_player_set_food"}
+  ],
+  "rust_summary": "small client and server helpers for the WebAssembly services: a mod message to the server from a hook with a shared view of the game, client-only sounds, the local player's items, turned sprite quads and a server-side food setter.",
+  "doc_summary": "`native_net_send_to_server_shared(channel, data)` is `native_net_send_to_server` for hooks that hold only a shared view of the game (the screen key and mouse hooks). `native_queue_local_sound(sound, at, volume, pitch)` queues a sound for this client alone (`at` of None is a UI sound with no attenuation) that plays when the next frame starts. `native_local_player_stacks()` lists the local player's stacks as the client sees them. `native_player_set_food(uuid, food, saturation)` sets a player's food level and saturation on the server tick. Nothing changes unless a mod calls them. Bundles need fragment @API:fr_s1_services@."
+}

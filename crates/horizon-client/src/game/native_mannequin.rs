@@ -184,7 +184,8 @@ impl Game<'_> {
         let removed = if dimension == self.dim.id() {
             self.native_remove_mob(&dimension, id)
         } else {
-            let dim = super::Dim::from_id(&dimension);
+            // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+            let dim = super::Dim::lookup_or_overworld(&dimension);
             self.levels
                 .parked_mut(dim)
                 .and_then(|level| level.mobs.iter_mut().find(|mob| mob.id == id && !mob.removed))

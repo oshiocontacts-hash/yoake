@@ -174,6 +174,90 @@ pub enum Dimension {
     End,
 }
 
+/// Which `infiniburn_*` block tag a level's fire reads (`DimensionType.infiniburn`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Infiniburn {
+    Overworld,
+    Nether,
+    End,
+}
+
+/// What block behaviour reads of a level's dimension type (F3-4b). The
+/// three vanilla dimensions are the constants; [`LevelAccess::level_rules`]
+/// answers them by default from [`LevelAccess::dimension`], so a level
+/// that only knows its dimension behaves exactly as before. A level of any
+/// other id builds its rules from its type with [`LevelRules::of_type`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LevelRules {
+    /// Lava flows fast (`gameplay/fast_lava`).
+    pub fast_lava: bool,
+    /// Water evaporates: buckets, ice, wet sponges, mud (`gameplay/water_evaporates`).
+    pub water_evaporates: bool,
+    /// The day timeline runs (the Overworld's: creaking, eyeblossoms).
+    pub day_cycle: bool,
+    /// The level has sky light (`has_skylight`): daylight detectors tick.
+    pub has_skylight: bool,
+    /// The End's sky: fire spreads by block light there.
+    pub sky_end: bool,
+    pub sea_level: i32,
+    pub infiniburn: Infiniburn,
+}
+impl LevelRules {
+    pub const OVERWORLD: Self = Self {
+        fast_lava: false,
+        water_evaporates: false,
+        day_cycle: true,
+        has_skylight: true,
+        sky_end: false,
+        sea_level: 63,
+        infiniburn: Infiniburn::Overworld,
+    };
+    pub const NETHER: Self = Self {
+        fast_lava: true,
+        water_evaporates: true,
+        day_cycle: false,
+        has_skylight: false,
+        sky_end: false,
+        sea_level: 32,
+        infiniburn: Infiniburn::Nether,
+    };
+    pub const END: Self = Self {
+        fast_lava: false,
+        water_evaporates: false,
+        day_cycle: false,
+        has_skylight: true,
+        sky_end: true,
+        sea_level: 0,
+        infiniburn: Infiniburn::End,
+    };
+    pub const fn of(dimension: Dimension) -> Self {
+        match dimension {
+            Dimension::Overworld => Self::OVERWORLD,
+            Dimension::Nether => Self::NETHER,
+            Dimension::End => Self::END,
+        }
+    }
+    /// The rules of a level whose dimension type is `t`.
+    pub fn of_type(t: &crate::dimension::DimensionType) -> Self {
+        let overworld_sky = t.skybox == "overworld";
+        Self {
+            fast_lava: t.fast_lava(),
+            water_evaporates: t.water_evaporates(),
+            day_cycle: overworld_sky && (!t.has_fixed_time || t.timelines.is_some()),
+            has_skylight: t.has_skylight,
+            sky_end: t.skybox == "end",
+            sea_level: if t.has_ceiling { 32 } else { 63 },
+            infiniburn: if t.infiniburn.ends_with("infiniburn_nether") {
+                Infiniburn::Nether
+            } else if t.infiniburn.ends_with("infiniburn_end") {
+                Infiniburn::End
+            } else {
+                Infiniburn::Overworld
+            },
+        }
+    }
+}
+
 /// Game rules consulted by block behaviour (vanilla defaults).
 #[yoake_state::yoake_state(read_only)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -611,6 +695,21 @@ pub trait LevelAccess {
     }
     fn dimension(&self) -> Dimension {
         Dimension::Overworld
+    }
+    /// The level's id: `minecraft:overworld`, `minecraft:the_nether`, `minecraft:the_end` for the
+    /// three dimensions, and its own for a level past them (F3-6). Additive: `dimension()` keeps
+    /// answering one of the three.
+    fn level_id(&self) -> &str {
+        match self.dimension() {
+            Dimension::Overworld => "minecraft:overworld",
+            Dimension::Nether => "minecraft:the_nether",
+            Dimension::End => "minecraft:the_end",
+        }
+    }
+    /// The rules of the level's dimension type (F3-4b): the dimension's own
+    /// unless the level is one past the vanilla three.
+    fn level_rules(&self) -> LevelRules {
+        LevelRules::of(self.dimension())
     }
     fn game_rules(&self) -> GameRules {
         GameRules::default()
@@ -1170,7 +1269,7 @@ impl Behaviours {
         ticks: &mut Ticks,
         pos: BlockPos,
     ) {
-        if level.dimension() == Dimension::Nether || level.game_time() % 20 != 0 {
+        if !level.level_rules().has_skylight || level.game_time() % 20 != 0 {
             return;
         }
         let mut sim = self.sim(level, ticks);
@@ -1291,5 +1390,55 @@ impl Behaviours {
             ticks,
             wire_signal_off: std::cell::Cell::new(false),
         }
+    }
+}
+
+#[cfg(test)]
+mod level_rules_tests {
+    use super::*;
+    use crate::dimension::DimensionType;
+
+    /// A level that uses a vanilla type has the rules its dimension has.
+    #[test]
+    fn the_vanilla_types_give_the_vanilla_rules() {
+        for (id, dimension) in [
+            ("minecraft:overworld", Dimension::Overworld),
+            ("minecraft:the_nether", Dimension::Nether),
+            ("minecraft:the_end", Dimension::End),
+        ] {
+            let got = LevelRules::of_type(&DimensionType::vanilla(id).unwrap());
+            let want = LevelRules::of(dimension);
+            assert_eq!(got.fast_lava, want.fast_lava, "{id}");
+            assert_eq!(got.water_evaporates, want.water_evaporates, "{id}");
+            assert_eq!(got.has_skylight, want.has_skylight, "{id}");
+            assert_eq!(got.sky_end, want.sky_end, "{id}");
+            assert_eq!(got.infiniburn, want.infiniburn, "{id}");
+            assert_eq!(got.day_cycle, want.day_cycle, "{id}");
+        }
+    }
+
+    /// The default `level_rules` is `of(dimension())`: the three constants differ where they should.
+    #[test]
+    fn the_dimension_constants_are_the_vanilla_rules() {
+        assert_eq!(LevelRules::of(Dimension::Overworld), LevelRules::OVERWORLD);
+        let nether = LevelRules::of(Dimension::Nether);
+        assert!(nether.fast_lava && nether.water_evaporates && !nether.has_skylight);
+        assert_eq!((nether.sea_level, nether.infiniburn), (32, Infiniburn::Nether));
+        let end = LevelRules::of(Dimension::End);
+        assert!(end.sky_end && end.has_skylight && !end.fast_lava);
+        assert_eq!((end.sea_level, end.infiniburn), (0, Infiniburn::End));
+    }
+
+    #[test]
+    fn a_type_of_its_own_sets_its_rules() {
+        let mut t = DimensionType::new(0, 128);
+        t.has_ceiling = true;
+        t.skybox = "none".into();
+        t.infiniburn = "#mypack:infiniburn_hell".into();
+        t.attributes
+            .insert("minecraft:gameplay/fast_lava".into(), serde_json::json!(true));
+        let r = LevelRules::of_type(&t);
+        assert!(r.fast_lava && !r.water_evaporates && !r.day_cycle && r.has_skylight);
+        assert_eq!((r.sea_level, r.infiniburn), (32, Infiniburn::Overworld));
     }
 }

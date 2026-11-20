@@ -15,8 +15,19 @@ impl Game<'_> {
         let Some(remote) = self.remote.as_mut() else {
             return;
         };
-        if let Err(e) = remote.custom_mobs.apply_payload(data, &kind_of) {
-            log::debug!("Horizon: a bad mob sync payload: {e}");
+        match remote.custom_mobs.apply_payload(data, &kind_of) {
+            // One line a payload, for the end-to-end run (tools/mob_sync_e2e.py) and for a person
+            // asking why a custom mob stands still: what was applied and how many mobs are known.
+            Ok(done) => log::info!(
+                "Horizon mob-sync: snapshots={} deltas={} triggers={} dropped={} incompatible={} known={}",
+                done.snapshots,
+                done.deltas,
+                done.triggers,
+                done.dropped,
+                done.incompatible,
+                remote.custom_mobs.len()
+            ),
+            Err(e) => log::debug!("Horizon: a bad mob sync payload: {e}"),
         }
     }
 }

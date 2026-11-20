@@ -323,6 +323,9 @@ impl SpawnLevel for GameLevel<'_, '_> {
     fn dimension(&self) -> Dimension {
         self.w.dimension()
     }
+    fn level_id(&self) -> &str {
+        self.w.level_id()
+    }
     fn surface_slime_chance(&self, x: i32, y: i32, z: i32) -> f32 {
         self.w.surface_slime_chance(x, y, z)
     }
@@ -360,11 +363,7 @@ impl NaturalLevel for GameLevel<'_, '_> {
         self.w.world.top_y() - 1
     }
     fn ambient_light(&self) -> f32 {
-        match self.game.dim {
-            Dim::Nether => 0.1,
-            Dim::End => 0.25,
-            _ => 0.0,
-        }
+        self.game.level_facts().ambient
     }
     fn has_ceiling(&self) -> bool {
         self.w.world.shape.has_ceiling

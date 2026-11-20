@@ -627,7 +627,7 @@ impl Game<'_> {
                 light,
                 lights: if lit {
                     Some(horizon_client::block_entity_render::diffuse_lights(
-                        self.dim == super::Dim::Nether,
+                        self.level_facts().nether_light,
                     ))
                 } else {
                     None

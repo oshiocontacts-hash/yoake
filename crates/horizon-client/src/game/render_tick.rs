@@ -1,6 +1,7 @@
 //! Per-tick client visuals: the particle engine, `ClientLevel.animateTick`,
 //! campfire smoke and rain splashes (`ClientLevel.tickWeatherEffects`).
-use super::{Dim, Game};
+use super::level_facts::SkyKind;
+use super::Game;
 use horizon_client::assets::Properties;
 use horizon_client::camera::NearPlane;
 use horizon_client::fog::{FogData, FogInputs, FogType, fog_type, update_rain_fog};
@@ -109,7 +110,7 @@ impl Game<'_> {
         let forward = self.forward();
         let at = [camera.x, camera.y, camera.z];
         let fog_type = fog_type(&self.world, self.res.facts(), at, &self.near_plane());
-        let (rain, thunder) = if self.dim == Dim::Overworld {
+        let (rain, thunder) = if self.level_facts().weather {
             self.world.weather.levels(self.clock.fraction() as f32)
         } else {
             (0.0, 0.0)
@@ -134,7 +135,7 @@ impl Game<'_> {
             forward: forward.map(|c| c as f32),
             rain,
             thunder,
-            skybox: self.dim == Dim::Overworld,
+            skybox: self.level_facts().sky == SkyKind::Overworld,
             blindness: self
                 .potions
                 .effects
@@ -246,7 +247,7 @@ impl Game<'_> {
         } else {
             63.0
         };
-        self.dim == Dim::Overworld
+        self.level_facts().sky == SkyKind::Overworld
             && camera.y < horizon
             && fog_type(
                 &self.world,
@@ -378,7 +379,7 @@ impl Game<'_> {
         let packed = self.world.light(b[0], b[1], b[2]);
         let sky = i32::from(packed >> 4) - self.sky_darken();
         let raw = sky.max(i32::from(packed & 15)).clamp(0, 15) as u8;
-        lightmap_brightness(if self.dim == Dim::Nether { 0.1 } else { 0.0 }, raw)
+        lightmap_brightness(self.level_facts().light_ambient, raw)
     }
     pub(super) fn tick_particles(&mut self) {
         self.fog.tick_flicker();
@@ -403,7 +404,7 @@ impl Game<'_> {
                 e[1].floor() as i32,
                 e[2].floor() as i32,
             ];
-            let rain = if self.dim == Dim::Overworld {
+            let rain = if self.level_facts().weather {
                 self.world.weather.levels(1.0).0
             } else {
                 0.0
@@ -426,7 +427,7 @@ impl Game<'_> {
         if let Some(e) = eye {
             self.particles.camera = e;
         }
-        let (rain, _) = if self.dim == Dim::Overworld {
+        let (rain, _) = if self.level_facts().weather {
             self.world.weather.levels(1.0)
         } else {
             (0.0, 0.0)
@@ -454,10 +455,10 @@ impl Game<'_> {
         let height_no_leaves =
             |p: [i32; 3]| motion_blocking_leaves(world, facts, p[0], p[2], i32::MAX, false);
         // The day timeline: firefly bush sounds from 12600 to 23400.
-        let firefly_bush_sounds = self.dim == Dim::Overworld
+        let firefly_bush_sounds = self.level_facts().day_cycle
             && (12600..23401).contains(&self.world.day_time.rem_euclid(24000));
         // EnvironmentAttributes.CREAKING_ACTIVE: the same overworld night.
-        let creaking_active = self.dim == Dim::Overworld
+        let creaking_active = self.level_facts().day_cycle
             && (12600..23401).contains(&self.world.day_time.rem_euclid(24000));
         let tables = &self.pack.context.tables;
         let model_offset = |state, x, z| tables.offset(state, x, z);
@@ -468,7 +469,7 @@ impl Game<'_> {
                 .len()
         };
         // Level.isThundering: a thunder level above 0.9 where the sky is open.
-        let thundering = self.dim == Dim::Overworld && world.weather.levels(1.0).1 > 0.9;
+        let thundering = self.level_facts().weather && world.weather.levels(1.0).1 > 0.9;
         let ctx = AnimateContext {
             world,
             facts,
@@ -484,7 +485,7 @@ impl Game<'_> {
             model_offset: &model_offset,
             gateway_particles: &gateway_particles,
             thundering,
-            ultrawarm: self.dim == Dim::Nether,
+            ultrawarm: self.level_facts().ultrawarm,
         };
         if let Some(e) = eye {
             let block = [

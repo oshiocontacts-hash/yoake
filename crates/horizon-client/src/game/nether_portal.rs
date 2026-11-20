@@ -243,7 +243,8 @@ fn arrival_from_tag(a: &Tag) -> Option<Arrival> {
         Some(Tag::Double(v)) => Some(f64::from_bits(*v)),
         _ => None,
     };
-    let dim = Dim::from_id(&horizon_client::save::text(a.get("dimension"))?);
+    // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+    let dim = Dim::lookup_or_overworld(&horizon_client::save::text(a.get("dimension"))?);
     let (Some(x), Some(y), Some(z), Some(tag)) = (int("x"), int("y"), int("z"), a.get("entity"))
     else {
         return None;

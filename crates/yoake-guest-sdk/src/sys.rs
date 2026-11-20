@@ -10,7 +10,13 @@ unsafe extern "C" {
     pub fn get(handle: i64, field: i32, out: i32) -> i32;
     pub fn set(handle: i64, field: i32, bits: i64) -> i32;
     pub fn report(slot: i32, value: i64);
+    pub fn arg_get(handle: i64, out: i32) -> i32;
+    pub fn arg_set(handle: i64, bits: i64) -> i32;
+    pub fn arg_swap(a: i64, b: i64) -> i32;
+    pub fn arg_replace(dst: i64, src: i64) -> i32;
     pub fn hook_register(id: i32, priority: i32) -> i32;
+    pub fn yoake_worker_send(ptr: i32, len: i32) -> i32;
+    pub fn yoake_worker_recv(ptr: i32, cap: i32) -> i32;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -31,8 +37,26 @@ mod inert {
         1
     }
     pub unsafe fn report(_: i32, _: i64) {}
+    pub unsafe fn arg_get(_: i64, _: i32) -> i32 {
+        1
+    }
+    pub unsafe fn arg_set(_: i64, _: i64) -> i32 {
+        1
+    }
+    pub unsafe fn arg_swap(_: i64, _: i64) -> i32 {
+        1
+    }
+    pub unsafe fn arg_replace(_: i64, _: i64) -> i32 {
+        1
+    }
     pub unsafe fn hook_register(_: i32, _: i32) -> i32 {
         0
+    }
+    pub unsafe fn yoake_worker_send(_: i32, _: i32) -> i32 {
+        -2
+    }
+    pub unsafe fn yoake_worker_recv(_: i32, _: i32) -> i32 {
+        i32::MIN
     }
 }
 #[cfg(not(target_arch = "wasm32"))]

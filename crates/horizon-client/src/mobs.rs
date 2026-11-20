@@ -2683,6 +2683,25 @@ impl PlayerView {
         self.effects.contains(&effect)
     }
 }
+/// What mobs read of the dimension type of a level past the vanilla three
+/// (F3-4b): the rules `nether` stood for in the Nether and nowhere else.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CustomLevel {
+    /// `monster_spawn_block_light_limit` and `monster_spawn_light_level`.
+    pub spawn_light: crate::mobs::spawn_rules::LightRule,
+    /// `gameplay/piglins_zombify` (the old `!piglin_safe`).
+    pub piglins_zombify: bool,
+    /// `gameplay/snow_golem_melts`.
+    pub snow_golem_melts: bool,
+    /// Lava flows fast (`gameplay/fast_lava`): the mobs it pushes.
+    pub fast_lava: bool,
+    /// `has_skylight`: the sky can be seen.
+    pub has_skylight: bool,
+    /// The Overworld's day timeline runs here.
+    pub day_cycle: bool,
+    /// `DimensionType.ambientLight` as the brightness of a position reads it.
+    pub ambient: f32,
+}
 #[derive(Clone)]
 pub struct MobWorld<'a> {
     pub world: &'a World,
@@ -2715,6 +2734,12 @@ pub struct MobWorld<'a> {
     pub raining: bool,
     pub thundering: bool,
     pub nether: bool,
+    /// What a level past the vanilla three takes from its dimension type;
+    /// `None` for the vanilla three, which `nether` and `end` describe.
+    pub custom: Option<CustomLevel>,
+    /// The level's id (`mypack:moon`) for a level past the vanilla three, else empty: what a custom
+    /// mob's spawn rule `dimensions` list is matched against.
+    pub level_id: &'static str,
     pub block_tags: &'a HashMap<String, std::collections::HashSet<String>>,
     /// Each block's `fallOn` rule (the player's landing registry).
     pub landing: &'a horizon_world::block_landing::BlockLandingRegistry,
@@ -5418,6 +5443,8 @@ pub mod mob_hook_bench {
                 raining: false,
                 thundering: false,
                 nether: false,
+                custom: None,
+                level_id: "",
                 block_tags: &self.block_tags,
                 landing: &self.landing,
                 biomes: &self.biomes,

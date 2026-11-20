@@ -43,6 +43,30 @@ impl SpriteOverrideStore {
         self.item_overrides.is_empty() && self.block_overrides.is_empty()
     }
 
+    /// Atlas rects `[x, y, width, height]` (texels) of every sprite an item override covers; the HUD
+    /// atlas animation leaves these alone.
+    pub(super) fn item_override_rects(
+        &self,
+        sprites: &HashMap<String, Rect>,
+        atlas_width: u32,
+        atlas_height: u32,
+    ) -> Vec<[u32; 4]> {
+        let mut rects = Vec::new();
+        for entry in self.item_overrides.values() {
+            for key in &entry.sprite_keys {
+                if let Some(rect) = sprites.get(key).copied()
+                    && let Ok((x, y)) = rect_origin(rect, atlas_width, atlas_height)
+                {
+                    let texels = [x, y, rect.w, rect.h];
+                    if !rects.contains(&texels) {
+                        rects.push(texels);
+                    }
+                }
+            }
+        }
+        rects
+    }
+
     #[cfg(test)]
     pub(super) fn item_owner(&self, item_id: &str) -> Option<&str> {
         self.item_overrides.get(item_id).map(|entry| entry.owner.as_str())
@@ -540,7 +564,20 @@ impl Game<'_> {
             |id| resolve_item_sprites(item_renderer, sprites, id),
             &mut self.sprite_patches,
         )?;
+        self.sync_hud_sprite_overrides();
         Ok(())
+    }
+
+    /// Tell the HUD atlas animation which rects a mod overrides (it skips them; a rect that left the
+    /// set shows its current frame again).
+    fn sync_hud_sprite_overrides(&mut self) {
+        let atlas = &self.gui.atlas;
+        let rects = self
+            .native_sprites
+            .item_override_rects(&atlas.sprites, atlas.width, atlas.height);
+        if let Some(renderer) = &mut self.renderer {
+            renderer.hud.set_overridden_rects(rects, (atlas.width, atlas.height));
+        }
     }
 
     /// Restore an overridden item sprite back to the active resource pack texture.
@@ -549,6 +586,7 @@ impl Game<'_> {
         let (sprites, pixels) = (&self.gui.atlas.sprites, &mut self.gui.atlas.pixels);
         self.native_sprites
             .reset_item(item_id, width, pixels, sprites, &mut self.sprite_patches)?;
+        self.sync_hud_sprite_overrides();
         Ok(())
     }
 
@@ -627,6 +665,7 @@ impl Game<'_> {
 
     pub(super) fn reapply_native_sprites(&mut self) {
         if self.native_sprites.is_empty() {
+            self.sync_hud_sprite_overrides();
             return;
         }
         let (width, height) = (self.gui.atlas.width, self.gui.atlas.height);
@@ -640,6 +679,7 @@ impl Game<'_> {
             |id| resolve_item_sprites(item_renderer, sprites, id),
             &mut self.sprite_patches,
         );
+        self.sync_hud_sprite_overrides();
         let render = &self.pack.render;
         let updates = self
             .native_sprites

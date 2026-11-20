@@ -388,7 +388,7 @@ impl Game<'_> {
             light: 0,
             block: [0; 3],
             poses: Vec::new(),
-            lights: diffuse_lights(self.dim == Dim::Nether),
+            lights: diffuse_lights(self.level_facts().nether_light),
             vertices: std::mem::take(out),
             equipment_outlines: Vec::new(),
             equipment_origin: Vec3::ZERO,

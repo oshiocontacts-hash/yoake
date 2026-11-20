@@ -236,6 +236,15 @@ pub fn load_package_on(side: ThreadSide, bytes: Vec<u8>, origin: Option<Origin>,
         });
     }
     let module = archive.full_access_module(side == ThreadSide::Client).map_err(Refusal::Package)?.ok_or_else(|| Refusal::Package("no full-access module".into()))?;
+    // FR-F2: files (`/data`, `/game`, maybe `/host/<letter>`) and the worker component, unless the caller already set them
+    let mut cfg = cfg;
+    if cfg.io.is_none() {
+        let host_filesystem = archive.manifest().wasm.as_ref().is_some_and(|wasm| wasm.host_filesystem);
+        let mut io = yoake_mod_io::ModIo::new(yoake_mod_io::FileAccess::new(crate::join_mods::game_root(), id.clone(), host_filesystem));
+        io.worker = archive.worker_module().map_err(Refusal::Package)?;
+        io.log = yoake_mod_io::LogSink::new(|line| log::info!("{line}"));
+        cfg.io = Some(io);
+    }
     // the ABI version is read from the module bytes: no guest code has run yet
     let abi = match runtime::module_abi_version(&module) {
         Err(e) => return Err(Refusal::Abi(e.to_string())),
@@ -724,6 +733,33 @@ pub const BRIDGE_MODULES: [BridgeModule; 4] = [
     },
 ];
 
+/// W9b: the bridges the stamping overlay generates for every stamped module (`--cfg yoake_stamped`, set by the
+/// rustc wrapper; docs/yoake2/reports/FR-F1-W9b.md). Each crate exports a root function that chains its modules'
+/// bridges; their ids are all ledger ids, disjoint from the hand-wired modules above (the overlay leaves those alone).
+#[cfg(yoake_stamped)]
+pub const STAMPED_BRIDGES: [BridgeModule; 3] = [
+    BridgeModule {
+        name: "stamped horizon-world",
+        bridged: &[],
+        mode: horizon_world::__yoake_bridge_mode,
+        install: horizon_world::__yoake_install_bridges,
+    },
+    BridgeModule {
+        name: "stamped horizon-client-lib",
+        bridged: &[],
+        mode: horizon_client_lib::__yoake_bridge_mode,
+        install: horizon_client_lib::__yoake_install_bridges,
+    },
+    BridgeModule {
+        name: "stamped horizon-client",
+        bridged: &[],
+        mode: crate::__yoake_bridge_mode,
+        install: crate::__yoake_install_bridges,
+    },
+];
+#[cfg(not(yoake_stamped))]
+pub const STAMPED_BRIDGES: [BridgeModule; 0] = [];
+
 /// The mode of ledger hook `id` in this engine build: the generated bridges' `mode` (ledger ids are unique across
 /// crates, so at most one bridge knows `id`). `None`: no bridge can call it. Installed as the process-wide
 /// [`yoake_slice::bridge::ModeResolver`], so `hook_register` tells the guest (ENGINE_CALL_ABI.md, "Hook modes").
@@ -731,7 +767,7 @@ pub fn hook_mode(id: u32) -> Option<yoake_slice::bridge::Mode> {
     if let Some(&(_, mode)) = ENGINE_DISPATCHED.iter().find(|(hook, _)| *hook == id) {
         return Some(mode);
     }
-    BRIDGE_MODULES.iter().find_map(|module| (module.mode)(id))
+    BRIDGE_MODULES.iter().chain(STAMPED_BRIDGES.iter()).find_map(|module| (module.mode)(id))
 }
 
 /// After the mods' `yoake_init` registered their hook ids: installs the generated bridge dispatcher
@@ -753,7 +789,7 @@ pub fn install_bridges(loaded: &[Loaded]) -> Vec<(String, Vec<(u32, String)>)> {
             .into_iter()
             .filter(|(id, _)| *id != 0 && !ENGINE_DISPATCHED.iter().any(|(hook, _)| hook == id))
             .collect();
-        let reports: Vec<yoake_slice::bridge::InstallReport> = BRIDGE_MODULES.iter().map(|module| (module.install)(&registered)).collect();
+        let reports: Vec<yoake_slice::bridge::InstallReport> = BRIDGE_MODULES.iter().chain(STAMPED_BRIDGES.iter()).map(|module| (module.install)(&registered)).collect();
         let missing: Vec<(u32, String)> = registered
             .iter()
             .filter_map(|&(id, _)| {

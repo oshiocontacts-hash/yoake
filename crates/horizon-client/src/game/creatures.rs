@@ -797,7 +797,7 @@ impl Game<'_> {
     }
     /// Highest motion-blocking (no leaves) block + 1 (Heightmap MOTION_BLOCKING_NO_LEAVES).
     pub(super) fn motion_top(&self, x: i32, z: i32) -> i32 {
-        let top = if self.dim == Dim::Nether { 127 } else { 319 };
+        let top = self.level_facts().top;
         for y in (self.world.bottom_y()..=top).rev() {
             let f = self.res.facts().get(self.world.block(x, y, z));
             if (f.full_collision || f.fluid != Fluid::None) && !f.name.ends_with("leaves") {
@@ -810,7 +810,8 @@ impl Game<'_> {
         let (rain, thunder) = self.world.weather.levels(1.0);
         // Level.canHaveWeather: only the overworld's rain and thunder levels
         // ever rise, so nothing rains or thunders in the Nether or the End.
-        let weather = self.dim == Dim::Overworld;
+        let facts = self.level_facts();
+        let weather = facts.weather;
         let player = self.player_view();
         MobWorld {
             world: &self.world,
@@ -827,15 +828,21 @@ impl Game<'_> {
             leash_boats: &self.leash_boats,
             others_grid: None,
             others_index: None,
-            daylight: self.dim != Dim::Nether && self.sky_darken() < 4,
+            daylight: (if matches!(self.dim, Dim::Overworld | Dim::Nether | Dim::End) {
+                self.dim != Dim::Nether
+            } else {
+                self.world.shape.sky_light
+            }) && self.sky_darken() < 4,
             // day.json: false from tick 12542, true from 23460 (a step track).
-            monsters_burn: self.dim == Dim::Overworld
+            monsters_burn: facts.day_cycle
                 && !(12542..23460).contains(&self.world.day_time.rem_euclid(24000)),
             game_time: self.world.game_time,
             day_time: self.world.day_time,
             raining: weather && rain > 0.2,
             thundering: weather && thunder > 0.9,
             nether: self.dim == Dim::Nether,
+            custom: facts.custom,
+            level_id: self.dim.id(),
             block_tags: &self.items().block_tags,
             landing: &self.motion.landing,
             biomes: world_biomes!(self),
@@ -845,7 +852,7 @@ impl Game<'_> {
             max_entity_cramming: self.ui.rules.int("max_entity_cramming"),
             end: self.dim == Dim::End,
             world_seed: self.level.seed,
-            sea_level: if self.dim == Dim::Nether { 32 } else { 63 },
+            sea_level: facts.sea_level,
             teams: std::sync::Arc::new(self.mob_teams()),
             items: Some(self.items()),
             lid_openers: &self.lid_openers,
@@ -6771,11 +6778,7 @@ impl Game<'_> {
         horizon_client::mobs::cem_anim::set_frame(horizon_client::mobs::cem_anim::Frame {
             time: self.world.game_time as f64 + alpha,
             day_time: self.world.day_time as f64 + alpha,
-            dimension: match self.dim {
-                Dim::Overworld => 0.0,
-                Dim::Nether => -1.0,
-                Dim::End => 1.0,
-            },
+            dimension: self.level_facts().shader_dimension() as f32,
             player: self.player.as_ref().map_or(camera.to_array(), |p| {
                 [p.position.x, p.position.y, p.position.z]
             }),
@@ -7854,6 +7857,8 @@ mod pearl_tests {
             raining: false,
             thundering: false,
             nether: false,
+            custom: None,
+            level_id: "",
             block_tags: &items.block_tags,
             landing: &motion.landing,
             biomes: &biomes,

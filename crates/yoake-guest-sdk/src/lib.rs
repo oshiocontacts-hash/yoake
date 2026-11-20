@@ -146,6 +146,42 @@ pub fn original(handle: Handle) -> Result<i64, Error> {
     if status == 0 { Ok(i64::from_le_bytes(out)) } else { Err(Error::Handle(status)) }
 }
 
+impl Handle {
+    /// The handle of argument `index` of the same activation (argument 0 is the handle `yoake_hook` receives).
+    pub fn arg(self, index: u8) -> Handle {
+        Handle((self.0 & !0xff) | u64::from(index))
+    }
+}
+
+/// W8 (ABI 1.1): the bits of a by-value argument (`bridge::encode`-style: integers sign-extended, floats as bits).
+pub fn arg_value(handle: Handle) -> Result<i64, Error> {
+    let mut out = [0u8; 8];
+    // SAFETY: `out` is 8 live bytes.
+    let status = unsafe { sys::arg_get(handle.0 as i64, out.as_mut_ptr() as i32) };
+    if status == 0 { Ok(i64::from_le_bytes(out)) } else { Err(Error::Handle(status)) }
+}
+
+/// W8: replaces a by-value argument; the next `original` receives `bits`.
+pub fn set_arg_value(handle: Handle, bits: i64) -> Result<(), Error> {
+    // SAFETY: plain integers.
+    let status = unsafe { sys::arg_set(handle.0 as i64, bits) };
+    if status == 0 { Ok(()) } else { Err(Error::Handle(status)) }
+}
+
+/// W8: exchanges two object arguments of the same type (never creates aliasing).
+pub fn swap_args(a: Handle, b: Handle) -> Result<(), Error> {
+    // SAFETY: plain integers.
+    let status = unsafe { sys::arg_swap(a.0 as i64, b.0 as i64) };
+    if status == 0 { Ok(()) } else { Err(Error::Handle(status)) }
+}
+
+/// W8: makes shared argument `dst` refer to the object of shared argument `src` (same type).
+pub fn replace_arg(dst: Handle, src: Handle) -> Result<(), Error> {
+    // SAFETY: plain integers.
+    let status = unsafe { sys::arg_replace(dst.0 as i64, src.0 as i64) };
+    if status == 0 { Ok(()) } else { Err(Error::Handle(status)) }
+}
+
 /// A scalar field of a hook argument by the generator's field index, as `i64` bits.
 pub fn get(handle: Handle, field: u32) -> Result<i64, Error> {
     let mut out = [0u8; 8];
@@ -291,5 +327,63 @@ mod tests {
         assert_eq!(Error::from_status(status::HANDLE_BASE - 7), Error::Handle(7));
         assert_eq!(Error::from_status(status::READ_ONLY), Error::Status(-4));
         assert_eq!(Error::from_status(-99), Error::Status(-99));
+    }
+}
+
+/// The mod's worker (FR-F2): a component declared by `[wasm] worker` that runs on its own thread with full
+/// WASI p2 (sockets, http, blocking waits). The two calls never block the game thread.
+pub mod worker {
+    use super::sys;
+    use alloc::vec;
+    use alloc::vec::Vec;
+
+    /// Why [`send`] failed.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum SendError {
+        /// 1024 messages or 16 MiB are already waiting; nothing was queued.
+        QueueFull,
+        /// The mod declares no worker, or it stopped.
+        NoWorker,
+        /// The message alone is over 16 MiB.
+        TooLarge,
+        BadPointer,
+    }
+
+    /// Why [`recv`] failed.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum RecvError {
+        NoWorker,
+        BadPointer,
+    }
+
+    /// Queues a message for the worker.
+    pub fn send(message: &[u8]) -> Result<(), SendError> {
+        // SAFETY: the pointer and length describe `message`, which is alive for the call.
+        match unsafe { sys::yoake_worker_send(message.as_ptr() as i32, message.len() as i32) } {
+            0 => Ok(()),
+            -1 => Err(SendError::QueueFull),
+            -3 => Err(SendError::TooLarge),
+            -4 => Err(SendError::BadPointer),
+            _ => Err(SendError::NoWorker),
+        }
+    }
+
+    /// The next message from the worker, or `None`.
+    pub fn recv() -> Result<Option<Vec<u8>>, RecvError> {
+        let mut buffer = vec![0u8; 1024];
+        loop {
+            // SAFETY: the pointer and capacity describe `buffer`.
+            let result = unsafe { sys::yoake_worker_recv(buffer.as_mut_ptr() as i32, buffer.len() as i32) };
+            match result {
+                0 => return Ok(None),
+                n if n > 0 => {
+                    buffer.truncate(n as usize);
+                    return Ok(Some(buffer));
+                }
+                i32::MIN => return Err(RecvError::NoWorker),
+                n if n == i32::MIN + 1 => return Err(RecvError::BadPointer),
+                n => buffer.resize(n.unsigned_abs() as usize, 0),
+            }
+        }
     }
 }

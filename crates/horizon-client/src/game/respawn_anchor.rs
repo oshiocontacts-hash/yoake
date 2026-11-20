@@ -3,6 +3,7 @@
 //! blows it up anywhere else (`useWithoutItem`), and respawning goes to it
 //! (`ServerPlayer.findRespawnAndUseSpawnBlock`, `PlayerList.respawn`),
 //! using a charge.
+use super::level_facts::SetSpawn;
 use super::{Dim, Game};
 use horizon_client::first_person::Hand;
 use horizon_client::{
@@ -45,7 +46,8 @@ impl RespawnConfig {
     }
     pub(super) fn from_saved((dim, pos, yaw, forced): &SavedRespawn) -> Self {
         Self {
-            dim: Dim::from_id(dim),
+            // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+            dim: Dim::lookup_or_overworld(dim),
             pos: *pos,
             yaw: *yaw,
             forced: *forced,
@@ -107,7 +109,7 @@ impl Game<'_> {
     /// `RespawnAnchorBlock.canSetSpawn`: the `respawn_anchor_works` attribute
     /// (only the Nether's dimension type sets it).
     pub(super) fn anchor_works(&self) -> bool {
-        self.dim == Dim::Nether
+        self.level_facts().beds.anchor_works
     }
     /// `RespawnAnchorBlock.charge`: one more charge, the block change and the sound.
     fn charge_anchor(
@@ -282,7 +284,7 @@ impl Game<'_> {
     /// `BedRule.destroyOnUse` of the dimension's `bed_rule` and
     /// `straw_bed_rule`: true in the Nether and the End.
     pub(super) fn beds_destroy_on_use(&self) -> bool {
-        self.dim != Dim::Overworld
+        self.level_facts().beds.destroy_on_use
     }
     /// `AbstractBedBlock.useWithoutItem` where the bed rule destroys on use
     /// (the bed's head at `head`): `BedBlock.destroyOnUse` removes both
@@ -599,7 +601,18 @@ impl Game<'_> {
     /// `straw_bed_rule`): only the Overworld's beds set the spawn, straw
     /// beds never.
     pub(super) fn bed_sets_spawn(&self, state: BlockStateId) -> bool {
-        self.dim == Dim::Overworld && &*self.res.facts().get(state).name != "minecraft:straw_bed"
+        let beds = self.level_facts().beds;
+        let rule = if &*self.res.facts().get(state).name == "minecraft:straw_bed" {
+            beds.straw_sets_spawn
+        } else {
+            beds.sets_spawn
+        };
+        match rule {
+            SetSpawn::Always => true,
+            SetSpawn::Never => false,
+            // `BedRule.Rule.WHEN_DARK`: the level's own sky is dark (sky darkening).
+            SetSpawn::WhenDark => self.sky_darken() >= 4,
+        }
     }
     /// `ServerPlayer.findRespawnAndUseSpawnBlock` for a config in the loaded
     /// dimension: the position and yaw, using an anchor's charge; a bed's

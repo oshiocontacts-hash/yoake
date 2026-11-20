@@ -1209,7 +1209,7 @@ impl Goal for CatRelaxOnOwner {
         // The `gameplay/cat_waking_up_gift_chance` of the `day` timeline: 0.7
         // from tick 23667 of the day to tick 362 of the next, 0 in between.
         let day = cx.w.day_time.rem_euclid(24000);
-        let chance = if !cx.w.nether && !cx.w.end && !(362..23667).contains(&day) {
+        let chance = if cx.w.has_day_cycle() && !(362..23667).contains(&day) {
             0.7
         } else {
             0.0

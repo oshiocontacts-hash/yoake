@@ -68,9 +68,7 @@ impl Game<'_> {
         // isRaining (rain level > 0.2) and isThundering (> 0.9) both need
         // Level.canHaveWeather: sky light, no ceiling and not the End.
         let (rain, thunder) = self.world.weather.levels(1.0);
-        let weather = self.world.shape.sky_light
-            && !self.world.shape.has_ceiling
-            && self.dim != super::Dim::End;
+        let weather = self.level_facts().weather;
         if rain <= 0.2 || thunder <= 0.9 || !weather || self.world_debug {
             return;
         }

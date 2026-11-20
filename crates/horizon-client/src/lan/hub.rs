@@ -307,7 +307,7 @@ pub struct Hub {
     pub world_allow_commands: bool,
     pub encoder: ChunkEncoder,
     pub guests: Vec<Guest>,
-    pub(super) sync: Arc<SyncData>,
+    pub sync: Arc<SyncData>,
     pub ticks: u64,
     /// The next `Guest.vehicle_order`: a rider that boards later sits behind.
     pub seat_order: u64,
@@ -617,12 +617,10 @@ impl Hub {
         let chat_type = sync
             .id("minecraft:chat_type", "minecraft:chat")
             .unwrap_or(0);
-        let dimension_type = sync
-            .id("minecraft:dimension_type", &config.dimension)
-            .unwrap_or(0);
+        let dimension_type = sync.level_type_id(&config.dimension);
         let clock_ids = (0..sync.dynamic.len("minecraft:world_clock") as i32).collect();
         let mut encoder = encoder;
-        encoder.set_dimension(config.levels.get(&config.dimension));
+        encoder.set_dimension(sync.level_shape(&config.dimension, &config.levels));
         let world_allow_commands = !config.integrated;
         Self {
             lan,
@@ -1112,7 +1110,7 @@ impl Hub {
                     pos: *pos,
                 }),
             portal_cooldown,
-            sea_level: 63,
+            sea_level: self.sync.level(&self.config.dimension).map_or(63, |l| l.sea_level),
         }
     }
 
@@ -1198,11 +1196,24 @@ impl Hub {
         })
     }
 
+    /// Whether the guest `conn` has the dimension type of level `level` in the registry it was
+    /// sent: a level created after it joined with a type of its own is not one it can enter
+    /// until it reconnects (F3-6). The vanilla levels and unknown guests are always fine.
+    pub fn guest_knows_level(&self, conn: u32, level: &str) -> bool {
+        let Some(g) = self.guest(conn) else {
+            return true;
+        };
+        self.sync.level(level).is_none() || (self.sync.level_type_id(level) as usize) < g.known_types
+    }
+
     /// The levels of a server, in MinecraftServer.levelKeys order.
-    fn level_keys() -> Vec<String> {
-        ["overworld", "the_end", "the_nether"]
+    fn level_keys(&self) -> Vec<String> {
+        let mut keys = ["overworld", "the_end", "the_nether"]
             .map(|l| format!("minecraft:{l}"))
-            .to_vec()
+            .to_vec();
+        // The world's other levels (F3-4), after the vanilla three.
+        keys.extend(self.sync.all_levels().into_iter().map(|l| l.id));
+        keys
     }
 
     /// PlayerList.placeNewPlayer for a guest whose saved state is loaded.
@@ -1210,6 +1221,7 @@ impl Hub {
         let Some(i) = self.guests.iter().position(|g| g.conn == conn) else {
             return;
         };
+        self.guests[i].known_types = self.sync.dimension_type_count();
         let (name, uuid, entity_id, mode) = {
             let g = &self.guests[i];
             (g.name.clone(), g.uuid, g.entity_id, g.game_mode)
@@ -1218,7 +1230,7 @@ impl Hub {
         g.send(&C::Login(play::Login {
             player_id: entity_id,
             hardcore: self.config.hardcore,
-            levels: Self::level_keys(),
+            levels: self.level_keys(),
             max_players: self.config.max_players as i32,
             chunk_radius: self.chunk_radius(),
             simulation_distance: self.config.simulation_distance,
@@ -4126,12 +4138,9 @@ impl Hub {
         (self.last_clock, self.last_rate, self.weather) =
             (entering.last_clock, entering.last_rate, entering.weather);
         self.config.dimension = dimension.to_owned();
-        self.dimension_type = self
-            .sync
-            .id("minecraft:dimension_type", dimension)
-            .unwrap_or(0);
+        self.dimension_type = self.sync.level_type_id(dimension);
         self.encoder
-            .set_dimension(self.config.levels.get(dimension));
+            .set_dimension(self.sync.level_shape(dimension, &self.config.levels));
     }
 
     /// ServerPlayer.teleport(TeleportTransition) into the level the hub now
@@ -4533,6 +4542,158 @@ mod tests {
         bob.dimension = "minecraft:overworld".into();
         hub.guests.push(bob);
         (hub, rx)
+    }
+
+    /// A hub whose world has (or has not) the data pack level `mypack:moon`
+    /// (a 128 high type of its own), placed in `dimension`.
+    fn hub_in_level(dimension: &str, with_moon: bool) -> Hub {
+        let config = crate::lan::NetConfig {
+            announce: false,
+            listen: false,
+            ..crate::lan::NetConfig::lan(0, "LevelTest".into(), 2)
+        };
+        let mut sync = SyncData::with_vanilla_dimension_types();
+        if with_moon {
+            sync.add_levels(vec![crate::level_registry::NetLevel {
+                id: "mypack:moon".into(),
+                type_name: "mypack:moon_type".into(),
+                shape: crate::chunk::LevelShape::new(0, 128, 128, true, false).unwrap(),
+                sea_level: 63,
+                type_json: serde_json::json!({ "min_y": 0, "height": 128 }),
+            }]);
+        }
+        let sync = std::sync::Arc::new(sync);
+        let lan = Lan::start_with(sync.clone(), config).unwrap();
+        let encoder = ChunkEncoder::new(
+            [] as [(std::sync::Arc<str>, bool); 0],
+            &horizon_protocol::registry::Builtin::default(),
+            &[],
+            &[],
+        );
+        let hub_config = HubConfig {
+            default_game_mode: 0,
+            guest_commands: false,
+            force_game_mode: false,
+            hardcore: false,
+            view_distance: 10,
+            simulation_distance: 10,
+            dimension: dimension.into(),
+            allow_flight: false,
+            seed: 0,
+            max_players: 20,
+            integrated: false,
+            levels: Default::default(),
+        };
+        let mut hub = Hub::new(lan, sync, encoder, hub_config);
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let mut bob = Guest::new(
+            crate::lan::Joined {
+                conn: 1,
+                uuid: 1,
+                name: "Bob".into(),
+                properties: Vec::new(),
+                info: horizon_protocol::packets::configuration::ClientInformation::new(8),
+                brand: "vanilla".into(),
+                sender: crate::lan::PlayerSender::new(tx, std::sync::Arc::default()),
+                latency: std::sync::Arc::new(std::sync::atomic::AtomicI32::new(0)),
+                address: "127.0.0.1:25565".parse().unwrap(),
+            },
+            1,
+            [0.5, 64.0, 0.5],
+            8,
+        );
+        bob.placed = true;
+        bob.dimension = dimension.into();
+        hub.guests.push(bob);
+        hub
+    }
+
+    /// F3-4: a client entering a level past the vanilla three is told its own
+    /// dimension type and gets chunks of its shape; the vanilla levels send
+    /// exactly what they did without such a level.
+    #[test]
+    fn a_pack_level_is_told_its_type_and_shape_and_the_vanilla_levels_do_not_change() {
+        let mut moon = hub_in_level("mypack:moon", true);
+        let info = moon.spawn_info(0, 0);
+        assert_eq!(info.dimension, "mypack:moon");
+        assert_eq!(info.dimension_type, 4, "the type the pack added, after the vanilla ones");
+        // 128 high from y 0: 8 sections, from the column's section 4 (y -64 is section 0).
+        assert_eq!(moon.encoder.wire_sections(), 4..12);
+        assert_eq!(
+            moon.level_keys(),
+            [
+                "minecraft:overworld",
+                "minecraft:the_end",
+                "minecraft:the_nether",
+                "mypack:moon"
+            ]
+        );
+        // Going to the Nether and back changes the type and the shape with the level.
+        moon.set_dimension("minecraft:the_nether");
+        assert_eq!(moon.spawn_info(0, 0).dimension_type, 3);
+        assert_eq!(moon.encoder.wire_sections(), 4..20);
+        moon.set_dimension("mypack:moon");
+        assert_eq!(moon.spawn_info(0, 0).dimension_type, 4);
+        assert_eq!(moon.encoder.wire_sections(), 4..12);
+
+        // The vanilla levels: the same packet bytes with and without the pack's level.
+        for level in ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"] {
+            let plain = hub_in_level(level, false);
+            let with = hub_in_level(level, true);
+            let bytes = |hub: &Hub| {
+                C::Respawn(play::Respawn {
+                    spawn: hub.spawn_info(0, 0),
+                    keep: 3,
+                })
+                .encode()
+            };
+            assert_eq!(bytes(&plain), bytes(&with), "{level}");
+            assert_eq!(plain.encoder.wire_sections(), with.encoder.wire_sections(), "{level}");
+        }
+        assert_eq!(
+            hub_in_level("minecraft:overworld", false).level_keys(),
+            ["minecraft:overworld", "minecraft:the_end", "minecraft:the_nether"]
+        );
+    }
+
+    /// F3-6: a player who joined before a level with a type of its own was created cannot be sent
+    /// into it; one whose registry has the type (or any vanilla level) can. A new login lists it.
+    #[test]
+    fn a_level_created_after_a_guest_joined_needs_a_reconnect_when_its_type_is_new() {
+        let mut hub = hub_in_level("minecraft:overworld", false);
+        // The guest was placed with the four vanilla types.
+        hub.guests[0].known_types = hub.sync.dimension_type_count();
+        assert_eq!(hub.guests[0].known_types, 4);
+        let level = |id: &str, ty: &str| crate::level_registry::NetLevel {
+            id: id.into(),
+            type_name: ty.into(),
+            shape: crate::chunk::LevelShape::new(0, 128, 128, true, false).unwrap(),
+            sea_level: 63,
+            type_json: serde_json::json!({ "min_y": 0, "height": 128 }),
+        };
+        hub.sync.announce_level(level("made:old_type", "minecraft:overworld"));
+        hub.sync.announce_level(level("made:new_type", "made:own_type"));
+        assert!(hub.guest_knows_level(1, "made:old_type"));
+        assert!(!hub.guest_knows_level(1, "made:new_type"), "type index 4 is past the 4 it was sent");
+        assert!(hub.guest_knows_level(1, "minecraft:the_nether"));
+        assert!(hub.guest_knows_level(99, "made:new_type"), "no such guest: nothing to refuse");
+        // A guest joining now is sent it, and told the keys.
+        hub.guests[0].known_types = hub.sync.dimension_type_count();
+        assert!(hub.guest_knows_level(1, "made:new_type"));
+        assert_eq!(
+            hub.level_keys(),
+            [
+                "minecraft:overworld",
+                "minecraft:the_end",
+                "minecraft:the_nether",
+                "made:old_type",
+                "made:new_type"
+            ]
+        );
+        // The level in place can be one created: its type index is the registry's.
+        hub.set_dimension("made:new_type");
+        assert_eq!(hub.spawn_info(0, 0).dimension_type, 4);
+        assert_eq!(hub.spawn_info(0, 0).sea_level, 63);
     }
 
     #[test]

@@ -102,12 +102,10 @@ impl Game<'_> {
         if !self.native_lifecycle.permits_read(context) {
             return Err(NativeBlockReadError::InactiveContext);
         }
-        let dim = match dimension {
-            "minecraft:overworld" => Dim::Overworld,
-            "minecraft:the_nether" => Dim::Nether,
-            "minecraft:the_end" => Dim::End,
-            _ => return Err(NativeBlockReadError::UnavailableDimension),
-        };
+        // F3-3: the levels of the world's registry.
+        let dim = self
+            .level_dim(dimension)
+            .ok_or(NativeBlockReadError::UnavailableDimension)?;
         let world = if dim == self.dim {
             Some(&self.world)
         } else {

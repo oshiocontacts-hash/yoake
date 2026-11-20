@@ -42,13 +42,56 @@
 pub mod hook_bridge {
     use super::*;
 
+    fn __bridge_512(
+        original: &mut dyn FnMut(u32, &str),
+        p0: u32,
+        p1: &str,
+    ) {
+        let p1_h = p1;
+        let _ = yoake_slice::runtime::dispatch_n_id(512, yoake_slice::activation::ArgSet::new().value(yoake_slice::bridge::encode::int(p0)).opaque_shared(&p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(view.value(0).and_then(yoake_slice::bridge::decode::int::<u32>).unwrap_or(p0), *view.opaque_shared::<&str>(1).expect("yoake: bridged argument 1 of hook 512")); 0 });
+    }
+
+    fn __bridge_513(
+        original: &mut dyn FnMut(&Path, &Assets) -> Result<MotionResources>,
+        p0: &Path,
+        p1: &Assets,
+    ) -> Result<MotionResources> {
+        let p0_h = p0;
+        let p1_h = p1;
+        let mut result: Option<Result<MotionResources>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(513, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h).opaque_shared(&p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&Path>(0).expect("yoake: bridged argument 0 of hook 513"), *view.opaque_shared::<&Assets>(1).expect("yoake: bridged argument 1 of hook 513"))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0, p1),
+        }
+    }
+
+    fn __bridge_514(
+        original: &mut dyn FnMut(&Path, &Assets, &crate::blocks::BlockFacts) -> Result<MotionResources>,
+        p0: &Path,
+        p1: &Assets,
+        p2: &crate::blocks::BlockFacts,
+    ) -> Result<MotionResources> {
+        let p0_h = p0;
+        let p1_h = p1;
+        let p2_h = p2;
+        let mut result: Option<Result<MotionResources>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(514, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h).opaque_shared(&p1_h).opaque_shared(&p2_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&Path>(0).expect("yoake: bridged argument 0 of hook 514"), *view.opaque_shared::<&Assets>(1).expect("yoake: bridged argument 1 of hook 514"), *view.opaque_shared::<&crate::blocks::BlockFacts>(2).expect("yoake: bridged argument 2 of hook 514"))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0, p1, p2),
+        }
+    }
+
     fn __bridge_515(
         original: &mut dyn FnMut(&mut PlayerMotion, Vec3),
         p0: &mut PlayerMotion,
         p1: Vec3,
     ) {
-        let mut p1 = ::core::option::Option::Some(p1);
-        let _ = yoake_slice::runtime::dispatch_id(515, p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion, &mut |p0| { let ::core::option::Option::Some(p1_v) = p1.take() else { return 0; }; { original(p0, p1_v); 0 } });
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let _ = yoake_slice::runtime::dispatch_n_id(515, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(view.mut_ref::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 515"), match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
     }
 
     fn __bridge_516(
@@ -59,7 +102,7 @@ pub mod hook_bridge {
         p3: bool,
     ) -> bool {
         let mut last: Option<bool> = None;
-        let value = yoake_slice::runtime::dispatch_id_ref(516, p0, &crate::motion::yoake_glue::REF_FIELDS_crate__motion__PlayerMotion, &mut |p0| { let r = original(p0, p1, p2, p3); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        let value = yoake_slice::runtime::dispatch_n_id(516, yoake_slice::activation::ArgSet::new().shared(p0, &crate::motion::yoake_glue::REF_FIELDS_crate__motion__PlayerMotion).value(yoake_slice::bridge::encode::f32(p1)).value(yoake_slice::bridge::encode::bool(p2)).value(yoake_slice::bridge::encode::bool(p3)), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(view.shared::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 516"), view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), view.value(2).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p2), view.value(3).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p3)); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
             None => match last {
@@ -80,12 +123,14 @@ pub mod hook_bridge {
         p1: &mut bool,
         p2: &crate::save::Level,
     ) -> Result<()> {
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let p2_h = p2;
         let mut result: Option<Result<()>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(517, p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion, &mut |p0| { if result.is_none() { result = Some(original(p0, &mut *p1, p2)); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(517, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion).opaque_mut(&mut p1_h).opaque_shared(&p2_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.mut_ref::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 517"), match view.opaque_mut::<::core::option::Option<&mut bool>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, *view.opaque_shared::<&crate::save::Level>(2).expect("yoake: bridged argument 2 of hook 517"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0, &mut *p1, p2),
+            None => original(&mut *p0, p1_h.take().expect("only an original call moves it, and none ran"), p2),
         }
     }
 
@@ -94,7 +139,7 @@ pub mod hook_bridge {
         p0: &mut PlayerMotion,
         p1: i32,
     ) {
-        let _ = yoake_slice::runtime::dispatch_id(518, p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion, &mut |p0| { original(p0, p1); 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(518, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion).value(yoake_slice::bridge::encode::int(p1)), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(view.mut_ref::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 518"), view.value(1).and_then(yoake_slice::bridge::decode::int::<i32>).unwrap_or(p1)); 0 });
     }
 
     fn __bridge_519(
@@ -103,11 +148,47 @@ pub mod hook_bridge {
         p1: i32,
     ) -> Result<()> {
         let mut result: Option<Result<()>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(519, p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion, &mut |p0| { if result.is_none() { result = Some(original(p0, p1)); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(519, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion).value(yoake_slice::bridge::encode::int(p1)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.mut_ref::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 519"), view.value(1).and_then(yoake_slice::bridge::decode::int::<i32>).unwrap_or(p1))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0, p1),
+            None => original(&mut *p0, p1),
+        }
+    }
+
+    fn __bridge_520(
+        original: &mut dyn FnMut(&MotionResources, Vec3) -> Result<PlayerMotion>,
+        p0: &MotionResources,
+        p1: Vec3,
+    ) -> Result<PlayerMotion> {
+        let p0_h = p0;
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<PlayerMotion>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(520, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&MotionResources>(0).expect("yoake: bridged argument 0 of hook 520"), match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0, p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_521(
+        original: &mut dyn FnMut(&MotionResources, Vec3, &[i32], Box<dyn horizon_world::attributes::live::Identities>) -> Result<PlayerMotion>,
+        p0: &MotionResources,
+        p1: Vec3,
+        p2: &[i32],
+        p3: Box<dyn horizon_world::attributes::live::Identities>,
+    ) -> Result<PlayerMotion> {
+        let p0_h = p0;
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let p2_h = p2;
+        let mut p3_h = ::core::option::Option::Some(p3);
+        let mut result: Option<Result<PlayerMotion>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(521, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h).opaque_mut(&mut p1_h).opaque_shared(&p2_h).opaque_mut(&mut p3_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&MotionResources>(0).expect("yoake: bridged argument 0 of hook 521"), match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, *view.opaque_shared::<&[i32]>(2).expect("yoake: bridged argument 2 of hook 521"), match view.opaque_mut::<::core::option::Option<Box<dyn horizon_world::attributes::live::Identities>>>(3).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0, p1_h.take().expect("only an original call moves it, and none ran"), p2, p3_h.take().expect("only an original call moves it, and none ran")),
         }
     }
 
@@ -197,11 +278,11 @@ pub mod hook_bridge {
         p1: bool,
     ) -> Result<()> {
         let mut result: Option<Result<()>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(527, p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion, &mut |p0| { if result.is_none() { result = Some(original(p0, p1)); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(527, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion).value(yoake_slice::bridge::encode::bool(p1)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.mut_ref::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 527"), view.value(1).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p1))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0, p1),
+            None => original(&mut *p0, p1),
         }
     }
 
@@ -223,12 +304,13 @@ pub mod hook_bridge {
         p0: &mut PlayerMotion,
         p1: &str,
     ) -> Result<f64> {
+        let p1_h = p1;
         let mut result: Option<Result<f64>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(529, p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion, &mut |p0| { if result.is_none() { result = Some(original(p0, p1)); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(529, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion).opaque_shared(&p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.mut_ref::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 529"), *view.opaque_shared::<&str>(1).expect("yoake: bridged argument 1 of hook 529"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0, p1),
+            None => original(&mut *p0, p1),
         }
     }
 
@@ -241,12 +323,15 @@ pub mod hook_bridge {
         p4: &str,
         p5: bool,
     ) -> Result<()> {
+        let p1_h = p1;
+        let p2_h = p2;
+        let p4_h = p4;
         let mut result: Option<Result<()>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(530, p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion, &mut |p0| { if result.is_none() { result = Some(original(p0, p1, p2, p3, p4, p5)); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(530, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion).opaque_shared(&p1_h).opaque_shared(&p2_h).value(yoake_slice::bridge::encode::f64(p3)).opaque_shared(&p4_h).value(yoake_slice::bridge::encode::bool(p5)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.mut_ref::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 530"), *view.opaque_shared::<&str>(1).expect("yoake: bridged argument 1 of hook 530"), *view.opaque_shared::<&str>(2).expect("yoake: bridged argument 2 of hook 530"), view.value(3).map_or(p3, yoake_slice::bridge::decode::f64), *view.opaque_shared::<&str>(4).expect("yoake: bridged argument 4 of hook 530"), view.value(5).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p5))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0, p1, p2, p3, p4, p5),
+            None => original(&mut *p0, p1, p2, p3, p4, p5),
         }
     }
 
@@ -269,7 +354,7 @@ pub mod hook_bridge {
         p1: bool,
     ) -> horizon_world::nbt::Tag {
         let mut result: Option<horizon_world::nbt::Tag> = None;
-        let _ = yoake_slice::runtime::dispatch_id_ref(532, p0, &crate::motion::yoake_glue::REF_FIELDS_crate__motion__PlayerMotion, &mut |p0| { if result.is_none() { result = Some(original(p0, p1)); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(532, yoake_slice::activation::ArgSet::new().shared(p0, &crate::motion::yoake_glue::REF_FIELDS_crate__motion__PlayerMotion).value(yoake_slice::bridge::encode::bool(p1)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.shared::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 532"), view.value(1).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p1))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
@@ -283,7 +368,7 @@ pub mod hook_bridge {
         p1: bool,
     ) -> horizon_world::nbt::Tag {
         let mut result: Option<horizon_world::nbt::Tag> = None;
-        let _ = yoake_slice::runtime::dispatch_id_ref(533, p0, &crate::motion::yoake_glue::REF_FIELDS_crate__motion__PlayerMotion, &mut |p0| { if result.is_none() { result = Some(original(p0, p1)); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(533, yoake_slice::activation::ArgSet::new().shared(p0, &crate::motion::yoake_glue::REF_FIELDS_crate__motion__PlayerMotion).value(yoake_slice::bridge::encode::bool(p1)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.shared::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 533"), view.value(1).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p1))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
@@ -296,12 +381,13 @@ pub mod hook_bridge {
         p0: &mut PlayerMotion,
         p1: Option<&horizon_world::nbt::Tag>,
     ) -> Result<()> {
+        let p1_h = p1;
         let mut result: Option<Result<()>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(534, p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion, &mut |p0| { if result.is_none() { result = Some(original(p0, p1)); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(534, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion).opaque_shared(&p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.mut_ref::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 534"), *view.opaque_shared::<Option<&horizon_world::nbt::Tag>>(1).expect("yoake: bridged argument 1 of hook 534"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0, p1),
+            None => original(&mut *p0, p1),
         }
     }
 
@@ -311,11 +397,11 @@ pub mod hook_bridge {
         p1: bool,
     ) -> Result<()> {
         let mut result: Option<Result<()>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(536, p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion, &mut |p0| { if result.is_none() { result = Some(original(p0, p1)); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(536, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion).value(yoake_slice::bridge::encode::bool(p1)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.mut_ref::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 536"), view.value(1).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p1))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0, p1),
+            None => original(&mut *p0, p1),
         }
     }
 
@@ -344,13 +430,13 @@ pub mod hook_bridge {
         p0: &mut PlayerMotion,
         p1: crate::sprint::Keys,
     ) -> Result<()> {
-        let mut p1 = ::core::option::Option::Some(p1);
+        let mut p1_h = ::core::option::Option::Some(p1);
         let mut result: Option<Result<()>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(538, p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion, &mut |p0| { let ::core::option::Option::Some(p1_v) = p1.take() else { return 0; }; { if result.is_none() { result = Some(original(p0, p1_v)); } 0 } });
+        let _ = yoake_slice::runtime::dispatch_n_id(538, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.mut_ref::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 538"), match view.opaque_mut::<::core::option::Option<crate::sprint::Keys>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0, p1.take().expect("only an original call moves it, and none ran")),
+            None => original(&mut *p0, p1_h.take().expect("only an original call moves it, and none ran")),
         }
     }
 
@@ -360,13 +446,13 @@ pub mod hook_bridge {
         p1: crate::sprint::Keys,
         p2: i32,
     ) -> Result<()> {
-        let mut p1 = ::core::option::Option::Some(p1);
+        let mut p1_h = ::core::option::Option::Some(p1);
         let mut result: Option<Result<()>> = None;
-        let _ = yoake_slice::runtime::dispatch_id(539, p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion, &mut |p0| { let ::core::option::Option::Some(p1_v) = p1.take() else { return 0; }; { if result.is_none() { result = Some(original(p0, p1_v, p2)); } 0 } });
+        let _ = yoake_slice::runtime::dispatch_n_id(539, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::motion::yoake_glue::FIELDS_crate__motion__PlayerMotion).opaque_mut(&mut p1_h).value(yoake_slice::bridge::encode::int(p2)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.mut_ref::<PlayerMotion>(0).expect("yoake: bridged argument 0 of hook 539"), match view.opaque_mut::<::core::option::Option<crate::sprint::Keys>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(2).and_then(yoake_slice::bridge::decode::int::<i32>).unwrap_or(p2))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0, p1.take().expect("only an original call moves it, and none ran"), p2),
+            None => original(&mut *p0, p1_h.take().expect("only an original call moves it, and none ran"), p2),
         }
     }
 
@@ -383,12 +469,2517 @@ pub mod hook_bridge {
         }
     }
 
+    fn __bridge_541(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> CollisionContext<'static>,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> CollisionContext<'static> {
+        let p0_h = p0;
+        let mut result: Option<CollisionContext<'static>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(541, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 541"))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0),
+        }
+    }
+
+    fn __bridge_542(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Aabb) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Aabb,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(542, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Aabb>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_543(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>, BlockPos) -> BlockStateId,
+        p0: &MotionWorld<'_, '_, '_>,
+        p1: BlockPos,
+    ) -> BlockStateId {
+        let p0_h = p0;
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<BlockStateId> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(543, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 543"), match view.opaque_mut::<::core::option::Option<BlockPos>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0, p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_544(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, f32) -> Result<BlockPos>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: f32,
+    ) -> Result<BlockPos> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<BlockPos>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(544, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).value(yoake_slice::bridge::encode::f32(p1)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1),
+        }
+    }
+
+    fn __bridge_545(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> MovementLocation,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> MovementLocation {
+        let p0_h = p0;
+        let mut result: Option<MovementLocation> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(545, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 545"))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0),
+        }
+    }
+
+    fn __bridge_546(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(546, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_547(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(547, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_548(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, [f32; 3]) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: [f32; 3],
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let p1_h = p1;
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(548, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_shared(&p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, *view.opaque_shared::<[f32; 3]>(1).expect("yoake: bridged argument 1 of hook 548"))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1),
+        }
+    }
+
+    fn __bridge_549(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, [f32; 2], bool) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: [f32; 2],
+        p2: bool,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let p1_h = p1;
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(549, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_shared(&p1_h).value(yoake_slice::bridge::encode::bool(p2)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, *view.opaque_shared::<[f32; 2]>(1).expect("yoake: bridged argument 1 of hook 549"), view.value(2).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p2))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1, p2),
+        }
+    }
+
+    fn __bridge_550(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, [f32; 2], bool) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: [f32; 2],
+        p2: bool,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let p1_h = p1;
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(550, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_shared(&p1_h).value(yoake_slice::bridge::encode::bool(p2)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, *view.opaque_shared::<[f32; 2]>(1).expect("yoake: bridged argument 1 of hook 550"), view.value(2).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p2))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1, p2),
+        }
+    }
+
+    fn __bridge_551(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, [f32; 2], bool) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: [f32; 2],
+        p2: bool,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let p1_h = p1;
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(551, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_shared(&p1_h).value(yoake_slice::bridge::encode::bool(p2)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, *view.opaque_shared::<[f32; 2]>(1).expect("yoake: bridged argument 1 of hook 551"), view.value(2).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p2))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1, p2),
+        }
+    }
+
+    fn __bridge_552(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, [f32; 2], bool) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: [f32; 2],
+        p2: bool,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let p1_h = p1;
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(552, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_shared(&p1_h).value(yoake_slice::bridge::encode::bool(p2)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, *view.opaque_shared::<[f32; 2]>(1).expect("yoake: bridged argument 1 of hook 552"), view.value(2).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p2))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1, p2),
+        }
+    }
+
+    fn __bridge_553(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, crate::sprint::Keys) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: crate::sprint::Keys,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(553, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<crate::sprint::Keys>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_554(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, crate::sprint::Keys, i32) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: crate::sprint::Keys,
+        p2: i32,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(554, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h).value(yoake_slice::bridge::encode::int(p2)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<crate::sprint::Keys>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(2).and_then(yoake_slice::bridge::decode::int::<i32>).unwrap_or(p2))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran"), p2),
+        }
+    }
+
+    fn __bridge_555(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, crate::sprint::Keys, bool) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: crate::sprint::Keys,
+        p2: bool,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(555, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h).value(yoake_slice::bridge::encode::bool(p2)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<crate::sprint::Keys>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(2).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p2))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran"), p2),
+        }
+    }
+
+    fn __bridge_556(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(556, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_557(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, TickInput) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: TickInput,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(557, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<TickInput>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_558(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(558, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_559(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(559, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_560(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(560, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_561(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(561, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_562(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Aabb),
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Aabb,
+    ) {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let _ = yoake_slice::runtime::dispatch_n_id(562, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Aabb>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
+    }
+
+    fn __bridge_563(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(563, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_564(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(564, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_565(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(565, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_566(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, bool) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: bool,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(566, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).value(yoake_slice::bridge::encode::bool(p1)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(1).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p1))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1),
+        }
+    }
+
+    fn __bridge_567(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3, Vec3, &mut std::collections::HashSet<i64>, &mut Vec<(i32, BlockPos)>, i32, bool) -> Result<i32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+        p2: Vec3,
+        p3: &mut std::collections::HashSet<i64>,
+        p4: &mut Vec<(i32, BlockPos)>,
+        p5: i32,
+        p6: bool,
+    ) -> Result<i32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut p2_h = ::core::option::Option::Some(p2);
+        let mut p3_h = ::core::option::Option::Some(p3);
+        let mut p4_h = ::core::option::Option::Some(p4);
+        let mut result: Option<Result<i32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(567, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h).opaque_mut(&mut p2_h).opaque_mut(&mut p3_h).opaque_mut(&mut p4_h).value(yoake_slice::bridge::encode::int(p5)).value(yoake_slice::bridge::encode::bool(p6)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<&mut std::collections::HashSet<i64>>>(3).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<&mut Vec<(i32, BlockPos)>>>(4).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(5).and_then(yoake_slice::bridge::decode::int::<i32>).unwrap_or(p5), view.value(6).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p6))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran"), p2_h.take().expect("only an original call moves it, and none ran"), p3_h.take().expect("only an original call moves it, and none ran"), p4_h.take().expect("only an original call moves it, and none ran"), p5, p6),
+        }
+    }
+
+    fn __bridge_568(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockPos) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockPos,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(568, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_569(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3),
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let _ = yoake_slice::runtime::dispatch_n_id(569, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
+    }
+
+    fn __bridge_570(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(570, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_571(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockPos),
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockPos,
+    ) {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let _ = yoake_slice::runtime::dispatch_n_id(571, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
+    }
+
+    fn __bridge_572(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>),
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let _ = yoake_slice::runtime::dispatch_n_id(572, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
+    }
+
+    fn __bridge_573(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockStateId) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockStateId,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(573, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockStateId>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_574(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockStateId) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockStateId,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(574, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockStateId>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_575(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockPos) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockPos,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(575, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_576(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockPos),
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockPos,
+    ) {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let _ = yoake_slice::runtime::dispatch_n_id(576, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
+    }
+
+    fn __bridge_577(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(577, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_578(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(578, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_579(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(579, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_580(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(580, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_581(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, f32, f32) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: f32,
+        p2: f32,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(581, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).value(yoake_slice::bridge::encode::f32(p1)).value(yoake_slice::bridge::encode::f32(p2)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), view.value(2).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p2))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1, p2),
+        }
+    }
+
+    fn __bridge_582(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockPos),
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockPos,
+    ) {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let _ = yoake_slice::runtime::dispatch_n_id(582, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
+    }
+
+    fn __bridge_583(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockPos) -> Result<horizon_core::geometry::VoxelShape>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockPos,
+    ) -> Result<horizon_core::geometry::VoxelShape> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<horizon_core::geometry::VoxelShape>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(583, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_584(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Aabb) -> Result<Vec<Aabb>>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Aabb,
+    ) -> Result<Vec<Aabb>> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<Vec<Aabb>>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(584, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Aabb>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_585(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(585, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_586(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(586, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_587(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(587, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_588(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(588, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_589(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(589, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_590(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(590, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_591(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(591, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_592(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(592, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_593(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(593, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_594(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, MovementStat, i32) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: MovementStat,
+        p2: i32,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(594, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h).value(yoake_slice::bridge::encode::int(p2)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<MovementStat>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(2).and_then(yoake_slice::bridge::decode::int::<i32>).unwrap_or(p2))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran"), p2),
+        }
+    }
+
+    fn __bridge_595(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, f32) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: f32,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(595, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).value(yoake_slice::bridge::encode::f32(p1)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1),
+        }
+    }
+
+    fn __bridge_596(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockPos) -> io::Result<BlockStateId>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockPos,
+    ) -> io::Result<BlockStateId> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<io::Result<BlockStateId>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(596, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_597(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(597, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_598(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(598, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_599(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(599, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_600(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Aabb) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Aabb,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(600, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Aabb>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_601(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> bool,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> bool {
+        let p0_h = p0;
+        let mut last: Option<bool> = None;
+        let value = yoake_slice::runtime::dispatch_n_id(601, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 601")); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        match yoake_slice::bridge::decode::bool(value) {
+            Some(r) => r,
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(601, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0) }
+                }
+            },
+        }
+    }
+
+    fn __bridge_602(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> Vec3,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> Vec3 {
+        let p0_h = p0;
+        let mut result: Option<Vec3> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(602, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 602"))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0),
+        }
+    }
+
+    fn __bridge_603(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(603, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_604(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, MoverType, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: MoverType,
+        p2: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut p2_h = ::core::option::Option::Some(p2);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(604, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h).opaque_mut(&mut p2_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<MoverType>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran"), p2_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_605(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> CollisionFlags,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> CollisionFlags {
+        let p0_h = p0;
+        let mut result: Option<CollisionFlags> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(605, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 605"))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0),
+        }
+    }
+
+    fn __bridge_606(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, CollisionFlags),
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: CollisionFlags,
+    ) {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let _ = yoake_slice::runtime::dispatch_n_id(606, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<CollisionFlags>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
+    }
+
+    fn __bridge_607(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<Vec3>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<Vec3> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<Vec3>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(607, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_608(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> Vec3,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> Vec3 {
+        let p0_h = p0;
+        let mut result: Option<Vec3> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(608, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 608"))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0),
+        }
+    }
+
+    fn __bridge_609(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3),
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let _ = yoake_slice::runtime::dispatch_n_id(609, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
+    }
+
+    fn __bridge_610(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<Vec3>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<Vec3> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<Vec3>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(610, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_611(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(611, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_612(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3, MoverType) -> Result<Vec3>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+        p2: MoverType,
+    ) -> Result<Vec3> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut p2_h = ::core::option::Option::Some(p2);
+        let mut result: Option<Result<Vec3>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(612, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h).opaque_mut(&mut p2_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<MoverType>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran"), p2_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_613(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<Vec3>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<Vec3> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<Vec3>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(613, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_614(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> f64,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> f64 {
+        let p0_h = p0;
+        yoake_slice::bridge::decode::f64(yoake_slice::runtime::dispatch_n_id(614, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| yoake_slice::bridge::encode::f64(original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 614")))))
+    }
+
+    fn __bridge_615(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3, Vec3) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+        p2: Vec3,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut p2_h = ::core::option::Option::Some(p2);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(615, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h).opaque_mut(&mut p2_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran"), p2_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_616(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(616, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_617(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(617, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_618(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, bool, bool, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: bool,
+        p2: bool,
+        p3: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p3_h = ::core::option::Option::Some(p3);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(618, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).value(yoake_slice::bridge::encode::bool(p1)).value(yoake_slice::bridge::encode::bool(p2)).opaque_mut(&mut p3_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(1).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p1), view.value(2).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p2), match view.opaque_mut::<::core::option::Option<Vec3>>(3).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1, p2, p3_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_619(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(619, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_620(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<BlockPos>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<BlockPos> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<BlockPos>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(620, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_621(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockPos) -> Result<BlockStateId>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockPos,
+    ) -> Result<BlockStateId> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<BlockStateId>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(621, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_622(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(622, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_623(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, f64, bool, BlockStateId, BlockPos) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: f64,
+        p2: bool,
+        p3: BlockStateId,
+        p4: BlockPos,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p3_h = ::core::option::Option::Some(p3);
+        let mut p4_h = ::core::option::Option::Some(p4);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(623, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).value(yoake_slice::bridge::encode::f64(p1)).value(yoake_slice::bridge::encode::bool(p2)).opaque_mut(&mut p3_h).opaque_mut(&mut p4_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(1).map_or(p1, yoake_slice::bridge::decode::f64), view.value(2).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p2), match view.opaque_mut::<::core::option::Option<BlockStateId>>(3).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(4).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1, p2, p3_h.take().expect("only an original call moves it, and none ran"), p4_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_624(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(624, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_625(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(625, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_626(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockStateId, bool, bool, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockStateId,
+        p2: bool,
+        p3: bool,
+        p4: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut p4_h = ::core::option::Option::Some(p4);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(626, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h).value(yoake_slice::bridge::encode::bool(p2)).value(yoake_slice::bridge::encode::bool(p3)).opaque_mut(&mut p4_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockStateId>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(2).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p2), view.value(3).and_then(yoake_slice::bridge::decode::bool).unwrap_or(p3), match view.opaque_mut::<::core::option::Option<Vec3>>(4).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran"), p2, p3, p4_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_627(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(627, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_628(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<MovementEmission>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<MovementEmission> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<MovementEmission>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(628, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_629(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(629, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_630(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, MovementEmission, Vec3, BlockPos, BlockStateId) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: MovementEmission,
+        p2: Vec3,
+        p3: BlockPos,
+        p4: BlockStateId,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut p2_h = ::core::option::Option::Some(p2);
+        let mut p3_h = ::core::option::Option::Some(p3);
+        let mut p4_h = ::core::option::Option::Some(p4);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(630, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h).opaque_mut(&mut p2_h).opaque_mut(&mut p3_h).opaque_mut(&mut p4_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<MovementEmission>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(3).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockStateId>>(4).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran"), p2_h.take().expect("only an original call moves it, and none ran"), p3_h.take().expect("only an original call moves it, and none ran"), p4_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_631(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(631, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_632(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> MovementDistances,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> MovementDistances {
+        let p0_h = p0;
+        let mut result: Option<MovementDistances> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(632, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 632"))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0),
+        }
+    }
+
+    fn __bridge_633(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, f32),
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: f32,
+    ) {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let _ = yoake_slice::runtime::dispatch_n_id(633, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).value(yoake_slice::bridge::encode::f32(p1)), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1)); 0 });
+    }
+
+    fn __bridge_634(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, f32),
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: f32,
+    ) {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let _ = yoake_slice::runtime::dispatch_n_id(634, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).value(yoake_slice::bridge::encode::f32(p1)), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1)); 0 });
+    }
+
+    fn __bridge_635(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, f32),
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: f32,
+    ) {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let _ = yoake_slice::runtime::dispatch_n_id(635, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).value(yoake_slice::bridge::encode::f32(p1)), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1)); 0 });
+    }
+
+    fn __bridge_636(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<BlockPos>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<BlockPos> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<BlockPos>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(636, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_637(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockPos) -> Result<BlockStateId>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockPos,
+    ) -> Result<BlockStateId> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<BlockStateId>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(637, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_638(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockStateId) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockStateId,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(638, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockStateId>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_639(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockStateId) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockStateId,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(639, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockStateId>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_640(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockStateId) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockStateId,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(640, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockStateId>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_641(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(641, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_642(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(642, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_643(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(643, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_644(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(644, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_645(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(645, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_646(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockPos, BlockStateId) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockPos,
+        p2: BlockStateId,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut p2_h = ::core::option::Option::Some(p2);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(646, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h).opaque_mut(&mut p2_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockStateId>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran"), p2_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_647(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(647, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_648(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(648, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_649(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(649, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_650(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(650, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_651(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<MovementEmission>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<MovementEmission> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<MovementEmission>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(651, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_652(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(652, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_653(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f64>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f64> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f64>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(653, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_654(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<Vec3>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<Vec3> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<Vec3>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(654, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_655(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f64>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f64> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f64>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(655, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_656(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockStateId) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockStateId,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(656, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockStateId>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_657(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockStateId) -> Result<f32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockStateId,
+    ) -> Result<f32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<f32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(657, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockStateId>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_658(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(658, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_659(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<BlockPos>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<BlockPos> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<BlockPos>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(659, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_660(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockStateId, BlockPos, f64) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockStateId,
+        p2: BlockPos,
+        p3: f64,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut p2_h = ::core::option::Option::Some(p2);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(660, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h).opaque_mut(&mut p2_h).value(yoake_slice::bridge::encode::f64(p3)), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockStateId>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(3).map_or(p3, yoake_slice::bridge::decode::f64))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran"), p2_h.take().expect("only an original call moves it, and none ran"), p3),
+        }
+    }
+
+    fn __bridge_661(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(661, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_662(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>),
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let _ = yoake_slice::runtime::dispatch_n_id(662, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
+    }
+
+    fn __bridge_663(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(663, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_664(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<BlockPos>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<BlockPos> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<BlockPos>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(664, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_665(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(665, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_666(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockPos) -> Result<f32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockPos,
+    ) -> Result<f32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<f32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(666, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_667(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f64>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f64> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f64>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(667, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_668(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(668, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_669(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(669, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_670(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(670, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_671(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> Vec3,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> Vec3 {
+        let p0_h = p0;
+        let mut result: Option<Vec3> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(671, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 671"))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0),
+        }
+    }
+
+    fn __bridge_672(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(672, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_673(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(673, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_674(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(674, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_675(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(675, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_676(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(676, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_677(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> bool,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> bool {
+        let p0_h = p0;
+        let mut last: Option<bool> = None;
+        let value = yoake_slice::runtime::dispatch_n_id(677, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 677")); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        match yoake_slice::bridge::decode::bool(value) {
+            Some(r) => r,
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(677, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0) }
+                }
+            },
+        }
+    }
+
+    fn __bridge_678(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(678, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_679(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> bool,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> bool {
+        let p0_h = p0;
+        let mut last: Option<bool> = None;
+        let value = yoake_slice::runtime::dispatch_n_id(679, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 679")); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        match yoake_slice::bridge::decode::bool(value) {
+            Some(r) => r,
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(679, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0) }
+                }
+            },
+        }
+    }
+
+    fn __bridge_680(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> bool,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> bool {
+        let p0_h = p0;
+        let mut last: Option<bool> = None;
+        let value = yoake_slice::runtime::dispatch_n_id(680, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 680")); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        match yoake_slice::bridge::decode::bool(value) {
+            Some(r) => r,
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(680, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0) }
+                }
+            },
+        }
+    }
+
+    fn __bridge_681(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> bool,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> bool {
+        let p0_h = p0;
+        let mut last: Option<bool> = None;
+        let value = yoake_slice::runtime::dispatch_n_id(681, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 681")); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        match yoake_slice::bridge::decode::bool(value) {
+            Some(r) => r,
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(681, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0) }
+                }
+            },
+        }
+    }
+
+    fn __bridge_682(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(682, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_683(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<Option<i32>>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<Option<i32>> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<Option<i32>>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(683, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_684(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(684, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_685(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, BlockPos) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: BlockPos,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(685, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<BlockPos>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_686(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f64>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f64> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f64>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(686, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_687(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> f64,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> f64 {
+        let p0_h = p0;
+        yoake_slice::bridge::decode::f64(yoake_slice::runtime::dispatch_n_id(687, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| yoake_slice::bridge::encode::f64(original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 687")))))
+    }
+
+    fn __bridge_688(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<i32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<i32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<i32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(688, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_689(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(689, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_690(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f64>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f64> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f64>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(690, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_691(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(691, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_692(
+        original: &mut dyn FnMut(&MotionWorld<'_, '_, '_>) -> Vec3,
+        p0: &MotionWorld<'_, '_, '_>,
+    ) -> Vec3 {
+        let p0_h = p0;
+        let mut result: Option<Vec3> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(692, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&MotionWorld<'_, '_, '_>>(0).expect("yoake: bridged argument 0 of hook 692"))); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0),
+        }
+    }
+
+    fn __bridge_693(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>, Vec3) -> Result<()>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+        p1: Vec3,
+    ) -> Result<()> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut p1_h = ::core::option::Option::Some(p1);
+        let mut result: Option<Result<()>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(693, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Vec3>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_694(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f64>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f64> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f64>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(694, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_695(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(695, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_696(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(696, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_697(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<i32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<i32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<i32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(697, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_698(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(698, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_699(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(699, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_700(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>),
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let _ = yoake_slice::runtime::dispatch_n_id(700, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
+    }
+
+    fn __bridge_701(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(701, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_702(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f64>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f64> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f64>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(702, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_703(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(703, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_704(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(704, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_705(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f32>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f32> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f32>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(705, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_706(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<bool>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<bool> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<bool>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(706, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_707(
+        original: &mut dyn FnMut(&mut MotionWorld<'_, '_, '_>) -> Result<f64>,
+        p0: &mut MotionWorld<'_, '_, '_>,
+    ) -> Result<f64> {
+        let mut p0_h = ::core::option::Option::Some(p0);
+        let mut result: Option<Result<f64>> = None;
+        let _ = yoake_slice::runtime::dispatch_n_id(707, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&mut MotionWorld<'_, '_, '_>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        match result {
+            Some(value) => value,
+            // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
+            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+        }
+    }
+
+    fn __bridge_708(
+        original: &mut dyn FnMut(f32, [f32; 2], Vec3) -> bool,
+        p0: f32,
+        p1: [f32; 2],
+        p2: Vec3,
+    ) -> bool {
+        let p1_h = p1;
+        let mut p2_h = ::core::option::Option::Some(p2);
+        let mut last: Option<bool> = None;
+        let value = yoake_slice::runtime::dispatch_n_id(708, yoake_slice::activation::ArgSet::new().value(yoake_slice::bridge::encode::f32(p0)).opaque_shared(&p1_h).opaque_mut(&mut p2_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(view.value(0).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p0), *view.opaque_shared::<[f32; 2]>(1).expect("yoake: bridged argument 1 of hook 708"), match view.opaque_mut::<::core::option::Option<Vec3>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        match yoake_slice::bridge::decode::bool(value) {
+            Some(r) => r,
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::bool(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(708, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0, p1, p2_h.take().expect("only an original call moves it, and none ran")) }
+                }
+            },
+        }
+    }
+
+    fn __bridge_709(
+        original: &mut dyn FnMut(f64, f64) -> f32,
+        p0: f64,
+        p1: f64,
+    ) -> f32 {
+        let mut last: Option<f32> = None;
+        let value = yoake_slice::runtime::dispatch_n_id(709, yoake_slice::activation::ArgSet::new().value(yoake_slice::bridge::encode::f64(p0)).value(yoake_slice::bridge::encode::f64(p1)), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(view.value(0).map_or(p0, yoake_slice::bridge::decode::f64), view.value(1).map_or(p1, yoake_slice::bridge::decode::f64)); last = Some(r); yoake_slice::bridge::encode::f32(r) });
+        match yoake_slice::bridge::decode::f32(value) {
+            Some(r) => r,
+            None => match last {
+                // the guest passed the original's own result through (e.g. a usize above i64::MAX): not out of range
+                Some(r) if yoake_slice::bridge::encode::f32(r) == value => r,
+                _ => {
+                    yoake_slice::bridge::note_out_of_range(709, value);
+                    // the last original result if the original ran, else run it now (the rest of the chain is skipped)
+                    match last { Some(r) => r, None => original(p0, p1) }
+                }
+            },
+        }
+    }
+
     pub const BRIDGED: &[u32] = &[
+        512,
+        513,
+        514,
         515,
         516,
         517,
         518,
         519,
+        520,
+        521,
         522,
         523,
         524,
@@ -407,6 +2998,175 @@ pub mod hook_bridge {
         538,
         539,
         540,
+        541,
+        542,
+        543,
+        544,
+        545,
+        546,
+        547,
+        548,
+        549,
+        550,
+        551,
+        552,
+        553,
+        554,
+        555,
+        556,
+        557,
+        558,
+        559,
+        560,
+        561,
+        562,
+        563,
+        564,
+        565,
+        566,
+        567,
+        568,
+        569,
+        570,
+        571,
+        572,
+        573,
+        574,
+        575,
+        576,
+        577,
+        578,
+        579,
+        580,
+        581,
+        582,
+        583,
+        584,
+        585,
+        586,
+        587,
+        588,
+        589,
+        590,
+        591,
+        592,
+        593,
+        594,
+        595,
+        596,
+        597,
+        598,
+        599,
+        600,
+        601,
+        602,
+        603,
+        604,
+        605,
+        606,
+        607,
+        608,
+        609,
+        610,
+        611,
+        612,
+        613,
+        614,
+        615,
+        616,
+        617,
+        618,
+        619,
+        620,
+        621,
+        622,
+        623,
+        624,
+        625,
+        626,
+        627,
+        628,
+        629,
+        630,
+        631,
+        632,
+        633,
+        634,
+        635,
+        636,
+        637,
+        638,
+        639,
+        640,
+        641,
+        642,
+        643,
+        644,
+        645,
+        646,
+        647,
+        648,
+        649,
+        650,
+        651,
+        652,
+        653,
+        654,
+        655,
+        656,
+        657,
+        658,
+        659,
+        660,
+        661,
+        662,
+        663,
+        664,
+        665,
+        666,
+        667,
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674,
+        675,
+        676,
+        677,
+        678,
+        679,
+        680,
+        681,
+        682,
+        683,
+        684,
+        685,
+        686,
+        687,
+        688,
+        689,
+        690,
+        691,
+        692,
+        693,
+        694,
+        695,
+        696,
+        697,
+        698,
+        699,
+        700,
+        701,
+        702,
+        703,
+        704,
+        705,
+        706,
+        707,
+        708,
+        709,
     ];
 
     pub fn mode(id: u32) -> Option<yoake_slice::bridge::Mode> {
@@ -432,11 +3192,19 @@ pub mod hook_bridge {
                 mod_load_order: 0,
             };
             let outcome: ::core::option::Option<::core::result::Result<(), &'static str>> = match id {
+                512 => Some(yoake_slice::bridge::install_once(id, || {
+                    let cb: super::__YoakeHook_native_living_jump = __bridge_512;
+                    super::__yoake_register_native_living_jump(cb, order)
+                })),
+                513 => Some(yoake_slice::bridge::install_once(id, || MotionResources::__yoake_register_load(__bridge_513, order))),
+                514 => Some(yoake_slice::bridge::install_once(id, || MotionResources::__yoake_register_load_with_facts(__bridge_514, order))),
                 515 => Some(yoake_slice::bridge::install_once(id, || PlayerMotion::__yoake_register_carry_client_movement(__bridge_515, order))),
                 516 => Some(yoake_slice::bridge::install_once(id, || PlayerMotion::__yoake_register_is_sweep_attack(__bridge_516, order))),
                 517 => Some(yoake_slice::bridge::install_once(id, || PlayerMotion::__yoake_register_load_saved_state_once(__bridge_517, order))),
                 518 => Some(yoake_slice::bridge::install_once(id, || PlayerMotion::__yoake_register_set_remaining_fire_ticks(__bridge_518, order))),
                 519 => Some(yoake_slice::bridge::install_once(id, || PlayerMotion::__yoake_register_ignite_for_ticks(__bridge_519, order))),
+                520 => Some(yoake_slice::bridge::install_once(id, || PlayerMotion::__yoake_register_new(__bridge_520, order))),
+                521 => Some(yoake_slice::bridge::install_once(id, || PlayerMotion::__yoake_register_with_attribute_identities(__bridge_521, order))),
                 522 => Some(yoake_slice::bridge::install_once(id, || PlayerMotion::__yoake_register_drop_tiny_velocity(__bridge_522, order))),
                 523 => Some(yoake_slice::bridge::install_once(id, || PlayerMotion::__yoake_register_percent_frozen(__bridge_523, order))),
                 524 => Some(yoake_slice::bridge::install_once(id, || PlayerMotion::__yoake_register_is_fully_frozen(__bridge_524, order))),
@@ -455,6 +3223,181 @@ pub mod hook_bridge {
                 538 => Some(yoake_slice::bridge::install_once(id, || PlayerMotion::__yoake_register_sprint_input_tick(__bridge_538, order))),
                 539 => Some(yoake_slice::bridge::install_once(id, || PlayerMotion::__yoake_register_sprint_input_tick_with_window(__bridge_539, order))),
                 540 => Some(yoake_slice::bridge::install_once(id, || PlayerMotion::__yoake_register_remove_frost(__bridge_540, order))),
+                541 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_context(__bridge_541, order))),
+                542 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_no_player_collision(__bridge_542, order))),
+                543 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_block(__bridge_543, order))),
+                544 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_support(__bridge_544, order))),
+                545 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_location(__bridge_545, order))),
+                546 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_climbable(__bridge_546, order))),
+                547 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_travel_in_air(__bridge_547, order))),
+                548 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_movement_tick(__bridge_548, order))),
+                549 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_player_movement_tick(__bridge_549, order))),
+                550 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_player_movement_tick_with_fluids(__bridge_550, order))),
+                551 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_simulation_tick(__bridge_551, order))),
+                552 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_simulation_tick_with_fluids(__bridge_552, order))),
+                553 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_controlled_simulation_tick(__bridge_553, order))),
+                554 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_controlled_simulation_tick_with_sprint_window(__bridge_554, order))),
+                555 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_replayed_tick(__bridge_555, order))),
+                556 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_check_movement_statistics(__bridge_556, order))),
+                557 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_dry_tick(__bridge_557, order))),
+                558 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_update_soul_speed_block(__bridge_558, order))),
+                559 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_on_soul_speed_block(__bridge_559, order))),
+                560 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_player_travel(__bridge_560, order))),
+                561 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_server_travel(__bridge_561, order))),
+                562 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_check_auto_spin_attack(__bridge_562, order))),
+                563 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_freeze_damage(__bridge_563, order))),
+                564 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_apply_effects_from_blocks(__bridge_564, order))),
+                565 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_server_block_damage(__bridge_565, order))),
+                566 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_effects_from_blocks(__bridge_566, order))),
+                567 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_check_inside_blocks(__bridge_567, order))),
+                568 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_honey_block_inside(__bridge_568, order))),
+                569 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_make_stuck_in_block(__bridge_569, order))),
+                570 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_lava_cauldron_inside(__bridge_570, order))),
+                571 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_layered_cauldron_inside(__bridge_571, order))),
+                572 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_web_inside(__bridge_572, order))),
+                573 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_sweet_berry_bush_inside(__bridge_573, order))),
+                574 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_sweet_berry_bush_damage(__bridge_574, order))),
+                575 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_powder_snow_inside(__bridge_575, order))),
+                576 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_powder_snow_snowflake(__bridge_576, order))),
+                577 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_jump_from_ground(__bridge_577, order))),
+                578 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_travel_fall_flying(__bridge_578, order))),
+                579 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_shulker_box_push(__bridge_579, order))),
+                580 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_move_self(__bridge_580, order))),
+                581 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register_update_auto_jump(__bridge_581, order))),
+                582 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_climbing_world_set_last_climbable_position(__bridge_582, order))),
+                583 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_auto_jump_world_collision_shape(__bridge_583, order))),
+                584 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_auto_jump_world_collision_boxes(__bridge_584, order))),
+                585 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_statistics_world_passenger(__bridge_585, order))),
+                586 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_statistics_world_swimming(__bridge_586, order))),
+                587 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_statistics_world_eyes_in_water(__bridge_587, order))),
+                588 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_statistics_world_in_water(__bridge_588, order))),
+                589 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_statistics_world_on_climbable(__bridge_589, order))),
+                590 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_statistics_world_on_ground(__bridge_590, order))),
+                591 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_statistics_world_sprinting(__bridge_591, order))),
+                592 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_statistics_world_crouching(__bridge_592, order))),
+                593 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_statistics_world_fall_flying(__bridge_593, order))),
+                594 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_statistics_world_award(__bridge_594, order))),
+                595 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_statistics_world_exhaust(__bridge_595, order))),
+                596 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_block_provider_movement_block_state(__bridge_596, order))),
+                597 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_edge_backoff_world_max_up_step(__bridge_597, order))),
+                598 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_edge_backoff_world_staying_on_ground_surface(__bridge_598, order))),
+                599 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_edge_backoff_world_on_ground(__bridge_599, order))),
+                600 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_edge_backoff_world_no_collision(__bridge_600, order))),
+                601 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_no_physics(__bridge_601, order))),
+                602 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_position(__bridge_602, order))),
+                603 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_set_position(__bridge_603, order))),
+                604 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_record_movement(__bridge_604, order))),
+                605 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_collision_flags(__bridge_605, order))),
+                606 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_set_collision_flags(__bridge_606, order))),
+                607 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_limit_piston_movement(__bridge_607, order))),
+                608 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_stuck_multiplier(__bridge_608, order))),
+                609 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_set_stuck_multiplier(__bridge_609, order))),
+                610 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_velocity(__bridge_610, order))),
+                611 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_set_velocity(__bridge_611, order))),
+                612 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_back_off_edge(__bridge_612, order))),
+                613 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_collide(__bridge_613, order))),
+                614 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_fall_distance(__bridge_614, order))),
+                615 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_fall_reset_clip(__bridge_615, order))),
+                616 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_reset_fall_distance(__bridge_616, order))),
+                617 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_locally_authoritative(__bridge_617, order))),
+                618 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_set_on_ground_with_movement(__bridge_618, order))),
+                619 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_minor_horizontal_collision(__bridge_619, order))),
+                620 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_legacy_on_position(__bridge_620, order))),
+                621 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_block_state(__bridge_621, order))),
+                622 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_on_ground(__bridge_622, order))),
+                623 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_check_fall_damage(__bridge_623, order))),
+                624 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_removed(__bridge_624, order))),
+                625 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_can_simulate(__bridge_625, order))),
+                626 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_restitute(__bridge_626, order))),
+                627 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_client_side(__bridge_627, order))),
+                628 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_movement_emission(__bridge_628, order))),
+                629 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_passenger(__bridge_629, order))),
+                630 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_apply_movement_emission(__bridge_630, order))),
+                631 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_entity_move_world_block_speed_factor(__bridge_631, order))),
+                632 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_distances(__bridge_632, order))),
+                633 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_set_movement_distance(__bridge_633, order))),
+                634 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_set_flight_distance(__bridge_634, order))),
+                635 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_set_next_step(__bridge_635, order))),
+                636 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_on_position(__bridge_636, order))),
+                637 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_block_state(__bridge_637, order))),
+                638 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_is_air(__bridge_638, order))),
+                639 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_climbable_tag(__bridge_639, order))),
+                640 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_is_powder_snow(__bridge_640, order))),
+                641 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_on_ground(__bridge_641, order))),
+                642 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_crouching(__bridge_642, order))),
+                643 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_on_rails(__bridge_643, order))),
+                644 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_swimming(__bridge_644, order))),
+                645 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_in_water(__bridge_645, order))),
+                646 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_walking_step_sound(__bridge_646, order))),
+                647 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_next_step(__bridge_647, order))),
+                648 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_water_swim_sound(__bridge_648, order))),
+                649 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_flapping(__bridge_649, order))),
+                650 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_on_flap(__bridge_650, order))),
+                651 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_movement_emission_world_movement_emission(__bridge_651, order))),
+                652 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_restitution_world_suppressing_bounce(__bridge_652, order))),
+                653 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_restitution_world_entity_bounciness(__bridge_653, order))),
+                654 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_restitution_world_velocity(__bridge_654, order))),
+                655 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_restitution_world_effective_gravity(__bridge_655, order))),
+                656 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_restitution_world_block_suppresses_bounce(__bridge_656, order))),
+                657 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_restitution_world_block_bounce_restitution(__bridge_657, order))),
+                658 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_restitution_world_air_drag(__bridge_658, order))),
+                659 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_restitution_world_movement_support_position(__bridge_659, order))),
+                660 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_restitution_world_bounce_on(__bridge_660, order))),
+                661 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_restitution_world_bounce_event(__bridge_661, order))),
+                662 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_restitution_world_mark_position_for_sync(__bridge_662, order))),
+                663 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_restitution_world_set_velocity(__bridge_663, order))),
+                664 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_movement_support_position(__bridge_664, order))),
+                665 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_on_ground(__bridge_665, order))),
+                666 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_block_friction(__bridge_666, order))),
+                667 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_friction_modifier(__bridge_667, order))),
+                668 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_speed(__bridge_668, order))),
+                669 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_flying_speed(__bridge_669, order))),
+                670 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_yaw(__bridge_670, order))),
+                671 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_velocity(__bridge_671, order))),
+                672 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_set_velocity(__bridge_672, order))),
+                673 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_on_climbable(__bridge_673, order))),
+                674 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_reset_fall_distance(__bridge_674, order))),
+                675 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_in_scaffolding(__bridge_675, order))),
+                676 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_suppressing_ladder_slide(__bridge_676, order))),
+                677 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_is_player_class(__bridge_677, order))),
+                678 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_move_self(__bridge_678, order))),
+                679 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_horizontal_collision(__bridge_679, order))),
+                680 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_jumping(__bridge_680, order))),
+                681 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_was_in_powder_snow(__bridge_681, order))),
+                682 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_can_walk_powder_snow(__bridge_682, order))),
+                683 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_levitation_amplifier(__bridge_683, order))),
+                684 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_is_client_side(__bridge_684, order))),
+                685 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_has_chunk_at(__bridge_685, order))),
+                686 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_effective_gravity(__bridge_686, order))),
+                687 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_y(__bridge_687, order))),
+                688 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_minimum_y(__bridge_688, order))),
+                689 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_discard_friction(__bridge_689, order))),
+                690 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_air_drag_modifier(__bridge_690, order))),
+                691 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_air_world_omnidirectional_air_mover(__bridge_691, order))),
+                692 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_velocity(__bridge_692, order))),
+                693 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_set_velocity(__bridge_693, order))),
+                694 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_jump_strength(__bridge_694, order))),
+                695 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_block_jump_factor(__bridge_695, order))),
+                696 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_has_jump_boost(__bridge_696, order))),
+                697 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_jump_boost_amplifier(__bridge_697, order))),
+                698 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_sprinting(__bridge_698, order))),
+                699 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_yaw(__bridge_699, order))),
+                700 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_mark_needs_sync(__bridge_700, order))),
+                701 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_no_gravity(__bridge_701, order))),
+                702 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_gravity_attribute(__bridge_702, order))),
+                703 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_has_slow_falling(__bridge_703, order))),
+                704 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_controlling_passenger_is_player(__bridge_704, order))),
+                705 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_speed(__bridge_705, order))),
+                706 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_omnidirectional_air_mover(__bridge_706, order))),
+                707 => Some(yoake_slice::bridge::install_once(id, || MotionWorld::__yoake_register___yoake_trait_living_motion_world_air_drag_modifier(__bridge_707, order))),
+                708 => Some(yoake_slice::bridge::install_once(id, || {
+                    let cb: super::__YoakeHook_horizontal_collision_minor = __bridge_708;
+                    super::__yoake_register_horizontal_collision_minor(cb, order)
+                })),
+                709 => Some(yoake_slice::bridge::install_once(id, || {
+                    let cb: super::__YoakeHook_fly_into_wall_damage = __bridge_709;
+                    super::__yoake_register_fly_into_wall_damage(cb, order)
+                })),
                 _ => None,
             };
             match outcome {
@@ -473,8 +3416,12 @@ pub mod hook_bridge {
     }
 
     pub const OBSERVE_ONLY: &[u32] = &[
+        513,
+        514,
         517,
         519,
+        520,
+        521,
         526,
         527,
         528,
@@ -488,182 +3435,155 @@ pub mod hook_bridge {
         538,
         539,
         540,
+        541,
+        542,
+        543,
+        544,
+        545,
+        546,
+        547,
+        548,
+        549,
+        550,
+        551,
+        552,
+        553,
+        554,
+        555,
+        556,
+        557,
+        558,
+        559,
+        560,
+        561,
+        563,
+        564,
+        565,
+        566,
+        567,
+        568,
+        570,
+        573,
+        574,
+        575,
+        577,
+        578,
+        579,
+        580,
+        581,
+        583,
+        584,
+        585,
+        586,
+        587,
+        588,
+        589,
+        590,
+        591,
+        592,
+        593,
+        594,
+        595,
+        596,
+        597,
+        598,
+        599,
+        600,
+        602,
+        603,
+        604,
+        605,
+        607,
+        608,
+        610,
+        611,
+        612,
+        613,
+        615,
+        616,
+        617,
+        618,
+        619,
+        620,
+        621,
+        622,
+        623,
+        624,
+        625,
+        626,
+        627,
+        628,
+        629,
+        630,
+        631,
+        632,
+        636,
+        637,
+        638,
+        639,
+        640,
+        641,
+        642,
+        643,
+        644,
+        645,
+        646,
+        647,
+        648,
+        649,
+        650,
+        651,
+        652,
+        653,
+        654,
+        655,
+        656,
+        657,
+        658,
+        659,
+        660,
+        661,
+        663,
+        664,
+        665,
+        666,
+        667,
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674,
+        675,
+        676,
+        678,
+        682,
+        683,
+        684,
+        685,
+        686,
+        688,
+        689,
+        690,
+        691,
+        692,
+        693,
+        694,
+        695,
+        696,
+        697,
+        698,
+        699,
+        701,
+        702,
+        703,
+        704,
+        705,
+        706,
+        707,
     ];
 
     pub const UNBRIDGED: &[(u32, &str)] = &[
-        (512, "arg0 is not &T or &mut T"),
-        (513, "arg0 is &T, no RefFieldTable for `std::path::Path`"),
-        (514, "arg0 is &T, no RefFieldTable for `std::path::Path`"),
-        (520, "arg0 is &T, no RefFieldTable for `horizon_client_lib::motion::MotionResources`"),
-        (521, "arg0 is &T, no RefFieldTable for `horizon_client_lib::motion::MotionResources`"),
-        (541, "arg0 type has non-static lifetime"),
-        (542, "arg0 type has non-static lifetime"),
-        (543, "arg0 type has non-static lifetime"),
-        (544, "arg0 type has non-static lifetime"),
-        (545, "arg0 type has non-static lifetime"),
-        (546, "arg0 type has non-static lifetime"),
-        (547, "arg0 type has non-static lifetime"),
-        (548, "arg0 type has non-static lifetime"),
-        (549, "arg0 type has non-static lifetime"),
-        (550, "arg0 type has non-static lifetime"),
-        (551, "arg0 type has non-static lifetime"),
-        (552, "arg0 type has non-static lifetime"),
-        (553, "arg0 type has non-static lifetime"),
-        (554, "arg0 type has non-static lifetime"),
-        (555, "arg0 type has non-static lifetime"),
-        (556, "arg0 type has non-static lifetime"),
-        (557, "arg0 type has non-static lifetime"),
-        (558, "arg0 type has non-static lifetime"),
-        (559, "arg0 type has non-static lifetime"),
-        (560, "arg0 type has non-static lifetime"),
-        (561, "arg0 type has non-static lifetime"),
-        (562, "arg0 type has non-static lifetime"),
-        (563, "arg0 type has non-static lifetime"),
-        (564, "arg0 type has non-static lifetime"),
-        (565, "arg0 type has non-static lifetime"),
-        (566, "arg0 type has non-static lifetime"),
-        (567, "arg0 type has non-static lifetime"),
-        (568, "arg0 type has non-static lifetime"),
-        (569, "arg0 type has non-static lifetime"),
-        (570, "arg0 type has non-static lifetime"),
-        (571, "arg0 type has non-static lifetime"),
-        (572, "arg0 type has non-static lifetime"),
-        (573, "arg0 type has non-static lifetime"),
-        (574, "arg0 type has non-static lifetime"),
-        (575, "arg0 type has non-static lifetime"),
-        (576, "arg0 type has non-static lifetime"),
-        (577, "arg0 type has non-static lifetime"),
-        (578, "arg0 type has non-static lifetime"),
-        (579, "arg0 type has non-static lifetime"),
-        (580, "arg0 type has non-static lifetime"),
-        (581, "arg0 type has non-static lifetime"),
-        (582, "arg0 type has non-static lifetime"),
-        (583, "arg0 type has non-static lifetime"),
-        (584, "arg0 type has non-static lifetime"),
-        (585, "arg0 type has non-static lifetime"),
-        (586, "arg0 type has non-static lifetime"),
-        (587, "arg0 type has non-static lifetime"),
-        (588, "arg0 type has non-static lifetime"),
-        (589, "arg0 type has non-static lifetime"),
-        (590, "arg0 type has non-static lifetime"),
-        (591, "arg0 type has non-static lifetime"),
-        (592, "arg0 type has non-static lifetime"),
-        (593, "arg0 type has non-static lifetime"),
-        (594, "arg0 type has non-static lifetime"),
-        (595, "arg0 type has non-static lifetime"),
-        (596, "arg0 type has non-static lifetime"),
-        (597, "arg0 type has non-static lifetime"),
-        (598, "arg0 type has non-static lifetime"),
-        (599, "arg0 type has non-static lifetime"),
-        (600, "arg0 type has non-static lifetime"),
-        (601, "arg0 type has non-static lifetime"),
-        (602, "arg0 type has non-static lifetime"),
-        (603, "arg0 type has non-static lifetime"),
-        (604, "arg0 type has non-static lifetime"),
-        (605, "arg0 type has non-static lifetime"),
-        (606, "arg0 type has non-static lifetime"),
-        (607, "arg0 type has non-static lifetime"),
-        (608, "arg0 type has non-static lifetime"),
-        (609, "arg0 type has non-static lifetime"),
-        (610, "arg0 type has non-static lifetime"),
-        (611, "arg0 type has non-static lifetime"),
-        (612, "arg0 type has non-static lifetime"),
-        (613, "arg0 type has non-static lifetime"),
-        (614, "arg0 type has non-static lifetime"),
-        (615, "arg0 type has non-static lifetime"),
-        (616, "arg0 type has non-static lifetime"),
-        (617, "arg0 type has non-static lifetime"),
-        (618, "arg0 type has non-static lifetime"),
-        (619, "arg0 type has non-static lifetime"),
-        (620, "arg0 type has non-static lifetime"),
-        (621, "arg0 type has non-static lifetime"),
-        (622, "arg0 type has non-static lifetime"),
-        (623, "arg0 type has non-static lifetime"),
-        (624, "arg0 type has non-static lifetime"),
-        (625, "arg0 type has non-static lifetime"),
-        (626, "arg0 type has non-static lifetime"),
-        (627, "arg0 type has non-static lifetime"),
-        (628, "arg0 type has non-static lifetime"),
-        (629, "arg0 type has non-static lifetime"),
-        (630, "arg0 type has non-static lifetime"),
-        (631, "arg0 type has non-static lifetime"),
-        (632, "arg0 type has non-static lifetime"),
-        (633, "arg0 type has non-static lifetime"),
-        (634, "arg0 type has non-static lifetime"),
-        (635, "arg0 type has non-static lifetime"),
-        (636, "arg0 type has non-static lifetime"),
-        (637, "arg0 type has non-static lifetime"),
-        (638, "arg0 type has non-static lifetime"),
-        (639, "arg0 type has non-static lifetime"),
-        (640, "arg0 type has non-static lifetime"),
-        (641, "arg0 type has non-static lifetime"),
-        (642, "arg0 type has non-static lifetime"),
-        (643, "arg0 type has non-static lifetime"),
-        (644, "arg0 type has non-static lifetime"),
-        (645, "arg0 type has non-static lifetime"),
-        (646, "arg0 type has non-static lifetime"),
-        (647, "arg0 type has non-static lifetime"),
-        (648, "arg0 type has non-static lifetime"),
-        (649, "arg0 type has non-static lifetime"),
-        (650, "arg0 type has non-static lifetime"),
-        (651, "arg0 type has non-static lifetime"),
-        (652, "arg0 type has non-static lifetime"),
-        (653, "arg0 type has non-static lifetime"),
-        (654, "arg0 type has non-static lifetime"),
-        (655, "arg0 type has non-static lifetime"),
-        (656, "arg0 type has non-static lifetime"),
-        (657, "arg0 type has non-static lifetime"),
-        (658, "arg0 type has non-static lifetime"),
-        (659, "arg0 type has non-static lifetime"),
-        (660, "arg0 type has non-static lifetime"),
-        (661, "arg0 type has non-static lifetime"),
-        (662, "arg0 type has non-static lifetime"),
-        (663, "arg0 type has non-static lifetime"),
-        (664, "arg0 type has non-static lifetime"),
-        (665, "arg0 type has non-static lifetime"),
-        (666, "arg0 type has non-static lifetime"),
-        (667, "arg0 type has non-static lifetime"),
-        (668, "arg0 type has non-static lifetime"),
-        (669, "arg0 type has non-static lifetime"),
-        (670, "arg0 type has non-static lifetime"),
-        (671, "arg0 type has non-static lifetime"),
-        (672, "arg0 type has non-static lifetime"),
-        (673, "arg0 type has non-static lifetime"),
-        (674, "arg0 type has non-static lifetime"),
-        (675, "arg0 type has non-static lifetime"),
-        (676, "arg0 type has non-static lifetime"),
-        (677, "arg0 type has non-static lifetime"),
-        (678, "arg0 type has non-static lifetime"),
-        (679, "arg0 type has non-static lifetime"),
-        (680, "arg0 type has non-static lifetime"),
-        (681, "arg0 type has non-static lifetime"),
-        (682, "arg0 type has non-static lifetime"),
-        (683, "arg0 type has non-static lifetime"),
-        (684, "arg0 type has non-static lifetime"),
-        (685, "arg0 type has non-static lifetime"),
-        (686, "arg0 type has non-static lifetime"),
-        (687, "arg0 type has non-static lifetime"),
-        (688, "arg0 type has non-static lifetime"),
-        (689, "arg0 type has non-static lifetime"),
-        (690, "arg0 type has non-static lifetime"),
-        (691, "arg0 type has non-static lifetime"),
-        (692, "arg0 type has non-static lifetime"),
-        (693, "arg0 type has non-static lifetime"),
-        (694, "arg0 type has non-static lifetime"),
-        (695, "arg0 type has non-static lifetime"),
-        (696, "arg0 type has non-static lifetime"),
-        (697, "arg0 type has non-static lifetime"),
-        (698, "arg0 type has non-static lifetime"),
-        (699, "arg0 type has non-static lifetime"),
-        (700, "arg0 type has non-static lifetime"),
-        (701, "arg0 type has non-static lifetime"),
-        (702, "arg0 type has non-static lifetime"),
-        (703, "arg0 type has non-static lifetime"),
-        (704, "arg0 type has non-static lifetime"),
-        (705, "arg0 type has non-static lifetime"),
-        (706, "arg0 type has non-static lifetime"),
-        (707, "arg0 type has non-static lifetime"),
-        (708, "arg0 is not &T or &mut T"),
-        (709, "arg0 is not &T or &mut T"),
     ];
 }

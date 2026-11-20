@@ -483,7 +483,8 @@ impl Game<'_> {
             _ => None,
         };
         conn.and_then(|c| self.command_guest(c))
-            .map_or(self.dim, |g| Dim::from_id(&g.dimension))
+            // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+            .map_or(self.dim, |g| Dim::lookup_or_overworld(&g.dimension))
     }
     pub(super) fn target_position(&self, t: Target) -> Option<[f64; 3]> {
         match t {
@@ -922,10 +923,12 @@ impl Game<'_> {
     fn loaded_dims(&self) -> Vec<Dim> {
         let mut dims = vec![self.dim];
         dims.extend(self.levels.parked_dims());
-        dims.sort_by_key(|d| match d {
+        dims.sort_by_key(|d| match *d {
             Dim::Overworld => 0,
             Dim::Nether => 1,
             Dim::End => 2,
+            // F3-4: dimension-type query (other levels after the vanilla three, stable order)
+            _ => 3,
         });
         dims
     }

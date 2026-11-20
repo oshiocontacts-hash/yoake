@@ -505,6 +505,10 @@ pub(crate) struct WasmMod {
     pub(crate) signed: bool,
     pub(crate) mixin_targets: Vec<String>,
     pub(crate) permissions: Vec<String>,
+    /// FR-F2: `[wasm] host_filesystem`: `/host/<letter>` preopens.
+    pub(crate) host_filesystem: bool,
+    /// FR-F2: the bytes of `[wasm] worker`, when declared.
+    pub(crate) worker: Option<Vec<u8>>,
 }
 
 /// Developer switches for unsigned code. The legacy DLL switch remains a superset so existing
@@ -586,6 +590,14 @@ pub(crate) fn wasm_mods_from(
                 required_on_join: entry.manifest.side.required_on_join,
                 commands: side == WasmSide::Server && wasm.has_permission("service.commands"),
                 permissions: wasm.permissions.clone(),
+                host_filesystem: wasm.host_filesystem,
+                worker: match worker_bytes(entry, wasm) {
+                    Ok(worker) => worker,
+                    Err(reason) => {
+                        log::warn!("YAK {} worker refused: {reason}", entry.manifest.id);
+                        continue;
+                    }
+                },
                 path: entry.root.join(path),
                 signed,
                 mixin_targets: entry
@@ -601,6 +613,21 @@ pub(crate) fn wasm_mods_from(
         }
     }
     mods
+}
+
+/// The bytes of the declared worker component (same checks as a module: a plain file of at most 32 MiB).
+fn worker_bytes(entry: &Installed, wasm: &horizon_mods::yak::Wasm) -> Result<Option<Vec<u8>>, String> {
+    let Some(name) = &wasm.worker else { return Ok(None) };
+    let path = entry.root.join(name);
+    yak::check_plain_path(&path)?;
+    let file = File::open(&path).map_err(|error| format!("{name}: {error}"))?;
+    let metadata = file.metadata().map_err(|error| error.to_string())?;
+    if !metadata.is_file() || metadata.len() > yak::MAX_WASM_SIZE {
+        return Err("worker is not a regular file of at most 32 MiB".into());
+    }
+    let mut bytes = Vec::new();
+    file.take(yak::MAX_WASM_SIZE + 1).read_to_end(&mut bytes).map_err(|error| error.to_string())?;
+    Ok(Some(bytes))
 }
 
 fn wasm_preflight(

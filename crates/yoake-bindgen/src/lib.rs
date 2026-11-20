@@ -344,6 +344,41 @@ pub fn survey(uni: &Universe, crate_name: &str, roots: &[String]) -> R<Vec<(Stri
     Ok(out)
 }
 
+/// W9b: the field tables of every file module of `crate_name` (see [`render::render_tables_only`]). Returns
+/// `(module label, source file as rustdoc reports it, glue text)` for each module that has any.
+pub fn tables(uni: &Universe, crate_name: &str, frozen_files: &[String]) -> R<Vec<(String, String, String)>> {
+    let doc = uni.doc_index(crate_name).ok_or_else(|| format!("no rustdoc JSON loaded for crate `{crate_name}`"))?;
+    let index = uni.docs[doc].v.get("index").and_then(serde_json::Value::as_object).ok_or("no index")?;
+    let mut modules: Vec<u64> = Vec::new();
+    for (id, item) in index {
+        let begin = item.pointer("/span/begin").and_then(serde_json::Value::as_array);
+        let at_start = begin.is_some_and(|b| b.first().and_then(serde_json::Value::as_u64) == Some(1) && b.get(1).and_then(serde_json::Value::as_u64) == Some(1));
+        if item.pointer("/inner/module").is_some() && at_start && item.pointer("/span/filename").is_some() {
+            if let Ok(id) = id.parse() {
+                modules.push(id);
+            }
+        }
+    }
+    modules.sort_unstable();
+    let mut out = Vec::new();
+    for module in modules {
+        let path = uni.docs[doc].module_path(module);
+        let label = path[1..].join("::");
+        if label.is_empty() {
+            continue; // the crate root file: its types are in modules; no include point worth having
+        }
+        let mut info = TargetInfo::plain(crate_name, path, Vec::new());
+        info.frozen_files = frozen_files.to_vec();
+        let mut an = Analyzer::new(uni, info);
+        let scan = scan_module(&mut an, doc, module, &label);
+        let file = uni.docs[doc].item(module).and_then(|m| m.pointer("/span/filename")).and_then(serde_json::Value::as_str).unwrap_or("").to_string();
+        if let Some(text) = render::render_tables_only(&an, &label, crate_name, &scan) {
+            out.push((label, file, text));
+        }
+    }
+    Ok(out)
+}
+
 /// Glue files that sit next to the configured ones but belong to no target (a module that is no longer
 /// generated): stale, and a CI failure. Looks at `*.rs` files in the directories of the glue files.
 pub fn stale_glue_files(config: &Config, root: &Path) -> Vec<PathBuf> {

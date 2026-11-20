@@ -83,21 +83,9 @@ pub struct LevelHeight {
 impl LevelHeight {
     /// The vanilla dimension types'.
     pub fn vanilla(dimension_type: &str) -> Option<Self> {
-        let (min_y, height, logical_height, has_skylight, has_ceiling) = match dimension_type {
-            // overworld_caves builds like the Overworld but has a ceiling.
-            "minecraft:overworld" => (-64, 384, 384, true, false),
-            "minecraft:overworld_caves" => (-64, 384, 384, true, true),
-            "minecraft:the_nether" => (0, 256, 128, false, true),
-            "minecraft:the_end" => (0, 256, 256, true, false),
-            _ => return None,
-        };
-        Some(Self {
-            min_y,
-            height,
-            logical_height,
-            has_skylight,
-            has_ceiling,
-        })
+        // The built-in dimension types (overworld_caves builds like the
+        // Overworld but has a ceiling) are the one source of these values.
+        crate::dimension::DimensionType::vanilla(dimension_type).map(|t| t.level_height())
     }
     /// A dimension type's JSON, if its codec accepts the range: multiples
     /// of 16, at least 16 high, within `DimensionType.MIN_Y` (-2032) and

@@ -21,6 +21,7 @@ const FEATURES: &[&str] = &[
     "station",
     "blocks",
     "lan",
+    "levels",
     "friends",
     "render",
     "sculk",
@@ -462,6 +463,9 @@ impl Game<'_> {
             return Ok(Some(value));
         }
         if let Some(value) = self.lan_control(&words)? {
+            return Ok(Some(value));
+        }
+        if let Some(value) = self.level_control(&words)? {
             return Ok(Some(value));
         }
         if let Some(value) = self.friends_control(&words)? {
@@ -1412,6 +1416,18 @@ impl Game<'_> {
                 "clipboard": self.clipboard.copied(),
             },
             "dimension": self.dim.id(),
+            // The level in place as its dimension type makes it (F3-7): the shape of its chunks and
+            // the sky, weather and light the game draws and plays it with.
+            "level": {
+                "id": self.dim.id(),
+                "min_y": self.world.shape.min_y,
+                "height": self.world.shape.height,
+                "sky": format!("{:?}", self.level_facts().sky).to_lowercase(),
+                "weather": self.level_facts().weather,
+                "ambient": self.level_facts().ambient,
+                "nether_light": self.level_facts().nether_light,
+                "sea_level": self.level_facts().sea_level,
+            },
             "creative": self.creative,
             "player": player,
             "yaw": self.yaw,

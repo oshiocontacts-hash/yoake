@@ -2920,11 +2920,13 @@ impl Game<'_> {
             .guests
             .iter()
             .find(|g| g.placed && g.conn != own && g.uuid == uuid)
-            .map(|g| (g.position, g.yaw, g.pitch, Dim::from_id(&g.dimension)));
+            // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+            .map(|g| (g.position, g.yaw, g.pitch, Dim::lookup_or_overworld(&g.dimension)));
         let Some((at, yaw, pitch, dim)) = target else {
             return;
         };
-        if Dim::from_id(&host.hub.guests[gi].dimension) != dim {
+        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+        if Dim::lookup_or_overworld(&host.hub.guests[gi].dimension) != dim {
             self.level_teleports
                 .push(super::server_travel::LevelTeleport {
                     conn: own,
@@ -3711,7 +3713,8 @@ impl Game<'_> {
             ]
         });
         let back = self.dim;
-        let left = super::Dim::from_id(&host.hub.guests[i].dimension);
+        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+        let left = super::Dim::lookup_or_overworld(&host.hub.guests[i].dimension);
         let away = server && host.hub.guests[i].dimension != level.id();
         if server {
             self.server_trips.retain(|t| !t.is(conn));

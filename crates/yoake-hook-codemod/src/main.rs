@@ -6,9 +6,12 @@ mod eligible;
 mod key;
 mod ledger_io;
 mod modules;
+mod overlay;
+mod overlay_bridge;
 mod run;
 mod track_caller;
 mod types;
+mod verify;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -44,6 +47,21 @@ pub struct Config {
     pub engine_crates: Option<Vec<String>>,
     pub retire_ineligible: bool,
     pub rustfmt: bool,
+    /// W5: `--exclude-module NAME` (with `--module '*'`), `--min-stmts N`.
+    pub exclude_modules: Vec<String>,
+    pub min_stmts: usize,
+    /// W1: `apply --verify [--verify-arg A]... [--verify-dir D] [--verify-rounds N]`.
+    pub verify: bool,
+    pub verify_args: Vec<String>,
+    pub verify_dir: PathBuf,
+    pub verify_rounds: usize,
+    pub verify_max_withdraw: usize,
+    /// W7: `--frozen-ledger`: read-only ledger (see `run::ScanCtx::frozen`).
+    pub frozen_ledger: bool,
+    /// W4: `--private-types` (stamp-config `private_types=true`).
+    pub private_types: bool,
+    /// W7: `--overlay`: `--verify` stamps and builds through the overlay wrapper, the tree stays unstamped.
+    pub overlay: bool,
 }
 
 pub struct HistoryConfig {
@@ -68,6 +86,20 @@ enum Command {
     CheckHistory(HistoryConfig),
     TrackCallerScan(TrackCallerScanConfig),
     VerifyCallsites(VerifyCallsitesConfig),
+    SyncLedger(SyncLedgerConfig),
+}
+
+/// W7: `sync-ledger --workspace-root W [--stamp-config F] [--ledger D] [--overlay-root O] [--crate NAME]...`:
+/// stamps every configured crate in a scratch overlay with a writable ledger, so ids and exclusions land in
+/// `hook-ledger/` while the sources stay untouched.
+pub struct SyncLedgerConfig {
+    pub workspace_root: PathBuf,
+    pub stamp_config: PathBuf,
+    pub ledger: PathBuf,
+    pub overlay_root: PathBuf,
+    pub only: Vec<String>,
+    /// `--frozen`: build the overlays exactly as the compiler wrapper does (read-only ledger), without a build.
+    pub frozen: bool,
 }
 
 fn usage() -> &'static str {
@@ -75,7 +107,8 @@ fn usage() -> &'static str {
      yoake-hook-codemod <apply|check> --crate-root <dir> --crate-name <name> \
      --ledger <dir> --module <mod> [--module <mod>...] [--shallow] [--rename OLD=NEW]... [--tombstone KEY]... \
      [--callsites] [--thir <calls.json>] [--accept-site KEY@FILE:LINE:COL]... [--rename-site OLD=NEW]... [--tombstone-site KEY]... \
-     [--engine-crates LIST]... [--retire-ineligible] [--rustfmt]\n  \
+     [--engine-crates LIST]... [--retire-ineligible] [--rustfmt] \
+     [--exclude-module NAME]... [--min-stmts N] [--stamp-config FILE] (--module '*' = every top-level module)\n  \
      yoake-hook-codemod bridge --crate-root <dir> --crate-name <name> \
      --ledger <dir> --module <mod> [--module <mod>...] [--shallow] [--glue <file>...] [--exclude-file <file>] [--check]\n  \
      yoake-hook-codemod check-history --base <dir> --current <dir>\n  \
@@ -121,6 +154,9 @@ fn parse_args() -> Result<Option<Command>, String> {
     if first == "bridge" {
         return parse_bridge_args(args);
     }
+    if first == "sync-ledger" {
+        return parse_sync_ledger_args(&mut args);
+    }
     if first == "check-history" {
         return parse_check_history_args(&mut args);
     }
@@ -157,6 +193,18 @@ fn parse_args() -> Result<Option<Command>, String> {
     let mut engine_crates: Option<Vec<String>> = None;
     let mut retire_ineligible = false;
     let mut rustfmt = false;
+    let mut exclude_modules: Vec<String> = Vec::new();
+    let mut min_stmts: usize = 0;
+    let mut verify = false;
+    let mut verify_args: Vec<String> = Vec::new();
+    let mut verify_dir = PathBuf::from(".");
+    let mut verify_rounds: usize = 8;
+    let mut verify_max_withdraw: usize = 300;
+    let mut frozen_ledger = false;
+    let mut private_types = false;
+    let mut bridges_unused = false;
+    let mut overlay = false;
+    let mut stamp_config: Option<PathBuf> = None;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -224,6 +272,26 @@ fn parse_args() -> Result<Option<Command>, String> {
             }
             "--retire-ineligible" => retire_ineligible = true,
             "--rustfmt" => rustfmt = true,
+            "--exclude-module" => exclude_modules.push(next_arg(&mut args, "--exclude-module")?),
+            "--min-stmts" => {
+                let raw = next_arg(&mut args, "--min-stmts")?;
+                min_stmts = raw.parse().map_err(|_| format!("--min-stmts expects a number, got '{raw}'"))?;
+            }
+            "--verify" => verify = true,
+            "--frozen-ledger" => frozen_ledger = true,
+            "--private-types" => private_types = true,
+            "--overlay" => overlay = true,
+            "--verify-arg" => verify_args.push(next_arg(&mut args, "--verify-arg")?),
+            "--verify-dir" => verify_dir = PathBuf::from(next_arg(&mut args, "--verify-dir")?),
+            "--verify-rounds" => {
+                let raw = next_arg(&mut args, "--verify-rounds")?;
+                verify_rounds = raw.parse().map_err(|_| format!("--verify-rounds expects a number, got '{raw}'"))?;
+            }
+            "--verify-max-withdraw" => {
+                let raw = next_arg(&mut args, "--verify-max-withdraw")?;
+                verify_max_withdraw = raw.parse().map_err(|_| format!("--verify-max-withdraw expects a number, got '{raw}'"))?;
+            }
+            "--stamp-config" => stamp_config = Some(PathBuf::from(next_arg(&mut args, "--stamp-config")?)),
             other => return Err(format!("unknown argument '{other}'\n{}", usage())),
         }
     }
@@ -231,8 +299,17 @@ fn parse_args() -> Result<Option<Command>, String> {
     let crate_root = crate_root.ok_or_else(|| format!("missing --crate-root\n{}", usage()))?;
     let crate_name = crate_name.ok_or_else(|| format!("missing --crate-name\n{}", usage()))?;
     let ledger = ledger.ok_or_else(|| format!("missing --ledger\n{}", usage()))?;
+    if let Some(path) = &stamp_config {
+        apply_stamp_config(path, &crate_name, &mut modules, &mut exclude_modules, &mut min_stmts, &mut private_types, &mut bridges_unused)?;
+    }
     if modules.is_empty() {
         return Err(format!("at least one --module is required\n{}", usage()));
+    }
+    if overlay && !verify {
+        return Err("--overlay applies to --verify".to_string());
+    }
+    if verify && (mode != Mode::Apply || callsites) {
+        return Err("--verify applies to `apply` without --callsites".to_string());
     }
     if thir.is_some() && !callsites {
         return Err("--thir requires --callsites".to_string());
@@ -277,7 +354,120 @@ fn parse_args() -> Result<Option<Command>, String> {
         engine_crates,
         retire_ineligible,
         rustfmt,
+        exclude_modules,
+        min_stmts,
+        verify,
+        verify_args,
+        verify_dir,
+        verify_rounds,
+        verify_max_withdraw,
+        frozen_ledger,
+        private_types,
+        overlay,
     })))
+}
+
+/// W5: `hook-ledger/stamp-config.txt`, one line per crate:
+/// `<crate root> <crate name> <module|*> [exclude=a,b] [min_stmts=N]` (`#` comments). Command-line values win:
+/// `--module` arguments replace the file's module, `--min-stmts` is kept when the file has none.
+pub(crate) fn apply_stamp_config(
+    path: &std::path::Path,
+    crate_name: &str,
+    modules: &mut Vec<String>,
+    exclude: &mut Vec<String>,
+    min_stmts: &mut usize,
+    private_types: &mut bool,
+    bridges: &mut bool,
+) -> Result<(), String> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+    let wanted = key::normalize_crate_name(crate_name);
+    for raw in text.lines() {
+        let line = raw.split('#').next().unwrap_or("").trim();
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 3 || key::normalize_crate_name(parts[1]) != wanted {
+            continue;
+        }
+        if modules.is_empty() {
+            modules.push(parts[2].to_string());
+        }
+        for flag in &parts[3..] {
+            if let Some(list) = flag.strip_prefix("exclude=") {
+                exclude.extend(list.split(',').filter(|s| !s.is_empty()).map(str::to_string));
+            } else if *flag == "bridges=true" {
+                *bridges = true;
+            } else if *flag == "private_types=true" {
+                *private_types = true;
+            } else if let Some(n) = flag.strip_prefix("min_stmts=") {
+                if *min_stmts == 0 {
+                    *min_stmts = n.parse().map_err(|_| format!("bad min_stmts in '{line}'"))?;
+                }
+            } else {
+                return Err(format!("unknown stamp-config flag '{flag}' in '{line}'"));
+            }
+        }
+        return Ok(());
+    }
+    Err(format!("no line for crate '{crate_name}' in {}", path.display()))
+}
+
+fn parse_sync_ledger_args(args: &mut std::env::Args) -> Result<Option<Command>, String> {
+    let mut workspace_root = PathBuf::from(".");
+    let mut stamp_config = None;
+    let mut ledger = None;
+    let mut overlay_root = None;
+    let mut only = Vec::new();
+    let mut frozen = false;
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "-h" | "--help" => {
+                println!("{}", usage());
+                return Ok(None);
+            }
+            "--workspace-root" => workspace_root = PathBuf::from(next_arg(args, "--workspace-root")?),
+            "--stamp-config" => stamp_config = Some(PathBuf::from(next_arg(args, "--stamp-config")?)),
+            "--ledger" => ledger = Some(PathBuf::from(next_arg(args, "--ledger")?)),
+            "--overlay-root" => overlay_root = Some(PathBuf::from(next_arg(args, "--overlay-root")?)),
+            "--crate" => only.push(next_arg(args, "--crate")?),
+            "--frozen" => frozen = true,
+            other => return Err(format!("unknown argument '{other}'
+{}", usage())),
+        }
+    }
+    Ok(Some(Command::SyncLedger(SyncLedgerConfig {
+        stamp_config: stamp_config.unwrap_or_else(|| workspace_root.join("hook-ledger").join("stamp-config.txt")),
+        ledger: ledger.unwrap_or_else(|| workspace_root.join("hook-ledger")),
+        overlay_root: overlay_root.unwrap_or_else(|| workspace_root.join("target").join("yoake-sync").join("root")),
+        workspace_root,
+        only,
+        frozen,
+    })))
+}
+
+fn sync_ledger(config: &SyncLedgerConfig) -> Result<bool, String> {
+    let text = std::fs::read_to_string(&config.stamp_config)
+        .map_err(|e| format!("failed to read {}: {e}", config.stamp_config.display()))?;
+    for raw in text.lines() {
+        let line = raw.split('#').next().unwrap_or("").trim();
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 3 {
+            continue;
+        }
+        if !config.only.is_empty() && !config.only.iter().any(|c| key::normalize_crate_name(c) == key::normalize_crate_name(parts[1])) {
+            continue;
+        }
+        println!("sync-ledger: {}", parts[1]);
+        overlay::build_overlay(&overlay::OverlayArgs {
+            workspace_root: config.workspace_root.clone(),
+            overlay_root: config.overlay_root.clone(),
+            crate_root: PathBuf::from(parts[0]),
+            crate_name: parts[1].to_string(),
+            ledger: config.ledger.clone(),
+            stamp_config: config.stamp_config.clone(),
+            frozen: config.frozen,
+        })?;
+    }
+    Ok(true)
 }
 
 fn parse_check_history_args(args: &mut std::env::Args) -> Result<Option<Command>, String> {
@@ -354,6 +544,7 @@ fn parse_bridge_args(args: std::env::Args) -> Result<Option<Command>, String> {
     let mut shallow = false;
     let mut glues = Vec::new();
     let mut exclude_file = None;
+    let mut nary = false;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -396,6 +587,7 @@ fn parse_bridge_args(args: std::env::Args) -> Result<Option<Command>, String> {
                     glues.push(PathBuf::from(args.next().unwrap()));
                 }
             }
+            "--nary" => nary = true,
             "--exclude-file" => {
                 let val = args
                     .next()
@@ -413,6 +605,7 @@ fn parse_bridge_args(args: std::env::Args) -> Result<Option<Command>, String> {
         return Err(format!("at least one --module is required\n{}", usage()));
     }
     Ok(Some(Command::Bridge(bridge::BridgeConfig {
+        nary,
         check,
         crate_root,
         crate_name,
@@ -425,6 +618,10 @@ fn parse_bridge_args(args: std::env::Args) -> Result<Option<Command>, String> {
 }
 
 fn main() -> ExitCode {
+    let raw: Vec<String> = std::env::args().collect();
+    if overlay::is_wrapper_invocation(&raw) {
+        return overlay::run_wrapper(raw);
+    }
     let command = match parse_args() {
         Ok(Some(cmd)) => cmd,
         Ok(None) => return ExitCode::SUCCESS,
@@ -435,6 +632,27 @@ fn main() -> ExitCode {
     };
 
     let result = match command {
+        Command::Run(config) if config.verify && config.mode == Mode::Apply => {
+            let overlay = config.overlay.then(|| {
+                let target = std::env::var_os("YOAKE_STAMP_TARGET")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| config.verify_dir.join("target-stamped"));
+                verify::OverlayVerify {
+                    workspace_root: config.verify_dir.clone(),
+                    stamp_dir: target.join("yoake-stamp"),
+                    stamp_config: config.verify_dir.join("hook-ledger").join("stamp-config.txt"),
+                }
+            });
+            let options = verify::VerifyOptions {
+                overlay,
+                cargo_args: config.verify_args.clone(),
+                dir: config.verify_dir.clone(),
+                rounds: config.verify_rounds,
+                max_withdraw_per_round: config.verify_max_withdraw,
+            };
+            verify::run(&config, &options)
+        }
+        Command::SyncLedger(config) => sync_ledger(&config),
         Command::Run(config) => run::execute(&config),
         Command::Bridge(config) => bridge::execute(&config),
         Command::CheckHistory(history) => ledger_io::run_check_history(&history.base, &history.current),

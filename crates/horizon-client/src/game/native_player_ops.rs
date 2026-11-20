@@ -471,14 +471,6 @@ pub(super) fn resolve_native_sound(hub: &horizon_client::lan::hub::Hub, packet: 
     });
 }
 
-fn dimension(name: &str) -> Result<Dim, String> {
-    match name {
-        "minecraft:overworld" => Ok(Dim::Overworld),
-        "minecraft:the_nether" => Ok(Dim::Nether),
-        "minecraft:the_end" => Ok(Dim::End),
-        _ => Err("unknown native player dimension".into()),
-    }
-}
 
 impl Game<'_> {
     fn native_player_ops_reserve(&mut self, operation: Operation) -> Result<usize, String> {
@@ -519,7 +511,8 @@ impl Game<'_> {
         Ok((
             Target::Guest(guest.conn),
             guest.conn,
-            Dim::from_id(&guest.dimension),
+            // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+            Dim::lookup_or_overworld(&guest.dimension),
         ))
     }
 
@@ -710,7 +703,10 @@ impl Game<'_> {
         pitch: f32,
     ) -> Result<NativeTeleportTicket, String> {
         let owner = self.native_player_ops_reserve(Operation::Teleport)?;
-        let destination = dimension(dimension_name)?;
+        // F3-3: any level of the world's registry, not only the three vanilla ones.
+        let destination = self
+            .level_dim(dimension_name)
+            .ok_or("unknown native player dimension")?;
         if !pos
             .into_iter()
             .all(|value| value.is_finite() && value.abs() <= 30_000_000.0)
@@ -720,6 +716,17 @@ impl Game<'_> {
             return Err("invalid native player teleport position or rotation".into());
         }
         let (target, conn, source) = self.native_player_target(uuid)?;
+        // A level created after the player joined, with a dimension type the player was not
+        // sent, cannot be shown to them until they reconnect (F3-6).
+        if self
+            .lan
+            .as_ref()
+            .is_some_and(|h| !h.hub.guest_knows_level(conn, dimension_name))
+        {
+            return Err(format!(
+                "level {dimension_name} was created after the player joined with a dimension type they do not have; they can enter it after reconnecting"
+            ));
+        }
         if let Some(previous) = self.native_player_ops.active.get(&conn).copied()
             && self
                 .native_player_ops

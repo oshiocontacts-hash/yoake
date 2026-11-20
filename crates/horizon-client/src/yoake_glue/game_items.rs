@@ -6,7 +6,7 @@
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]
-    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, RefFieldTable, Status};
+    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, PathRootRef, RefFieldTable, Status};
     use yoake_slice::codec::{self, CallError, Decode, Decoder, Encode};
 
     /// `game_items::Game::native_client_item_in_tag`
@@ -215,6 +215,75 @@ pub mod yoake_glue {
                     None => Err(Status::Stale),
                 },
                 [Accessor::Field(8)] => match self.player.as_mut() {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                _ => Err(Status::BadField),
+            }
+        }
+    }
+
+    /// The same paths over a shared `&crate::game::Game` (`&Game` hooks: read-only traversal).
+    impl PathRootRef for crate::game::Game<'_> {
+        fn resolve_ref(&self, path: &[Accessor], f: &mut dyn FnMut(&dyn std::any::Any)) -> Result<(), Status> {
+            match path {
+                [Accessor::Field(0), Accessor::Id(id)] => match self.dropped.iter().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(1), Accessor::Id(id)] => match self.armor_stands.iter().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(2), Accessor::Id(id)] => match self.orbs.iter().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(3), Accessor::Id(id)] => match self.paintings.iter().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(4), Accessor::Id(id)] => match self.item_frames.iter().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(5), Accessor::Id(id)] => match self.cushions.iter().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(6)] => {
+                    f(&self.experience);
+                    Ok(())
+                }
+                [Accessor::Field(7), Accessor::Id(id)] => match self.mobs.iter().find(|e| u64::from(e.id) == *id) {
+                    Some(e) => {
+                        f(e);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                [Accessor::Field(8)] => match self.player.as_ref() {
                     Some(e) => {
                         f(e);
                         Ok(())

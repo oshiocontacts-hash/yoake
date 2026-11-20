@@ -11,8 +11,11 @@ use horizon_client::{
 impl Game<'_> {
     /// Whether a text box has focus right now (the fields `ime_commit` can fill).
     pub(super) fn text_field_focused(&mut self) -> bool {
-        if self.title_mod_screen_open() {
-            return true;
+        if self.native_mod_screen().is_some()
+            && let Some(allowed) =
+                mod_text_field_decision(self.mod_ime_allowed, self.title_mod_screen_open())
+        {
+            return allowed;
         }
         if self.dialog_open() {
             return self.dialog_has_text_field();
@@ -65,6 +68,9 @@ impl Game<'_> {
     /// `WindowEvent::Ime(Preedit)`: `KeyboardHandler.textEditing`. The text
     /// still being composed is shown under the focused field's caret.
     pub(super) fn ime_preedit(&mut self, text: &str, cursor: Option<(usize, usize)>) {
+        if self.native_mod_screen().is_some() {
+            self.native_ime_preedit(text, mod_ime_cursor(cursor));
+        }
         preedit::set_preedit(
             self.text_field_focused()
                 .then(|| PreeditEvent::from_winit(text, cursor))
@@ -72,16 +78,61 @@ impl Game<'_> {
         );
     }
 
+    pub(super) fn ime_disabled(&mut self) {
+        preedit::set_preedit(None);
+        if self.native_mod_screen().is_some() {
+            self.native_ime_preedit("", None);
+        }
+    }
+
+    /// @API:ime@ Enable the OS input method for the calling mod's open screen.
+    pub(super) fn native_ime_set_allowed(
+        &mut self,
+        mod_id: &str,
+        allowed: bool,
+    ) -> Result<(), String> {
+        require_mod_ime_owner(self.native_mod_screen(), mod_id)?;
+        self.mod_ime_allowed = Some(allowed);
+        if !allowed {
+            self.mod_ime_area = None;
+            preedit::set_preedit(None);
+        }
+        Ok(())
+    }
+
+    /// @API:ime@ Set the candidate window's GUI-scaled rectangle on the calling mod's screen.
+    pub(super) fn native_ime_set_cursor_area(
+        &mut self,
+        mod_id: &str,
+        area: [f32; 4],
+    ) -> Result<(), String> {
+        require_mod_ime_owner(self.native_mod_screen(), mod_id)?;
+        validate_mod_ime_area(area)?;
+        self.mod_ime_area = Some(area);
+        Ok(())
+    }
+
     /// With the frame's GUI built: draw the composition over it and move the
     /// input method's candidate window to the caret
     /// (`TextInputManager.setTextInputArea`, in window pixels).
     pub(super) fn flush_ime(&mut self, hud: &mut HudBatch) {
-        if self.title_mod_screen_open() {
+        let mode = flush_mode(
+            self.native_mod_screen().is_some(),
+            self.title_mod_screen_open(),
+            self.mod_ime_used(),
+            self.mod_ime_area.is_some(),
+        );
+        if mode != FlushMode::Vanilla {
             let vertex_start = hud.vertices.len();
             preedit::draw_overlay(hud, &self.gui.atlas);
             hud.vertices.truncate(vertex_start);
             let _ = preedit::take_text_input_area();
-            self.ime_area = None;
+            match (mode, self.mod_ime_area) {
+                (FlushMode::ModArea, Some(area)) => {
+                    self.update_ime_area(physical_mod_ime_area(area, hud.scale))
+                }
+                _ => self.ime_area = None,
+            }
             return;
         }
         preedit::draw_overlay(hud, &self.gui.atlas);
@@ -93,6 +144,10 @@ impl Game<'_> {
         let y = (y0 * scale).round() as i32;
         let width = (((x1 - x0) * scale).round() as i32).max(1);
         let height = (((y1 - y0) * scale).round() as i32).max(1);
+        self.update_ime_area([x, y, width, height]);
+    }
+
+    fn update_ime_area(&mut self, [x, y, width, height]: [i32; 4]) {
         let area = [x, y, width, height];
         if self.ime_area == Some(area) {
             return;
@@ -110,9 +165,16 @@ impl Game<'_> {
 
     /// Text the input method committed (`WindowEvent::Ime(Commit)`).
     pub(super) fn ime_commit(&mut self, text: &str) {
+        if self.native_mod_screen().is_some() {
+            self.native_ime_commit(text);
+        }
+        let mod_screen = commit_stops_at_mod_screen(
+            self.native_mod_screen().is_some(),
+            self.title_mod_screen_open(),
+            self.mod_ime_used(),
+        );
         preedit::set_preedit(None);
         let text: String = text.chars().filter(|c| !c.is_control()).collect();
-        let title_mod_screen = self.title_mod_screen_open();
         // ScreenEvent.CharacterTyped.Pre: the input method's committed text
         // reaches a text box by characters, as a key's own text does, so the
         // open screen hears of each of them first and a cancelled one never
@@ -120,7 +182,7 @@ impl Game<'_> {
         let Some(text) = self.screen_text_typed(&text) else {
             return;
         };
-        if title_mod_screen {
+        if mod_screen {
             return;
         }
         if text.is_empty() || !self.text_field_focused() {
@@ -155,5 +217,163 @@ impl Game<'_> {
                 _ => {}
             }
         }
+    }
+}
+
+impl Game<'_> {
+    /// Whether the open mod screen's mod called an IME service. Until it does,
+    /// the screen behaves exactly as it did before the services existed.
+    fn mod_ime_used(&self) -> bool {
+        mod_ime_used(self.mod_ime_allowed, self.mod_ime_area.is_some())
+    }
+}
+
+fn mod_ime_used(allowed: Option<bool>, has_area: bool) -> bool {
+    allowed.is_some() || has_area
+}
+
+/// `Some(answer)` for `text_field_focused` on a mod screen, `None` to fall
+/// through to the ordinary checks. Not claimed by the mod: the old rule (a
+/// title mod screen takes IME, an in-game one falls through).
+fn mod_text_field_decision(allowed: Option<bool>, title_mod: bool) -> Option<bool> {
+    match allowed {
+        Some(allowed) => Some(allowed),
+        None => title_mod.then_some(true),
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FlushMode {
+    /// The engine's own overlay and candidate area.
+    Vanilla,
+    /// Hide the engine overlay, no candidate area (the old title mod screen rule).
+    ModHidden,
+    /// Hide the engine overlay, use the mod's rectangle.
+    ModArea,
+}
+
+fn flush_mode(mod_screen: bool, title_mod: bool, used: bool, has_area: bool) -> FlushMode {
+    if mod_screen && used {
+        if has_area {
+            FlushMode::ModArea
+        } else {
+            FlushMode::ModHidden
+        }
+    } else if title_mod {
+        FlushMode::ModHidden
+    } else {
+        FlushMode::Vanilla
+    }
+}
+
+/// Whether `ime_commit` ends after the character hooks (the mod screen owns
+/// the text), as it did for a title mod screen before.
+fn commit_stops_at_mod_screen(mod_screen: bool, title_mod: bool, used: bool) -> bool {
+    title_mod || (mod_screen && used)
+}
+
+fn mod_ime_cursor(cursor: Option<(usize, usize)>) -> Option<(u32, u32)> {
+    cursor.and_then(|(start, end)| {
+        Some((u32::try_from(start).ok()?, u32::try_from(end).ok()?))
+    })
+}
+
+fn validate_mod_ime_area(area: [f32; 4]) -> Result<(), String> {
+    if area.iter().all(|value| value.is_finite()) && area[2] >= 0.0 && area[3] >= 0.0 {
+        Ok(())
+    } else {
+        Err("IME cursor area needs finite coordinates and nonnegative size".to_owned())
+    }
+}
+
+fn physical_mod_ime_area([x, y, width, height]: [f32; 4], scale: f32) -> [i32; 4] {
+    [
+        (x * scale).round() as i32,
+        (y * scale).round() as i32,
+        ((width * scale).round() as i32).max(1),
+        ((height * scale).round() as i32).max(1),
+    ]
+}
+
+fn require_mod_ime_owner(owner: Option<&str>, mod_id: &str) -> Result<(), String> {
+    if owner == Some(mod_id) {
+        Ok(())
+    } else {
+        Err("IME services require the calling mod's open screen".to_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unused_mod_screen_keeps_old_text_field_rule() {
+        // Old: title mod screen -> true; in-game mod screen -> ordinary checks.
+        assert_eq!(mod_text_field_decision(None, true), Some(true));
+        assert_eq!(mod_text_field_decision(None, false), None);
+    }
+
+    #[test]
+    fn used_mod_screen_follows_the_mod() {
+        assert_eq!(mod_text_field_decision(Some(false), true), Some(false));
+        assert_eq!(mod_text_field_decision(Some(true), false), Some(true));
+        assert!(!mod_ime_used(None, false));
+        assert!(mod_ime_used(Some(false), false));
+        assert!(mod_ime_used(None, true));
+    }
+
+    #[test]
+    fn flush_mode_matches_old_rules_when_unused() {
+        assert_eq!(flush_mode(true, true, false, false), FlushMode::ModHidden);
+        assert_eq!(flush_mode(true, false, false, false), FlushMode::Vanilla);
+        assert_eq!(flush_mode(false, false, false, false), FlushMode::Vanilla);
+        assert_eq!(flush_mode(true, false, true, false), FlushMode::ModHidden);
+        assert_eq!(flush_mode(true, false, true, true), FlushMode::ModArea);
+        assert_eq!(flush_mode(true, true, true, true), FlushMode::ModArea);
+    }
+
+    #[test]
+    fn commit_stop_matches_old_rules_when_unused() {
+        assert!(commit_stops_at_mod_screen(true, true, false));
+        assert!(!commit_stops_at_mod_screen(true, false, false));
+        assert!(!commit_stops_at_mod_screen(false, false, false));
+        assert!(commit_stops_at_mod_screen(true, false, true));
+    }
+
+    #[test]
+    fn mod_screen_owner_is_required() {
+        assert!(require_mod_ime_owner(Some("demo"), "demo").is_ok());
+        assert!(require_mod_ime_owner(Some("other"), "demo").is_err());
+        assert!(require_mod_ime_owner(None, "demo").is_err());
+    }
+
+    #[test]
+    fn cursor_uses_wit_u32_byte_offsets() {
+        assert_eq!(mod_ime_cursor(Some((2, 5))), Some((2, 5)));
+        assert_eq!(mod_ime_cursor(None), None);
+        #[cfg(target_pointer_width = "64")]
+        assert_eq!(mod_ime_cursor(Some((0, u32::MAX as usize + 1))), None);
+    }
+
+    #[test]
+    fn cursor_area_validation_rejects_bad_numbers() {
+        assert!(validate_mod_ime_area([10.0, 20.0, 0.0, 0.0]).is_ok());
+        for area in [
+            [f32::NAN, 0.0, 1.0, 1.0],
+            [0.0, f32::INFINITY, 1.0, 1.0],
+            [0.0, 0.0, -1.0, 1.0],
+            [0.0, 0.0, 1.0, -0.1],
+        ] {
+            assert!(validate_mod_ime_area(area).is_err());
+        }
+    }
+
+    #[test]
+    fn cursor_area_scales_like_vanilla_ime() {
+        assert_eq!(
+            physical_mod_ime_area([10.2, -4.6, 20.4, 0.0], 2.0),
+            [20, -9, 41, 1]
+        );
     }
 }

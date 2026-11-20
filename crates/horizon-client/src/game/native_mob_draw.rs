@@ -9,7 +9,7 @@
 //! (`EntityRenderersEvent.AddLayers`), in the same frame.
 
 use super::{
-    Dim, Game, Hand, native_avatar_equipment::EquipmentOutlineRange,
+    Game, Hand, native_avatar_equipment::EquipmentOutlineRange,
     native_block_entity_draw::BlockEntityDraw, shield::OFFHAND_SLOT,
 };
 use glam::{DVec3, Mat4};
@@ -492,7 +492,7 @@ impl Game<'_> {
             light,
             [feet.x, feet.y, feet.z].map(|c| c.floor() as i32),
             mob_pose(feet - camera, render.body_yaw),
-            diffuse_lights(self.dim == Dim::Nether),
+            diffuse_lights(self.level_facts().nether_light),
             std::mem::take(out),
         );
         let keep = hook(&render, &mut draw, state);

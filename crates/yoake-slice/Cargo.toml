@@ -10,11 +10,12 @@ publish = false
 [features]
 default = []
 # The wasmtime runtime. Without it the crate is the pure activation arena (no dependencies).
-wasm = ["dep:wasmtime", "dep:wat"]
+wasm = ["dep:wasmtime", "dep:wat", "dep:yoake-mod-io"]
 
 [dependencies]
 wasmtime = { version = "=48.0.7", optional = true, default-features = false, features = ["runtime", "cranelift", "std", "wat"] }
 wat = { version = "=1.263.0", optional = true }
+yoake-mod-io = { path = "../yoake-mod-io", optional = true }
 
 [lints]
 workspace = true
@@ -29,6 +30,10 @@ required-features = ["wasm"]
 
 [[test]]
 name = "multi"
+required-features = ["wasm"]
+
+[[test]]
+name = "nary"
 required-features = ["wasm"]
 
 [[test]]

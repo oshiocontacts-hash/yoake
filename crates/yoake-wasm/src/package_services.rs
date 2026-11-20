@@ -50,6 +50,7 @@ struct PermissionCache {
 
 pub struct PackageServices {
     id: String,
+    #[allow(dead_code)]
     capabilities: BTreeSet<String>,
     fields: BTreeMap<String, ConfigField>,
     permissions: BTreeMap<String, PermissionNode>,
@@ -120,12 +121,10 @@ impl PackageServices {
         Ok(services)
     }
 
-    pub fn require(&self, capability: &str) -> Result<(), String> {
-        if self.capabilities.contains(capability) {
-            Ok(())
-        } else {
-            Err(format!("permission denied: {capability}"))
-        }
+    /// Every service is granted (FR-F2, owner decision 2026-11-20: mods are used inside one group). The declared
+    /// `[wasm] permissions` are still parsed so old mods load; they no longer gate anything here.
+    pub fn require(&self, _capability: &str) -> Result<(), String> {
+        Ok(())
     }
 
     pub(crate) fn config_cursor(&self, id: &str) -> Result<u64, String> {
@@ -322,9 +321,6 @@ impl PackageServices {
     }
 
     fn prepare_store(&mut self, scope: u8) {
-        if !self.capabilities.contains(STORAGE_CAPABILITY) {
-            return;
-        }
         let result = match scope {
             0 => self
                 .world
@@ -738,41 +734,6 @@ side = "synced"
     }
 
     #[test]
-    fn denied_services_do_not_create_files() {
-        let root = Scratch::new();
-        let mut service = open(&root.0, ConfigRuntimeSide::Server, &[]);
-        let value = encode_value(&fields()["shared"], &Value::Boolean(true)).unwrap();
-        for error in [
-            service.config_get("shared").unwrap_err(),
-            service.config_set("shared", value).unwrap_err(),
-            service
-                .has_permission("example.edit", "0123456789abcdef0123456789abcdef", 4)
-                .unwrap_err(),
-            service
-                .storage_get("value", StorageScope::World)
-                .unwrap_err(),
-            service
-                .storage_put("value", StorageScope::World, b"secret")
-                .unwrap_err(),
-            service
-                .storage_delete("value", StorageScope::World)
-                .unwrap_err(),
-            service
-                .storage_blob_begin("value", StorageScope::World, 4)
-                .unwrap_err(),
-            service.storage_blob_write(b"data", 1, 0).unwrap_err(),
-            service.storage_blob_commit(1).unwrap_err(),
-            service.storage_blob_abort(1).unwrap_err(),
-            service
-                .storage_blob_read("value", 4, 0, StorageScope::World)
-                .unwrap_err(),
-        ] {
-            assert!(error.starts_with("permission denied:"), "{error}");
-        }
-        assert_eq!(std::fs::read_dir(&root.0).unwrap().count(), 0);
-    }
-
-    #[test]
     fn config_validates_persists_and_coalesces_changes() {
         let root = Scratch::new();
         let mut service = open(&root.0, ConfigRuntimeSide::Server, &[CONFIG_CAPABILITY]);
@@ -835,13 +796,6 @@ side = "synced"
         value.int_value = 4;
         service.config_set("count", value.clone()).unwrap();
         assert_count_change(service.config_changes_since(revision).unwrap().1, 4);
-        let denied = open(&root.0, ConfigRuntimeSide::Server, &[]);
-        assert!(
-            denied
-                .config_changes_since(0)
-                .unwrap_err()
-                .starts_with("permission denied:")
-        );
     }
 
     #[test]
@@ -884,7 +838,8 @@ side = "synced"
         assert_eq!(changes.len(), 1);
         assert_eq!(changes[0].0, "shared");
         assert!(!changes[0].1.bool_value);
-        assert_eq!(std::fs::read_dir(&client_root.0).unwrap().count(), 0);
+        // (FR-F2: services are always granted, so the storage folder may exist; the config itself is never written)
+        assert!(std::fs::read_dir(&client_root.0).unwrap().all(|e| !e.unwrap().file_name().to_string_lossy().ends_with(".toml")));
     }
 
     #[test]

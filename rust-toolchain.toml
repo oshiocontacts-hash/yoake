@@ -5,6 +5,7 @@
 [toolchain]
 channel = "1.100.0"
 components = ["rustfmt", "clippy", "rust-src"]
-# wasm32-unknown-unknown: guests built by hand; wasm32-wasip2: the SDK guests the tests build (tests/support/build.rs)
-targets = ["wasm32-unknown-unknown", "wasm32-wasip2"]
+# wasm32-unknown-unknown: guests built by hand; wasm32-wasip2: the SDK guests the tests build (tests/support/build.rs);
+# wasm32-wasip1: full-access mods written with Rust std (FR-F2: std::fs through WASI preview 1)
+targets = ["wasm32-unknown-unknown", "wasm32-wasip1", "wasm32-wasip2"]
 profile = "minimal"

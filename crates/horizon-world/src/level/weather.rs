@@ -9,11 +9,7 @@ use crate::{
 use horizon_core::{geometry::Direction, position::BlockPos};
 
 fn sea_level<L: LevelAccess + ?Sized>(level: &L) -> i32 {
-    match level.dimension() {
-        Dimension::Nether => 32,
-        Dimension::End => 0,
-        Dimension::Overworld => 63,
-    }
+    level.level_rules().sea_level
 }
 
 impl Behaviours {

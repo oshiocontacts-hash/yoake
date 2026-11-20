@@ -6,7 +6,7 @@
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]
-    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, RefFieldTable, Status};
+    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, PathRootRef, RefFieldTable, Status};
     use yoake_slice::codec::{self, CallError, Decode, Decoder, Encode};
 
     fn enc_crate__health__AttackRecord(v: &crate::health::AttackRecord, out: &mut Vec<u8>) {
@@ -559,11 +559,11 @@ pub mod yoake_glue {
     }
 
     /// `motion::<LocationEffects as Clone>::clone`
-    fn call_1294(recv: &mut crate::motion::LocationEffects, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1294(recv: &crate::motion::LocationEffects, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::LocationEffects as core::clone::Clone>::clone(&*recv);
+        let r = <crate::motion::LocationEffects as core::clone::Clone>::clone(recv);
         enc_crate__motion__LocationEffects(&r, out);
         Ok(())
     }
@@ -589,7 +589,7 @@ pub mod yoake_glue {
     }
 
     /// `motion::LocationEffects.applied_level#get`
-    fn call_1297(recv: &mut crate::motion::LocationEffects, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1297(recv: &crate::motion::LocationEffects, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.applied_level, out);
         Ok(())
@@ -599,7 +599,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::LocationEffects.block#get`
-    fn call_1299(recv: &mut crate::motion::LocationEffects, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1299(recv: &crate::motion::LocationEffects, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.block {
             None => out.push(0),
@@ -615,7 +615,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::LocationEffects.boots_level#get`
-    fn call_1301(recv: &mut crate::motion::LocationEffects, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1301(recv: &crate::motion::LocationEffects, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.boots_level, out);
         Ok(())
@@ -625,7 +625,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::LocationEffects.landed#get`
-    fn call_1303(recv: &mut crate::motion::LocationEffects, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1303(recv: &crate::motion::LocationEffects, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.landed, out);
         Ok(())
@@ -635,7 +635,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::LocationEffects.on_soul_speed_block#get`
-    fn call_1305(recv: &mut crate::motion::LocationEffects, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1305(recv: &crate::motion::LocationEffects, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.on_soul_speed_block, out);
         Ok(())
@@ -645,7 +645,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::MotionResources.climbable#get`
-    fn call_1307(recv: &mut crate::motion::MotionResources, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1307(recv: &crate::motion::MotionResources, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.climbable;
@@ -661,7 +661,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::MotionResources.combination_step_sound#get`
-    fn call_1309(recv: &mut crate::motion::MotionResources, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1309(recv: &crate::motion::MotionResources, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.combination_step_sound;
@@ -677,7 +677,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::MotionResources.crystal_sound#get`
-    fn call_1311(recv: &mut crate::motion::MotionResources, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1311(recv: &crate::motion::MotionResources, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.crystal_sound;
@@ -693,7 +693,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::MotionResources.fall_reset#get`
-    fn call_1313(recv: &mut crate::motion::MotionResources, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1313(recv: &crate::motion::MotionResources, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.fall_reset;
@@ -709,7 +709,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::MotionResources.inside_step_sound#get`
-    fn call_1315(recv: &mut crate::motion::MotionResources, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1315(recv: &crate::motion::MotionResources, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.inside_step_sound;
@@ -725,7 +725,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::MotionResources.soul_speed_blocks#get`
-    fn call_1317(recv: &mut crate::motion::MotionResources, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1317(recv: &crate::motion::MotionResources, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.soul_speed_blocks;
@@ -741,7 +741,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.air#get`
-    fn call_1319(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1319(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.air, out);
         Ok(())
@@ -758,7 +758,7 @@ pub mod yoake_glue {
     }
 
     /// `motion::PlayerMotion.applied_input#get`
-    fn call_1321(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1321(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.applied_input).iter() {
             Encode::encode(e0, out);
@@ -770,7 +770,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.attack_log#get`
-    fn call_1323(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1323(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.attack_log;
@@ -786,7 +786,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.auto_jump_enabled#get`
-    fn call_1325(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1325(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.auto_jump_enabled, out);
         Ok(())
@@ -796,7 +796,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.auto_jump_time#get`
-    fn call_1327(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1327(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.auto_jump_time, out);
         Ok(())
@@ -806,7 +806,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.auto_spin_attack_dmg#get`
-    fn call_1329(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1329(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.auto_spin_attack_dmg, out);
         Ok(())
@@ -816,7 +816,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.auto_spin_attack_ticks#get`
-    fn call_1331(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1331(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.auto_spin_attack_ticks, out);
         Ok(())
@@ -826,7 +826,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.block_effects#get`
-    fn call_1333(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1333(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.block_effects, out);
         Ok(())
@@ -836,7 +836,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.block_landing#get`
-    fn call_1335(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1335(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.block_landing {
             None => out.push(0),
@@ -857,7 +857,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.burn_from_stepping_immune#get`
-    fn call_1337(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1337(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.burn_from_stepping_immune, out);
         Ok(())
@@ -867,7 +867,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.client_loaded#get`
-    fn call_1339(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1339(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.client_loaded, out);
         Ok(())
@@ -877,7 +877,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.client_side#get`
-    fn call_1341(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1341(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.client_side, out);
         Ok(())
@@ -887,7 +887,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.collision#get`
-    fn call_1343(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1343(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_world__entity_move__CollisionFlags(&recv.collision, out);
         Ok(())
@@ -897,7 +897,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.crystal_sound_intensity#get`
-    fn call_1345(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1345(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.crystal_sound_intensity, out);
         Ok(())
@@ -907,7 +907,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.dimensions#get`
-    fn call_1347(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1347(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__pose__Dimensions(&recv.dimensions, out);
         Ok(())
@@ -917,7 +917,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.entity_id#get`
-    fn call_1349(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1349(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.entity_id, out);
         Ok(())
@@ -927,7 +927,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.fall_distance#get`
-    fn call_1351(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1351(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fall_distance, out);
         Ok(())
@@ -944,7 +944,7 @@ pub mod yoake_glue {
     }
 
     /// `motion::PlayerMotion.fall_fly_ticks#get`
-    fn call_1353(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1353(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fall_fly_ticks, out);
         Ok(())
@@ -954,7 +954,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.fall_flying#get`
-    fn call_1355(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1355(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fall_flying, out);
         Ok(())
@@ -964,7 +964,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.fire_ticks#get`
-    fn call_1357(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1357(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fire_ticks, out);
         Ok(())
@@ -981,7 +981,7 @@ pub mod yoake_glue {
     }
 
     /// `motion::PlayerMotion.flying#get`
-    fn call_1359(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1359(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.flying, out);
         Ok(())
@@ -998,7 +998,7 @@ pub mod yoake_glue {
     }
 
     /// `motion::PlayerMotion.flying_speed#get`
-    fn call_1361(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1361(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.flying_speed, out);
         Ok(())
@@ -1008,7 +1008,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.freeze_immune#get`
-    fn call_1363(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1363(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.freeze_immune, out);
         Ok(())
@@ -1018,7 +1018,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.glide_ending#get`
-    fn call_1365(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1365(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.glide_ending, out);
         Ok(())
@@ -1028,7 +1028,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.glider#get`
-    fn call_1367(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1367(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.glider, out);
         Ok(())
@@ -1038,7 +1038,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.glider_wear#get`
-    fn call_1369(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1369(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.glider_wear, out);
         Ok(())
@@ -1048,7 +1048,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.ground#get`
-    fn call_1371(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1371(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_world__ground_support__GroundState(&recv.ground, out);
         Ok(())
@@ -1058,7 +1058,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.head_yaw#get`
-    fn call_1373(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1373(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.head_yaw, out);
         Ok(())
@@ -1075,7 +1075,7 @@ pub mod yoake_glue {
     }
 
     /// `motion::PlayerMotion.hurt_log#get`
-    fn call_1375(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1375(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.hurt_log;
@@ -1091,7 +1091,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.impulse#get`
-    fn call_1377(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1377(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_world__living_fall__ImpulseContext(&recv.impulse, out);
         Ok(())
@@ -1101,7 +1101,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.in_powder_snow#get`
-    fn call_1379(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1379(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.in_powder_snow, out);
         Ok(())
@@ -1111,7 +1111,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.invulnerable#get`
-    fn call_1381(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1381(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.invulnerable, out);
         Ok(())
@@ -1121,7 +1121,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.is_passenger#get`
-    fn call_1383(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1383(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.is_passenger, out);
         Ok(())
@@ -1131,7 +1131,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.item_use_slows_sprint#get`
-    fn call_1385(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1385(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.item_use_slows_sprint, out);
         Ok(())
@@ -1141,7 +1141,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.item_use_speed#get`
-    fn call_1387(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1387(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.item_use_speed {
             None => out.push(0),
@@ -1157,7 +1157,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.jump_trigger_time#get`
-    fn call_1389(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1389(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.jump_trigger_time, out);
         Ok(())
@@ -1167,7 +1167,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.jumping#get`
-    fn call_1391(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1391(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.jumping, out);
         Ok(())
@@ -1177,7 +1177,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.last_climbable#get`
-    fn call_1393(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1393(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.last_climbable {
             None => out.push(0),
@@ -1193,7 +1193,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.last_crystal_sound_play_tick#get`
-    fn call_1395(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1395(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.last_crystal_sound_play_tick, out);
         Ok(())
@@ -1203,7 +1203,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.leather_boots#get`
-    fn call_1397(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1397(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.leather_boots, out);
         Ok(())
@@ -1213,7 +1213,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.local_crouching#get`
-    fn call_1399(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1399(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.local_crouching, out);
         Ok(())
@@ -1223,7 +1223,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.location_effects#get`
-    fn call_1401(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1401(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__motion__LocationEffects(&recv.location_effects, out);
         Ok(())
@@ -1233,7 +1233,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.may_fly#get`
-    fn call_1403(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1403(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.may_fly, out);
         Ok(())
@@ -1243,7 +1243,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.mobility_restricted#get`
-    fn call_1405(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1405(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.mobility_restricted, out);
         Ok(())
@@ -1253,7 +1253,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.move_vector#get`
-    fn call_1407(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1407(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.move_vector).iter() {
             Encode::encode(e0, out);
@@ -1265,7 +1265,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.needs_sync#get`
-    fn call_1409(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1409(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.needs_sync, out);
         Ok(())
@@ -1275,7 +1275,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.no_jump_delay#get`
-    fn call_1411(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1411(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.no_jump_delay, out);
         Ok(())
@@ -1285,7 +1285,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.nudge#get`
-    fn call_1413(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1413(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.nudge).iter() {
             match e0 {
@@ -1303,7 +1303,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.old_position#get`
-    fn call_1415(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1415(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.old_position, out);
         Ok(())
@@ -1313,7 +1313,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.piston#get`
-    fn call_1417(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1417(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_world__piston_movement__PistonMovement(&recv.piston, out);
         Ok(())
@@ -1323,7 +1323,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.pitch#get`
-    fn call_1419(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1419(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.pitch, out);
         Ok(())
@@ -1333,7 +1333,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.pose#get`
-    fn call_1421(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1421(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__pose__Pose(&recv.pose, out);
         Ok(())
@@ -1343,7 +1343,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.position#get`
-    fn call_1423(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1423(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.position, out);
         Ok(())
@@ -1360,7 +1360,7 @@ pub mod yoake_glue {
     }
 
     /// `motion::PlayerMotion.powder_snow_entered#get`
-    fn call_1425(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1425(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.powder_snow_entered;
@@ -1376,7 +1376,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.replaying#get`
-    fn call_1427(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1427(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.replaying, out);
         Ok(())
@@ -1386,7 +1386,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.respiration#get`
-    fn call_1429(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1429(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.respiration, out);
         Ok(())
@@ -1396,7 +1396,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.scale#get`
-    fn call_1431(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1431(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.scale, out);
         Ok(())
@@ -1406,7 +1406,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.server_copy#get`
-    fn call_1433(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1433(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.server_copy, out);
         Ok(())
@@ -1416,7 +1416,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.server_owns_glide#get`
-    fn call_1435(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1435(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.server_owns_glide, out);
         Ok(())
@@ -1426,7 +1426,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.shift_key_down#get`
-    fn call_1437(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1437(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.shift_key_down, out);
         Ok(())
@@ -1436,7 +1436,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.sleeping#get`
-    fn call_1439(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1439(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sleeping, out);
         Ok(())
@@ -1446,7 +1446,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.spawn_extra_particles_on_fall#get`
-    fn call_1441(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1441(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.spawn_extra_particles_on_fall, out);
         Ok(())
@@ -1456,7 +1456,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.spectator#get`
-    fn call_1443(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1443(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.spectator, out);
         Ok(())
@@ -1466,7 +1466,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.speed#get`
-    fn call_1445(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1445(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.speed, out);
         Ok(())
@@ -1476,7 +1476,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.spin_hit#get`
-    fn call_1447(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1447(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.spin_hit {
             None => out.push(0),
@@ -1492,7 +1492,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.sprint_input#get`
-    fn call_1449(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1449(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__sprint__SprintState(&recv.sprint_input, out);
         Ok(())
@@ -1502,7 +1502,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.sprinting#get`
-    fn call_1451(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1451(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sprinting, out);
         Ok(())
@@ -1512,7 +1512,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.steps#get`
-    fn call_1453(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1453(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_world__movement_emission__MovementDistances(&recv.steps, out);
         Ok(())
@@ -1522,7 +1522,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.stuck_multiplier#get`
-    fn call_1455(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1455(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.stuck_multiplier, out);
         Ok(())
@@ -1532,7 +1532,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.swimming#get`
-    fn call_1457(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1457(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.swimming, out);
         Ok(())
@@ -1542,7 +1542,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.sync_position#get`
-    fn call_1459(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1459(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sync_position, out);
         Ok(())
@@ -1552,7 +1552,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.teleported#get`
-    fn call_1461(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1461(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.teleported, out);
         Ok(())
@@ -1562,7 +1562,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.ticks_frozen#get`
-    fn call_1463(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1463(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.ticks_frozen, out);
         Ok(())
@@ -1572,7 +1572,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.velocity#get`
-    fn call_1465(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1465(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.velocity, out);
         Ok(())
@@ -1589,7 +1589,7 @@ pub mod yoake_glue {
     }
 
     /// `motion::PlayerMotion.was_auto_jump#get`
-    fn call_1467(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1467(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.was_auto_jump, out);
         Ok(())
@@ -1599,7 +1599,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.was_in_powder_snow#get`
-    fn call_1469(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1469(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.was_in_powder_snow, out);
         Ok(())
@@ -1609,7 +1609,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.was_jumping#get`
-    fn call_1471(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1471(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.was_jumping, out);
         Ok(())
@@ -1619,7 +1619,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion.yaw#get`
-    fn call_1473(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1473(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.yaw, out);
         Ok(())
@@ -1636,22 +1636,22 @@ pub mod yoake_glue {
     }
 
     /// `motion::PlayerMotion::can_freeze`
-    fn call_1475(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1475(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::can_freeze(&*recv);
+        let r = <crate::motion::PlayerMotion>::can_freeze(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::carried_attributes`
-    fn call_1476(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1476(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <bool as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::carried_attributes(&*recv, a0);
+        let r = <crate::motion::PlayerMotion>::carried_attributes(recv, a0);
         enc_horizon_world__nbt__Tag(&r, out);
         Ok(())
     }
@@ -1676,65 +1676,65 @@ pub mod yoake_glue {
     }
 
     /// `motion::PlayerMotion::has_sprint_modifier`
-    fn call_1479(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1479(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::has_sprint_modifier(&*recv);
+        let r = <crate::motion::PlayerMotion>::has_sprint_modifier(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::is_fully_frozen`
-    fn call_1480(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1480(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::is_fully_frozen(&*recv);
+        let r = <crate::motion::PlayerMotion>::is_fully_frozen(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::is_sweep_attack`
-    fn call_1481(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1481(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <f32 as Decode>::decode(d)?;
         let mut a1 = <bool as Decode>::decode(d)?;
         let mut a2 = <bool as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::is_sweep_attack(&*recv, a0, a1, a2);
+        let r = <crate::motion::PlayerMotion>::is_sweep_attack(recv, a0, a1, a2);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::packed_attributes`
-    fn call_1482(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1482(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <bool as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::packed_attributes(&*recv, a0);
+        let r = <crate::motion::PlayerMotion>::packed_attributes(recv, a0);
         enc_horizon_world__nbt__Tag(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::percent_frozen`
-    fn call_1483(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1483(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::percent_frozen(&*recv);
+        let r = <crate::motion::PlayerMotion>::percent_frozen(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::saved_attributes`
-    fn call_1484(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1484(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::saved_attributes(&*recv);
+        let r = <crate::motion::PlayerMotion>::saved_attributes(recv);
         enc_horizon_world__nbt__Tag(&r, out);
         Ok(())
     }
@@ -1750,261 +1750,261 @@ pub mod yoake_glue {
     }
 
     /// `motion::PlayerMotion::yoake_state_air`
-    fn call_1486(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1486(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_air(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_air(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_fall_distance`
-    fn call_1487(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1487(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_fall_distance(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_fall_distance(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_fall_fly_ticks`
-    fn call_1488(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1488(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_fall_fly_ticks(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_fall_fly_ticks(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_fall_flying`
-    fn call_1489(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1489(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_fall_flying(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_fall_flying(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_fire_ticks`
-    fn call_1490(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1490(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_fire_ticks(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_fire_ticks(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_flying`
-    fn call_1491(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1491(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_flying(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_flying(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_flying_speed`
-    fn call_1492(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1492(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_flying_speed(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_flying_speed(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_glider`
-    fn call_1493(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1493(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_glider(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_glider(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_head_yaw`
-    fn call_1494(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1494(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_head_yaw(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_head_yaw(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_invulnerable`
-    fn call_1495(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1495(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_invulnerable(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_invulnerable(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_is_passenger`
-    fn call_1496(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1496(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_is_passenger(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_is_passenger(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_jump_trigger_time`
-    fn call_1497(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1497(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_jump_trigger_time(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_jump_trigger_time(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_jumping`
-    fn call_1498(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1498(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_jumping(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_jumping(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_may_fly`
-    fn call_1499(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1499(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_may_fly(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_may_fly(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_mobility_restricted`
-    fn call_1500(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1500(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_mobility_restricted(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_mobility_restricted(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_no_jump_delay`
-    fn call_1501(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1501(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_no_jump_delay(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_no_jump_delay(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_pitch`
-    fn call_1502(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1502(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_pitch(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_pitch(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_respiration`
-    fn call_1503(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1503(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_respiration(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_respiration(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_scale`
-    fn call_1504(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1504(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_scale(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_scale(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_shift_key_down`
-    fn call_1505(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1505(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_shift_key_down(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_shift_key_down(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_sleeping`
-    fn call_1506(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1506(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_sleeping(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_sleeping(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_spectator`
-    fn call_1507(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1507(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_spectator(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_spectator(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_speed`
-    fn call_1508(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1508(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_speed(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_speed(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_sprinting`
-    fn call_1509(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1509(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_sprinting(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_sprinting(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_swimming`
-    fn call_1510(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1510(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_swimming(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_swimming(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `motion::PlayerMotion::yoake_state_yaw`
-    fn call_1511(recv: &mut crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1511(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::motion::PlayerMotion>::yoake_state_yaw(&*recv);
+        let r = <crate::motion::PlayerMotion>::yoake_state_yaw(recv);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -2460,224 +2460,224 @@ pub mod yoake_glue {
     pub fn call(handle: u64, id: u32, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let start = out.len();
         let result = match id {
-            1294 => activation::with_arg::<crate::motion::LocationEffects, _>(handle, |recv| call_1294(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1294 => activation::with_arg_shared::<crate::motion::LocationEffects, _>(handle, |recv| call_1294(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1295 => call_1295(args, out),
             1296 => call_1296(args, out),
-            1297 => activation::with_arg::<crate::motion::LocationEffects, _>(handle, |recv| call_1297(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1297 => activation::with_arg_shared::<crate::motion::LocationEffects, _>(handle, |recv| call_1297(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1298 => Err(CallError::ReadOnly(id)),
-            1299 => activation::with_arg::<crate::motion::LocationEffects, _>(handle, |recv| call_1299(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1299 => activation::with_arg_shared::<crate::motion::LocationEffects, _>(handle, |recv| call_1299(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1300 => Err(CallError::ReadOnly(id)),
-            1301 => activation::with_arg::<crate::motion::LocationEffects, _>(handle, |recv| call_1301(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1301 => activation::with_arg_shared::<crate::motion::LocationEffects, _>(handle, |recv| call_1301(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1302 => Err(CallError::ReadOnly(id)),
-            1303 => activation::with_arg::<crate::motion::LocationEffects, _>(handle, |recv| call_1303(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1303 => activation::with_arg_shared::<crate::motion::LocationEffects, _>(handle, |recv| call_1303(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1304 => Err(CallError::ReadOnly(id)),
-            1305 => activation::with_arg::<crate::motion::LocationEffects, _>(handle, |recv| call_1305(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1305 => activation::with_arg_shared::<crate::motion::LocationEffects, _>(handle, |recv| call_1305(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1306 => Err(CallError::ReadOnly(id)),
-            1307 => activation::with_arg::<crate::motion::MotionResources, _>(handle, |recv| call_1307(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1307 => activation::with_arg_shared::<crate::motion::MotionResources, _>(handle, |recv| call_1307(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1308 => Err(CallError::ReadOnly(id)),
-            1309 => activation::with_arg::<crate::motion::MotionResources, _>(handle, |recv| call_1309(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1309 => activation::with_arg_shared::<crate::motion::MotionResources, _>(handle, |recv| call_1309(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1310 => Err(CallError::ReadOnly(id)),
-            1311 => activation::with_arg::<crate::motion::MotionResources, _>(handle, |recv| call_1311(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1311 => activation::with_arg_shared::<crate::motion::MotionResources, _>(handle, |recv| call_1311(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1312 => Err(CallError::ReadOnly(id)),
-            1313 => activation::with_arg::<crate::motion::MotionResources, _>(handle, |recv| call_1313(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1313 => activation::with_arg_shared::<crate::motion::MotionResources, _>(handle, |recv| call_1313(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1314 => Err(CallError::ReadOnly(id)),
-            1315 => activation::with_arg::<crate::motion::MotionResources, _>(handle, |recv| call_1315(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1315 => activation::with_arg_shared::<crate::motion::MotionResources, _>(handle, |recv| call_1315(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1316 => Err(CallError::ReadOnly(id)),
-            1317 => activation::with_arg::<crate::motion::MotionResources, _>(handle, |recv| call_1317(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1317 => activation::with_arg_shared::<crate::motion::MotionResources, _>(handle, |recv| call_1317(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1318 => Err(CallError::ReadOnly(id)),
-            1319 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1319(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1319 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1319(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1320 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1320(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1321 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1321(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1321 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1321(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1322 => Err(CallError::ReadOnly(id)),
-            1323 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1323(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1323 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1323(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1324 => Err(CallError::ReadOnly(id)),
-            1325 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1325(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1325 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1325(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1326 => Err(CallError::ReadOnly(id)),
-            1327 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1327(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1327 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1327(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1328 => Err(CallError::ReadOnly(id)),
-            1329 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1329(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1329 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1329(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1330 => Err(CallError::ReadOnly(id)),
-            1331 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1331(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1331 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1331(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1332 => Err(CallError::ReadOnly(id)),
-            1333 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1333(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1333 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1333(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1334 => Err(CallError::ReadOnly(id)),
-            1335 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1335(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1335 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1335(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1336 => Err(CallError::ReadOnly(id)),
-            1337 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1337(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1337 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1337(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1338 => Err(CallError::ReadOnly(id)),
-            1339 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1339(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1339 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1339(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1340 => Err(CallError::ReadOnly(id)),
-            1341 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1341(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1341 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1341(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1342 => Err(CallError::ReadOnly(id)),
-            1343 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1343(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1343 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1343(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1344 => Err(CallError::ReadOnly(id)),
-            1345 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1345(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1345 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1345(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1346 => Err(CallError::ReadOnly(id)),
-            1347 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1347(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1347 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1347(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1348 => Err(CallError::ReadOnly(id)),
-            1349 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1349(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1349 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1349(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1350 => Err(CallError::ReadOnly(id)),
-            1351 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1351(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1351 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1351(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1352 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1352(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1353 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1353(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1353 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1353(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1354 => Err(CallError::ReadOnly(id)),
-            1355 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1355(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1355 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1355(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1356 => Err(CallError::ReadOnly(id)),
-            1357 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1357(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1357 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1357(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1358 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1358(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1359 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1359(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1359 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1359(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1360 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1360(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1361 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1361(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1361 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1361(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1362 => Err(CallError::ReadOnly(id)),
-            1363 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1363(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1363 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1363(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1364 => Err(CallError::ReadOnly(id)),
-            1365 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1365(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1365 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1365(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1366 => Err(CallError::ReadOnly(id)),
-            1367 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1367(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1367 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1367(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1368 => Err(CallError::ReadOnly(id)),
-            1369 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1369(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1369 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1369(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1370 => Err(CallError::ReadOnly(id)),
-            1371 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1371(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1371 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1371(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1372 => Err(CallError::ReadOnly(id)),
-            1373 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1373(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1373 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1373(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1374 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1374(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1375 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1375(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1375 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1375(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1376 => Err(CallError::ReadOnly(id)),
-            1377 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1377(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1377 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1377(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1378 => Err(CallError::ReadOnly(id)),
-            1379 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1379(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1379 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1379(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1380 => Err(CallError::ReadOnly(id)),
-            1381 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1381(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1381 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1381(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1382 => Err(CallError::ReadOnly(id)),
-            1383 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1383(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1383 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1383(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1384 => Err(CallError::ReadOnly(id)),
-            1385 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1385(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1385 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1385(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1386 => Err(CallError::ReadOnly(id)),
-            1387 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1387(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1387 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1387(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1388 => Err(CallError::ReadOnly(id)),
-            1389 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1389(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1389 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1389(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1390 => Err(CallError::ReadOnly(id)),
-            1391 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1391(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1391 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1391(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1392 => Err(CallError::ReadOnly(id)),
-            1393 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1393(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1393 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1393(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1394 => Err(CallError::ReadOnly(id)),
-            1395 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1395(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1395 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1395(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1396 => Err(CallError::ReadOnly(id)),
-            1397 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1397(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1397 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1397(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1398 => Err(CallError::ReadOnly(id)),
-            1399 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1399(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1399 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1399(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1400 => Err(CallError::ReadOnly(id)),
-            1401 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1401(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1401 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1401(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1402 => Err(CallError::ReadOnly(id)),
-            1403 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1403(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1403 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1403(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1404 => Err(CallError::ReadOnly(id)),
-            1405 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1405(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1405 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1405(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1406 => Err(CallError::ReadOnly(id)),
-            1407 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1407(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1407 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1407(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1408 => Err(CallError::ReadOnly(id)),
-            1409 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1409(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1409 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1409(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1410 => Err(CallError::ReadOnly(id)),
-            1411 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1411(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1411 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1411(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1412 => Err(CallError::ReadOnly(id)),
-            1413 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1413(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1413 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1413(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1414 => Err(CallError::ReadOnly(id)),
-            1415 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1415(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1415 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1415(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1416 => Err(CallError::ReadOnly(id)),
-            1417 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1417(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1417 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1417(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1418 => Err(CallError::ReadOnly(id)),
-            1419 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1419(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1419 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1419(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1420 => Err(CallError::ReadOnly(id)),
-            1421 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1421(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1421 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1421(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1422 => Err(CallError::ReadOnly(id)),
-            1423 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1423(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1423 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1423(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1424 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1424(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1425 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1425(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1425 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1425(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1426 => Err(CallError::ReadOnly(id)),
-            1427 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1427(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1427 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1427(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1428 => Err(CallError::ReadOnly(id)),
-            1429 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1429(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1429 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1429(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1430 => Err(CallError::ReadOnly(id)),
-            1431 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1431(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1431 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1431(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1432 => Err(CallError::ReadOnly(id)),
-            1433 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1433(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1433 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1433(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1434 => Err(CallError::ReadOnly(id)),
-            1435 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1435(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1435 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1435(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1436 => Err(CallError::ReadOnly(id)),
-            1437 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1437(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1437 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1437(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1438 => Err(CallError::ReadOnly(id)),
-            1439 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1439(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1439 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1439(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1440 => Err(CallError::ReadOnly(id)),
-            1441 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1441(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1441 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1441(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1442 => Err(CallError::ReadOnly(id)),
-            1443 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1443(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1443 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1443(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1444 => Err(CallError::ReadOnly(id)),
-            1445 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1445(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1445 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1445(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1446 => Err(CallError::ReadOnly(id)),
-            1447 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1447(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1447 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1447(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1448 => Err(CallError::ReadOnly(id)),
-            1449 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1449(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1449 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1449(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1450 => Err(CallError::ReadOnly(id)),
-            1451 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1451(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1451 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1451(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1452 => Err(CallError::ReadOnly(id)),
-            1453 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1453(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1453 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1453(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1454 => Err(CallError::ReadOnly(id)),
-            1455 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1455(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1455 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1455(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1456 => Err(CallError::ReadOnly(id)),
-            1457 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1457(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1457 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1457(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1458 => Err(CallError::ReadOnly(id)),
-            1459 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1459(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1459 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1459(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1460 => Err(CallError::ReadOnly(id)),
-            1461 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1461(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1461 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1461(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1462 => Err(CallError::ReadOnly(id)),
-            1463 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1463(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1463 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1463(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1464 => Err(CallError::ReadOnly(id)),
-            1465 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1465(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1465 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1465(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1466 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1466(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1467 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1467(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1467 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1467(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1468 => Err(CallError::ReadOnly(id)),
-            1469 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1469(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1469 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1469(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1470 => Err(CallError::ReadOnly(id)),
-            1471 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1471(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1471 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1471(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1472 => Err(CallError::ReadOnly(id)),
-            1473 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1473(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1473 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1473(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1474 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1474(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1475 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1475(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1476 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1476(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1475 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1475(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1476 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1476(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1477 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1477(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1478 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1478(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1479 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1479(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1480 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1480(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1481 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1481(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1482 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1482(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1483 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1483(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1484 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1484(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1479 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1479(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1480 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1480(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1481 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1481(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1482 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1482(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1483 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1483(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1484 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1484(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1485 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1485(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1486 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1486(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1487 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1487(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1488 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1488(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1489 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1489(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1490 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1490(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1491 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1491(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1492 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1492(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1493 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1493(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1494 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1494(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1495 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1495(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1496 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1496(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1497 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1497(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1498 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1498(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1499 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1499(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1500 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1500(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1501 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1501(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1502 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1502(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1503 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1503(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1504 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1504(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1505 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1505(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1506 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1506(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1507 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1507(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1508 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1508(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1509 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1509(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1510 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1510(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1511 => activation::with_arg::<crate::motion::PlayerMotion, _>(handle, |recv| call_1511(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1486 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1486(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1487 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1487(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1488 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1488(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1489 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1489(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1490 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1490(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1491 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1491(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1492 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1492(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1493 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1493(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1494 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1494(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1495 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1495(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1496 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1496(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1497 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1497(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1498 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1498(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1499 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1499(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1500 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1500(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1501 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1501(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1502 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1502(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1503 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1503(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1504 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1504(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1505 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1505(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1506 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1506(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1507 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1507(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1508 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1508(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1509 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1509(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1510 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1510(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1511 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1511(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1512 => call_1512(args, out),
             1513 => call_1513(args, out),
             1514 => call_1514(args, out),

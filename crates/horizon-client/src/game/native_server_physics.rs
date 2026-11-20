@@ -212,12 +212,10 @@ impl Game<'_> {
     }
 
     fn native_physics_world(&self, dimension: &str) -> Result<&World, String> {
-        let dim = match dimension {
-            "minecraft:overworld" => Dim::Overworld,
-            "minecraft:the_nether" => Dim::Nether,
-            "minecraft:the_end" => Dim::End,
-            _ => return Err("unknown native collision dimension".into()),
-        };
+        // F3-3: the levels of the world's registry.
+        let dim = self
+            .level_dim(dimension)
+            .ok_or("unknown native collision dimension")?;
         if dim == self.dim {
             Ok(&self.world)
         } else {
@@ -292,10 +290,8 @@ impl Game<'_> {
     ) -> Result<bool, String> {
         self.native_physics_reserve(Operation::SetPlayerVelocity, true)?;
         let velocity = velocity_vector(velocity)?;
-        if !matches!(
-            dimension,
-            "minecraft:overworld" | "minecraft:the_nether" | "minecraft:the_end"
-        ) {
+        // Any level of the world (F3-6), not only the three vanilla ones.
+        if self.level_dim(dimension).is_none() {
             return Err("unknown native player dimension".into());
         }
         let mut host = self
