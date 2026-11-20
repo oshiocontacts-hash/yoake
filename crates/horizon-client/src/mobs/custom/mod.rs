@@ -16,6 +16,7 @@ pub mod build;
 pub mod hitbox;
 pub mod persist;
 pub mod registry;
+pub mod remote;
 pub mod spawn;
 pub mod stats;
 
