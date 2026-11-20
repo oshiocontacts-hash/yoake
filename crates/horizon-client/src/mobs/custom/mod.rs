@@ -300,6 +300,8 @@ pub struct CustomState {
     pub hitbox_mask: u32,
     /// `hitbox_mask` changed since the sync layer last took it.
     pub hitbox_dirty: bool,
+    /// What the sync layer remembers of its sending (rate limits).
+    pub sync_out: crate::lan::mob_sync::SyncOut,
 }
 
 /// The places a rest goal remembers (block positions), kept with the mob across saves.
@@ -327,6 +329,7 @@ impl CustomState {
                 n => (1u32 << n) - 1,
             },
             hitbox_dirty: false,
+            sync_out: Default::default(),
         }
     }
     pub fn synced_value(&self, t: &CustomType, name: &str) -> Option<&SyncedValue> {
