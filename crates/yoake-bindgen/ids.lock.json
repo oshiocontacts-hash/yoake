@@ -9091,6 +9091,18 @@
       "path": "custom_mobs::__reserved_range_end",
       "sig": "reserved: ids 1515..=2514 belong to the custom_mobs module (FR-F4-MOB F4M-0)",
       "status": "unbound"
+    },
+    {
+      "id": 2515,
+      "path": "mobs::Seen.custom#get",
+      "sig": "get custom: Option<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 2516,
+      "path": "mobs::Seen.custom#set",
+      "sig": "set custom: Option<std::sync::Arc<str>>",
+      "status": "ReadOnly"
     }
   ]
 }

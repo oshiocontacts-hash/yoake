@@ -10634,3 +10634,20 @@ pub fn mobs_exact_attributes(a0: &[u8]) -> Result<Vec<(String, Vec<(String, f64)
     Ok(value)
 }
 
+/// `mobs::Seen.custom#get`
+pub fn mobs_seen_custom_get(h: Handle) -> Result<Option<String>, Error> {
+    let result = call(h, 2515, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<Option<String>, CallError> {
+        let d = &mut dec;
+        let value = match d.tag()? {
+            0 => None,
+            1 => Some(<String as Decode>::decode(d)?),
+            t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+        };
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
