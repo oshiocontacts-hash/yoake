@@ -609,13 +609,6 @@
       "sig": "708fb7d29edb3465",
       "status": "live",
       "kind": "fn"
-    },
-    {
-      "id": 10807,
-      "key": "horizon_command::tree_data::providers",
-      "sig": "36cd649d595234d5",
-      "status": "live",
-      "kind": "fn"
     }
   ],
   "excluded": [
@@ -1387,6 +1380,11 @@
     {
       "key": "horizon_command::tree_data::context_sources",
       "reason": "nested callable borrow",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_command::tree_data::providers",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {

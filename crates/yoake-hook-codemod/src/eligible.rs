@@ -30,7 +30,13 @@ pub fn is_dyn_shimmable(ty: &Type) -> bool {
         return false;
     }
     let Some(last) = bound.path.segments.last() else { return false };
-    (last.ident == "Fn" || last.ident == "FnMut") && matches!(last.arguments, syn::PathArguments::Parenthesized(_))
+    if !(last.ident == "Fn" || last.ident == "FnMut") || !matches!(last.arguments, syn::PathArguments::Parenthesized(_)) {
+        return false;
+    }
+    // A closure that takes or returns a borrow (`impl FnMut(&mut X)`) would need `for<'a>` binders inside the
+    // shim's `&dyn`: the macro refuses those ("nested callable borrows"), so they stay skipped.
+    let text = quote::ToTokens::to_token_stream(&last.arguments).to_string();
+    !text.contains('&') && !text.contains(char::from(39u8))
 }
 
 /// F1 W12: every type parameter says `'static` (inline or in the where clause), as the typed slot registration needs;
@@ -457,6 +463,8 @@ mod inject_tests {
         assert_eq!(check_fn(&other_trait.attrs, &other_trait.sig), Err("impl Trait argument"));
         let extra_bound: syn::ItemFn = syn::parse_quote! { pub fn each(n: u32, f: impl Fn(u32) + Send) {} };
         assert_eq!(check_fn(&extra_bound.attrs, &extra_bound.sig), Err("impl Trait argument"));
+        let borrowing: syn::ItemFn = syn::parse_quote! { pub fn each(n: u32, f: impl FnMut(&mut u32)) {} };
+        assert_eq!(check_fn(&borrowing.attrs, &borrowing.sig), Err("impl Trait argument"));
         let once: syn::ItemFn = syn::parse_quote! { pub fn each(n: u32, f: impl FnOnce(u32)) {} };
         assert_eq!(check_fn(&once.attrs, &once.sig), Err("impl Trait argument"));
 

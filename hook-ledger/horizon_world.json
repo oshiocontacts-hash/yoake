@@ -5994,203 +5994,154 @@
       "kind": "fn"
     },
     {
-      "id": 10707,
+      "id": 10680,
       "key": "horizon_world::attachments::Attachments::get_existing",
       "sig": "5d3e75c8f3e2f1d4",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10708,
+      "id": 10681,
       "key": "horizon_world::attachments::Attachments::get",
       "sig": "ee0594916ea3f205",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10709,
+      "id": 10682,
       "key": "horizon_world::attachments::Attachments::set",
       "sig": "1d9362d0b8f1f3af",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10710,
+      "id": 10683,
       "key": "horizon_world::attachments::Attachments::remove",
       "sig": "b857631c89915884",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10711,
+      "id": 10684,
       "key": "horizon_world::attachments::Attachments::insert_decoded",
       "sig": "2c9b21f46ce72c3d",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10712,
+      "id": 10685,
       "key": "horizon_world::block_collision::ShulkerCollisionState::bounding_box",
       "sig": "b4cbc74f8611211b",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10713,
+      "id": 10686,
       "key": "horizon_world::bundle_weight::Fraction::checked_add",
       "sig": "9e3c890cfc9d7fca",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10714,
+      "id": 10687,
       "key": "horizon_world::bundle_weight::Fraction::checked_multiply",
       "sig": "e7289f6b98106703",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10715,
-      "key": "horizon_world::chunk::ChunkData::saved_ticks",
-      "sig": "ae2cccfd86f3895c",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10716,
+      "id": 10688,
       "key": "horizon_world::chunk::ChunkData::set_saved_ticks",
       "sig": "d3f0521a8207b080",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10717,
-      "key": "horizon_world::datafix::files::regex_move",
-      "sig": "5c9a9a518dbd7ec4",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10718,
+      "id": 10689,
       "key": "horizon_world::datafix::fixes_cliffs::biome_container",
       "sig": "8a2e88f5449cd592",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10719,
-      "key": "horizon_world::datafix::world_upgrader::upgrade_levels",
-      "sig": "eca3886c614074fc",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10720,
+      "id": 10690,
       "key": "horizon_world::level::portal_travel::largest_rectangle_around",
       "sig": "b695cb0217928c41",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10721,
+      "id": 10691,
       "key": "horizon_world::level::portal_travel::find_free_position",
       "sig": "57a9644fedacfde6",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10722,
+      "id": 10692,
       "key": "horizon_world::level::portal_travel::collision_free_position",
       "sig": "e63a3f7a855d9bc1",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10723,
+      "id": 10693,
       "key": "horizon_world::level::orientation::Orientation::side",
       "sig": "e480599d5ab71841",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10724,
+      "id": 10694,
       "key": "horizon_world::level::tick::RandomTickMask::of",
       "sig": "0e742f0a58f8ce33",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10725,
+      "id": 10695,
       "key": "horizon_world::worldgen::blending::BlendingData::iterate_biomes",
       "sig": "9382bec083e038f9",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10726,
+      "id": 10696,
       "key": "horizon_world::worldgen::blending::BlendingData::iterate_densities",
       "sig": "e9b3eb4293d52692",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10727,
-      "key": "horizon_world::worldgen::generator::build_tags",
-      "sig": "1cd86adaf220acf2",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10728,
+      "id": 10697,
       "key": "horizon_world::worldgen::generator_decoration::Decoration::origins",
       "sig": "d4664b8052663af6",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10729,
+      "id": 10698,
       "key": "horizon_world::worldgen::generator_decoration::<World as FeatureWorld>::scan_column",
       "sig": "5bd384710563a2ec",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10730,
-      "key": "horizon_world::worldgen::overrides::WorldgenOverrides::finish",
-      "sig": "e4501e47665e7a05",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10731,
-      "key": "horizon_world::worldgen::overrides::WorldgenOverrides::retain",
-      "sig": "51220fe54a6cddae",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10732,
+      "id": 10699,
       "key": "horizon_world::worldgen::structure::Rotation::rotate_direction",
       "sig": "7eb3fea72308ea7b",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10733,
+      "id": 10700,
       "key": "horizon_world::worldgen::structure::piece_limited::mineshaft_top",
       "sig": "66e84c8ac582c2fb",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10734,
-      "key": "horizon_world::worldgen::structure::processor::litho::SetBlock::decode",
-      "sig": "2b63931d8f9e47c4",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10735,
+      "id": 10701,
       "key": "horizon_world::worldgen::structure::start::AvoidBiomes::near",
       "sig": "c0ac2896e4b08e9a",
       "status": "live",
@@ -7949,6 +7900,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::chunk::ChunkData::saved_ticks",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::chunk::PalettedContainer::bits",
       "reason": "small body",
       "kind": "fn"
@@ -8685,32 +8641,32 @@
     },
     {
       "key": "horizon_world::datafix::Cx::block_entity",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
       "key": "horizon_world::datafix::Cx::each",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
       "key": "horizon_world::datafix::Cx::each_out",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
       "key": "horizon_world::datafix::Cx::entity",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
       "key": "horizon_world::datafix::Cx::item",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
       "key": "horizon_world::datafix::Cx::rename",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -9204,6 +9160,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::datafix::files::regex_move",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::datafix::files::requires_file_fixing",
       "reason": "small body",
       "kind": "fn"
@@ -9230,7 +9191,7 @@
     },
     {
       "key": "horizon_world::datafix::files::upgrade_regions",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -10280,7 +10241,7 @@
     },
     {
       "key": "horizon_world::datafix::fixes_mid::level_status",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -10300,7 +10261,7 @@
     },
     {
       "key": "horizon_world::datafix::fixes_mid::map_elements_filter",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -10510,7 +10471,7 @@
     },
     {
       "key": "horizon_world::datafix::fixes_old::item_tag",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -10530,7 +10491,7 @@
     },
     {
       "key": "horizon_world::datafix::fixes_old::poi_records",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -11266,6 +11227,11 @@
     {
       "key": "horizon_world::datafix::world_upgrader::resolve_recreate_directory",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::datafix::world_upgrader::upgrade_levels",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -20735,7 +20701,7 @@
     },
     {
       "key": "horizon_world::tick_data::read_list",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -23754,6 +23720,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::generator::build_tags",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::worldgen::generator::joined",
       "reason": "generic type params",
       "kind": "fn"
@@ -23875,7 +23846,7 @@
     },
     {
       "key": "horizon_world::worldgen::generator_structures::RingWork::help",
-      "reason": "nested callable borrow",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -24899,8 +24870,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::overrides::WorldgenOverrides::finish",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::worldgen::overrides::WorldgenOverrides::is_empty",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::overrides::WorldgenOverrides::retain",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -26840,7 +26821,7 @@
     },
     {
       "key": "horizon_world::worldgen::structure::processor::CountCap::decode",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -26860,7 +26841,7 @@
     },
     {
       "key": "horizon_world::worldgen::structure::processor::Pick::decode",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -26964,6 +26945,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::structure::processor::litho::SetBlock::decode",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::worldgen::structure::processor::litho::SetBlock::state",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -27060,7 +27046,7 @@
     },
     {
       "key": "horizon_world::worldgen::structure::processor::pillars::Pillar::decode",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -27075,7 +27061,7 @@
     },
     {
       "key": "horizon_world::worldgen::structure::processor::pillars::YungPillar::decode",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {

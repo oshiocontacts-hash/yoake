@@ -2032,23 +2032,16 @@
       "kind": "fn"
     },
     {
-      "id": 10804,
+      "id": 10753,
       "key": "horizon_protocol::adapter::ServerVersion::ids",
       "sig": "ce9e0687137cceff",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10805,
+      "id": 10754,
       "key": "horizon_protocol::adapter::ServerVersion::serverbound_body",
       "sig": "b4e515df4fb587b7",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10806,
-      "key": "horizon_protocol::item::hash::raw::list",
-      "sig": "a9a76077b6a22c4b",
       "status": "live",
       "kind": "fn"
     }
@@ -2111,7 +2104,7 @@
     },
     {
       "key": "horizon_protocol::adapter::ids::apply",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -3412,6 +3405,11 @@
     {
       "key": "horizon_protocol::item::hash::raw::int_record",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::hash::raw::list",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {

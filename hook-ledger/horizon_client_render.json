@@ -10572,357 +10572,252 @@
       "kind": "fn"
     },
     {
-      "id": 10736,
-      "key": "horizon_client_render::audio::output_disabled[cfg(any(feature=\"audio\",test))]",
-      "sig": "d2ce23d208bfe97d",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10737,
-      "key": "horizon_client_render::biome::Biomes::with_colors",
-      "sig": "5993d6c873b6a497",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10738,
-      "key": "horizon_client_render::biome::Biomes::recolored_from",
-      "sig": "ffd31ef1cf770cbf",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10739,
+      "id": 10702,
       "key": "horizon_client_render::biome::gaussian_weights",
       "sig": "de9c32a2d40cebc0",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10740,
+      "id": 10703,
       "key": "horizon_client_render::biome::blend_rgb",
       "sig": "c81bd73f712bf781",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10741,
+      "id": 10704,
       "key": "horizon_client_render::block_edit::World::edit_runs",
       "sig": "6b3eea68e0fdfc40",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10742,
+      "id": 10705,
       "key": "horizon_client_render::block_entities::BlockEntities::tickers",
       "sig": "50d592ab6ee667fc",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10743,
+      "id": 10706,
       "key": "horizon_client_render::block_entity_anim::Bell::tick",
       "sig": "09b945a1c1332fc3",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10744,
+      "id": 10707,
       "key": "horizon_client_render::block_entity_anim::ConduitServer::check",
       "sig": "0b04e0213e1ef403",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10745,
+      "id": 10708,
       "key": "horizon_client_render::block_entity_anim::BlockEntityAnims::retain",
       "sig": "941d19ccfc49f9e8",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10746,
-      "key": "horizon_client_render::bluemap::Palette::new",
-      "sig": "6c5cb58386c60ab5",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10747,
-      "key": "horizon_client_render::bluemap::Inner::map_info",
-      "sig": "ce8a58ac24490e99",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10748,
+      "id": 10709,
       "key": "horizon_client_render::chunk::Chunk::prime",
       "sig": "1a15ce7731c3c17d",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10749,
+      "id": 10710,
       "key": "horizon_client_render::cit::CitRules::keep_glints",
       "sig": "784a8995fa755082",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10750,
+      "id": 10711,
       "key": "horizon_client_render::connected::ConnectedTextures::load",
       "sig": "adc537cd9dd44505",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10751,
-      "key": "horizon_client_render::datapack::worldgen_overrides",
-      "sig": "d6bd54905a72086f",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10752,
+      "id": 10712,
       "key": "horizon_client_render::fog::camera_fog_type",
       "sig": "f19dd23d50c624b8",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10753,
+      "id": 10713,
       "key": "horizon_client_render::fusion::FusionTextures::pick",
       "sig": "6517f564fc08433f",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10754,
+      "id": 10714,
       "key": "horizon_client_render::gfx::flat::plan",
       "sig": "5c3f36fbeb922e74",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10755,
-      "key": "horizon_client_render::gfx::flat::Flat::new",
-      "sig": "036260f76a16f062",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10756,
+      "id": 10715,
       "key": "horizon_client_render::gfx::lod::Bounds::visible",
       "sig": "ebe1cb8ec4f80aa6",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10757,
+      "id": 10716,
       "key": "horizon_client_render::gfx::mod_gpu::Texture::bytes",
       "sig": "312c117b1281ea76",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10758,
+      "id": 10717,
       "key": "horizon_client_render::gfx::mod_gpu::FrameUsage::charge",
       "sig": "c2460571e9c7d4a5",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10759,
+      "id": 10718,
       "key": "horizon_client_render::gfx::pack_post::Gpu::storage_stages",
       "sig": "8df4326849d52c99",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10760,
+      "id": 10719,
       "key": "horizon_client_render::graphics_ui::H::cycle",
       "sig": "abc8e12fcb6f533d",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10761,
+      "id": 10720,
       "key": "horizon_client_render::graphics_ui::Item::step_slider",
       "sig": "f9c88271ca06ef6a",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10762,
+      "id": 10721,
       "key": "horizon_client_render::light::beside_unlit",
       "sig": "5bc12984bef64fcc",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10763,
+      "id": 10722,
       "key": "horizon_client_render::lod::Column::light_open_water_where",
       "sig": "6d6c91bb393369e2",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10764,
-      "key": "horizon_client_render::lod::mesh::heightmap",
-      "sig": "b79e7be549133ffa",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10765,
-      "key": "horizon_client_render::lod::mesh::mesh_columns_with_edges",
-      "sig": "ba3a42b7653cf84c",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10766,
+      "id": 10723,
       "key": "horizon_client_render::lod::mesh::add_side",
       "sig": "8660cf0f36ea4b20",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10767,
+      "id": 10724,
       "key": "horizon_client_render::mesher::MeshTables::flat_light",
       "sig": "7e1a62ab6a2a43fd",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10768,
+      "id": 10725,
       "key": "horizon_client_render::mesher::sides::Sides::runs",
       "sig": "1d4cdc7292a12a96",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10769,
-      "key": "horizon_client_render::models::catalog::StateModels::each_seeded",
-      "sig": "d5ee34000b2f623a",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10770,
+      "id": 10726,
       "key": "horizon_client_render::native_audio_stream::PcmWriter::push_with",
       "sig": "8d3106db1d7a258b",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10771,
+      "id": 10727,
       "key": "horizon_client_render::options_ui::Opt::step_slider",
       "sig": "f9c88271ca06ef6a",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10772,
+      "id": 10728,
       "key": "horizon_client_render::options_ui::Opt::set_slider",
       "sig": "661264fb2c563817",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10773,
+      "id": 10729,
       "key": "horizon_client_render::options_ui::Opt::cycle",
       "sig": "97175713869c4fff",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10774,
+      "id": 10730,
       "key": "horizon_client_render::particles::ModBehaviour::apply",
       "sig": "84718d16fe23fc16",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10775,
+      "id": 10731,
       "key": "horizon_client_render::sculk::Data::tick",
       "sig": "738095de99e6f2fd",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10776,
+      "id": 10732,
       "key": "horizon_client_render::sculk::is_occluded",
       "sig": "37ad0e390841889c",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10777,
-      "key": "horizon_client_render::shader_options::ShaderOptions::option_label_within",
-      "sig": "885921058df50e3a",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10778,
-      "key": "horizon_client_render::skins::head_skin",
-      "sig": "3fa87385f99e560a",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10779,
-      "key": "horizon_client_render::skins::patch_skin",
-      "sig": "9035e28f06ffbab1",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10780,
-      "key": "horizon_client_render::skins::lookup",
-      "sig": "26735806f7cc0a51",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10781,
-      "key": "horizon_client_render::split_profiles::wrap",
-      "sig": "64f3827d1afe55c1",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10782,
+      "id": 10733,
       "key": "horizon_client_render::streaming::ViewArrival::arriving",
       "sig": "f4572bef10b33aaa",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10783,
+      "id": 10734,
       "key": "horizon_client_render::streaming::rank_again",
       "sig": "f779e05084ad62e2",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10784,
+      "id": 10735,
       "key": "horizon_client_render::streaming::whole_relight_columns",
       "sig": "3acf19bdfff04205",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10785,
+      "id": 10736,
       "key": "horizon_client_render::weather::tile",
       "sig": "1783f09e379a2d8b",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10786,
+      "id": 10737,
       "key": "horizon_client_render::world::World::may_hold",
       "sig": "9eb6ef89020b9782",
       "status": "live",
@@ -11351,6 +11246,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::audio::output_disabled[cfg(any(feature=\"audio\",test))]",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_render::audio::validate_local_format",
       "reason": "small body",
       "kind": "fn"
@@ -11551,8 +11451,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::biome::Biomes::recolored_from",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_render::biome::Biomes::registry_order",
       "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::Biomes::with_colors",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -11717,7 +11627,7 @@
     },
     {
       "key": "horizon_client_render::block_entities::BlockEntities::retain",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -11942,7 +11852,7 @@
     },
     {
       "key": "horizon_client_render::block_entity_anim::ticker",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -12306,6 +12216,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::bluemap::Inner::map_info",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_render::bluemap::Inner::tile_file",
       "reason": "small body",
       "kind": "fn"
@@ -12353,6 +12268,11 @@
     {
       "key": "horizon_client_render::bluemap::Palette::from_game",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::bluemap::Palette::new",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -13532,7 +13452,7 @@
     },
     {
       "key": "horizon_client_render::cit::text_matches",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -13927,7 +13847,7 @@
     },
     {
       "key": "horizon_client_render::connected::ConnectedTextures::pick",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -14458,6 +14378,11 @@
     {
       "key": "horizon_client_render::datapack::tag_entries",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::datapack::worldgen_overrides",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -16012,22 +15937,27 @@
     },
     {
       "key": "horizon_client_render::gfx::flat::Flat::draw",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::flat::Flat::draw_geometry",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::flat::Flat::draw_phase2",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
       "key": "horizon_client_render::gfx::flat::Flat::draw_with",
-      "reason": "small body",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::flat::Flat::new",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -21257,7 +21187,7 @@
     },
     {
       "key": "horizon_client_render::lod::drop_queued_samples",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -21281,8 +21211,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::lod::mesh::heightmap",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_render::lod::mesh::hides",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::lod::mesh::mesh_columns_with_edges",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -21943,6 +21883,11 @@
     {
       "key": "horizon_client_render::models::catalog::StateModels::collect_seeded",
       "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::models::catalog::StateModels::each_seeded",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -24731,6 +24676,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::shader_options::ShaderOptions::option_label_within",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_render::shader_options::ShaderOptions::profile_label",
       "reason": "small body",
       "kind": "fn"
@@ -24966,6 +24916,16 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::skins::head_skin",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::skins::lookup",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_render::skins::nbt_text",
       "reason": "small body",
       "kind": "fn"
@@ -24978,6 +24938,11 @@
     {
       "key": "horizon_client_render::skins::offline_skin",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::skins::patch_skin",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -25773,6 +25738,11 @@
     {
       "key": "horizon_client_render::split_profiles::valid_name",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::split_profiles::wrap",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {

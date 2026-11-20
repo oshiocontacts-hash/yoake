@@ -1528,121 +1528,107 @@
       "kind": "fn"
     },
     {
-      "id": 10787,
+      "id": 10738,
       "key": "horizon_core::biome::BiomeZoom::quart_at_block",
       "sig": "0af3cedea811931a",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10788,
+      "id": 10739,
       "key": "horizon_core::biome::BiomeZoom::corner_jitter",
       "sig": "5fcafb835b4c1257",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10789,
+      "id": 10740,
       "key": "horizon_core::density::visit",
       "sig": "a596e5d58b409d86",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10790,
-      "key": "horizon_core::density::graph::compiler::DensityCompiler::rewrite_children",
-      "sig": "dd2bda559978258e",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10791,
+      "id": 10741,
       "key": "horizon_core::density::arithmetic::UnaryOp::apply_bulk",
       "sig": "703534052fd7a8aa",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10792,
+      "id": 10742,
       "key": "horizon_core::density::interval::Interval::multiply_range",
       "sig": "8895d16674f4f973",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10793,
+      "id": 10743,
       "key": "horizon_core::density::interval::Interval::power",
       "sig": "e8a087ebef800c2f",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10794,
+      "id": 10744,
       "key": "horizon_core::density::interval::Interval::even_bounds",
       "sig": "1951212eb79203a7",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10795,
+      "id": 10745,
       "key": "horizon_core::density::interval::Interval::map_monotonic",
       "sig": "84b10f1d0dab07dc",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10796,
+      "id": 10746,
       "key": "horizon_core::density::interval::Interval::lerp_values",
       "sig": "fbb280ff5523dc69",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10797,
+      "id": 10747,
       "key": "horizon_core::geometry::Vec3::distance_squared",
       "sig": "2f3da8d0876a9cfc",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10798,
+      "id": 10748,
       "key": "horizon_core::geometry::Aabb::change_extent",
       "sig": "a813a7f70979f7fd",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10799,
+      "id": 10749,
       "key": "horizon_core::geometry::Aabb::collided_along_vector",
       "sig": "6cd51c72e3472128",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10800,
+      "id": 10750,
       "key": "horizon_core::geometry::sweep::sweep_intersected_blocks",
       "sig": "56b8ff78548cb952",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10801,
+      "id": 10751,
       "key": "horizon_core::paletted::PalettedContainer::has",
       "sig": "ca8f2612e99f20b6",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10802,
+      "id": 10752,
       "key": "horizon_core::ticks::LevelTicks::begin_tick",
       "sig": "56a07290f0b9a4ad",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10803,
-      "key": "horizon_core::ticks::index::DeadlineIndex::visit",
-      "sig": "f56be0ed7fb2bc7f",
       "status": "live",
       "kind": "fn"
     }
@@ -1991,6 +1977,11 @@
     {
       "key": "horizon_core::density::graph::compiler::DensityCompiler::prepare",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::rewrite_children",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -2845,7 +2836,7 @@
     },
     {
       "key": "horizon_core::geometry::movement::resolve_step_movement",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -4420,7 +4411,7 @@
     },
     {
       "key": "horizon_core::ticks::LevelTicks::tick",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -4611,6 +4602,11 @@
     {
       "key": "horizon_core::ticks::index::DeadlineIndex::shift_keys",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::index::DeadlineIndex::visit",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {

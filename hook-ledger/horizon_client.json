@@ -27559,154 +27559,84 @@
       "kind": "fn"
     },
     {
-      "id": 10685,
-      "key": "horizon_client::entry::dll_mods::extend_yaks_with_loader",
-      "sig": "895089845432034c",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10686,
-      "key": "horizon_client::game::advancements::Game::trigger",
-      "sig": "23e89d06a31a4967",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10687,
-      "key": "horizon_client::game::advancements::Game::trigger_criteria",
-      "sig": "d01cd7c818be8f6a",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10688,
+      "id": 10668,
       "key": "horizon_client::game::agent::navigation::find_path",
       "sig": "44da397bd1e920ab",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10689,
+      "id": 10669,
       "key": "horizon_client::game::block_edits::column_height",
       "sig": "bd81f39374d9b037",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10690,
+      "id": 10670,
       "key": "horizon_client::game::block_edits::column_blocks",
       "sig": "a33d49589e464223",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10691,
+      "id": 10671,
       "key": "horizon_client::game::block_edits::resolve_runs",
       "sig": "9c2c735fc019bbbc",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10692,
+      "id": 10672,
       "key": "horizon_client::game::dragon::Dragon::explosion_hits",
       "sig": "5f05a31106cd8885",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10693,
+      "id": 10673,
       "key": "horizon_client::game::explosion::blast_cause",
       "sig": "8e0d5ee93aac6234",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10694,
-      "key": "horizon_client::game::lan_actions::Game::for_each_player",
-      "sig": "17f2258ed5201d2a",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10695,
+      "id": 10674,
       "key": "horizon_client::game::lan_actions::visible_aim_point",
       "sig": "6bdce821ad591b26",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10696,
-      "key": "horizon_client::game::lan_mobs::Game::each_guest_hit_except",
-      "sig": "af6dc8c2c35db857",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10697,
-      "key": "horizon_client::game::maps::MapData::update_packet",
-      "sig": "74d1ed7ef115c1b7",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10698,
+      "id": 10675,
       "key": "horizon_client::game::native_client_map::scan_columns",
       "sig": "bf4eb5523d1faaaa",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10699,
-      "key": "horizon_client::game::native_criteria::Game::native_trigger_criterion",
-      "sig": "a45b6e4304518897",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10700,
+      "id": 10676,
       "key": "horizon_client::game::native_entity_query::Sphere::intersects",
       "sig": "7fd728477d218fda",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10701,
+      "id": 10677,
       "key": "horizon_client::game::native_hooks::screen_text_hooked",
       "sig": "8a34358bc21624b1",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10702,
-      "key": "horizon_client::game::native_menus::exchange",
-      "sig": "bf133301efe3fc7c",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10703,
-      "key": "horizon_client::game::native_server::command_tree",
-      "sig": "f613d59a9498211e",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10704,
+      "id": 10678,
       "key": "horizon_client::game::natural_spawning::Game::generation_creatures",
       "sig": "470241b012aa5cce",
       "status": "live",
       "kind": "fn"
     },
     {
-      "id": 10705,
-      "key": "horizon_client::game::remote_objects::Game::tick_remote_objects",
-      "sig": "59196fe4fde7d5cb",
-      "status": "live",
-      "kind": "fn"
-    },
-    {
-      "id": 10706,
+      "id": 10679,
       "key": "horizon_client::game::remote_projectiles::Game::tick_remote_projectiles",
       "sig": "cf19008efddccdd7",
       "status": "live",
@@ -27982,6 +27912,11 @@
     {
       "key": "horizon_client::entry::dll_mods::extend_yaks",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::dll_mods::extend_yaks_with_loader",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -28551,7 +28486,7 @@
     },
     {
       "key": "horizon_client::entry::wasm_mods::full::mask_of",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -30175,6 +30110,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::advancements::Game::trigger",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::advancements::Game::trigger_any_block_use",
       "reason": "small body",
       "kind": "fn"
@@ -30202,6 +30142,11 @@
     {
       "key": "horizon_client::game::advancements::Game::trigger_construct_beacon",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::advancements::Game::trigger_criteria",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -30981,7 +30926,7 @@
     },
     {
       "key": "horizon_client::game::block_edits::make_block_entities",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -30991,7 +30936,7 @@
     },
     {
       "key": "horizon_client::game::block_edits::replace_block_entities",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -35281,7 +35226,7 @@
     },
     {
       "key": "horizon_client::game::dragon::nearest_enemy",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -38250,6 +38195,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::lan_actions::Game::for_each_player",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::lan_actions::Game::guest_can_glide",
       "reason": "small body",
       "kind": "fn"
@@ -38596,7 +38546,12 @@
     },
     {
       "key": "horizon_client::game::lan_mobs::Game::each_guest_hit",
-      "reason": "small body",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::lan_mobs::Game::each_guest_hit_except",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -39990,6 +39945,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::maps::MapData::update_packet",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::maps::MapFrame::from_nbt",
       "reason": "small body",
       "kind": "fn"
@@ -40251,7 +40211,7 @@
     },
     {
       "key": "horizon_client::game::minecarts::Game::tinted_block_model_vertices",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -41081,7 +41041,7 @@
     },
     {
       "key": "horizon_client::game::native_avatar_equipment::visit_equipment_outlines",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -41690,6 +41650,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::native_criteria::Game::native_trigger_criterion",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::native_criteria::Game::trigger_mod_criteria",
       "reason": "nested callable borrow",
       "kind": "fn"
@@ -41876,7 +41841,7 @@
     },
     {
       "key": "horizon_client::game::native_deferred::ClipboardRequests::drain",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -46270,6 +46235,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::native_menus::exchange",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::native_menus::fit",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -47091,7 +47061,7 @@
     },
     {
       "key": "horizon_client::game::native_registry_names::translated_item_name",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -47262,6 +47232,11 @@
     {
       "key": "horizon_client::game::native_server::add_to",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_server::command_tree",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -51075,6 +51050,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::remote_objects::Game::tick_remote_objects",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::remote_objects::Game::turn_remote_object",
       "reason": "small body",
       "kind": "fn"
@@ -52076,7 +52056,7 @@
     },
     {
       "key": "horizon_client::game::sculk::Index::retain",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -52806,7 +52786,7 @@
     },
     {
       "key": "horizon_client::game::spill::retell_runs",
-      "reason": "small body",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
