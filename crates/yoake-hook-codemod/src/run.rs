@@ -810,6 +810,10 @@ pub fn execute(config: &Config) -> Result<bool, String> {
     // W1: keys the verify loop withdrew (`hook-ledger/stamp-exclude.txt`): retire a live id, then record the
     // manual exclusion in the ledger (the request file is only the transport between rounds).
     for (key, reason) in crate::verify::read_excludes(&config.ledger) {
+        // the request files name keys of every crate; each run takes the ones of its own shard
+        if !key.starts_with(&format!("{crate_ident}::")) {
+            continue;
+        }
         let shard = ledger_set.shard_mut(&crate_ident);
         if shard.live_id(&key).is_some() {
             shard

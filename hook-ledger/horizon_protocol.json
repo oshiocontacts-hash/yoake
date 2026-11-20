@@ -411,7 +411,7 @@
       "id": 10261,
       "key": "horizon_protocol::chunk::storage_get",
       "sig": "062175368a4b0c10",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2044,6 +2044,55 @@
       "sig": "b4e515df4fb587b7",
       "status": "live",
       "kind": "fn"
+    },
+    {
+      "id": 12126,
+      "key": "horizon_protocol::mob_sync::ValueSet::read",
+      "sig": "6b872055f26ff80c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12127,
+      "key": "horizon_protocol::mob_sync::LayerAnchor::write",
+      "sig": "74fc7749bfe9f2d2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12128,
+      "key": "horizon_protocol::mob_sync::LayerAnchor::read",
+      "sig": "3a6e38701f751f25",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12129,
+      "key": "horizon_protocol::mob_sync::Message::write",
+      "sig": "74fc7749bfe9f2d2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12130,
+      "key": "horizon_protocol::mob_sync::Message::read",
+      "sig": "f767d724bf07272c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12131,
+      "key": "horizon_protocol::mob_sync::encode",
+      "sig": "eec40bedd3306857",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12132,
+      "key": "horizon_protocol::mob_sync::decode",
+      "sig": "ad60735f6c993ee0",
+      "status": "live",
+      "kind": "fn"
     }
   ],
   "excluded": [
@@ -2636,6 +2685,12 @@
       "key": "horizon_protocol::chunk::pack",
       "reason": "generic type params",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::storage_get",
+      "reason": "hot: 13.6 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::chunk::storage_len",
@@ -3554,6 +3609,96 @@
     },
     {
       "key": "horizon_protocol::item::skip::varint",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Delta::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Frame::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Message::entity",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Trigger::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Trigger::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Value::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Value::wire_len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Value::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::ValueSet::check",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::ValueSet::iter",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::ValueSet::value_bytes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::ValueSet::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::max_value_len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::message_len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::read_anchors",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::speed_byte",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::speed_from_byte",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::write_anchors",
       "reason": "small body",
       "kind": "fn"
     },

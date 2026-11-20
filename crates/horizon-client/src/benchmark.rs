@@ -241,11 +241,15 @@ fn run(control: &Control, setup: Setup) -> Result<PathBuf, String> {
             thread::sleep(SETTLE);
         }
         let [ex, ey, ez] = end;
+        #[cfg(feature = "hook-count")]
+        yoake_hook_rt::reset_counts();
         let begin = Instant::now();
         let flight = control.call(&format!(
             "fly {x} {y} {z} {ex} {ey} {ez} {FLIGHT_SECONDS} {pitch} raw"
         ))?;
         steady.push((begin, Instant::now()));
+        #[cfg(feature = "hook-count")]
+        write_hook_counts(&setup.game_dir, name, flight["frame_ms"].as_array().map_or(0, Vec::len));
         let series = |key: &str| -> Vec<f32> {
             flight[key]
                 .as_array()
@@ -613,4 +617,21 @@ mod tests {
         replace_world(&dir).unwrap();
         crate::test_support::remove_dir_all(dir);
     }
+}
+
+/// W6: the slot entries of one flight, `<slot id> <entries>` per line after a `# frames N` line (tools/hook_counts.py
+/// joins them with hook-ledger/). The run is not timed for cost (the counters are the measurement).
+#[cfg(feature = "hook-count")]
+fn write_hook_counts(game_dir: &Path, scene: &str, frames: usize) {
+    use std::fmt::Write as _;
+    let mut text = format!("# frames {frames}
+");
+    let mut counts = yoake_hook_rt::counts();
+    counts.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
+    for (id, n) in counts {
+        let _ = writeln!(text, "{id} {n}");
+    }
+    let dir = game_dir.join("benchmarks");
+    let _ = std::fs::create_dir_all(&dir);
+    let _ = std::fs::write(dir.join(format!("hook-counts.{scene}.txt")), text);
 }

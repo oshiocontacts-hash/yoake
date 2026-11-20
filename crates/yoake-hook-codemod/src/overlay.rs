@@ -161,6 +161,7 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
         args.ledger.join("meta.json"),
         args.ledger.join("stamp-allow.txt"),
         args.ledger.join("stamp-exclude.txt"),
+        args.ledger.join("hot-exclusions.txt"),
         args.stamp_config.clone(),
         std::env::current_exe().unwrap_or_default(),
     ] {

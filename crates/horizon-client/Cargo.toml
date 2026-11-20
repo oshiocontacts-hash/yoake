@@ -131,6 +131,8 @@ yoake-callsite-baseline = ["horizon-client-lib/yoake-callsite-baseline"]
 yoake2-slice = ["dep:yoake-slice", "dep:yoake-mod-io", "horizon-client-lib/yoake2-slice"]
 # Test-only: typed hook registration and bench constructors (`entities::hook_bench`, `StandStep::for_hook_bench`).
 yoake-hook-bench = ["horizon-client-lib/yoake-hook-bench"]
+# W6: count every hook slot entry; `--benchmark` writes benchmarks/hook-counts.<scene>.txt.
+hook-count = ["horizon-client-lib/hook-count", "yoake-hook-rt/count"]
 default = ["audio", "controllers"]
 test-support = []
 dev-capture = ["horizon-client-lib/dev-capture", "horizon-client-render/dev-capture", "horizon-protocol/dev-capture"]

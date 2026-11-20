@@ -30,8 +30,11 @@ struct Chain {
     entries: Vec<Entry>,
 }
 
-#[repr(transparent)]
-pub struct Slot(AtomicPtr<Chain>);
+#[cfg_attr(not(feature = "count"), repr(transparent))]
+pub struct Slot(
+    AtomicPtr<Chain>,
+    #[cfg(feature = "count")] std::sync::atomic::AtomicU64,
+);
 
 impl Default for Slot {
     fn default() -> Self {
@@ -41,11 +44,17 @@ impl Default for Slot {
 
 impl Slot {
     pub const fn new() -> Self {
-        Self(AtomicPtr::new(std::ptr::null_mut()))
+        Self(
+            AtomicPtr::new(std::ptr::null_mut()),
+            #[cfg(feature = "count")]
+            std::sync::atomic::AtomicU64::new(0),
+        )
     }
 
     #[inline(always)]
     pub fn load(&'static self) -> Option<Snapshot> {
+        #[cfg(feature = "count")]
+        self.1.fetch_add(1, Ordering::Relaxed);
         let pointer = self.0.load(Ordering::Acquire);
         if pointer.is_null() {
             None
@@ -60,6 +69,27 @@ impl Slot {
 
 const EMPTY: Slot = Slot::new();
 pub static SLOTS: [Slot; SLOT_CAPACITY] = [EMPTY; SLOT_CAPACITY];
+
+/// W6 (feature `count`): `(slot id, entries since the last reset)` of every slot that was entered.
+#[cfg(feature = "count")]
+pub fn counts() -> Vec<(u32, u64)> {
+    SLOTS
+        .iter()
+        .enumerate()
+        .filter_map(|(id, slot)| {
+            let n = slot.1.load(Ordering::Relaxed);
+            (n != 0).then_some((id as u32, n))
+        })
+        .collect()
+}
+
+/// W6 (feature `count`): zeroes every counter.
+#[cfg(feature = "count")]
+pub fn reset_counts() {
+    for slot in SLOTS.iter() {
+        slot.1.store(0, Ordering::Relaxed);
+    }
+}
 
 const fn regions_equal(
     left: &[u8],

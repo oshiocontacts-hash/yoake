@@ -118,6 +118,8 @@ yoake-hook-baseline = []
 # Turns only the call-site hooks off (fn hooks stay): the baseline of the call-site bench gate.
 yoake-callsite-baseline = []
 yoake-hook-bench = []
+# W6: count every hook slot entry (yoake-hook-rt/count) and let `--benchmark` write the counts per scene.
+hook-count = ["yoake-hook-rt/count"]
 # MX3V1 vertical slice: a WASM core module hooks ArmorStand::tick_settle (docs/yoake2/reports/MX3V1.md). Off by default.
 # It does not turn on `yoake-hook-bench`: that feature exposes typed hook registration (`entities::hook_bench`) and is
 # for the bench and the slice tests only (their `required-features` name it); guests reach hooks through the bridge.

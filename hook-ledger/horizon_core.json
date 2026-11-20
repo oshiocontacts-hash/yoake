@@ -5,7 +5,7 @@
       "id": 9985,
       "key": "horizon_core::biome::BiomeZoom::select_corner",
       "sig": "41af86b34e23fbf8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26,42 +26,42 @@
       "id": 9988,
       "key": "horizon_core::carving::CarvingMask::carve",
       "sig": "99f7b734e7883c6f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9989,
       "key": "horizon_core::carving::CarvingMask::next_set",
       "sig": "df3af3e6dc15fff0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9990,
       "key": "horizon_core::carving::Cursor::next",
       "sig": "ee6caba57f8e6d6b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9991,
       "key": "horizon_core::carving::ellipsoid::<CarvingMask as CarverOutput>::min_y",
       "sig": "0bda04adf271c1b3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9992,
       "key": "horizon_core::carving::ellipsoid::<CarvingMask as CarverOutput>::max_y",
       "sig": "8658265e74e3d721",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9993,
       "key": "horizon_core::carving::ellipsoid::can_reach",
       "sig": "d0cba9219fd399bb",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -75,56 +75,56 @@
       "id": 9995,
       "key": "horizon_core::density::<ConstantSampler as DensitySampler>::sample_value",
       "sig": "2f7f78f32184d970",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9996,
       "key": "horizon_core::density::<ConstantSampler as DensitySampler>::sample_volume",
       "sig": "cef57c5928ea2277",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9997,
       "key": "horizon_core::density::<GradientSampler as DensitySampler>::sample_value",
       "sig": "452cc9001b4b376c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9998,
       "key": "horizon_core::density::<GradientSampler as DensitySampler>::sample_volume",
       "sig": "cef57c5928ea2277",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9999,
       "key": "horizon_core::density::<NoiseSampler as DensitySampler>::sample_value",
       "sig": "7332800a834f7e78",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10000,
       "key": "horizon_core::density::<NoiseSampler as DensitySampler>::sample_volume",
       "sig": "cef57c5928ea2277",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10001,
       "key": "horizon_core::density::<ShiftedNoiseSampler as DensitySampler>::sample_value",
       "sig": "c1d2eea715152cae",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10002,
       "key": "horizon_core::density::<ShiftedNoiseSampler as DensitySampler>::sample_volume",
       "sig": "4e50fe7a236ab829",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -145,7 +145,7 @@
       "id": 10005,
       "key": "horizon_core::density::beardifier::Beardifier::sample_unchecked",
       "sig": "27a905b83117961a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -166,14 +166,14 @@
       "id": 10008,
       "key": "horizon_core::density::beardifier::beard",
       "sig": "4ec4606b2ff7ae50",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10009,
       "key": "horizon_core::density::beardifier::fast_inverse_sqrt",
       "sig": "9cbee44cc21ff5d8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -187,21 +187,21 @@
       "id": 10011,
       "key": "horizon_core::density::cache::SamplerContext::prepare_cache",
       "sig": "df41383c824a12b5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10012,
       "key": "horizon_core::density::cache::<CachingDensitySampler as DensitySampler>::sample_value",
       "sig": "c1d2eea715152cae",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10013,
       "key": "horizon_core::density::cache::<CachingDensitySampler as DensitySampler>::sample_volume",
       "sig": "4e50fe7a236ab829",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -222,7 +222,7 @@
       "id": 10016,
       "key": "horizon_core::density::world_fields::<ContextBoundSampler as DensitySampler>::sample_value",
       "sig": "c1d2eea715152cae",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -390,42 +390,42 @@
       "id": 10040,
       "key": "horizon_core::density::arithmetic::<UnarySampler as DensitySampler>::sample_value",
       "sig": "c1d2eea715152cae",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10041,
       "key": "horizon_core::density::arithmetic::<UnarySampler as DensitySampler>::sample_volume",
       "sig": "4e50fe7a236ab829",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10042,
       "key": "horizon_core::density::arithmetic::<BinarySampler as DensitySampler>::sample_value",
       "sig": "c1d2eea715152cae",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10043,
       "key": "horizon_core::density::arithmetic::<BinarySampler as DensitySampler>::sample_volume",
       "sig": "4e50fe7a236ab829",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10044,
       "key": "horizon_core::density::interpolation::InterpolatedSampler::sample_block_volume",
       "sig": "3b34650d65440df0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10045,
       "key": "horizon_core::density::interpolation::InterpolatedSampler::fill_cell",
       "sig": "31fc0d7ea0d1ac4a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -439,7 +439,7 @@
       "id": 10047,
       "key": "horizon_core::density::interpolation::<InterpolatedSampler as DensitySampler>::sample_volume",
       "sig": "016b4f66304e3062",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -495,14 +495,14 @@
       "id": 10055,
       "key": "horizon_core::density::selection::<RangeChoiceSampler as DensitySampler>::sample_volume",
       "sig": "4e50fe7a236ab829",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10056,
       "key": "horizon_core::density::selection::<LerpSampler as DensitySampler>::sample_value",
       "sig": "c1d2eea715152cae",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -551,14 +551,14 @@
       "id": 10063,
       "key": "horizon_core::density::slice::<SliceSampler as DensitySampler>::sample_value",
       "sig": "a88efd2ee6a0ecac",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10064,
       "key": "horizon_core::density::slice::<SliceSampler as DensitySampler>::sample_volume",
       "sig": "4e50fe7a236ab829",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -579,7 +579,7 @@
       "id": 10067,
       "key": "horizon_core::density::spline::<SplineSampler as DensitySampler>::sample_value",
       "sig": "c1d2eea715152cae",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -593,14 +593,14 @@
       "id": 10069,
       "key": "horizon_core::density::surface::FindTopSurfaceSampler::find_surface_from",
       "sig": "962586e7be95a287",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10070,
       "key": "horizon_core::density::surface::<FindTopSurfaceSampler as DensitySampler>::sample_value",
       "sig": "19d3fb3052bb5eae",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -614,7 +614,7 @@
       "id": 10072,
       "key": "horizon_core::density::terrain_noise::<ShiftBSampler as DensitySampler>::sample_value",
       "sig": "bdcb90b8a5e7f432",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -642,14 +642,14 @@
       "id": 10076,
       "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write",
       "sig": "f5da6765f8063cf7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10077,
       "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u8",
       "sig": "0db724f1f8e9d44f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -663,35 +663,35 @@
       "id": 10079,
       "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u32",
       "sig": "8319767abf7270e9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10080,
       "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u64",
       "sig": "aee62d565905b6bb",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10081,
       "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_usize",
       "sig": "6183af3dbe0a70a5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10082,
       "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_i32",
       "sig": "0a9743a99b9efa91",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10083,
       "key": "horizon_core::fast_hash::<FxHasher as Hasher>::finish",
       "sig": "dfd4ea0f8a45f47f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -705,7 +705,7 @@
       "id": 10085,
       "key": "horizon_core::geometry::<Vec3 as PartialEq>::eq",
       "sig": "80b1e3a9ef698711",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -775,21 +775,21 @@
       "id": 10095,
       "key": "horizon_core::geometry::shape::VoxelShape::moved",
       "sig": "d035c25bf63cdecc",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10096,
       "key": "horizon_core::geometry::shape::VoxelShape::find_index",
       "sig": "100e509f8028f41e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10097,
       "key": "horizon_core::geometry::shape::VoxelShape::collide",
       "sig": "1c13b4199da2970f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -831,7 +831,7 @@
       "id": 10103,
       "key": "horizon_core::geometry::shape::join::VoxelShape::join_is_not_empty",
       "sig": "21cecfc8c59d5679",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -866,7 +866,7 @@
       "id": 10108,
       "key": "horizon_core::geometry::trig::atan2",
       "sig": "bc15138c024b69f8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1034,7 +1034,7 @@
       "id": 10132,
       "key": "horizon_core::noise::perlin::PerlinNoise::gradients_at",
       "sig": "6a92958276e6838c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1048,14 +1048,14 @@
       "id": 10134,
       "key": "horizon_core::noise::perlin::add_four",
       "sig": "5591fe37232b8937",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10135,
       "key": "horizon_core::noise::simplex::SimplexNoise::get2",
       "sig": "ab287867a302c793",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1083,14 +1083,14 @@
       "id": 10139,
       "key": "horizon_core::noise::stack::<NoiseStack as Noise>::get3",
       "sig": "63ad4b8ec5d93da6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10140,
       "key": "horizon_core::noise::stack::<NoiseStack as Noise>::add_to_volume",
       "sig": "6523e7516b3a20e5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1104,7 +1104,7 @@
       "id": 10142,
       "key": "horizon_core::noise::volume::DensityVolume::new",
       "sig": "9bdeaaa4229f3e71",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1118,14 +1118,14 @@
       "id": 10144,
       "key": "horizon_core::paletted::palette_ids",
       "sig": "f23390893956ff3c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10145,
       "key": "horizon_core::paletted::PalettedContainer::all_equal",
       "sig": "801c2eb902cf2fea",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1153,7 +1153,7 @@
       "id": 10149,
       "key": "horizon_core::paletted::PalettedContainer::pack",
       "sig": "f1cba2040d4ac8c4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1244,14 +1244,14 @@
       "id": 10162,
       "key": "horizon_core::random::LegacyRandom::bits",
       "sig": "da86fc3ff2cadd4a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10163,
       "key": "horizon_core::random::<LegacyRandom as RandomSource>::set_seed",
       "sig": "d8be0044ae4493d8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1265,14 +1265,14 @@
       "id": 10165,
       "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_int_bound",
       "sig": "68b430f61f1c9cff",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10166,
       "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_long",
       "sig": "926508327a2dce72",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1286,14 +1286,14 @@
       "id": 10168,
       "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_float",
       "sig": "ef21a971ddebec1a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10169,
       "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_double",
       "sig": "7d8c1d2461face6e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1314,28 +1314,28 @@
       "id": 10172,
       "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::set_seed",
       "sig": "d8be0044ae4493d8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10173,
       "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_int",
       "sig": "585d585a02bf4f6e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10174,
       "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_int_bound",
       "sig": "68b430f61f1c9cff",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10175,
       "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_long",
       "sig": "926508327a2dce72",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1349,14 +1349,14 @@
       "id": 10177,
       "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_float",
       "sig": "ef21a971ddebec1a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10178,
       "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_double",
       "sig": "7d8c1d2461face6e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1391,14 +1391,14 @@
       "id": 10183,
       "key": "horizon_core::random::worldgen::<LegacyRandom as WorldgenSource>::worldgen_bits",
       "sig": "0268042e94dbde09",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10184,
       "key": "horizon_core::random::worldgen::<XoroshiroRandom as WorldgenSource>::worldgen_bits",
       "sig": "0268042e94dbde09",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1419,14 +1419,14 @@
       "id": 10187,
       "key": "horizon_core::storage::PackedStorage::write",
       "sig": "c9aa534a7f54c207",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10188,
       "key": "horizon_core::storage::PackedStorage::set",
       "sig": "f6a7b66638e2e406",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1468,14 +1468,14 @@
       "id": 10194,
       "key": "horizon_core::ticks::LevelTicks::schedule",
       "sig": "f0b8becd176ac257",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10195,
       "key": "horizon_core::ticks::LevelTicks::next_tick",
       "sig": "093d4d77fd8c229f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1531,28 +1531,28 @@
       "id": 10738,
       "key": "horizon_core::biome::BiomeZoom::quart_at_block",
       "sig": "0af3cedea811931a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10739,
       "key": "horizon_core::biome::BiomeZoom::corner_jitter",
       "sig": "5fcafb835b4c1257",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10740,
       "key": "horizon_core::density::visit",
       "sig": "a596e5d58b409d86",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10741,
       "key": "horizon_core::density::arithmetic::UnaryOp::apply_bulk",
       "sig": "703534052fd7a8aa",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1594,14 +1594,14 @@
       "id": 10747,
       "key": "horizon_core::geometry::Vec3::distance_squared",
       "sig": "2f3da8d0876a9cfc",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10748,
       "key": "horizon_core::geometry::Aabb::change_extent",
       "sig": "a813a7f70979f7fd",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1635,9 +1635,27 @@
   ],
   "excluded": [
     {
+      "key": "horizon_core::biome::BiomeZoom::corner_jitter",
+      "reason": "hot: 17.9 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::biome::BiomeZoom::new",
       "reason": "const fn",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::biome::BiomeZoom::quart_at_block",
+      "reason": "hot: 29.0 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::biome::BiomeZoom::select_corner",
+      "reason": "hot: 198.6 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::biome::fiddle",
@@ -1658,6 +1676,12 @@
       "key": "horizon_core::biome::obfuscate_seed",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::CarvingMask::carve",
+      "reason": "hot: 127.6 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::carving::CarvingMask::columns",
@@ -1690,9 +1714,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::carving::CarvingMask::next_set",
+      "reason": "hot: 10.9 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::carving::CarvingMask::try_visit_mut",
       "reason": "generic type params",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::Cursor::next",
+      "reason": "hot: 10.9 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::carving::ellipsoid::<CarveError<E> as Display>::fmt",
@@ -1705,6 +1741,24 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::carving::ellipsoid::<CarvingMask as CarverOutput>::max_y",
+      "reason": "hot: 13.7 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::carving::ellipsoid::<CarvingMask as CarverOutput>::min_y",
+      "reason": "hot: 13.7 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::carving::ellipsoid::can_reach",
+      "reason": "hot: 87.4 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::carving::ellipsoid::carve_ellipsoid",
       "reason": "generic type params",
       "kind": "fn"
@@ -1715,9 +1769,57 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::<ConstantSampler as DensitySampler>::sample_value",
+      "reason": "hot: 11.4 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::<ConstantSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 6.4 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::<GradientSampler as DensitySampler>::sample_value",
+      "reason": "hot: 31.3 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::<GradientSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 5.3 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::<NoiseSampler as DensitySampler>::sample_value",
+      "reason": "hot: 23.4 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::<NoiseSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 6.2 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::<SampleError as Display>::fmt",
       "reason": "calls trait method without trait in scope",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::<ShiftedNoiseSampler as DensitySampler>::sample_value",
+      "reason": "hot: 28.7 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::<ShiftedNoiseSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 2.2 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::GradientSampler::compute",
@@ -1750,6 +1852,30 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::arithmetic::<BinarySampler as DensitySampler>::sample_value",
+      "reason": "hot: 26.7 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::arithmetic::<BinarySampler as DensitySampler>::sample_volume",
+      "reason": "hot: 3.6 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::arithmetic::<UnarySampler as DensitySampler>::sample_value",
+      "reason": "hot: 134.4 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::arithmetic::<UnarySampler as DensitySampler>::sample_volume",
+      "reason": "hot: 17.6 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::arithmetic::BinaryOp::apply",
       "reason": "small body",
       "kind": "fn"
@@ -1763,6 +1889,12 @@
       "key": "horizon_core::density::arithmetic::UnaryOp::apply",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::arithmetic::UnaryOp::apply_bulk",
+      "reason": "hot: 17.6 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::arithmetic::clamp",
@@ -1788,6 +1920,12 @@
       "key": "horizon_core::density::beardifier::Beardifier::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::beardifier::Beardifier::sample_unchecked",
+      "reason": "hot: 123.0 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::beardifier::Beardifier::with_kernels",
@@ -1830,14 +1968,38 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::beardifier::beard",
+      "reason": "hot: 3492.4 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::beardifier::bury",
       "reason": "small body",
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::beardifier::fast_inverse_sqrt",
+      "reason": "hot: 437.9 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::beardifier::kernel",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::cache::<CachingDensitySampler as DensitySampler>::sample_value",
+      "reason": "hot: 125.2 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::cache::<CachingDensitySampler as DensitySampler>::sample_volume",
+      "reason": "hot: 11.1 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::cache::CachingDensitySampler::id",
@@ -1858,6 +2020,12 @@
       "key": "horizon_core::density::cache::SamplerContext::clear_caches",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::cache::SamplerContext::prepare_cache",
+      "reason": "hot: 136.3 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::cache::SamplerContext::sparse",
@@ -2000,9 +2168,27 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::interpolation::<InterpolatedSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 3.3 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::interpolation::InterpolatedSampler::fill_cell",
+      "reason": "hot: 190.6 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::interpolation::InterpolatedSampler::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interpolation::InterpolatedSampler::sample_block_volume",
+      "reason": "hot: 3.0 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::interpolation::lerp",
@@ -2160,6 +2346,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::selection::<LerpSampler as DensitySampler>::sample_value",
+      "reason": "hot: 31.0 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::selection::<RangeChoiceSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 5.1 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::selection::DensityValue::sample_value",
       "reason": "small body",
       "kind": "fn"
@@ -2195,6 +2393,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::slice::<SliceSampler as DensitySampler>::sample_value",
+      "reason": "hot: 115.5 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::slice::<SliceSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 8.7 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::slice::SliceAxes::coordinates",
       "reason": "small body",
       "kind": "fn"
@@ -2203,6 +2413,12 @@
       "key": "horizon_core::density::slice::spread",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::spline::<SplineSampler as DensitySampler>::sample_value",
+      "reason": "hot: 11.4 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::spline::CubicSpline::compile",
@@ -2245,6 +2461,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::surface::<FindTopSurfaceSampler as DensitySampler>::sample_value",
+      "reason": "hot: 3.8 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::surface::FindTopSurfaceSampler::find_surface_from",
+      "reason": "hot: 9.8 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::surface::FindTopSurfaceSampler::new",
       "reason": "small body",
       "kind": "fn"
@@ -2253,6 +2481,12 @@
       "key": "horizon_core::density::surface::compile_surface_search",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::terrain_noise::<ShiftBSampler as DensitySampler>::sample_value",
+      "reason": "hot: 20.7 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::terrain_noise::BlendedNoise::compile",
@@ -2283,6 +2517,18 @@
       "key": "horizon_core::density::terrain_noise::create_blended_fbm",
       "reason": "impl Trait argument",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::visit",
+      "reason": "hot: 2.6 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::world_fields::<ContextBoundSampler as DensitySampler>::sample_value",
+      "reason": "hot: 11.4 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::world_fields::ContextBoundSampler::new",
@@ -2330,6 +2576,48 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::finish",
+      "reason": "hot: 3987.9 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write",
+      "reason": "hot: 85.5 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_i32",
+      "reason": "hot: 8103.7 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u32",
+      "reason": "hot: 156.3 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u64",
+      "reason": "hot: 144.1 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u8",
+      "reason": "hot: 7.4 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_usize",
+      "reason": "hot: 108.5 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::fast_hash::FxHasher::add",
       "reason": "small body",
       "kind": "fn"
@@ -2343,6 +2631,12 @@
       "key": "horizon_core::geometry::<Vec3 as InjectValue>::into_inject_value",
       "reason": "calls trait method without trait in scope",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::<Vec3 as PartialEq>::eq",
+      "reason": "hot: 7.1 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::Aabb::average_size",
@@ -2363,6 +2657,12 @@
       "key": "horizon_core::geometry::Aabb::center",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::change_extent",
+      "reason": "hot: 23.0 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::Aabb::clip",
@@ -2553,6 +2853,12 @@
       "key": "horizon_core::geometry::Vec3::distance",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::distance_squared",
+      "reason": "hot: 5.7 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::Vec3::dot",
@@ -2880,6 +3186,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::geometry::shape::VoxelShape::collide",
+      "reason": "hot: 7.3 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::geometry::shape::VoxelShape::collide_all",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -2908,6 +3220,12 @@
       "key": "horizon_core::geometry::shape::VoxelShape::empty_ref",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::find_index",
+      "reason": "hot: 36.7 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::shape::VoxelShape::fresh_identity",
@@ -2968,6 +3286,12 @@
       "key": "horizon_core::geometry::shape::VoxelShape::min_at",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::moved",
+      "reason": "hot: 8.3 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::shape::VoxelShape::same_identity",
@@ -3055,6 +3379,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::geometry::shape::join::VoxelShape::join_is_not_empty",
+      "reason": "hot: 87.4 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::geometry::shape::join::gcd",
       "reason": "small body",
       "kind": "fn"
@@ -3098,6 +3428,12 @@
       "key": "horizon_core::geometry::trig::<f32 as Mth>::msin",
       "reason": "trait impl on a type that cannot take an inherent impl",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::trig::atan2",
+      "reason": "hot: 9.0 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::trig::atan2_degrees",
@@ -3385,6 +3721,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::noise::perlin::PerlinNoise::gradients_at",
+      "reason": "hot: 2936.4 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::noise::perlin::PerlinNoise::new",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -3440,6 +3782,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::noise::perlin::add_four",
+      "reason": "hot: 906.1 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::noise::perlin::compute_fudge_y",
       "reason": "small body",
       "kind": "fn"
@@ -3448,6 +3796,12 @@
       "key": "horizon_core::noise::simplex::SimplexNoise::corner",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::simplex::SimplexNoise::get2",
+      "reason": "hot: 8.0 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::noise::simplex::SimplexNoise::new",
@@ -3478,6 +3832,18 @@
       "key": "horizon_core::noise::smoothstep_derivative",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::<NoiseStack as Noise>::add_to_volume",
+      "reason": "hot: 8.1 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::noise::stack::<NoiseStack as Noise>::get3",
+      "reason": "hot: 146.8 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::noise::stack::<PerlinNoise as Noise>::add_to_volume",
@@ -3595,6 +3961,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::noise::volume::DensityVolume::new",
+      "reason": "hot: 14.3 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::noise::volume::DensityVolume::size",
       "reason": "small body",
       "kind": "fn"
@@ -3613,6 +3985,12 @@
       "key": "horizon_core::noise::wrap",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::all_equal",
+      "reason": "hot: 9.0 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::paletted::PalettedContainer::bits",
@@ -3668,6 +4046,12 @@
       "key": "horizon_core::paletted::PalettedContainer::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::pack",
+      "reason": "hot: 2.3 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::paletted::PalettedContainer::palette_len",
@@ -3753,6 +4137,12 @@
       "key": "horizon_core::paletted::pack_words",
       "reason": "impl Trait argument",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::palette_ids",
+      "reason": "hot: 5.1 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::paletted::read",
@@ -3975,9 +4365,81 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_double",
+      "reason": "hot: 2.2 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_float",
+      "reason": "hot: 829.8 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_int_bound",
+      "reason": "hot: 886.4 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_long",
+      "reason": "hot: 78.7 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::set_seed",
+      "reason": "hot: 42.5 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::fork_positional",
       "reason": "uses trait Self:: item",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_double",
+      "reason": "hot: 10.0 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_float",
+      "reason": "hot: 107.1 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_int",
+      "reason": "hot: 14.6 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_int_bound",
+      "reason": "hot: 14.6 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_long",
+      "reason": "hot: 743.5 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::set_seed",
+      "reason": "hot: 3.5 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::LegacyRandom::bits",
+      "reason": "hot: 1878.4 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::random::LegacyRandom::from_state",
@@ -4115,6 +4577,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::random::worldgen::<LegacyRandom as WorldgenSource>::worldgen_bits",
+      "reason": "hot: 4.8 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::random::worldgen::<WorldgenPositional<P> as PositionalRandom>::at",
       "reason": "generic impl",
       "kind": "fn"
@@ -4188,6 +4656,12 @@
       "key": "horizon_core::random::worldgen::<WorldgenRandom<R> as WorldgenSource>::worldgen_bits",
       "reason": "generic impl",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<XoroshiroRandom as WorldgenSource>::worldgen_bits",
+      "reason": "hot: 610.9 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::random::worldgen::WorldgenRandom<R>::count",
@@ -4295,6 +4769,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::storage::PackedStorage::set",
+      "reason": "hot: 161.4 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::storage::PackedStorage::slot",
       "reason": "small body",
       "kind": "fn"
@@ -4313,6 +4793,12 @@
       "key": "horizon_core::storage::PackedStorage::words",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::write",
+      "reason": "hot: 2720.8 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::storage::locate",
@@ -4400,9 +4886,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::ticks::LevelTicks::next_tick",
+      "reason": "hot: 13.8 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::ticks::LevelTicks::remove_chunk",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::LevelTicks::schedule",
+      "reason": "hot: 15.2 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::ticks::LevelTicks::schedule_copy",

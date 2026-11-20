@@ -5,6 +5,11 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[features]
+# W6: every hooked function entry counts itself in its slot (`counts`, `reset_counts`): the cost gate measures which
+# functions are hot. Off by default; the counters make `Slot` twice as large.
+count = []
+
 [dev-dependencies]
 yoake-hook-macro = { path = "../yoake-hook-macro" }
 

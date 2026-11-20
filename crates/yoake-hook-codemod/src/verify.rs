@@ -17,6 +17,8 @@ use serde_json::Value;
 use crate::Config;
 
 pub const EXCLUDE_FILE: &str = "stamp-exclude.txt";
+/// W6: functions the cost gate measured as hot (`tools/hook_counts.py`); read like `stamp-exclude.txt`.
+pub const HOT_FILE: &str = "hot-exclusions.txt";
 
 /// One compiler error reduced to what the loop needs.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -305,15 +307,20 @@ pub fn append_excludes(ledger: &Path, keys: &BTreeMap<String, String>) -> Result
     std::fs::write(&path, text).map_err(|e| format!("failed to write {}: {e}", path.display()))
 }
 
-/// `key # reason` lines of `stamp-exclude.txt`.
+/// `key # reason` lines of `stamp-exclude.txt` and `hot-exclusions.txt` (`#` lines are comments).
 pub fn read_excludes(ledger: &Path) -> BTreeMap<String, String> {
     let mut out = BTreeMap::new();
-    if let Ok(text) = std::fs::read_to_string(ledger.join(EXCLUDE_FILE)) {
-        for line in text.lines() {
-            let (key, reason) = line.split_once(" # ").unwrap_or((line, "compile error"));
-            let key = key.trim();
-            if !key.is_empty() {
-                out.insert(key.to_string(), reason.trim().to_string());
+    for (file, default_reason) in [(EXCLUDE_FILE, "compile error"), (HOT_FILE, "hot path (measured)")] {
+        if let Ok(text) = std::fs::read_to_string(ledger.join(file)) {
+            for line in text.lines() {
+                if line.trim_start().starts_with('#') {
+                    continue;
+                }
+                let (key, reason) = line.split_once(" # ").unwrap_or((line, default_reason));
+                let key = key.trim();
+                if !key.is_empty() {
+                    out.insert(key.to_string(), reason.trim().to_string());
+                }
             }
         }
     }
