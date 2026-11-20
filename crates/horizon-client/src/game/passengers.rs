@@ -168,6 +168,21 @@ impl Game<'_> {
                         animal,
                     );
                 }
+                if vehicle.kind.custom.is_some() {
+                    // A custom mob's seats (F4M-4c): the seat the rider's place among the riders
+                    // gives it, the player (if aboard) taking the first one that allows it.
+                    let aboard: Vec<&horizon_client::mobs::Mob> = self
+                        .mobs
+                        .iter()
+                        .filter(|k| k.extra.mount == Some(v))
+                        .collect();
+                    attach = horizon_client::mobs::custom::ai::riding::mob_rider_attachment(
+                        vehicle,
+                        &self.mobs[i],
+                        &aboard,
+                        vehicle.rider.is_some(),
+                    );
+                }
                 let (pos, prev) = (vehicle.position, vehicle.previous);
                 let (yaw, prev_yaw) = (vehicle.yaw, vehicle.previous_yaw);
                 let (body, prev_body) = (vehicle.body_yaw, vehicle.previous_body_yaw);
