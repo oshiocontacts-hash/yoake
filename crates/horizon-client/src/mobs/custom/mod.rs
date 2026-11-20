@@ -9,6 +9,7 @@
 //!
 //! New code for custom mobs lives under this directory (and `game/custom_mob_*.rs`) so that
 //! parallel work items do not collide in the shared mob files.
+pub mod ai;
 pub mod attrs;
 pub mod build;
 pub mod hitbox;
@@ -266,6 +267,8 @@ pub struct CustomState {
     pub attrs: AttrSet,
     /// Its tracked values, in the type's slot order.
     pub synced: Vec<SyncedValue>,
+    /// What its attack goals wait for and ask of the animation side (F4M-4a).
+    pub attack: ai::attacks::AttackState,
 }
 
 impl CustomState {
@@ -274,6 +277,7 @@ impl CustomState {
             // `CustomType::new` already built one from the same definitions.
             attrs: AttrSet::new(&t.attributes).unwrap_or_default(),
             synced: t.synced.iter().map(|s| s.default.clone()).collect(),
+            attack: Default::default(),
         }
     }
     pub fn synced_value(&self, t: &CustomType, name: &str) -> Option<&SyncedValue> {

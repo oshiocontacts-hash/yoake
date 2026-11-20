@@ -5090,7 +5090,7 @@ mod yoake_glue_tests {
     }
 }
 
-#[cfg(feature = "yoake-hook-bench")]
+#[cfg(any(test, feature = "yoake-hook-bench"))]
 pub mod mob_hook_bench {
     use super::{Anim, Brain, Flags, Mob, MobData, MobType, MobWorld, Part, Species};
     use crate::{
@@ -5410,6 +5410,7 @@ pub mod mob_hook_bench {
     #[yoake_hook(skip = "benchmark helper")]
     pub fn kind() -> Arc<MobType> {
         Arc::new(MobType {
+            custom: None,
             id: "minecraft:cow".into(),
             species: Species::Cow,
             width: 0.9,
