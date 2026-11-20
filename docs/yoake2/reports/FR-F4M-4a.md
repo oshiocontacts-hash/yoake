@@ -42,16 +42,48 @@ Which array a row is in does not matter: goals go to the goal selector and targe
 | `call_for_help` | implemented (a target selector) | `HurtByTarget::alert` | same |
 | `follow_owner`, `sit`, `owner_hurt_target`, `owner_hurt_by`, `owner_target` | **deferred, F4M-4c** | the engine's tame goals are private to `tame.rs` and Wolf-specific | listed in `every_schema_goal_type_has_a_status` |
 | `breed`, `follow_parent` | **deferred, F4M-4c** | needs the `breedable` data and offspring creation | same |
-| `eat_block` | **deferred** | the engine's `EatBlock` is the sheep's (hard-coded blocks and `Mob.ate`); a data version needs a generic goal | same |
-| `open_door` | **deferred** | the door goals in `doors.rs` are private to raiders (`RaiderOpenDoor` needs a raid) | same |
-| `sleep_in_bed_like`, `climb` | **deferred, unclear** | the schema row does not say what they do (`climb` may just be the `climb` navigator) | same |
+| `climb` (`cost`) | implemented (follow-up 1) | the engine's spider climbing (`Flags.climber`) and `path.rs` | `a_climb_row_gives_the_engines_climber_physics_and_a_path_cost`, `the_navigator_routes_up_a_wall_only_for_a_mob_with_a_climb_row`, `the_climb_cost_decides_between_the_wall_and_the_way_round`, `a_climber_gets_up_the_wall_by_pressing_against_it` |
+| `sleep_in_bed_like` (`when`, `state`, `block_tag`, `range`, `speed`, `reach`) | implemented (follow-up 2), new `Rest` goal (`MOVE`, `LOOK`, `JUMP`) | `nearest_block`, `nav_move_to`, the safe expression language | `a_mob_goes_home_at_night_sleeps_and_stays_put`, `a_mob_does_not_rest_by_day_and_wakes_when_day_comes`, `a_hurt_sleeper_wakes_and_does_not_lie_down_again_at_once`, `a_when_expression_replaces_the_night`, `the_rest_place_can_be_the_nearest_block_of_a_tag` |
+| `open_door` (`door_tag`, `break`) | implemented (follow-up 4), new `OpenTaggedDoor`, `BreakDoor::tagged` in `doors.rs` | `DoorInteractGoal`'s `Interact` (given an optional door tag) | `open_door_opens_a_door_of_its_tag_on_the_path_and_closes_it_after`, `open_door_with_break_breaks_the_door_after_240_ticks_and_only_when_griefing` |
+| `eat_block` (`blocks`, `interval`, `cooldown`, `duration`, `effect`, `trigger`) | implemented (follow-up 4), new `EatCustomBlock` (`MOVE`, `LOOK`, `JUMP`) | `MobEvent::BreakBlock` / `SetBlockName`, `ai::age_up` | `eat_block_replaces_the_block_heals_raises_its_event_and_waits_for_its_cooldown`, `eat_block_changes_nothing_without_griefing_but_still_has_its_effect` |
 | `script` | **deferred, F4M-10** | | same |
 
 **Schema decision for deferred goals: the schema keeps accepting them** (the vocabulary is the contract; a content pack written for 4b/4c loads).
 The mob does not get the goal. `ai::support(kind)` says why, `ai::unsupported(&CustomMobFile)` lists them, and `build_one` logs one warning per
 type and goal (`custom mob x: the goal "sit" is not run by this version (F4M-4c: ...)`). An unknown *type* is still a schema error as before.
 The fixture fox therefore does not get `follow_owner`, `sit` and the script goal (test `the_fixture_fox_lists_the_goals_it_does_not_get`).
-29 of the 41 types run, 12 are deferred (`every_schema_goal_type_has_a_status` pins both numbers).
+33 of the 41 types run, 8 are deferred (`every_schema_goal_type_has_a_status` pins both numbers; it was 29 and 12 before the follow-up round below).
+
+## Follow-up round (reviewer decisions)
+
+Each is its own commit.
+
+1. **`climb`** (a goal row; the `climb` *navigator* is unchanged). A type with a `climb` row gets the engine's spider climbing: `Flags.climber` is set in
+   `build::mob_type`, so `Mob.climbing`, the climbing velocity clamp and the fall reset are the engine's. `cost` (default 0.5, 0 to 32) is the extra
+   path cost of one block of wall: `Navigation.climb_cost` / `PathMob.climb_cost` (a new field, `None` for every vanilla mob) let `Finder::walk_neighbors`
+   add vertical edges (`climb_neighbors`): up a face that has a solid block beside the new node, and down it while hanging. While following such a step the
+   mob aims past the wall (`Mob::climb_aim`) so it presses against it (that is what makes the engine's climbing move it). Limits: it climbs straight up
+   and down a face and steps onto the top; it does not travel sideways along a wall.
+2. **`sleep_in_bed_like`** (`ai/rest.rs`, `ai/expr.rs`). At night (`!daylight` in the overworld-like dimensions), or when its `when` expression is true,
+   it walks to the rest place (the nearest block of `block_tag` within `range`, else the home of a `stay_near_home`/`patrol_around` row, else where it first
+   thought of resting) and stays: it stops, the goal holds `MOVE|LOOK|JUMP`, and the tracked value `state` (default `sleep`, a bool, or an i32 as 1/0)
+   is set; a type without such a value logs a warning and still rests. It wakes when hurt (health below what it had lying down, or hurt within 100
+   ticks stops it resting again), at day, or when the condition turns false. `when` uses the safe expression language (`horizon-mobmodel`, new
+   dependency of `horizon-client-lib`; `Cargo.lock` gained that edge): `query.health`, `max_health`, `is_on_ground`, `is_in_water`, `is_baby`,
+   `hurt_time`, `has_target`, `is_riding`, `life_time` (seconds), `time_of_day` (day time over 24000) and `query.synced('name')`; a bad expression leaves
+   the goal out with a warning.
+3. **`Seen.custom`** (`Option<Arc<str>>`, the custom type id; `None` for vanilla). `Prey::Types` / `Avoid::Types` (vanilla species and custom ids) are used
+   only when a list names a custom id; `Prey::Species` and `Avoid::Species` are as before, so vanilla matching is unchanged (the shared helper
+   `seen_is_type` gives the same answer for a vanilla `Seen`). In a data row's `types` / `from` any id outside `minecraft:` is a custom type id (kept with a
+   warning when no such type is loaded yet, since content may load in any order). **`Seen` is a bindgen-visible struct and got a field** (see Needs checking).
+4. **`open_door`** (`door_tag` default `minecraft:wooden_doors`, `break` default false) and **`eat_block`**: `doors.rs`'s private `Interact` got an optional
+   door tag (`None` keeps every old call exactly: the wooden-door and `_door` name tests are the same code paths), `BreakDoor::tagged` and the new
+   `OpenTaggedDoor`. The goal also lets the mob's navigation open doors. Breaking is 240 ticks, any difficulty, only with mob griefing. `eat_block`
+   `blocks` is `{ "<block>": "<replacement>" }` or a list (left as air), the block it stands in or the one below; `interval` (1 in N, default 100), `cooldown`
+   (default 600 ticks), `duration` (default 40), `effect` = `{ "heal": 4 }`, `"grow_up"` or `{ "event": "name" }` / `"name"` (the event goes to
+   `CustomState.events`, taken with `ai::blocks::take_events(&mut Mob)`), `trigger` (an animation). Blocks change only when mob griefing is on, the effect
+   always happens. The sheep's `EatBlock` is untouched.
+5. **Shared path budget** (`ai/budget.rs`), see the section below.
 
 Parameters of a row not named above: `priority` and `speed` are the schema's own; a missing or non-finite number takes the engine's default.
 
@@ -72,8 +104,20 @@ mob wants a `movement_speed` of that order. Tests: `each_navigator_picks_the_eng
 **Path budget.** A search of a custom mob visits at most `nav_select::MAX_VISITED_NODES` = 1024 nodes (the engine's number is `follow_range * 16`, so
 a follow range above 64 is capped; 16 gives 256 as in vanilla). The cap is applied in `Mob::query_path_raw` through `nav_select::max_visited_nodes`,
 which returns the engine's number untouched for a vanilla mob. Tests: `a_custom_mobs_path_search_is_capped_and_a_vanilla_mobs_is_not`,
-`a_search_to_an_unreachable_target_gives_up_in_bounded_work`. There is **no per-tick budget across mobs** (the design's 5 ms server budget is a
-property of the whole scheduler; nothing in this item meters it), the existing engine path scheduling is unchanged.
+`a_search_to_an_unreachable_target_gives_up_in_bounded_work`.
+
+**Shared per-tick budget** (follow-up 5, `ai/budget.rs`). All custom mobs together may visit `limit` nodes per game tick, default **8192**
+(`DEFAULT_PATH_BUDGET`), the per-search cap of 1024 staying. `Mob::query_path_raw` asks `budget::request(id, game_time, cap)` for a custom mob only
+(a vanilla mob returns before it) and charges the nodes the search really visited (`Finder::find_counted`). A request that does not fit gets no path this
+tick (`None`; its goal asks again by its own rules) and the mob is first in line next tick; a mob that is not waiting may only search while enough is left
+for every waiting mob that has not searched yet, and a mob served two ticks running gives way while anybody waits (round robin). The state is per thread
+(the server tick is one thread; tests are isolated). `budget::stats()` reads the counters (`PathStats`: ticks, granted, waited, nodes, busiest tick,
+this tick). **Server setting**: `server.properties` key `horizon-custom-mob-path-budget` (Horizon's own, as `horizon-lod-distance`), written by
+`horizon-server` from `server.toml`'s `[server] custom_mob_path_budget = 8192` (1 to 1048576; `config.rs` `TYPED`, `settings.rs` range,
+`docs/api/server-reference.md`, `docs/hosting.md`); `dedicated.rs` applies it with `budget::set_limit`. An integrated server uses the default.
+Tests: `the_budget_defaults_to_8192_nodes_a_tick_and_reads_the_server_setting`, `a_search_that_does_not_fit_waits_for_the_next_tick`,
+`mobs_take_turns_when_the_budget_cannot_serve_all_of_them`, `a_waiting_mob_that_never_comes_back_does_not_block_the_others_for_long`,
+`the_engines_path_search_of_a_custom_mob_is_metered_and_a_vanilla_mobs_is_not`.
 
 ## Attacks and the damage-frame wiring (`ai/attacks.rs`)
 
@@ -154,6 +198,14 @@ Final tree, all green (through `cargo-locked.sh`, offline, `-j 4`):
 * `-p horizon-mods`: lib **56 passed** (+1: `every_goal_type_is_accepted_with_its_own_parameters`).
 * Not run: `f4m_parity` (needs game resources), clippy, `regen.sh --check`.
 
+After the follow-up round and the two F4M-3 fixes (same commands):
+
+* `-p horizon-client-lib --lib`: **1733 passed**, 0 failed, 48 ignored (+27 over 1706). The `mobs::custom` subset is 90 (with `mod_content`'s three egg tests and one row test run in the same filter: 134).
+* `-p horizon-client --lib`: **1203 passed**, 0 failed, 40 ignored.
+* `-p horizon-mods` lib: **58 passed** (+2: the Yoake water slowdown and the axolotls category).
+* `-p horizon-server`: **117 passed**, 1 ignored (the reference doc test checks the new `custom_mob_path_budget` row).
+* Not run, as before: `f4m_parity`, clippy, `regen.sh --check`.
+
 The 40 AI tests: catalogue and deferral (4), movement and idle goals (14), target selectors (4), control flags (4), navigators and path budget (4), attacks and
 damage frames (10). Commit (b) alone does not compile (it declares `ai` whose files are in (c)); the final tree was the one tested.
 
@@ -168,13 +220,29 @@ damage frames (10). Commit (b) alone does not compile (it declares `ai` whose fi
   in its `kind()` is a source change of a `yoake_hook`-annotated module.
 * The swimming move controls' speed factors are the vanilla swimmers' and were not tried in game; a `swim` or `amphibious` mob may need a different `movement_speed`.
 * `Game::within_entity_range` (`game/pick_entity.rs`) compiles in `horizon-client` only; no `Game` test.
+* **`Seen` got a field** (`custom: Option<Arc<str>>`): a bindgen-visible struct, so `crates/yoake-bindgen/regen.sh` / `--check` must be run by the coordinator (not run here;
+  the generated glue in the working tree was not touched or committed). `PathMob` (a new `climb_cost`), `Navigation`, `CustomState` (`events`), `Prey` and `Avoid`
+  (a `Types` variant each) changed too; the last four are not annotated, `PathMob` is a plain engine struct.
+* New dependency `horizon-mobmodel` for `horizon-client-lib` (the `when` expression); `Cargo.lock` has the one edge.
+* `Finder::find` is now a wrapper of `find_counted` (same search, plus the visited count); vanilla mobs call `find` and never touch the budget.
+* `BenchWorld` (`mob_hook_bench`, compiled under `cfg(test)`) got `set_stone`, `set_air`, `set_tag` helpers (all `yoake_hook(skip)`).
+* The `open_door` goal and the climb path edges are tested on the flat world with stone as the only block (a "door" is a stone block of a test tag; a real
+  door's path types and the `set_door_open` effect are not exercised); `eat_block`'s block events are checked as events, not applied. No in-game run of any of them.
+* Server setting: `server.toml` `custom_mob_path_budget` and `horizon-custom-mob-path-budget`; `horizon-server`'s typed list grew to 17 and its reference doc has the row.
+  `horizon-server` tests: 117 passed.
+* A path request that does not fit returns no path (`None`) rather than a queued one; goals that treat "no path" as a failure (a chase) retry by their own timers.
 * No in-game run.
 
 ## Open questions
 
-* `climb` and `sleep_in_bed_like(light)` have no definition in the design doc (`climb` may just be the navigator): what should they do?
-* Mob-versus-custom-mob targeting and avoidance need a type id in `Seen` (a bindgen-visible struct). Wanted?
-* `open_door`, `eat_block`: the engine's goals are the raiders' and the sheep's; should 4a add generic ones (small edits of `doors.rs` and `goals.rs`)?
-* A per-tick path creation budget across all custom mobs (design section 8) needs a scheduler hook in the server tick: F4M-14?
 * Should a data row be able to override a goal's control flags (for example a `melee_attack` that also takes `JUMP`)? Not done; the schema has no field for it.
 * `damage_delay` as both the plain delay and the timeout of a named frame: fine, or should the timeout be a separate key when server animation arrives?
+* (Answered by the reviewer and done in the follow-up round: `climb`, `sleep_in_bed_like`, the type id in `Seen`, generic `open_door` and `eat_block`, the per-tick path budget.)
+* `sleep_in_bed_like` remembers its home in the goal, so a mob reloaded from a save rests where it is when it first thinks of resting, unless a `stay_near_home` /
+  `patrol_around` row or a `block_tag` gives it a place. Should the first place be saved with the mob?
+* The budget is per thread and counts nodes; a debug view that reads `budget::stats()` is not part of this item. Where should it show?
+
+## Fixes from the reviewer's check against real 26.3 resources
+
+Spawn eggs, the `entity-types.json` attribute set, `yoake:water_slowdown` and the `axolotls` category: see `FR-F4M-3.md` ("Fix notes"). They are F4M-3 code, fixed on this branch in
+two commits after the follow-up round.

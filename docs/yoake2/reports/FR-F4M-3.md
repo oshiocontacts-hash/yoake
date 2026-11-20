@@ -56,3 +56,28 @@ Final tree, all green:
 
 * Should `is_monster` follow the category (needs a Mob-level helper)?
 * Mod sound ids: `&'static str` events cannot carry a namespace.
+
+## Fix notes (reviewer, from the real 26.3 resources; done with F4M-4a's follow-up round)
+
+* **Spawn eggs** (`mod_content.rs`): `minecraft:item/template_spawn_egg` does not exist in 26.3 and 26.3 eggs have no tints of their own, so the generated
+  definition was wrong. Now (`spawn_egg_files`): if the mod ships the item definition nothing is written; if it ships `models/item/<name>_spawn_egg.json` the
+  item definition points at it (untinted); if it ships `textures/item/<name>_spawn_egg.png` a one-layer model of it is generated; otherwise a per-mob
+  model `<ns>:item/<name>_spawn_egg` (parent `minecraft:item/generated`) of two layers, `horizon:item/spawn_egg` and `horizon:item/spawn_egg_overlay`,
+  with an item definition that tints them with the file's `primary` and `secondary` as opaque ARGB signed ints (`0xFF000000 | rgb` as `i32`). The two 16 by 16
+  textures are an **original** egg silhouette and spots drawn for this engine (`crates/horizon-client/assets/horizon/textures/item/spawn_egg*.png`,
+  `include_bytes!`'d and written into the content root once when an egg needs them, under the engine's existing `horizon` namespace; no Minecraft art).
+  Tests: `a_generated_egg_is_a_model_of_the_engines_two_layers_tinted_with_the_colours`, `a_mods_own_egg_art_is_used_instead`,
+  `the_engines_egg_textures_are_16_by_16_pngs`.
+* **`entity-types.json` rows** (`custom_row`, `vanilla_mob_attributes`): a custom mob's row now holds the full default attribute set plus the mob's own values.
+  **Where the set comes from**: this repository has no list of "the 28 keys" (the rows are exported from the real game by
+  `mods/horizon/src/test/java/dev/horizonlab/parity/VanillaEntityTypesExporter.java`, from `DefaultAttributes` suppliers, and differ per mob), and this laptop has no
+  resources, so the set is **derived from the base `entity-types.json` at content build time**: the attribute keys that every non-`misc` vanilla row that has
+  attributes carries (so not the player or armor stand), each with the value most rows give it (the smallest text among equals), kept as the base file's own
+  text so no float is rounded. Without such rows (no base) a row holds only what the file sets, as before. **Please check on a machine with resources that the
+  derived set is the 28 keys you saw** (a vanilla mob that lacks one of them would shrink it). Test:
+  `a_custom_mobs_row_has_the_vanilla_default_attribute_set_then_its_own`.
+* **`water_slowdown`** is not a 26.3 attribute: removed from `BUILTIN_ATTRIBUTES` (now 15). `build::mob_type` reads it from the Yoake-namespaced attribute
+  `yoake:water_slowdown` (`YOAKE_ATTRIBUTES`, accepted as a plain number like a built-in one; the bare name is refused). Tests in `horizon-mods`
+  (`water_slowdown_is_a_yoake_attribute_and_not_a_builtin_one`) and `yoake_water_slowdown_sets_the_engines_water_slowdown`.
+* **`axolotls`** is offered as a category (`CATEGORIES`, now 8; `Category::Axolotls`, the spawn placement `InWater` and `Mob::category` already knew it).
+  Tests `the_axolotls_category_is_accepted`, `an_axolotls_mob_is_the_engines_axolotls_category`.
