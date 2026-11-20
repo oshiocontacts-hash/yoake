@@ -12,11 +12,11 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 
 const FOX: &str = include_str!(
-    "../../../../../tools/fixtures/cinder_fox/data/sample_mobs/horizon/entity_type/cinder_fox.json"
+    "../../../../../tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json"
 );
 
 pub(crate) fn root() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/fixtures/cinder_fox")
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/fixtures/cinder_fox/content")
 }
 
 /// The Cinder Fox with `ai` replaced (and edited by `edit`), built as the game builds a type: the

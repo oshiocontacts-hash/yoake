@@ -1466,7 +1466,7 @@ mod tests {
     use super::*;
 
     const FOX: &str = include_str!(
-        "../../../tools/fixtures/cinder_fox/data/sample_mobs/horizon/entity_type/cinder_fox.json"
+        "../../../tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json"
     );
 
     fn parse(json: &str) -> Result<CustomMobFile, String> {
@@ -1497,7 +1497,7 @@ mod tests {
         );
         // The files it refers to are all in the fixture.
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tools/fixtures/cinder_fox");
+            .join("../../tools/fixtures/cinder_fox/content");
         for candidates in file.referenced_files(|ns| ns == "sample_mobs").unwrap() {
             assert!(
                 candidates.iter().any(|c| root.join(c).is_file()),
@@ -1764,7 +1764,7 @@ mod tests {
     #[test]
     fn the_fixture_model_loads_through_the_real_loader() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tools/fixtures/cinder_fox");
+            .join("../../tools/fixtures/cinder_fox/content");
         let mut read = |name: &str| std::fs::read(root.join(name)).map_err(|e| e.to_string());
         let file = parse(FOX).unwrap();
         let loaded = file.load_model(&mut read).unwrap();
@@ -1831,7 +1831,7 @@ mod tests {
     fn the_fixture_mod_loads_as_content_and_a_missing_file_is_refused() {
         use crate::{content::Content, manifest::Manifest};
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tools/fixtures/cinder_fox");
+            .join("../../tools/fixtures/cinder_fox/content");
         let manifest = Manifest::parse(
             &std::fs::read_to_string(root.join(crate::manifest::MANIFEST)).unwrap(),
         )
