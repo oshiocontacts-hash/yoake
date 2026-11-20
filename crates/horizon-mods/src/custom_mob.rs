@@ -790,6 +790,10 @@ pub struct CustomMobFile {
     /// A safe expression (the goal rows' `when`) that must be true for a rider to board.
     #[serde(default)]
     pub rideable_when: Option<String>,
+    /// F4M-4d: keep the attack cooldown of `melee_attack` and `area_attack` across goal restarts
+    /// (default false: a restarted goal may strike at once, as vanilla's `MeleeAttackGoal` does).
+    #[serde(default)]
+    pub cooldown_persists: bool,
     /// Data shortcuts of `mob-interact`.
     #[serde(default)]
     pub interact: Vec<Interact>,
@@ -1500,6 +1504,15 @@ mod tests {
                 "{candidates:?}"
             );
         }
+    }
+
+    /// F4M-4d: `cooldown_persists` is an optional boolean, false when absent.
+    #[test]
+    fn cooldown_persists_defaults_to_false() {
+        use serde_json::json;
+        assert!(!parse(FOX).unwrap().cooldown_persists);
+        assert!(with(|v| v["cooldown_persists"] = json!(true)).unwrap().cooldown_persists);
+        assert!(with(|v| v["cooldown_persists"] = json!("yes")).is_err());
     }
 
     /// F4M-4c: `saddle_item`, `rideable_when` and the `interact` rows are accepted and checked, and the

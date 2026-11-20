@@ -52,6 +52,10 @@ pub struct AttackState {
     frames: Vec<String>,
     /// Trigger animations the goals asked for and the animation sync has not taken.
     triggers: Vec<String>,
+    /// The game time before which a `melee_attack` or `area_attack` may not begin a strike again.
+    /// Kept and read only for a type with `cooldown_persists`: it is what lets the cooldown outlast
+    /// a goal restart (F4M-4d). Not saved.
+    pub strike_ready: i64,
 }
 
 impl AttackState {
@@ -347,7 +351,10 @@ impl Goal for ChaseStrike {
     }
     fn start(&mut self, m: &mut Mob, cx: &mut Cx) {
         self.inner.start(m, cx);
-        self.until = 0;
+        // Vanilla: a restarted goal has no cooldown. `cooldown_persists` keeps the mob's own.
+        if !persists(m) {
+            self.until = 0;
+        }
         self.pending = None;
     }
     fn stop(&mut self, m: &mut Mob, cx: &mut Cx) {
@@ -386,8 +393,16 @@ impl Goal for ChaseStrike {
             }
             return;
         }
-        if self.until <= 0 && self.in_reach(m, &t) && m.sees(cx.w, who) {
+        let ready = if persists(m) {
+            m.extra.custom.as_ref().is_none_or(|c| c.attack.strike_ready <= now)
+        } else {
+            self.until <= 0
+        };
+        if ready && self.in_reach(m, &t) && m.sees(cx.w, who) {
             self.until = self.interval;
+            if let Some(c) = m.extra.custom.as_mut() {
+                c.attack.strike_ready = now + i64::from(self.interval);
+            }
             let p = self.timing.begin(m, now);
             log::info!("Horizon custom-mob strike: mob {} begins on {who:?} tick {now}", m.id);
             if self.timing.due(m, p, now) {
@@ -398,6 +413,11 @@ impl Goal for ChaseStrike {
             }
         }
     }
+}
+
+/// Whether the mob's type keeps its strike cooldown across goal restarts (`cooldown_persists`).
+fn persists(m: &Mob) -> bool {
+    m.kind.custom.as_ref().is_some_and(|t| t.file.cooldown_persists)
 }
 
 fn dist_sqr(a: [f64; 3], b: [f64; 3]) -> f64 {
