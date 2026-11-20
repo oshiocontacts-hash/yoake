@@ -3,4 +3,5 @@ pub mod entities;
 pub mod game_items;
 pub mod items;
 pub mod mobs;
+pub mod mod_generator;
 pub mod motion;

@@ -132,7 +132,7 @@ impl WasmColumnSource {
 }
 
 impl ModColumnSource for WasmColumnSource {
-    fn generate(&self, chunk: &mut ModChunk<'_>) {
+    fn generate(&self, chunk: &mut ModChunk) {
         let (x, z) = (chunk.chunk_x, chunk.chunk_z);
         let request = self.request(x, z);
         let mut answer = self.call(&request);
@@ -253,7 +253,7 @@ impl Fill {
         Ok(Self { biome, sections })
     }
 
-    fn apply(&self, min_y: i32, chunk: &mut ModChunk<'_>) {
+    fn apply(&self, min_y: i32, chunk: &mut ModChunk) {
         if let Some(biome) = &self.biome
             && !chunk.set_biome(biome)
         {

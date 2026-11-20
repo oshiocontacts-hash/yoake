@@ -1977,14 +1977,14 @@
     "client_required_capabilities": []
   },
   {
-    "id": "worldgen::generate_chunk#9aa32618ca175702b7c51113c04c70311131f8a91ca820fb18989a4878f12055",
+    "id": "worldgen::generate_chunk#232b5757bf1536b813a6c568ab9c3fb043bb1b620d840f6edae8265b2eb2420a",
     "path": "worldgen::generate_chunk",
-    "signature_hash": "9aa32618ca175702b7c51113c04c70311131f8a91ca820fb18989a4878f12055",
+    "signature_hash": "232b5757bf1536b813a6c568ab9c3fb043bb1b620d840f6edae8265b2eb2420a",
     "arguments": [
       "string",
       "s32",
       "s32",
-      "scoped<&mutModChunk<'_>>"
+      "scoped<&mutModChunk>"
     ],
     "result": "unit",
     "side": "server",

@@ -60,7 +60,7 @@ pub const KEYS: &[(&str, &str)] = &[
     ("world::living_fall::cause_living_fall_damage", "40abf719eadc611c3b8f1173d44e1a693ec8bf8272f230f5f2af30b66ef64eaa"),
     ("world::living_motion::jump_from_ground", "49e2162006d6305be832360344cecf87f36422ed6eca7fe24c598d1fd965dc2a"),
     ("world::living_motion::jump_power", "a887a93bbf10f3908aa90913b32c0a6c6f5307dccc4a8d25ae9a4ac456432c1f"),
-    ("worldgen::generate_chunk", "9aa32618ca175702b7c51113c04c70311131f8a91ca820fb18989a4878f12055"),
+    ("worldgen::generate_chunk", "232b5757bf1536b813a6c568ab9c3fb043bb1b620d840f6edae8265b2eb2420a"),
 ];
 
 pub static SITES: [Site; 60] = [
@@ -123,5 +123,5 @@ pub static SITES: [Site; 60] = [
     Site::new("world::living_fall::cause_living_fall_damage", "40abf719eadc611c3b8f1173d44e1a693ec8bf8272f230f5f2af30b66ef64eaa", Side::Server, &[ValueType::Handle, ValueType::F64, ValueType::F32], ValueType::Bool, 7),
     Site::new("world::living_motion::jump_from_ground", "49e2162006d6305be832360344cecf87f36422ed6eca7fe24c598d1fd965dc2a", Side::Server, &[ValueType::Handle], ValueType::Unit, 7),
     Site::new("world::living_motion::jump_power", "a887a93bbf10f3908aa90913b32c0a6c6f5307dccc4a8d25ae9a4ac456432c1f", Side::Server, &[ValueType::Handle, ValueType::F32], ValueType::F32, 7),
-    Site::new("worldgen::generate_chunk", "9aa32618ca175702b7c51113c04c70311131f8a91ca820fb18989a4878f12055", Side::Server, &[ValueType::String, ValueType::S32, ValueType::S32, ValueType::Handle], ValueType::Unit, 7),
+    Site::new("worldgen::generate_chunk", "232b5757bf1536b813a6c568ab9c3fb043bb1b620d840f6edae8265b2eb2420a", Side::Server, &[ValueType::String, ValueType::S32, ValueType::S32, ValueType::Handle], ValueType::Unit, 7),
 ];
