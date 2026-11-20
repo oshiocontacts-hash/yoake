@@ -88,3 +88,34 @@ nothing", who gets what); `lan::hub::only_a_placed_horizon_client_reads_mob_sync
 pounce hit of case c); `anim_sync` (a keyframe lands the blow with a 3 tick delay).
 NOT covered: a real stock 26.3 client connecting and drawing the fox (a); the glue in `game/lan_mob_sync.rs` and `game/remote*.rs` over a real socket (b, d); a real pounce at a real
 player with the server hit counted once (c). Suggested: run on the Linux/macOS lab machine with `vscreen` (`--offscreen --no-focus`), adding a `mob-sync` check to `tools/lan_e2e.py`.
+
+## Follow-up 1: custom spawn rules match levels by id
+
+`Level(_) => ""` is gone. `SpawnLevel` got `fn level_id(&self) -> &str` (default `""`, so the vanilla three keep `minecraft:overworld` / `the_nether` / `the_end`);
+`MobWorld` got `level_id: &'static str` (set from `Dim::id()` where the game builds it, `""` in tests and probes); the `GameLevel` natural-spawning view forwards it.
+`mobs/custom/spawn.rs`: `Site<'a>.dimension` is a `&str`, `site_dimension(l)` / `dimension_key(Dimension, level_id)` pick the id. Test
+`a_dimensions_list_matches_a_pack_level_by_its_own_id`: a rule listing `mypack:moon` matches a level of that id, not `mypack:mars` or the Overworld; a rule without a list matches all.
+After it: `f4m_parity` goldens A, B, C pass; `horizon-client-lib` spawn tests 50 passed; `horizon-client --lib` 1228 passed; `cargo check -p horizon-client --features yoake2-slice --all-targets` ok.
+
+## Follow-up 2: Horizon-only mob-sync end to end
+
+New `tools/mob_sync_e2e.py` (uses `lan_e2e.Game`; real `horizon-client` processes launched `--offscreen --no-focus --no-pause --dev-mod tools/fixtures/cinder_fox`, own scratch folder,
+world and random LAN port each; waits while another run's `horizon-client` is running). To make the client store observable the game now logs one info line per payload in
+`game/remote_custom_mob.rs`: `Horizon mob-sync: snapshots=N deltas=N triggers=N dropped=N incompatible=N known=N`.
+Run: `HORIZON_TEST_RESOURCES=... PYTHONUTF8=1 python tools/mob_sync_e2e.py --bin-dir target/debug` (dev-profile binaries; on Windows PYTHONUTF8 is needed or the harness's `subprocess` text capture dies on cp932).
+
+Result on the final tree (host + Horizon client `Guest`, then a late Horizon client `Late`), all pass:
+
+| Check | Result |
+|---|---|
+| quiet: no mob-sync line on the guest before any custom mob exists | pass (0 lines) |
+| fox: `/summon sample_mobs:cinder_fox` next to both: host has 1, guest has 1 entity of that type | pass |
+| store: guest applied a snapshot with the mob known, 11 deltas followed while the fox walked, 0 dropped, 0 incompatible | pass (12 lines: 1 snapshot, 11 deltas, 0 triggers) |
+| late: a second Horizon client joining afterwards: its first mob-sync line is a snapshot (snapshots=1, known=1, 0 incompatible) and it has the fox as an entity | pass |
+
+Not covered, and why:
+* The stock (vanilla protocol) client: no `vscreen` / Linux natives / imported game jars on Windows. Only the unit test `only_a_placed_horizon_client_reads_mob_sync` covers "no payload to a stock client".
+* A pounce at the guest's player, one server hit, the client `hit` event in the same tick: the fixture's `pounce` is a `script` goal (a WASM guest) and no guest mod ships with the fixture, and
+  nothing in the game polls the store's events (`poll_events` has no caller before the F4M-6 renderer), so neither the trigger nor the client's `hit` can be provoked or seen in a running game.
+  `triggers=0` above for that reason. Covered by the in-process tests (`anim_sync` and `mobs::custom::remote`: keyframe lands the blow with a delay, the client `hit` in the server's tick).
+* The run used dev-profile binaries (`target/debug`), not the `fast` profile.

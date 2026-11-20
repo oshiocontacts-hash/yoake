@@ -881,6 +881,20 @@ fn rebuild_path_with_prefix(
 impl VisitMut for BridgeTypeRewriter<'_> {
     fn visit_type_path_mut(&mut self, tp: &mut syn::TypePath) {
         visit_mut::visit_type_path_mut(self, tp);
+        self.rewrite_path(tp);
+    }
+
+    // W9b: `&mut dyn super::a::Trait` and `impl a::Trait`: the trait path of a bound is rewritten like a type path
+    fn visit_trait_bound_mut(&mut self, bound: &mut syn::TraitBound) {
+        visit_mut::visit_trait_bound_mut(self, bound);
+        let mut tp = syn::TypePath { qself: None, path: bound.path.clone() };
+        self.rewrite_path(&mut tp);
+        bound.path = tp.path;
+    }
+}
+
+impl BridgeTypeRewriter<'_> {
+    fn rewrite_path(&mut self, tp: &mut syn::TypePath) {
         if tp.qself.is_some() || tp.path.leading_colon.is_some() {
             return;
         }

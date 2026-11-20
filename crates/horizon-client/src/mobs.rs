@@ -2737,6 +2737,9 @@ pub struct MobWorld<'a> {
     /// What a level past the vanilla three takes from its dimension type;
     /// `None` for the vanilla three, which `nether` and `end` describe.
     pub custom: Option<CustomLevel>,
+    /// The level's id (`mypack:moon`) for a level past the vanilla three, else empty: what a custom
+    /// mob's spawn rule `dimensions` list is matched against.
+    pub level_id: &'static str,
     pub block_tags: &'a HashMap<String, std::collections::HashSet<String>>,
     /// Each block's `fallOn` rule (the player's landing registry).
     pub landing: &'a horizon_world::block_landing::BlockLandingRegistry,
@@ -5439,6 +5442,7 @@ pub mod mob_hook_bench {
                 thundering: false,
                 nether: false,
                 custom: None,
+                level_id: "",
                 block_tags: &self.block_tags,
                 landing: &self.landing,
                 biomes: &self.biomes,

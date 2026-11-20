@@ -6,7 +6,7 @@
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]
-    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, RefFieldTable, Status};
+    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, PathRootRef, RefFieldTable, Status};
     use yoake_slice::codec::{self, CallError, Decode, Decoder, Encode};
 
     fn enc_crate__game__execution_role__ExecutionRole(v: &crate::game::execution_role::ExecutionRole, out: &mut Vec<u8>) {
@@ -176,32 +176,32 @@ pub mod yoake_glue {
     }
 
     /// `entity_query::<NativeEntityInfo as Clone>::clone`
-    fn call_406(recv: &mut crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_406(recv: &crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::game::native_entity_query::NativeEntityInfo as core::clone::Clone>::clone(&*recv);
+        let r = <crate::game::native_entity_query::NativeEntityInfo as core::clone::Clone>::clone(recv);
         enc_crate__game__native_entity_query__NativeEntityInfo(&r, out);
         Ok(())
     }
 
     /// `entity_query::<NativeEntityInfo as PartialEq>::eq`
-    fn call_407(recv: &mut crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_407(recv: &crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__game__native_entity_query__NativeEntityInfo(d)?;
         d.finish()?;
-        let r = <crate::game::native_entity_query::NativeEntityInfo as core::cmp::PartialEq>::eq(&*recv, &a0);
+        let r = <crate::game::native_entity_query::NativeEntityInfo as core::cmp::PartialEq>::eq(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entity_query::<QueryUsage as Clone>::clone`
-    fn call_408(recv: &mut crate::game::native_entity_query::QueryUsage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_408(recv: &crate::game::native_entity_query::QueryUsage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::game::native_entity_query::QueryUsage as core::clone::Clone>::clone(&*recv);
+        let r = <crate::game::native_entity_query::QueryUsage as core::clone::Clone>::clone(recv);
         enc_crate__game__native_entity_query__QueryUsage(&r, out);
         Ok(())
     }
@@ -217,22 +217,22 @@ pub mod yoake_glue {
     }
 
     /// `entity_query::<QueryUsage as PartialEq>::eq`
-    fn call_410(recv: &mut crate::game::native_entity_query::QueryUsage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_410(recv: &crate::game::native_entity_query::QueryUsage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__game__native_entity_query__QueryUsage(d)?;
         d.finish()?;
-        let r = <crate::game::native_entity_query::QueryUsage as core::cmp::PartialEq>::eq(&*recv, &a0);
+        let r = <crate::game::native_entity_query::QueryUsage as core::cmp::PartialEq>::eq(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entity_query::<Sphere as Clone>::clone`
-    fn call_411(recv: &mut crate::game::native_entity_query::Sphere, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_411(recv: &crate::game::native_entity_query::Sphere, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::game::native_entity_query::Sphere as core::clone::Clone>::clone(&*recv);
+        let r = <crate::game::native_entity_query::Sphere as core::clone::Clone>::clone(recv);
         enc_crate__game__native_entity_query__Sphere(&r, out);
         Ok(())
     }
@@ -275,7 +275,7 @@ pub mod yoake_glue {
     }
 
     /// `entity_query::NativeEntityInfo.alive#get`
-    fn call_413(recv: &mut crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_413(recv: &crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.alive, out);
         Ok(())
@@ -285,7 +285,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entity_query::NativeEntityInfo.bounding_box#get`
-    fn call_415(recv: &mut crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_415(recv: &crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.bounding_box).iter() {
             for e1 in (e0).iter() {
@@ -299,7 +299,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entity_query::NativeEntityInfo.dimension#get`
-    fn call_417(recv: &mut crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_417(recv: &crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.dimension, out);
         Ok(())
@@ -309,7 +309,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entity_query::NativeEntityInfo.id#get`
-    fn call_419(recv: &mut crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_419(recv: &crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.id, out);
         Ok(())
@@ -319,7 +319,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entity_query::NativeEntityInfo.kind#get`
-    fn call_421(recv: &mut crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_421(recv: &crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.kind, out);
         Ok(())
@@ -329,7 +329,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entity_query::NativeEntityInfo.player_uuid#get`
-    fn call_423(recv: &mut crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_423(recv: &crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.player_uuid {
             None => out.push(0),
@@ -345,7 +345,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entity_query::NativeEntityInfo.position#get`
-    fn call_425(recv: &mut crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_425(recv: &crate::game::native_entity_query::NativeEntityInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.position).iter() {
             Encode::encode(e0, out);
@@ -357,7 +357,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entity_query::QueryBudgets.mods#get`
-    fn call_427(recv: &mut crate::game::native_entity_query::QueryBudgets, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_427(recv: &crate::game::native_entity_query::QueryBudgets, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.mods;
@@ -373,7 +373,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entity_query::QueryUsage.candidates#get`
-    fn call_429(recv: &mut crate::game::native_entity_query::QueryUsage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_429(recv: &crate::game::native_entity_query::QueryUsage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.candidates, out);
         Ok(())
@@ -383,7 +383,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entity_query::QueryUsage.mod_index#get`
-    fn call_431(recv: &mut crate::game::native_entity_query::QueryUsage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_431(recv: &crate::game::native_entity_query::QueryUsage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.mod_index, out);
         Ok(())
@@ -393,7 +393,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entity_query::QueryUsage.queries#get`
-    fn call_433(recv: &mut crate::game::native_entity_query::QueryUsage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_433(recv: &crate::game::native_entity_query::QueryUsage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.queries, out);
         Ok(())
@@ -403,7 +403,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entity_query::QueryUsage.results#get`
-    fn call_435(recv: &mut crate::game::native_entity_query::QueryUsage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_435(recv: &crate::game::native_entity_query::QueryUsage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.results, out);
         Ok(())
@@ -413,7 +413,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entity_query::Sphere.center#get`
-    fn call_437(recv: &mut crate::game::native_entity_query::Sphere, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_437(recv: &crate::game::native_entity_query::Sphere, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.center).iter() {
             Encode::encode(e0, out);
@@ -425,7 +425,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entity_query::Sphere.radius#get`
-    fn call_439(recv: &mut crate::game::native_entity_query::Sphere, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_439(recv: &crate::game::native_entity_query::Sphere, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.radius, out);
         Ok(())
@@ -705,39 +705,39 @@ pub mod yoake_glue {
     pub fn call(handle: u64, id: u32, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let start = out.len();
         let result = match id {
-            406 => activation::with_arg::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_406(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            407 => activation::with_arg::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_407(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            408 => activation::with_arg::<crate::game::native_entity_query::QueryUsage, _>(handle, |recv| call_408(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            406 => activation::with_arg_shared::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_406(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            407 => activation::with_arg_shared::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_407(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            408 => activation::with_arg_shared::<crate::game::native_entity_query::QueryUsage, _>(handle, |recv| call_408(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             409 => call_409(args, out),
-            410 => activation::with_arg::<crate::game::native_entity_query::QueryUsage, _>(handle, |recv| call_410(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            411 => activation::with_arg::<crate::game::native_entity_query::Sphere, _>(handle, |recv| call_411(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            413 => activation::with_arg::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_413(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            410 => activation::with_arg_shared::<crate::game::native_entity_query::QueryUsage, _>(handle, |recv| call_410(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            411 => activation::with_arg_shared::<crate::game::native_entity_query::Sphere, _>(handle, |recv| call_411(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            413 => activation::with_arg_shared::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_413(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             414 => Err(CallError::ReadOnly(id)),
-            415 => activation::with_arg::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_415(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            415 => activation::with_arg_shared::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_415(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             416 => Err(CallError::ReadOnly(id)),
-            417 => activation::with_arg::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_417(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            417 => activation::with_arg_shared::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_417(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             418 => Err(CallError::ReadOnly(id)),
-            419 => activation::with_arg::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_419(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            419 => activation::with_arg_shared::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_419(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             420 => Err(CallError::ReadOnly(id)),
-            421 => activation::with_arg::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_421(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            421 => activation::with_arg_shared::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_421(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             422 => Err(CallError::ReadOnly(id)),
-            423 => activation::with_arg::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_423(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            423 => activation::with_arg_shared::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_423(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             424 => Err(CallError::ReadOnly(id)),
-            425 => activation::with_arg::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_425(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            425 => activation::with_arg_shared::<crate::game::native_entity_query::NativeEntityInfo, _>(handle, |recv| call_425(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             426 => Err(CallError::ReadOnly(id)),
-            427 => activation::with_arg::<crate::game::native_entity_query::QueryBudgets, _>(handle, |recv| call_427(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            427 => activation::with_arg_shared::<crate::game::native_entity_query::QueryBudgets, _>(handle, |recv| call_427(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             428 => Err(CallError::ReadOnly(id)),
-            429 => activation::with_arg::<crate::game::native_entity_query::QueryUsage, _>(handle, |recv| call_429(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            429 => activation::with_arg_shared::<crate::game::native_entity_query::QueryUsage, _>(handle, |recv| call_429(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             430 => Err(CallError::ReadOnly(id)),
-            431 => activation::with_arg::<crate::game::native_entity_query::QueryUsage, _>(handle, |recv| call_431(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            431 => activation::with_arg_shared::<crate::game::native_entity_query::QueryUsage, _>(handle, |recv| call_431(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             432 => Err(CallError::ReadOnly(id)),
-            433 => activation::with_arg::<crate::game::native_entity_query::QueryUsage, _>(handle, |recv| call_433(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            433 => activation::with_arg_shared::<crate::game::native_entity_query::QueryUsage, _>(handle, |recv| call_433(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             434 => Err(CallError::ReadOnly(id)),
-            435 => activation::with_arg::<crate::game::native_entity_query::QueryUsage, _>(handle, |recv| call_435(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            435 => activation::with_arg_shared::<crate::game::native_entity_query::QueryUsage, _>(handle, |recv| call_435(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             436 => Err(CallError::ReadOnly(id)),
-            437 => activation::with_arg::<crate::game::native_entity_query::Sphere, _>(handle, |recv| call_437(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            437 => activation::with_arg_shared::<crate::game::native_entity_query::Sphere, _>(handle, |recv| call_437(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             438 => Err(CallError::ReadOnly(id)),
-            439 => activation::with_arg::<crate::game::native_entity_query::Sphere, _>(handle, |recv| call_439(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            439 => activation::with_arg_shared::<crate::game::native_entity_query::Sphere, _>(handle, |recv| call_439(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             440 => Err(CallError::ReadOnly(id)),
             441 => call_441(args, out),
             442 => call_442(args, out),

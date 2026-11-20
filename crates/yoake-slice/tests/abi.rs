@@ -27,7 +27,7 @@ fn assert_binary_and_wat_error(wat: &str, message: &str) {
 
 #[test]
 fn reads_versions_from_binary_and_wat_modules() {
-    assert_eq!(ABI_VERSION, version(1, 0));
+    assert_eq!(ABI_VERSION, version(1, 1));
     for guest in [version(1, 0), version(1, 5), version(2, 0), version(0, 9)] {
         let wat = format!("(module {})", custom_section(guest));
         assert_binary_and_wat(&wat, Some(guest));
@@ -66,7 +66,8 @@ fn other_custom_sections_may_precede_and_follow_the_abi_section() {
 
 #[test]
 fn compatibility_checks_follow_major_and_minor_rules() {
-    assert_eq!(check_abi(version(1, 0)), AbiCheck::Ok);
+    assert_eq!(check_abi(ABI_VERSION), AbiCheck::Ok);
+    assert_eq!(check_abi(version(1, 0)), AbiCheck::OkOlderMinor);
     assert_eq!(check_abi(version(1, 5)), AbiCheck::OkNewerMinor);
     for guest in [version(2, 0), version(0, 9)] {
         let AbiCheck::Refuse(reason) = check_abi(guest) else {

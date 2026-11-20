@@ -356,8 +356,8 @@ pub fn plan_trait_impl_conversions(
         for arg in &method.sig.inputs {
             match arg {
                 FnArg::Receiver(_) => has_receiver = true,
-                FnArg::Typed(pt) => {
-                    if let Pat::Ident(pat) = &*pt.pat {
+                FnArg::Typed(pt) => match &*pt.pat {
+                    Pat::Ident(pat) if pat.by_ref.is_none() && pat.subpat.is_none() => {
                         if let Some(mut_tok) = pat.mutability {
                             let mut_start = idx.span_range(source, mut_tok.span()).0;
                             let ident_start = idx.span_range(source, pat.ident.span()).0;
@@ -369,7 +369,15 @@ pub fn plan_trait_impl_conversions(
                         }
                         arg_names.push(pat.ident.to_string());
                     }
-                }
+                    other => {
+                        // F1 W4: a destructuring, `_`, `ref` or `@` pattern: the wrapper names the argument and
+                        // forwards it; the helper keeps the pattern (it is a copy of the original signature).
+                        let name = format!("__yoake_a{}", arg_names.len());
+                        let (pat_start, pat_end) = idx.span_range(source, other.span());
+                        edits.push(TextEdit { start: pat_start, end: pat_end, replacement: name.clone() });
+                        arg_names.push(name);
+                    }
+                },
             }
         }
 

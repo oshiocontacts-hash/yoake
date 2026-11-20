@@ -505,6 +505,7 @@ pub(crate) fn with_resource_test_world(
         thundering: false,
         nether: false,
         custom: None,
+        level_id: "",
         block_tags: &items.block_tags,
         landing: &motion.landing,
         biomes: &biomes,

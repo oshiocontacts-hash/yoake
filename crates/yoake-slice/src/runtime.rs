@@ -59,7 +59,7 @@ pub struct AbiVersion {
 }
 
 /// The ABI implemented by this engine.
-pub const ABI_VERSION: AbiVersion = AbiVersion { major: 1, minor: 0 };
+pub const ABI_VERSION: AbiVersion = AbiVersion { major: 1, minor: 1 };
 
 /// An invalid WASM module or malformed `yoake_abi` custom section.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -932,6 +932,34 @@ fn build_linker(engine: &Engine) -> R<Linker<Host>> {
             Ok(()) => status_code(Status::Ok),
             Err(status) => status_code(status),
         })?;
+    // W8 (ABI 1.1): by-value arguments, and swapping or replacing object arguments.
+    engine_import!(linker, "arg_get", |handle: i64, out: i32| -> R<i32>,
+        engine: activation::arg_value(handle as u64),
+        finish: |c, result| match result {
+            Ok(value) => {
+                write_i64(c, out, value)?;
+                Ok(status_code(Status::Ok))
+            }
+            Err(status) => Ok(status_code(status)),
+        })?;
+    engine_import!(linker, "arg_set", |handle: i64, bits: i64| -> i32,
+        engine: activation::set_arg_value(handle as u64, bits),
+        finish: |_c, result| match result {
+            Ok(()) => status_code(Status::Ok),
+            Err(status) => status_code(status),
+        })?;
+    engine_import!(linker, "arg_swap", |a: i64, b: i64| -> i32,
+        engine: activation::swap_args(a as u64, b as u64),
+        finish: |_c, result| match result {
+            Ok(()) => status_code(Status::Ok),
+            Err(status) => status_code(status),
+        })?;
+    engine_import!(linker, "arg_replace", |dst: i64, src: i64| -> i32,
+        engine: activation::replace_arg(dst as u64, src as u64),
+        finish: |_c, result| match result {
+            Ok(()) => status_code(Status::Ok),
+            Err(status) => status_code(status),
+        })?;
     engine_import!(linker, "original", |handle: i64, out: i32| -> R<i32>,
         engine: activation::run_original(handle as u64),
         finish: |c, result| match result {
@@ -1222,6 +1250,38 @@ fn chain_step2<A: 'static, B: 'static>(
         Outcome::Fallthrough => next(a, b),
         Outcome::Trapped(done) => {
             if done.original_calls == 0 { next(a, b) } else { done.last_result }
+        }
+    }
+}
+
+/// W8: [`dispatch_id`] for a hooked fn with any arguments (an [`activation::ArgSet`]): the guest reads and replaces
+/// each argument, and `original` (and the next mod of the chain) receives the arguments as it left them. With no
+/// mod registered for `hook_id`, or an unusable set (more than [`activation::MAX_ARGS`] arguments), `orig` runs
+/// on the set as given.
+pub fn dispatch_n_id(hook_id: u32, set: activation::ArgSet<'_>, orig: &mut dyn FnMut(&activation::ArgView<'_>) -> i64) -> i64 {
+    let Some(chain) = chain_for(hook_id).filter(|c| !c.is_empty()) else { return orig(&activation::view_of(&set)) };
+    chain_step_n(&chain, 0, hook_id, set, orig)
+}
+
+fn chain_step_n(chain: &[Rc<ModSlot>], from: usize, hook_id: u32, set: activation::ArgSet<'_>, orig: &mut dyn FnMut(&activation::ArgView<'_>) -> i64) -> i64 {
+    let Some(i) = next_live(chain, from) else { return orig(&activation::view_of(&set)) };
+    let mut next = |view: &activation::ArgView<'_>| chain_step_n(chain, i + 1, hook_id, view.to_set(), &mut *orig);
+    let mut refused = false;
+    let outcome = dispatch_with(&chain[i], hook_id, |body| match activation::scope_n(set.dup(), &mut next, |h| body(h)) {
+        Ok(done) => done,
+        Err(_) => {
+            refused = true;
+            (Ok(0), activation::Finished { original_calls: 0, last_result: 0 })
+        }
+    });
+    if refused {
+        return next(&activation::view_of(&set));
+    }
+    match outcome {
+        Outcome::Value(value) => value,
+        Outcome::Fallthrough => next(&activation::view_of(&set)),
+        Outcome::Trapped(done) => {
+            if done.original_calls == 0 { next(&activation::view_of(&set)) } else { done.last_result }
         }
     }
 }

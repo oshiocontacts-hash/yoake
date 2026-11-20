@@ -216,6 +216,7 @@ mod tests {
             thundering: false,
             nether: false,
             custom: None,
+            level_id: "",
             block_tags: &items.block_tags,
             landing: &motion.landing,
             biomes: &biomes,

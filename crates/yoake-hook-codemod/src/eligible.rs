@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use proc_macro2::TokenTree;
 use syn::visit::{self, Visit};
 use syn::{
-    Attribute, Block, Expr, ExprMacro, ExprMethodCall, FnArg, Generics, ImplItem, ItemImpl,
-    Lifetime, Pat, Path, Signature, StmtMacro, Type,
+    Attribute, Block, ExprMacro, ExprMethodCall, FnArg, Generics, ImplItem, ItemImpl,
+    Lifetime, Path, Signature, StmtMacro, Type,
 };
 
 pub fn check_fn(attrs: &[Attribute], sig: &Signature) -> Result<(), &'static str> {
@@ -69,12 +69,11 @@ pub fn check_fn(attrs: &[Attribute], sig: &Signature) -> Result<(), &'static str
                 }
             }
             FnArg::Typed(pat_type) => {
-                let Pat::Ident(pattern) = &*pat_type.pat else {
-                    return Err("destructuring argument");
-                };
-                if pattern.by_ref.is_some() || pattern.subpat.is_some() {
-                    return Err("ref or @ argument pattern");
+                // F1 W2: `fn f(a: A, #[cfg(feature = "x")] b: B)`: the generated shim would drop the cfg.
+                if !pat_type.attrs.is_empty() {
+                    return Err("attribute on parameter");
                 }
+                // F1 W4: destructuring, `_`, `ref` and `@` patterns are fine (the macro names them).
                 let mut input_check = Unsupported::default();
                 input_check.visit_type(&pat_type.ty);
                 if input_check.impl_trait {
@@ -184,8 +183,10 @@ pub fn check_trait_method_movable(
         trait_in_scope: meta.trait_in_scope,
         uses_trait_self_item: false,
         calls_unimported_trait_method: false,
+        in_sig: true,
     };
     scanner.visit_signature(sig);
+    scanner.in_sig = false;
     scanner.visit_block(block);
 
     if scanner.uses_trait_self_item {
@@ -288,10 +289,26 @@ struct TraitDependencyScan<'a> {
     trait_in_scope: bool,
     uses_trait_self_item: bool,
     calls_unimported_trait_method: bool,
+    in_sig: bool,
 }
 
 impl<'ast> TraitDependencyScan<'ast> {
     fn check_path(&mut self, path: &Path) {
+        // F1 spike: `Self::Item` of a supertrait (DoubleEndedIterator) is not an item of this impl, and
+        // `Type::trait_method(..)` needs the trait in scope outside the impl.
+        if self.in_sig
+            && path.segments.len() >= 2
+            && path.segments[0].ident == "Self"
+            && path.segments[1].ident.to_string().chars().next().is_some_and(char::is_uppercase)
+        {
+            self.uses_trait_self_item = true;
+        }
+        if !self.trait_in_scope
+            && path.segments.len() >= 2
+            && self.trait_methods.contains(&path.segments.last().unwrap().ident.to_string())
+        {
+            self.calls_unimported_trait_method = true;
+        }
         if path.segments.len() >= 2 && path.segments[0].ident == "Self" {
             let member = path.segments[1].ident.to_string();
             if self.trait_self_items.contains(&member) {
@@ -330,9 +347,8 @@ impl<'ast> Visit<'ast> for TraitDependencyScan<'ast> {
     }
 
     fn visit_expr_method_call(&mut self, node: &'ast ExprMethodCall) {
-        if !self.trait_in_scope
-            && matches!(&*node.receiver, Expr::Path(p) if p.path.is_ident("self"))
-            && self.trait_methods.contains(&node.method.to_string())
+        // F1 spike: any receiver (`e.fmt(f)` inside `impl Display`), not only `self`.
+        if !self.trait_in_scope && self.trait_methods.contains(&node.method.to_string())
         {
             self.calls_unimported_trait_method = true;
         }
@@ -355,6 +371,14 @@ mod inject_tests {
     use super::check_fn;
 
     #[test]
+    fn a_parameter_with_an_attribute_is_not_hooked() {
+        let f: syn::ItemFn = syn::parse_quote! {
+            pub fn send(a: u32, #[cfg(feature = "capture")] fences: &Fences) {}
+        };
+        assert_eq!(check_fn(&f.attrs, &f.sig), Err("attribute on parameter"));
+    }
+
+    #[test]
     fn a_function_wrapped_by_yoake_inject_is_not_hooked() {
         let f: syn::ItemFn = syn::parse_quote! {
             #[yoake_inject_macro::yoake_inject(id = "motion::set_sprinting", side = "both")]
@@ -363,5 +387,47 @@ mod inject_tests {
         assert_eq!(check_fn(&f.attrs, &f.sig), Err("wrapped by yoake_inject"));
         let g: syn::ItemFn = syn::parse_quote! { pub fn plain(&mut self, sprinting: bool) {} };
         assert_eq!(check_fn(&g.attrs, &g.sig), Ok(()));
+    }
+}
+
+#[cfg(test)]
+mod f1_trait_move_tests {
+    use super::*;
+
+    fn meta(trait_in_scope: bool, impl_src: &str) -> (TraitImplMeta, ItemImpl) {
+        let item: ItemImpl = syn::parse_str(impl_src).unwrap();
+        (TraitImplMeta::from_impl(&item, trait_in_scope), item)
+    }
+
+    fn movable(trait_in_scope: bool, impl_src: &str) -> Result<(), &'static str> {
+        let (m, item) = meta(trait_in_scope, impl_src);
+        let ImplItem::Fn(f) = &item.items[0] else { panic!("first item must be a fn") };
+        check_trait_method_movable(&m, &f.sig, &f.block)
+    }
+
+    #[test]
+    fn a_call_of_a_trait_method_on_another_receiver_needs_the_trait_in_scope() {
+        // `impl Display { fn fmt(..) { e.fmt(f) } }` compiles only inside the impl.
+        let src = "impl std::fmt::Display for E { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { self.0.fmt(f) } }";
+        assert_eq!(movable(false, src), Err("calls trait method without trait in scope"));
+        assert_eq!(movable(true, src), Ok(()));
+    }
+
+    #[test]
+    fn a_path_call_of_a_trait_method_needs_the_trait_in_scope() {
+        let src = "impl FromInjectValue for B { fn from_inject_value(v: Value) -> Option<Self> { u16::from_inject_value(v).map(Self) } }";
+        assert_eq!(movable(false, src), Err("calls trait method without trait in scope"));
+    }
+
+    #[test]
+    fn an_associated_type_of_a_supertrait_in_the_signature_is_refused() {
+        let src = "impl DoubleEndedIterator for It { fn next_back(&mut self) -> Option<Self::Item> { None } }";
+        assert_eq!(movable(true, src), Err("uses trait Self:: item"));
+    }
+
+    #[test]
+    fn enum_variants_through_self_in_the_body_do_not_block_the_move() {
+        let src = "impl Tr for E { fn name(&self) -> u8 { match self { Self::A => 1, Self::B(_) => 2 } } }";
+        assert_eq!(movable(true, src), Ok(()));
     }
 }

@@ -146,6 +146,42 @@ pub fn original(handle: Handle) -> Result<i64, Error> {
     if status == 0 { Ok(i64::from_le_bytes(out)) } else { Err(Error::Handle(status)) }
 }
 
+impl Handle {
+    /// The handle of argument `index` of the same activation (argument 0 is the handle `yoake_hook` receives).
+    pub fn arg(self, index: u8) -> Handle {
+        Handle((self.0 & !0xff) | u64::from(index))
+    }
+}
+
+/// W8 (ABI 1.1): the bits of a by-value argument (`bridge::encode`-style: integers sign-extended, floats as bits).
+pub fn arg_value(handle: Handle) -> Result<i64, Error> {
+    let mut out = [0u8; 8];
+    // SAFETY: `out` is 8 live bytes.
+    let status = unsafe { sys::arg_get(handle.0 as i64, out.as_mut_ptr() as i32) };
+    if status == 0 { Ok(i64::from_le_bytes(out)) } else { Err(Error::Handle(status)) }
+}
+
+/// W8: replaces a by-value argument; the next `original` receives `bits`.
+pub fn set_arg_value(handle: Handle, bits: i64) -> Result<(), Error> {
+    // SAFETY: plain integers.
+    let status = unsafe { sys::arg_set(handle.0 as i64, bits) };
+    if status == 0 { Ok(()) } else { Err(Error::Handle(status)) }
+}
+
+/// W8: exchanges two object arguments of the same type (never creates aliasing).
+pub fn swap_args(a: Handle, b: Handle) -> Result<(), Error> {
+    // SAFETY: plain integers.
+    let status = unsafe { sys::arg_swap(a.0 as i64, b.0 as i64) };
+    if status == 0 { Ok(()) } else { Err(Error::Handle(status)) }
+}
+
+/// W8: makes shared argument `dst` refer to the object of shared argument `src` (same type).
+pub fn replace_arg(dst: Handle, src: Handle) -> Result<(), Error> {
+    // SAFETY: plain integers.
+    let status = unsafe { sys::arg_replace(dst.0 as i64, src.0 as i64) };
+    if status == 0 { Ok(()) } else { Err(Error::Handle(status)) }
+}
+
 /// A scalar field of a hook argument by the generator's field index, as `i64` bits.
 pub fn get(handle: Handle, field: u32) -> Result<i64, Error> {
     let mut out = [0u8; 8];
