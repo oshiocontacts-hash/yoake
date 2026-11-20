@@ -84,7 +84,7 @@ fn vanilla_sound(slot: &str, id: &str) -> &'static str {
 }
 
 /// Event names are `&'static str` in the mob types: each distinct name is kept once.
-fn intern(name: &str) -> &'static str {
+pub(super) fn intern(name: &str) -> &'static str {
     static POOL: Mutex<Option<HashSet<&'static str>>> = Mutex::new(None);
     let mut pool = POOL.lock().unwrap_or_else(|e| e.into_inner());
     let pool = pool.get_or_insert_with(HashSet::new);

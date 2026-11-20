@@ -47,16 +47,14 @@ fn every_schema_goal_type_has_a_status() {
             }
         }
     }
-    assert_eq!(running, 31);
+    assert_eq!(running, 33);
     deferred.sort();
     assert_eq!(
         deferred,
         [
             "breed",
-            "eat_block",
             "follow_owner",
             "follow_parent",
-            "open_door",
             "owner_hurt_by",
             "owner_hurt_target",
             "owner_target",
@@ -1137,4 +1135,150 @@ fn custom_types_in_an_avoid_list_are_matched_by_id() {
         select(&mut m, &w, &mut ctx);
         assert!(!m.ai.goals.is_running("AvoidEntity"), "a cow is not a demo:thing");
     }
+}
+
+// ---- open_door and eat_block ---------------------------------------------------------------
+
+/// A "door" of the tag `demo:doors` (stone, the test world's one block) at head height on the
+/// path of a mob at `x = 2.5` heading east, and a world that lists it.
+fn door_world() -> crate::mobs::mob_hook_bench::BenchWorld {
+    let mut fx = flat();
+    fx.set_stone(3, 2, 0);
+    fx.set_tag("demo:doors", &["minecraft:stone"]);
+    fx
+}
+
+fn bumping_mob(_w: &crate::mobs::MobWorld, row: &str) -> crate::mobs::Mob {
+    let mut m = mob(&ai(row), at(2.5, 0.5));
+    m.horizontal_collision = true;
+    // A path through the door block (a real search would walk round a solid block).
+    let node = |x| crate::mobs::path::PathNode {
+        x,
+        y: 1,
+        z: 0,
+        kind: crate::mobs::path::PathType::Walkable,
+    };
+    m.ai.nav.path = Some(crate::mobs::path::Path {
+        nodes: vec![node(2), node(3), node(4)],
+        next: 0,
+        target: [4, 1, 0],
+        dist_to_target: 0.0,
+        reached: true,
+    });
+    m
+}
+
+#[test]
+fn open_door_opens_a_door_of_its_tag_on_the_path_and_closes_it_after() {
+    use crate::mobs::doors::OpenTaggedDoor;
+    let fx = door_world();
+    let w = fx.world();
+    let mut ctx = Ctx::new();
+    let row = r#"{"type":"open_door","priority":3,"door_tag":"demo:doors"}"#;
+    let mut m = bumping_mob(&w, row);
+    assert!(m.ai.goals.has("OpenTaggedDoor"));
+    assert!(m.ai.nav.can_open_doors, "its navigation goes through doors");
+    let mut g = OpenTaggedDoor::new("demo:doors".into());
+    {
+        let mut cx = ctx.cx(&w);
+        assert!(g.can_use(&mut m, &mut cx), "a door at head height on its path");
+        g.start(&mut m, &mut cx);
+        assert!(g.can_continue(&mut m, &mut cx), "near the door");
+        g.stop(&mut m, &mut cx);
+    }
+    let doors: Vec<([i32; 3], bool)> = ctx
+        .events
+        .iter()
+        .filter_map(|e| match e {
+            MobEvent::SetDoorOpen { pos, open } => Some((*pos, *open)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(doors, [([3, 2, 0], true), ([3, 2, 0], false)]);
+    // A door of another tag is nothing to it.
+    let mut other = OpenTaggedDoor::new("demo:gates".into());
+    let mut cx = ctx.cx(&w);
+    assert!(!other.can_use(&mut m, &mut cx));
+}
+
+#[test]
+fn open_door_with_break_breaks_the_door_after_240_ticks_and_only_when_griefing() {
+    use crate::mobs::doors::BreakDoor;
+    let fx = door_world();
+    let mut w = fx.world();
+    let mut ctx = Ctx::new();
+    let row = r#"{"type":"open_door","priority":3,"door_tag":"demo:doors","break":true}"#;
+    let mut m = bumping_mob(&w, row);
+    assert!(m.ai.goals.has("BreakDoor") && !m.ai.goals.has("OpenTaggedDoor"));
+    let mut g = BreakDoor::tagged("demo:doors".into());
+    {
+        let mut cx = ctx.cx(&w);
+        assert!(g.can_use(&mut m, &mut cx), "no difficulty needed");
+        g.start(&mut m, &mut cx);
+        for _ in 0..240 {
+            assert!(g.can_continue(&mut m, &mut cx));
+            g.tick(&mut m, &mut cx);
+        }
+    }
+    assert_eq!(count(&ctx.events, |e| matches!(e, MobEvent::BreakDoor { pos: [3, 2, 0], .. })), 1);
+    w.mob_griefing = false;
+    let mut cx = ctx.cx(&w);
+    assert!(!BreakDoor::tagged("demo:doors".into()).can_use(&mut m, &mut cx), "no griefing");
+    // Without `break` it is the opening goal: the default is off.
+    let plain = mob(&ai(r#"{"type":"open_door"}"#), at(0.5, 0.5));
+    assert!(plain.ai.goals.has("OpenTaggedDoor") && !plain.ai.goals.has("BreakDoor"));
+}
+
+fn eaten(events: &[MobEvent]) -> Vec<(&'static str, [i32; 3])> {
+    events
+        .iter()
+        .filter_map(|e| match e {
+            MobEvent::SetBlockName { name, pos, .. } => Some((*name, *pos)),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn eat_block_replaces_the_block_heals_raises_its_event_and_waits_for_its_cooldown() {
+    let fx = flat();
+    let w = fx.world();
+    let mut ctx = Ctx::new();
+    let row = r#"{"type":"eat_block","priority":4,"interval":1,"cooldown":100,"duration":20,
+        "blocks":{"minecraft:stone":"minecraft:dirt"},"effect":{"heal":4,"event":"ate"}}"#;
+    let mut m = mob(&ai(row), at(0.5, 0.5));
+    m.health = 10.0;
+    run(&mut m, &w, &mut ctx, 60);
+    assert_eq!(eaten(&ctx.events), [("minecraft:dirt", [0, 0, 0])], "one meal, the block below");
+    assert_eq!(m.health, 14.0);
+    assert_eq!(super::blocks::take_events(&mut m), ["ate"]);
+    assert!(super::blocks::take_events(&mut m).is_empty(), "taken once");
+    run(&mut m, &w, &mut ctx, 250);
+    assert!(eaten(&ctx.events).len() >= 2, "it eats again after the cooldown");
+    assert!(eaten(&ctx.events).len() <= 4, "not more often than the cooldown allows");
+}
+
+#[test]
+fn eat_block_changes_nothing_without_griefing_but_still_has_its_effect() {
+    let fx = flat();
+    let mut w = fx.world();
+    w.mob_griefing = false;
+    let mut ctx = Ctx::new();
+    // A list of blocks leaves air; a bare effect string is the event name.
+    let row = r#"{"type":"eat_block","priority":4,"interval":1,"duration":10,
+        "blocks":["minecraft:stone"],"effect":"burp"}"#;
+    let mut m = mob(&ai(row), at(0.5, 0.5));
+    run(&mut m, &w, &mut ctx, 40);
+    assert_eq!(count(&ctx.events, |e| matches!(e, MobEvent::BreakBlock { .. } | MobEvent::SetBlockName { .. })), 0);
+    assert_eq!(super::blocks::take_events(&mut m), ["burp"]);
+    let mut m = mob(&ai(row), at(0.5, 0.5));
+    let mut w = fx.world();
+    w.mob_griefing = true;
+    run(&mut m, &w, &mut ctx, 40);
+    assert!(any(&ctx.events, |e| matches!(e, MobEvent::BreakBlock { pos: [0, 0, 0], drop: false })));
+    // A block it does not list is not eaten: the mob stands on stone, the row names dirt.
+    let mut m = mob(&ai(r#"{"type":"eat_block","interval":1,"blocks":["minecraft:dirt"]}"#), at(0.5, 0.5));
+    let before = ctx.events.len();
+    run(&mut m, &w, &mut ctx, 60);
+    assert_eq!(ctx.events.len(), before);
 }
