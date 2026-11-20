@@ -1,0 +1,19 @@
+format = 1
+id = "level-generator"
+version = "0.1.0"
+name = "Level Generator"
+authors = ["Yoake"]
+description = "Registers the level levelgen:terraces: a dimension type of its own (64 high, a blue sky) and a chunk generator written in WebAssembly."
+
+[yoake]
+version = "*"
+
+[side]
+client = false
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+world = "server-full"
+server = "bin/wasm/level-generator-server.wasm"

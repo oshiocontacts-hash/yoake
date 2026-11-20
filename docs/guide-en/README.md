@@ -83,6 +83,12 @@ Read the chapters in order from top to bottom for a complete walkthrough—from 
 - Sending from screen input hooks, turned textures, reading inventories
 - Client-only sound, setting food, block entity write-back, consuming a key
 
+### 13. [Dimensions, levels and chunk generators (`13-dimensions.md`)](./13-dimensions.md)
+- Adding dimensions with data-pack JSON (`dimension` and `dimension_type`), save folders, and validation errors
+- Generators (`noise`, `flat`, `debug`, `yoake:mod`), biome sources, and per-level seeds
+- Travel (`/execute in`, `/tp`, portal coordinate scale) and the reconnect rule for runtime-created levels
+- WASM mod level registration, runtime lifecycle, and chunk generators (`level-generator` example)
+
 ---
 
 ## Recommended Ways to Read
