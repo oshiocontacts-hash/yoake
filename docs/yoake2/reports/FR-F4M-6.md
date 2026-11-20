@@ -89,16 +89,23 @@ mob's transform). Timeline names are logged at trace level (the `mob-anim-event`
 
 ## Tests
 
-**STATUS: written, NOT BUILT, NOT RUN.** A stale `~/YoakeBuild/.cargo-run.lock` (created 16:09:20, no cargo or rustc process anywhere, the same instant my own
-`timeout`-killed `cargo-locked.sh check` died; `timeout` kills the wrapper before its `trap` can `rmdir` the lock) blocked every build from then on, and the permission
-system refused my `rmdir` of it, so I did not (and could not honestly) run anything. `rustfmt --check` parses both new files without a syntax error; type errors are possible.
-Nothing below has a measured count. Run first:
+**STATUS: built and run** (laptop, no game resources, through `cargo-locked.sh`). The WIP commit `48c2b50f0` itself does not compile (one missing
+`use crate::mesher::Vertex`); the commits after it do. Fixes made on the first real build: that import; test fixtures (the fox's bones are `tail_1`..`tail_3`, not `tail1`;
+the fixture mod's `.bbmodel` is a one-bone stub without a texture, so the bbmodel test serves horizon-mobmodel's full fox bbmodel with its embedded texture; the timeline `hit`
+has no locator, so it is placed at the model origin, the feet; the prune test needed >720 frames; the look-at test uses an inline `look_at head` instead of the mobmodel
+procedural fixture, whose bones belong to another rig).
 
-```
-cd /c/Users/suke0/YoakeBuild/wt-f4m6 && export CARGO_TARGET_DIR=/c/Users/suke0/YoakeBuild/target-merge CARGO_INCREMENTAL=0 YOAKE_VERSION=0.2.0
-~/YoakeBuild/cargo-locked.sh test --offline -j 4 -p horizon-client-lib --lib -- mobs::custom::render_state
-F4M6_PRINT=1 ... -- golden_vertex_hashes   # prints the hashes; paste them into GOLDEN (it is [0; 6] now, the test fails until then)
-```
+**Counts**: `mobs::custom::render_state`: 25 tests (24 + `the_hosts_mirror_hides_owner_values_of_mobs_the_host_does_not_own`), `mobs::custom` + `lan::mob_sync`: 188 passed;
+`mobs::custom::build` gained `vanilla_sound_event_ids_are_the_same_strings_as_before` (the `sound_event` / `vanilla_sound` strings equal the old `format!("minecraft:{name}")`).
+Full runs after the merge (all ok): `horizon-client-lib --lib` 1855 passed / 48 ignored; `horizon-client --lib` 1228 / 50 ignored; `horizon-client-render --lib` 1455 / 40 ignored;
+`horizon-mobmodel` all targets ok; `horizon-mods` 59 ok; `build -p horizon-client --features yoake2-slice` ok.
+
+**Golden vertex hashes**: `GOLDEN` was filled from this code (`F4M6_PRINT=1`), identical over two separate runs, 624 vertices per animation, all six different. They were
+**not** checked against a real render or Blockbench: they only pin the pipeline as it is today.
+
+**Merge of `yoake-free/f4m-4c` (040ce9eb0)**: merged cleanly. The integrated host's `LocalMirror::sync` takes the host player's uuid (`level.player_uuid`) and copies each synced value
+only when `lan::mob_sync::value_visible_to(mob, slot, viewer)` holds, else the slot's default (what a remote client sees; same rule as `host_value`). The scale needs no change: the render
+already reads `mob.model_scale()`, which `custom::attrs` now fills from `effective_scale`.
 
 24 resource-free tests in `render_state.rs` (all on the Cinder Fox fixture, no Minecraft file):
 
@@ -135,7 +142,7 @@ render (Yoake), parity golden C (Yoake). No test of `custom_mob_draw.rs` itself 
 
 ## Open questions
 
-1. **Build state** (above): nothing was compiled or run. The stale cargo lock needs removing by someone allowed to; do not use `timeout` on `cargo-locked.sh`.
+1. **Goldens** are unverified against a real render (Yoake: in-game check 1 and parity golden C).
 2. `tint`: the layer's expression is read as a packed `0xRRGGBB` number. The design only says "tint expression". Alternatives: a 0..1 multiplier or an alpha. Needs a decision.
 3. `lod_min` bones: the design says "bones tagged `lod_min`" and the schema has no tag; I used the name suffix `_lod_min`.
 4. `half_rate` / `quarter_rate` hold the last pose instead of interpolating (see above). Interpolating poses needs one frame of latency.
