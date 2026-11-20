@@ -144,8 +144,15 @@ impl Timing {
                 c.attack.forget_frame(f);
             }
         }
+        // With a server animation that has the frame, the keyframe decides and `damage_delay` is
+        // not the clock any more: the deadline is only the animation's length as a safety net.
+        let delay = match (&self.frame, &m.kind.custom) {
+            (Some(f), Some(t)) => super::super::anim_sync::frame_deadline(t, self.trigger.as_deref(), f)
+                .map_or(i64::from(self.delay), |safety| safety.max(i64::from(self.delay))),
+            _ => i64::from(self.delay),
+        };
         Pending {
-            deadline: now + i64::from(self.delay),
+            deadline: now + delay,
         }
     }
     /// Whether the blow of the attack that began as `p` lands now: the frame arrived, or the

@@ -10,6 +10,7 @@
 //! New code for custom mobs lives under this directory (and `game/custom_mob_*.rs`) so that
 //! parallel work items do not collide in the shared mob files.
 pub mod ai;
+pub mod anim_sync;
 pub mod attrs;
 pub mod build;
 pub mod hitbox;
@@ -51,11 +52,17 @@ pub struct SyncedDef {
     pub values: Vec<String>,
     pub persistent: bool,
     pub sync: Sync,
+    /// Most updates per second the value asks for (1 to 20; 10 when the file says nothing).
+    pub rate: u32,
 }
 
 impl SyncedDef {
     fn new(name: &str, s: &Synced) -> Result<Self, String> {
         let mut def = Self {
+            rate: s
+                .sync_rate
+                .unwrap_or(horizon_protocol::mob_sync::DEFAULT_SYNC_RATE)
+                .clamp(1, horizon_protocol::mob_sync::TICKS_PER_SECOND),
             name: name.to_owned(),
             kind: s.kind.clone(),
             default: SyncedValue::Bool(false),
@@ -175,6 +182,10 @@ pub struct CustomType {
     pub loot_table: String,
     /// The tracked values in slot order (by name).
     pub synced: Vec<SyncedDef>,
+    /// The type's animation runtime (F4M-5b): `None` when it has no model with animations.
+    pub anim: Option<anim_sync::TypeAnim>,
+    /// Identifies the layout of the tracked values and controllers on the wire (`horizon:mob_sync`).
+    pub sync_version: u32,
 }
 
 impl CustomType {
@@ -231,7 +242,8 @@ impl CustomType {
             let (ns, path) = file.id.split_once(':').unwrap_or(("minecraft", &file.id));
             format!("{ns}:entities/{path}")
         });
-        Ok(Self {
+        let anim = model.and_then(anim_sync::TypeAnim::new);
+        let mut me = Self {
             id: file.id.clone(),
             file,
             category,
@@ -242,7 +254,11 @@ impl CustomType {
             despawn,
             loot_table,
             synced,
-        })
+            anim,
+            sync_version: 0,
+        };
+        me.sync_version = anim_sync::type_version(&me);
+        Ok(me)
     }
 
     /// The rule of a type that lists none (or whose entry matches none).
@@ -278,6 +294,12 @@ pub struct CustomState {
     /// Bit `n` is set while tracked value `n` has changed since the sync layer last took the mask
     /// ([`CustomState::take_dirty`]); only a real change sets it (F4M-5b).
     pub synced_dirty: u32,
+    /// The server's animation state of the mob (F4M-5b); made by its first tick.
+    pub anim: Option<Box<anim_sync::MobAnim>>,
+    /// Bit `n` is set while hitbox part `n` is enabled (all of them when the mob is made).
+    pub hitbox_mask: u32,
+    /// `hitbox_mask` changed since the sync layer last took it.
+    pub hitbox_dirty: bool,
 }
 
 /// The places a rest goal remembers (block positions), kept with the mob across saves.
@@ -299,6 +321,12 @@ impl CustomState {
             events: Vec::new(),
             rest: RestMemory::default(),
             synced_dirty: 0,
+            anim: None,
+            hitbox_mask: match t.hitboxes.len() {
+                n if n >= 32 => u32::MAX,
+                n => (1u32 << n) - 1,
+            },
+            hitbox_dirty: false,
         }
     }
     pub fn synced_value(&self, t: &CustomType, name: &str) -> Option<&SyncedValue> {
@@ -329,6 +357,23 @@ impl CustomState {
     /// The slots changed since the last call (bit `n` = slot `n`), and forgets them.
     pub fn take_dirty(&mut self) -> u32 {
         std::mem::take(&mut self.synced_dirty)
+    }
+    /// Turns hitbox part `part` on or off for the clients' crosshair (a part the type does not have
+    /// is refused); a real change is sent with the next delta.
+    pub fn set_hitbox_enabled(&mut self, t: &CustomType, part: usize, on: bool) -> bool {
+        if part >= t.hitboxes.len().min(32) {
+            return false;
+        }
+        let mask = if on {
+            self.hitbox_mask | (1 << part)
+        } else {
+            self.hitbox_mask & !(1 << part)
+        };
+        if mask != self.hitbox_mask {
+            self.hitbox_mask = mask;
+            self.hitbox_dirty = true;
+        }
+        true
     }
 }
 

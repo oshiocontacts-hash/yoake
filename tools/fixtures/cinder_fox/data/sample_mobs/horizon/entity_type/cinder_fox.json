@@ -18,6 +18,7 @@
     "animations": ["sample_mobs:animations/cinder_fox"],
     "controllers": ["sample_mobs:controllers/cinder_fox"],
     "scale": 1.0,
+    "server_events": ["pounce"],
     "shadow": { "radius": 0.4, "strength": 0.8 },
     "cull": { "width": 2.0, "height": 2.0 },
     "layers": [
