@@ -13,10 +13,14 @@ use yoake_hook_ledger::{Kind, LedgerSet};
 
 use crate::attr;
 use crate::edit::LineIndex;
-use crate::types::CrateIndex;
+use crate::types::{CrateIndex, SelfTyStatus};
 use crate::{eligible, key, ledger_io, modules, run};
 
+static NARY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 pub struct BridgeConfig {
+    /// W9: `--nary`: hooks the arg0 forms cannot take get the n-ary form (every argument registered).
+    pub nary: bool,
     pub check: bool,
     pub crate_root: PathBuf,
     pub crate_name: String,
@@ -35,9 +39,11 @@ struct ModuleOutput {
 }
 
 pub fn execute(config: &BridgeConfig) -> Result<bool, String> {
+    NARY.store(config.nary, std::sync::atomic::Ordering::Relaxed);
     let crate_ident = key::normalize_crate_name(&config.crate_name);
-    let targets = config
-        .modules
+    // W9: `--module '*'` is every top-level module of the crate root
+    let module_args = modules::expand_star_modules(&config.crate_root, &config.crate_name, &config.modules, &[])?;
+    let targets = module_args
         .iter()
         .map(|m| modules::normalize_module_arg(m))
         .collect::<Result<Vec<_>, _>>()?;
@@ -748,6 +754,24 @@ enum DispatchTarget {
     FieldTable(String),
     RefFieldTable(String),
     Root,
+    /// W9: every argument registered in an `ArgSet` (`yoake_slice::runtime::dispatch_n_id`).
+    Nary,
+}
+
+/// How one argument of an n-ary bridge reaches the guest and comes back to `original`.
+#[derive(Clone)]
+enum NaryKind {
+    /// `&mut T`, `T` has a field table and no non-static lifetime.
+    Mut(String),
+    /// `&T` with a read-only field table.
+    Ref(String),
+    /// A scalar by value (`bool`, integers, `f32`, `f64`); the guest reads and replaces it.
+    Scalar(String),
+    /// By value (or `&mut`/`&` of a type without a table): moved into an `Option` the guest holds a handle to; the
+    /// first `original` takes it back, a later one returns 0.
+    Held,
+    /// A shared reference without a table (or to an unsized type): the reference is copied, the guest holds a handle.
+    HeldRef,
 }
 
 #[derive(Clone)]
@@ -856,6 +880,31 @@ struct BridgedHook {
     ret_kind: RetKind,
     dispatch: DispatchTarget,
     reg_self_ty: Option<Type>,
+    /// W9: per-argument kinds of an n-ary bridge (empty for the arg0 forms).
+    nary: Vec<NaryKind>,
+}
+
+/// Finds a local type that has no crate-level path and is not declared in the module the bridge is included into.
+struct TypeNameCheck<'a> {
+    crate_index: &'a CrateIndex,
+    from_mod: &'a [String],
+    target_mod: &'a [String],
+    bad: Option<String>,
+}
+
+impl<'ast> Visit<'ast> for TypeNameCheck<'_> {
+    fn visit_type_path(&mut self, path: &'ast syn::TypePath) {
+        if self.bad.is_none() && path.qself.is_none() {
+            let ty = Type::Path(path.clone());
+            if let SelfTyStatus::Local { crate_level_visible: false, .. } = self.crate_index.check_self_ty(self.from_mod, &ty) {
+                // declared in the hook's own module: nameable only if the bridge lives there
+                if self.from_mod != self.target_mod {
+                    self.bad = Some(format_type_tokens(&ty));
+                }
+            }
+        }
+        syn::visit::visit_type_path(self, path);
+    }
 }
 
 struct ReplaceSelf<'a>(&'a Type);
@@ -1040,7 +1089,116 @@ fn lookup_field_table(canon: &str, field_tables: &BTreeMap<String, String>) -> O
     None
 }
 
+fn nary_fallback(reason: &str) -> bool {
+    reason.starts_with("arg0")
+        || reason.starts_with("no FieldTable")
+        || reason == "no parameters"
+        || reason.contains("no RefFieldTable")
+}
+
 fn classify_hook(
+    crate_ident: &str,
+    target_mod: &[String],
+    hook: &CollectedHook,
+    crate_index: &CrateIndex,
+    field_tables: &FieldTables,
+) -> Result<BridgedHook, String> {
+    // W9 `--nary`: every hook that has other than exactly one argument takes the n-ary form (the guest then sees
+    // all of them); one-argument hooks keep the arg0 forms, which already show everything there is.
+    if NARY.load(std::sync::atomic::Ordering::Relaxed)
+        && hook.sig.inputs.len() != 1
+        && let Ok(bridged) = classify_nary(target_mod, hook, crate_index, field_tables)
+    {
+        return Ok(bridged);
+    }
+    match classify_hook_old(crate_ident, target_mod, hook, crate_index, field_tables) {
+        Err(reason) if NARY.load(std::sync::atomic::Ordering::Relaxed) && nary_fallback(&reason) => classify_nary(target_mod, hook, crate_index, field_tables),
+        other => other,
+    }
+}
+
+fn scalar_name(ty: &Type) -> Option<String> {
+    let Type::Path(tp) = unwrap_type_parens(ty) else { return None };
+    if tp.qself.is_some() || tp.path.leading_colon.is_some() || tp.path.segments.len() != 1 || !tp.path.segments[0].arguments.is_empty() {
+        return None;
+    }
+    let name = tp.path.segments[0].ident.to_string();
+    matches!(
+        name.as_str(),
+        "bool" | "i8" | "i16" | "i32" | "i64" | "isize" | "u8" | "u16" | "u32" | "u64" | "usize" | "f32" | "f64"
+    )
+    .then_some(name)
+}
+
+/// W9: the n-ary form for hooks the arg0 forms cannot take: any argument kinds, any number (up to the runtime's
+/// `MAX_ARGS`), zero arguments too.
+fn classify_nary(
+    target_mod: &[String],
+    hook: &CollectedHook,
+    crate_index: &CrateIndex,
+    field_tables: &FieldTables,
+) -> Result<BridgedHook, String> {
+    if hook.sig.generics.type_params().next().is_some() || hook.sig.generics.const_params().next().is_some() {
+        return Err("generic parameters".to_string());
+    }
+    if hook.sig.inputs.len() > 8 {
+        return Err("more than 8 arguments".to_string());
+    }
+    let effective_self_ty = hook.hook_self_ty.as_ref().or(hook.self_ty.as_ref());
+    let replace_self = |ty: &Type| -> Type {
+        let mut out = ty.clone();
+        if let Some(self_ty) = effective_self_ty {
+            ReplaceSelf(self_ty).visit_type_mut(&mut out);
+        }
+        out
+    };
+    let mut raw_param_types = Vec::new();
+    let mut kinds = Vec::new();
+    for arg in &hook.sig.inputs {
+        let ty = match arg {
+            FnArg::Receiver(r) => {
+                if r.reference.is_none() {
+                    return Err("by-value self".to_string());
+                }
+                if effective_self_ty.is_none() {
+                    return Err("missing impl self type".to_string());
+                }
+                replace_self(&r.ty)
+            }
+            FnArg::Typed(pt) => replace_self(&pt.ty),
+        };
+        let inner = unwrap_type_parens(&ty).clone();
+        let kind = match &inner {
+            Type::Reference(r) if !matches!(&*r.elem, Type::Slice(_) | Type::TraitObject(_) | Type::ImplTrait(_)) => {
+                let elem = r.elem.as_ref();
+                let canon = crate_index.resolve_bridge_type_canon(&hook.mod_path, elem);
+                let named = !eligible::type_has_non_static_lifetime(elem) && !matches!(canon.as_deref(), Some("str"));
+                if r.mutability.is_some() {
+                    match (named, canon.as_deref().and_then(|c| lookup_field_table(c, &field_tables.mut_tables))) {
+                        (true, Some(path)) => NaryKind::Mut(path),
+                        _ => NaryKind::Held,
+                    }
+                } else {
+                    match (named, canon.as_deref().and_then(|c| lookup_field_table(c, &field_tables.ref_tables))) {
+                        (true, Some(path)) => NaryKind::Ref(path),
+                        _ => NaryKind::HeldRef,
+                    }
+                }
+            }
+            other => match scalar_name(other) {
+                Some(name) => NaryKind::Scalar(name),
+                // a `Copy` value goes to every `original` call (the copy is held for the guest's handle)
+                None if is_known_copy(other) => NaryKind::HeldRef,
+                None => NaryKind::Held,
+            },
+        };
+        raw_param_types.push(ty);
+        kinds.push(kind);
+    }
+    finish_hook(hook, target_mod, crate_index, effective_self_ty, raw_param_types, Vec::new(), DispatchTarget::Nary, kinds)
+}
+
+fn classify_hook_old(
     crate_ident: &str,
     target_mod: &[String],
     hook: &CollectedHook,
@@ -1120,20 +1278,6 @@ fn classify_hook(
         }
     };
 
-    let (raw_ret_type, ret_kind) = classify_ret(&hook.sig.output);
-    let replaced_ret_type = raw_ret_type.map(|rt| replace_self(&rt));
-    if let Some(rt) = &replaced_ret_type {
-        if type_has_impl_trait_or_never(rt) {
-            return Err(format!("unsupported return type `{}`", format_type_tokens(rt)));
-        }
-        if matches!(ret_kind, RetKind::ObserveOnly) && eligible::type_has_non_static_lifetime(rt) {
-            return Err(format!(
-                "return type `{}` has non-static lifetime",
-                format_type_tokens(rt)
-            ));
-        }
-    }
-
     let mut param_passes = Vec::with_capacity(hook.sig.inputs.len().saturating_sub(1));
     for arg in hook.sig.inputs.iter().skip(1) {
         let FnArg::Typed(pt) = arg else {
@@ -1148,6 +1292,53 @@ fn classify_hook(
         };
         param_passes.push(pass);
         raw_param_types.push(replaced);
+    }
+
+    finish_hook(hook, target_mod, crate_index, effective_self_ty, raw_param_types, param_passes, dispatch, Vec::new())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finish_hook(
+    hook: &CollectedHook,
+    target_mod: &[String],
+    crate_index: &CrateIndex,
+    effective_self_ty: Option<&Type>,
+    raw_param_types: Vec<Type>,
+    param_passes: Vec<ParamPass>,
+    dispatch: DispatchTarget,
+    nary_kinds: Vec<NaryKind>,
+) -> Result<BridgedHook, String> {
+    let replace_self = |ty: &Type| -> Type {
+        let mut out = ty.clone();
+        if let Some(self_ty) = effective_self_ty {
+            ReplaceSelf(self_ty).visit_type_mut(&mut out);
+        }
+        out
+    };
+    let (raw_ret_type, ret_kind) = classify_ret(&hook.sig.output);
+    let replaced_ret_type = raw_ret_type.map(|rt| replace_self(&rt));
+    if let Some(rt) = &replaced_ret_type {
+        if type_has_impl_trait_or_never(rt) {
+            return Err(format!("unsupported return type `{}`", format_type_tokens(rt)));
+        }
+        if matches!(ret_kind, RetKind::ObserveOnly) && eligible::type_has_non_static_lifetime(rt) {
+            return Err(format!(
+                "return type `{}` has non-static lifetime",
+                format_type_tokens(rt)
+            ));
+        }
+    }
+
+    // W9: the bridge file is `include!`d into the target module, so a type private to ANOTHER module (a child's
+    // private struct) cannot be written there: not bridgeable from this file.
+    {
+        let mut names = TypeNameCheck { crate_index, from_mod: &hook.mod_path, target_mod, bad: None };
+        for ty in raw_param_types.iter().chain(replaced_ret_type.iter()) {
+            names.visit_type(ty);
+        }
+        if let Some(bad) = names.bad {
+            return Err(format!("type `{bad}` is private to another module"));
+        }
     }
 
     let mut counts = NamedLifetimeCounts::default();
@@ -1246,6 +1437,7 @@ fn classify_hook(
         ret_kind,
         dispatch,
         reg_self_ty,
+        nary: nary_kinds,
     })
 }
 
@@ -1398,6 +1590,30 @@ fn render_bridge_module(
     Ok((out, bridged.len(), unbridged.len()))
 }
 
+/// Encoding and decoding of one scalar argument of an n-ary bridge. `value` is the expression of the guest's value
+/// (`view.value(i)`: `None` when the slot is not a value); an out-of-range replacement keeps the original argument.
+fn scalar_codec(name: &str, p: &str, value: &str) -> (String, String) {
+    let encode = match name {
+        "bool" => format!("yoake_slice::bridge::encode::bool({p})"),
+        "i64" => p.to_string(),
+        "u64" => format!("yoake_slice::bridge::encode::u64({p})"),
+        "usize" => format!("yoake_slice::bridge::encode::usize({p})"),
+        "isize" => format!("{p} as i64"),
+        "f32" => format!("yoake_slice::bridge::encode::f32({p})"),
+        "f64" => format!("yoake_slice::bridge::encode::f64({p})"),
+        _ => format!("yoake_slice::bridge::encode::int({p})"),
+    };
+    let decode = match name {
+        "bool" => format!("{value}.and_then(yoake_slice::bridge::decode::bool).unwrap_or({p})"),
+        "i64" => format!("{value}.unwrap_or({p})"),
+        "u64" => format!("{value}.map_or({p}, yoake_slice::bridge::decode::u64)"),
+        "f32" => format!("{value}.and_then(yoake_slice::bridge::decode::f32).unwrap_or({p})"),
+        "f64" => format!("{value}.map_or({p}, yoake_slice::bridge::decode::f64)"),
+        other => format!("{value}.and_then(yoake_slice::bridge::decode::int::<{other}>).unwrap_or({p})"),
+    };
+    (encode, decode)
+}
+
 fn render_bridged_fn(bh: &BridgedHook) -> String {
     let mut out = String::new();
     for cfg in &bh.cfg_attrs {
@@ -1446,9 +1662,55 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
     }
     out.push_str(&format!("    ){ret_sig} {{\n"));
 
-    let mut call_args = vec!["p0".to_string()];
-    let mut fallback_args = vec!["p0".to_string()];
+    let nary = matches!(bh.dispatch, DispatchTarget::Nary);
+    let mut call_args = if nary { Vec::new() } else { vec!["p0".to_string()] };
+    let mut fallback_args = call_args.clone();
     let mut moved = Vec::new();
+    let mut nary_holders = String::new();
+    let mut nary_set = String::new();
+    if nary {
+        for (i, kind) in bh.nary.iter().enumerate() {
+            let ty = format_type_tokens(&bh.param_types[i]);
+            let elem = match &bh.param_types[i] {
+                Type::Reference(r) => format_type_tokens(&r.elem),
+                other => format_type_tokens(other),
+            };
+            match kind {
+                NaryKind::Mut(table) => {
+                    nary_set.push_str(&format!(".mut_ref(&mut *p{i}, &{table})"));
+                    call_args.push(format!("view.mut_ref::<{elem}>({i}).expect(\"yoake: bridged argument {i} of hook {}\")", bh.id));
+                    fallback_args.push(format!("&mut *p{i}"));
+                }
+                NaryKind::Ref(table) => {
+                    nary_set.push_str(&format!(".shared(p{i}, &{table})"));
+                    call_args.push(format!("view.shared::<{elem}>({i}).expect(\"yoake: bridged argument {i} of hook {}\")", bh.id));
+                    fallback_args.push(format!("p{i}"));
+                }
+                NaryKind::Scalar(name) => {
+                    let (encode, decode) = scalar_codec(name, &format!("p{i}"), &format!("view.value({i})"));
+                    nary_set.push_str(&format!(".value({encode})"));
+                    call_args.push(decode);
+                    fallback_args.push(format!("p{i}"));
+                }
+                NaryKind::Held => {
+                    nary_holders.push_str(&format!("        let mut p{i}_h = ::core::option::Option::Some(p{i});
+"));
+                    nary_set.push_str(&format!(".opaque_mut(&mut p{i}_h)"));
+                    call_args.push(format!(
+                        "match view.opaque_mut::<::core::option::Option<{ty}>>({i}).and_then(|o| o.take()) {{ ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }}"
+                    ));
+                    fallback_args.push(format!("p{i}_h.take().expect(\"only an original call moves it, and none ran\")"));
+                }
+                NaryKind::HeldRef => {
+                    nary_holders.push_str(&format!("        let p{i}_h = p{i};
+"));
+                    nary_set.push_str(&format!(".opaque_shared(&p{i}_h)"));
+                    call_args.push(format!("*view.opaque_shared::<{ty}>({i}).expect(\"yoake: bridged argument {i} of hook {}\")", bh.id));
+                    fallback_args.push(format!("p{i}"));
+                }
+            }
+        }
+    }
     for (idx, pass) in bh.param_passes.iter().enumerate() {
         let p = idx + 1;
         match pass {
@@ -1535,7 +1797,12 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
             "yoake_slice::runtime::dispatch_root_id({}, p0, &mut |p0| {closure_body})",
             bh.id
         ),
+        DispatchTarget::Nary => format!(
+            "yoake_slice::runtime::dispatch_n_id({}, yoake_slice::activation::ArgSet::new(){nary_set}, &mut |view: &yoake_slice::activation::ArgView<'_>| {closure_body})",
+            bh.id
+        ),
     };
+    out.push_str(&nary_holders);
     for p in &moved {
         out.push_str(&format!("        let mut p{p} = ::core::option::Option::Some(p{p});\n"));
     }

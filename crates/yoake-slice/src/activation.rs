@@ -49,7 +49,7 @@ use std::marker::PhantomData;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Arguments one activation can register.
-pub const MAX_ARGS: usize = 4;
+pub const MAX_ARGS: usize = 8;
 
 /// What a guest-facing call returns instead of trapping.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,6 +70,10 @@ pub enum Status {
     LimitReached = 6,
     /// The argument was registered through a shared reference.
     ReadOnly = 7,
+    /// The change would make two arguments alias with one of them `&mut` (W8 borrow table).
+    Overlap = 8,
+    /// The handle is an object argument where a value argument is needed, or the other way round.
+    WrongKind = 9,
 }
 
 /// A handle root (MX3C1 "paths from a root"). Only the hook-argument root exists in the slice.
@@ -126,6 +130,8 @@ pub struct RefFieldTable<T> {
 
 #[derive(Clone, Copy)]
 enum ArgPtr {
+    /// W8: a by-value scalar argument (bits as the codec of the hooked fn's argument type).
+    Value(i64),
     Mut(*mut ()),
     /// A shared argument carries its own read-only getter (`get_ref_impl::<T>`), so it can never reach a `&mut`
     /// accessor.
@@ -143,6 +149,11 @@ struct ArgSlot {
     set: unsafe fn(*mut (), *const (), u32, i64) -> bool,
     /// Present for a path root (`scope_root`).
     resolve: Option<ResolveFn>,
+    /// W8: `type_name::<T>()`, so two arguments of one type can be swapped even when `T` has a lifetime.
+    type_name: &'static str,
+    /// W8: registered without a table (any type): no field access, typed access by name only.
+    opaque: bool,
+    size: usize,
 }
 
 impl ArgSlot {
@@ -154,6 +165,9 @@ impl ArgSlot {
             get: get_impl::<T>,
             set: set_impl::<T>,
             resolve: None,
+            type_name: std::any::type_name::<T>(),
+            opaque: false,
+            size: std::mem::size_of::<T>(),
         }
     }
 
@@ -166,6 +180,38 @@ impl ArgSlot {
             // never called (`set` refuses a shared slot first); not `set_impl`: `table` is a `RefFieldTable`
             set: |_, _, _, _| false,
             resolve: None,
+            type_name: std::any::type_name::<T>(),
+            opaque: false,
+            size: std::mem::size_of::<T>(),
+        }
+    }
+
+    /// W8: any `T`, lifetimes allowed, no fields: the guest can hold and pass the handle, nothing else.
+    fn new_opaque<T>(ptr: ArgPtr) -> Self {
+        Self {
+            type_id: TypeId::of::<RootMarker>(),
+            ptr,
+            table: std::ptr::null(),
+            get: |_, _, _| None,
+            set: |_, _, _, _| false,
+            resolve: None,
+            type_name: std::any::type_name::<T>(),
+            opaque: true,
+            size: std::mem::size_of::<T>(),
+        }
+    }
+
+    fn new_value(bits: i64) -> Self {
+        Self {
+            type_id: TypeId::of::<RootMarker>(),
+            ptr: ArgPtr::Value(bits),
+            table: std::ptr::null(),
+            get: |_, _, _| None,
+            set: |_, _, _, _| false,
+            resolve: None,
+            type_name: "value",
+            opaque: true,
+            size: 0,
         }
     }
 
@@ -179,6 +225,9 @@ impl ArgSlot {
             get: |_, _, _| None,
             set: |_, _, _, _| false,
             resolve: Some(resolve_impl::<G>),
+            type_name: "root",
+            opaque: false,
+            size: 0,
         }
     }
 }
@@ -221,7 +270,7 @@ struct Record {
     n_args: u8,
     /// The caller's cell (arguments + `original`) and the monomorphized function that runs it.
     cell: *mut (),
-    run: unsafe fn(*mut ()) -> i64,
+    run: unsafe fn(*mut (), &[Option<ArgSlot>; MAX_ARGS]) -> i64,
     /// The lending lock: true while `original` or an accessor runs.
     lent: bool,
     original_calls: u32,
@@ -331,7 +380,7 @@ impl Guard<'_> {
         args: [Option<ArgSlot>; MAX_ARGS],
         n_args: u8,
         cell: *mut (),
-        run: unsafe fn(*mut ()) -> i64,
+        run: unsafe fn(*mut (), &[Option<ArgSlot>; MAX_ARGS]) -> i64,
     ) -> Self {
         let serial = NEXT_SERIAL.fetch_add(1, Ordering::Relaxed);
         ACTS.with(|acts| {
@@ -404,7 +453,7 @@ struct Cell2<'b, A, B> {
 
 /// # Safety
 /// `cell` is a live `*mut Cell1<A>` and no reference to `*a` is in use (lending lock held).
-unsafe fn run_cell<A>(cell: *mut ()) -> i64 {
+unsafe fn run_cell<A>(cell: *mut (), _slots: &[Option<ArgSlot>; MAX_ARGS]) -> i64 {
     // SAFETY: caller contract.
     let cell = unsafe { &mut *(cell as *mut Cell1<'_, A>) };
     // SAFETY: `a` came from a `&mut A` that `scope` holds borrowed; the lock excludes other users.
@@ -414,7 +463,7 @@ unsafe fn run_cell<A>(cell: *mut ()) -> i64 {
 /// # Safety
 /// `cell` is a live `*mut CellRef<A>` (the cell itself is the scope's own local, hence `&mut` to it) and `a`
 /// points at the `&A` that `scope_ref` holds borrowed; the lending lock is held.
-unsafe fn run_cell_ref<A>(cell: *mut ()) -> i64 {
+unsafe fn run_cell_ref<A>(cell: *mut (), _slots: &[Option<ArgSlot>; MAX_ARGS]) -> i64 {
     // SAFETY: caller contract: the cell is `scope_ref`'s local and nothing else uses it while this runs.
     let cell = unsafe { &mut *(cell as *mut CellRef<'_, A>) };
     // SAFETY: `a` came from the `&A` that `scope_ref` holds borrowed for its whole call. Only a shared
@@ -424,7 +473,7 @@ unsafe fn run_cell_ref<A>(cell: *mut ()) -> i64 {
 
 /// # Safety
 /// As [`run_cell`], for both arguments.
-unsafe fn run_cell2<A, B>(cell: *mut ()) -> i64 {
+unsafe fn run_cell2<A, B>(cell: *mut (), _slots: &[Option<ArgSlot>; MAX_ARGS]) -> i64 {
     // SAFETY: caller contract.
     let cell = unsafe { &mut *(cell as *mut Cell2<'_, A, B>) };
     // SAFETY: as in `run_cell`; `a` and `b` are distinct borrows held by `scope2`.
@@ -499,6 +548,14 @@ pub fn scope_root<G: PathRoot, R>(root: &mut G, original: &mut dyn FnMut(&mut G)
     (result, guard.close())
 }
 
+/// Why an argument is not a mutable object: shared (`ReadOnly`) or a value (`WrongKind`).
+fn not_mut(ptr: ArgPtr) -> Status {
+    match ptr {
+        ArgPtr::Value(_) => Status::WrongKind,
+        _ => Status::ReadOnly,
+    }
+}
+
 fn locate<R>(handle: u64, f: impl FnOnce(&mut Record, usize) -> Result<R, Status>) -> Result<R, Status> {
     let Root::HookArg { activation, arg } = Root::from_handle(handle);
     ACTS.with(|acts| {
@@ -564,6 +621,7 @@ pub fn get(handle: u64, field: u32) -> Result<i64, Status> {
             // SAFETY: the shared scope holds its borrow, and the activation stays locked until `_unlend` drops.
             unsafe { get(ptr, slot.table, field) }
         }
+        ArgPtr::Value(_) => return Err(Status::WrongKind),
     };
     value.ok_or(Status::BadField)
 }
@@ -571,7 +629,7 @@ pub fn get(handle: u64, field: u32) -> Result<i64, Status> {
 /// Writes `value` to `field` of the argument behind `handle` (same rules as [`get`]).
 pub fn set(handle: u64, field: u32, value: i64) -> Result<(), Status> {
     let (slot, _unlend) = lend_arg(handle)?;
-    let ArgPtr::Mut(ptr) = slot.ptr else { return Err(Status::ReadOnly) };
+    let ArgPtr::Mut(ptr) = slot.ptr else { return Err(not_mut(slot.ptr)) };
     // SAFETY: as in `get`; a mutable pointer comes only from a mutable scope.
     if unsafe { (slot.set)(ptr, slot.table, field, value) } {
         Ok(())
@@ -593,7 +651,7 @@ pub fn with_arg<T: 'static, R>(handle: u64, f: impl FnOnce(&mut T) -> R) -> Resu
     if slot.type_id != TypeId::of::<T>() {
         return Err(Status::WrongType);
     }
-    let ArgPtr::Mut(ptr) = slot.ptr else { return Err(Status::ReadOnly) };
+    let ArgPtr::Mut(ptr) = slot.ptr else { return Err(not_mut(slot.ptr)) };
     // SAFETY: `ptr` was registered by an open mutable `scope` as a `*mut T` (the `TypeId` just
     // checked says `T` is that type), its borrow is held for the whole `scope` call and `lend_arg`
     // just found the record; the activation stays locked until `_unlend` drops, so no other
@@ -612,7 +670,7 @@ pub fn open_path(root_handle: u64, path: Vec<Accessor>) -> Result<u64, Status> {
     let Root::HookArg { activation, .. } = Root::from_handle(root_handle);
     {
         let (slot, _unlend) = lend_arg(root_handle)?;
-        let ArgPtr::Mut(ptr) = slot.ptr else { return Err(Status::ReadOnly) };
+        let ArgPtr::Mut(ptr) = slot.ptr else { return Err(not_mut(slot.ptr)) };
         let resolve = slot.resolve.ok_or(Status::WrongType)?;
         let mut found = false;
         // SAFETY: `slot` was registered by an open `scope_root` whose borrow is held for the whole
@@ -652,7 +710,7 @@ fn with_path<T: 'static, R>(handle: u64, f: impl FnOnce(&mut T) -> R) -> Result<
     let (activation, path) = PATHS.with(|p| p.borrow().lookup(handle)).ok_or(Status::Stale)?;
     let root_handle = Root::HookArg { activation, arg: 0 }.to_handle();
     let (slot, _unlend) = lend_arg(root_handle)?;
-    let ArgPtr::Mut(ptr) = slot.ptr else { return Err(Status::ReadOnly) };
+    let ArgPtr::Mut(ptr) = slot.ptr else { return Err(not_mut(slot.ptr)) };
     let resolve = slot.resolve.ok_or(Status::WrongType)?;
     let mut f = Some(f);
     let mut result: Option<R> = None;
@@ -677,23 +735,337 @@ pub fn run_original(handle: u64) -> Result<i64, Status> {
         return Err(Status::WrongType);
     }
     let Root::HookArg { activation, .. } = Root::from_handle(handle);
-    let (cell, run) = locate(handle, |record, _| {
+    let (cell, run, slots) = locate(handle, |record, _| {
         if record.lent {
             return Err(Status::Locked);
         }
         record.lent = true;
         // Counted before the body runs: an `original` that panics still counts as having run.
         record.original_calls += 1;
-        Ok((record.cell, record.run))
+        Ok((record.cell, record.run, record.args))
     })?;
     let mut unlend = Unlend { serial: activation, result: None };
     // SAFETY: `cell`/`run` were registered together by `scope`, whose stack frame (owning the cell
     // and the argument borrows) is below us; the lock is held, so nothing else uses the arguments,
     // and the arena is not borrowed so nested activations may open and close. If `original`
     // unwinds, `unlend` clears the lock and the guard of `scope` removes the record.
-    let result = unsafe { run(cell) };
+    let result = unsafe { run(cell, &slots) };
     unlend.result = Some(result);
     Ok(result)
+}
+
+// ---- W8: n-ary activations ---------------------------------------------------------------------------------
+
+/// The arguments of one hooked call, as the engine registers them (up to [`MAX_ARGS`]). Every argument is one of:
+/// a `&mut T` / `&T` with a field table, a `&mut T` / `&T` of **any** type without one (an opaque handle: the guest
+/// can hold it, pass it to `original`, swap it for another argument of the same type, and use it as the receiver of
+/// generated bindings, but not read fields), or a by-value scalar (bits, as `yoake_slice::bridge::encode`).
+/// Argument `i` has the handle of argument 0 with its low byte set to `i`.
+pub struct ArgSet<'a> {
+    slots: [Option<ArgSlot>; MAX_ARGS],
+    n: u8,
+    /// More than [`MAX_ARGS`] were added: [`scope_n`] refuses (the caller runs the original).
+    overflow: bool,
+    _borrow: PhantomData<&'a mut ()>,
+}
+
+impl Default for ArgSet<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<'a> ArgSet<'a> {
+    pub fn new() -> Self {
+        Self { slots: [None; MAX_ARGS], n: 0, overflow: false, _borrow: PhantomData }
+    }
+
+    fn push(mut self, slot: ArgSlot) -> Self {
+        if usize::from(self.n) >= MAX_ARGS {
+            self.overflow = true;
+        } else {
+            self.slots[usize::from(self.n)] = Some(slot);
+            self.n += 1;
+        }
+        self
+    }
+
+    /// `&mut T` with a field table.
+    pub fn mut_ref<T: 'static>(self, arg: &'a mut T, table: &'static FieldTable<T>) -> Self {
+        self.push(ArgSlot::new(arg, table))
+    }
+
+    /// `&T` with a read-only field table.
+    pub fn shared<T: 'static>(self, arg: &'a T, table: &'static RefFieldTable<T>) -> Self {
+        self.push(ArgSlot::new_shared(arg, table))
+    }
+
+    /// `&mut T` of any type, no fields.
+    pub fn opaque_mut<T>(self, arg: &'a mut T) -> Self {
+        let ptr: *mut T = arg;
+        self.push(ArgSlot::new_opaque::<T>(ArgPtr::Mut(ptr.cast())))
+    }
+
+    /// `&T` of any type, no fields.
+    pub fn opaque_shared<T>(self, arg: &'a T) -> Self {
+        let ptr: *const T = arg;
+        self.push(ArgSlot::new_opaque::<T>(ArgPtr::Shared(ptr.cast(), |_, _, _| None)))
+    }
+
+    /// A by-value scalar (`bridge::encode::*` bits).
+    pub fn value(self, bits: i64) -> Self {
+        self.push(ArgSlot::new_value(bits))
+    }
+
+    /// The same slots again (the chain hands the next mod the arguments as the previous one left them).
+    pub(crate) fn dup(&self) -> ArgSet<'a> {
+        ArgSet { slots: self.slots, n: self.n, overflow: self.overflow, _borrow: PhantomData }
+    }
+}
+
+/// What `original` receives: the arguments as the guest left them (replaced values, swapped objects).
+/// `&mut` access is handed out at most once per argument (the borrow table: a second request is `None`), so a
+/// bridge can ask for `(&mut A, B, &mut C)` without two live `&mut` to one object.
+pub struct ArgView<'v> {
+    slots: [Option<ArgSlot>; MAX_ARGS],
+    n: u8,
+    taken: std::cell::Cell<u8>,
+    _view: PhantomData<&'v ()>,
+}
+
+impl ArgView<'_> {
+    fn new(slots: &[Option<ArgSlot>; MAX_ARGS]) -> Self {
+        let n = slots.iter().take_while(|s| s.is_some()).count() as u8;
+        ArgView { slots: *slots, n, taken: std::cell::Cell::new(0), _view: PhantomData }
+    }
+
+    pub fn len(&self) -> usize {
+        usize::from(self.n)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.n == 0
+    }
+
+    /// The bits of a by-value argument (`None` for an object argument).
+    pub fn value(&self, index: usize) -> Option<i64> {
+        match self.slots.get(index)?.as_ref()?.ptr {
+            ArgPtr::Value(bits) => Some(bits),
+            _ => None,
+        }
+    }
+
+    fn take(&self, index: usize) -> Option<()> {
+        let bit = 1u8 << index;
+        if self.taken.get() & bit != 0 {
+            return None;
+        }
+        self.taken.set(self.taken.get() | bit);
+        Some(())
+    }
+
+    /// Argument `index` as `&mut T` (registered with [`ArgSet::mut_ref`] and the same `T`). `None`: wrong index,
+    /// type or kind, or already handed out.
+    #[allow(clippy::mut_from_ref)]
+    pub fn mut_ref<T: 'static>(&self, index: usize) -> Option<&mut T> {
+        let slot = (*self.slots.get(index)?)?;
+        let (ArgPtr::Mut(ptr), true) = (slot.ptr, slot.type_id == TypeId::of::<T>() && !slot.opaque) else { return None };
+        self.take(index)?;
+        // SAFETY: the pointer was registered from a live `&mut T` that the scope holds borrowed for the whole
+        // call (`TypeId` just checked); the taken mask makes this the only `&mut` handed out for this index, and
+        // swaps never leave two `&mut` slots on one object ([`swap_args`]).
+        Some(unsafe { &mut *ptr.cast::<T>() })
+    }
+
+    /// Argument `index` as `&T` (registered with [`ArgSet::shared`] or [`ArgSet::mut_ref`]).
+    pub fn shared<T: 'static>(&self, index: usize) -> Option<&T> {
+        let slot = (*self.slots.get(index)?)?;
+        if slot.type_id != TypeId::of::<T>() || slot.opaque {
+            return None;
+        }
+        let ptr = match slot.ptr {
+            ArgPtr::Mut(ptr) => {
+                // a shared view of a `&mut` argument must not coexist with its `&mut`
+                if self.taken.get() & (1u8 << index) != 0 {
+                    return None;
+                }
+                ptr.cast_const()
+            }
+            ArgPtr::Shared(ptr, _) => ptr,
+            ArgPtr::Value(_) => return None,
+        };
+        // SAFETY: as in `mut_ref`, shared access only.
+        Some(unsafe { &*ptr.cast::<T>() })
+    }
+
+    /// Argument `index` as `&mut T` of an opaque registration ([`ArgSet::opaque_mut`]); `T` is matched by type name
+    /// (lifetimes are not part of it).
+    #[allow(clippy::mut_from_ref)]
+    pub fn opaque_mut<T>(&self, index: usize) -> Option<&mut T> {
+        let slot = (*self.slots.get(index)?)?;
+        let (ArgPtr::Mut(ptr), true) = (slot.ptr, slot.opaque && slot.type_name == std::any::type_name::<T>()) else { return None };
+        self.take(index)?;
+        // SAFETY: as `mut_ref`; the registration was `opaque_mut::<T>` of a live `&mut T` (name checked).
+        Some(unsafe { &mut *ptr.cast::<T>() })
+    }
+
+    /// Argument `index` as `&T` of an opaque registration (either kind).
+    pub fn opaque_shared<T>(&self, index: usize) -> Option<&T> {
+        let slot = (*self.slots.get(index)?)?;
+        if !(slot.opaque && slot.type_name == std::any::type_name::<T>()) {
+            return None;
+        }
+        let ptr = match slot.ptr {
+            ArgPtr::Mut(ptr) => {
+                if self.taken.get() & (1u8 << index) != 0 {
+                    return None;
+                }
+                ptr.cast_const()
+            }
+            ArgPtr::Shared(ptr, _) => ptr,
+            ArgPtr::Value(_) => return None,
+        };
+        // SAFETY: as `opaque_mut`, shared access only.
+        Some(unsafe { &*ptr.cast::<T>() })
+    }
+
+    /// The arguments again as a set (for the next mod of a chain).
+    pub fn to_set(&self) -> ArgSet<'_> {
+        ArgSet { slots: self.slots, n: self.n, overflow: false, _borrow: PhantomData }
+    }
+}
+
+struct CellN<'b> {
+    original: &'b mut dyn FnMut(&ArgView<'_>) -> i64,
+}
+
+/// # Safety
+/// `cell` is the live `*mut CellN` of [`scope_n`]; the lending lock is held, so the argument borrows it
+/// registered are not otherwise in use.
+unsafe fn run_cell_n(cell: *mut (), slots: &[Option<ArgSlot>; MAX_ARGS]) -> i64 {
+    // SAFETY: caller contract.
+    let cell = unsafe { &mut *(cell as *mut CellN<'_>) };
+    (cell.original)(&ArgView::new(slots))
+}
+
+/// [`scope`] for a hooked fn with any number (up to [`MAX_ARGS`]) of arguments. `original` receives the arguments as
+/// the guest left them. `Err(Status::LimitReached)` (the body does not run) when the set holds more than
+/// [`MAX_ARGS`] arguments.
+pub fn scope_n<R>(
+    set: ArgSet<'_>,
+    original: &mut dyn FnMut(&ArgView<'_>) -> i64,
+    body: impl FnOnce(u64) -> R,
+) -> Result<(R, Finished), Status> {
+    if set.overflow {
+        return Err(Status::LimitReached);
+    }
+    let mut cell = CellN { original };
+    let mut guard = Guard::open(set.slots, set.n, (&mut cell as *mut CellN<'_>).cast(), run_cell_n);
+    let result = body(guard.handle());
+    Ok((result, guard.close()))
+}
+
+/// The view of a set (the original, when no mod runs).
+pub fn view_of<'v>(set: &'v ArgSet<'_>) -> ArgView<'v> {
+    ArgView::new(&set.slots)
+}
+
+/// Reads a by-value argument.
+pub fn arg_value(handle: u64) -> Result<i64, Status> {
+    if handle & PATH_BIT != 0 {
+        return Err(Status::WrongType);
+    }
+    locate(handle, |record, arg| match record.args[arg].ok_or(Status::NoSuchArg)?.ptr {
+        ArgPtr::Value(bits) => Ok(bits),
+        _ => Err(Status::WrongKind),
+    })
+}
+
+/// Replaces a by-value argument: the next `original` receives `bits`.
+pub fn set_arg_value(handle: u64, bits: i64) -> Result<(), Status> {
+    if handle & PATH_BIT != 0 {
+        return Err(Status::WrongType);
+    }
+    locate(handle, |record, arg| {
+        if record.lent {
+            return Err(Status::Locked);
+        }
+        let slot = record.args[arg].as_mut().ok_or(Status::NoSuchArg)?;
+        match slot.ptr {
+            ArgPtr::Value(_) => {
+                slot.ptr = ArgPtr::Value(bits);
+                Ok(())
+            }
+            _ => Err(Status::WrongKind),
+        }
+    })
+}
+
+fn pair_of(a: u64, b: u64) -> Result<(usize, usize), Status> {
+    if (a | b) & PATH_BIT != 0 {
+        return Err(Status::WrongType);
+    }
+    let Root::HookArg { activation: act_a, arg: i } = Root::from_handle(a);
+    let Root::HookArg { activation: act_b, arg: j } = Root::from_handle(b);
+    if act_a != act_b {
+        return Err(Status::WrongType);
+    }
+    Ok((usize::from(i), usize::from(j)))
+}
+
+/// Exchanges two object arguments of the same type (both `&mut` or both `&`): the next `original` receives each
+/// object in the other's position. Never creates aliasing: the set of pointers stays the same.
+pub fn swap_args(a: u64, b: u64) -> Result<(), Status> {
+    let (i, j) = pair_of(a, b)?;
+    locate(a, |record, _| {
+        if record.lent {
+            return Err(Status::Locked);
+        }
+        let n = usize::from(record.n_args);
+        if i >= n || j >= n {
+            return Err(Status::NoSuchArg);
+        }
+        let (x, y) = (record.args[i].ok_or(Status::NoSuchArg)?, record.args[j].ok_or(Status::NoSuchArg)?);
+        let kind = |p: ArgPtr| match p {
+            ArgPtr::Mut(_) => 0,
+            ArgPtr::Shared(..) => 1,
+            ArgPtr::Value(_) => 2,
+        };
+        if kind(x.ptr) == 2 || kind(x.ptr) != kind(y.ptr) || x.type_name != y.type_name || x.type_id != y.type_id {
+            return Err(Status::WrongType);
+        }
+        // the tables travel with the objects
+        record.args[i] = Some(y);
+        record.args[j] = Some(x);
+        Ok(())
+    })
+}
+
+/// Makes shared argument `dst` refer to the object of shared argument `src` (same type): the next `original`
+/// reads that object where it read `dst`'s. A `&mut` argument cannot be replaced this way (it would alias `src`):
+/// that is [`Status::Overlap`]; use [`swap_args`].
+pub fn replace_arg(dst: u64, src: u64) -> Result<(), Status> {
+    let (i, j) = pair_of(dst, src)?;
+    locate(dst, |record, _| {
+        if record.lent {
+            return Err(Status::Locked);
+        }
+        let n = usize::from(record.n_args);
+        if i >= n || j >= n {
+            return Err(Status::NoSuchArg);
+        }
+        let (x, y) = (record.args[i].ok_or(Status::NoSuchArg)?, record.args[j].ok_or(Status::NoSuchArg)?);
+        match (x.ptr, y.ptr) {
+            (ArgPtr::Shared(..), ArgPtr::Shared(..)) => {}
+            (ArgPtr::Mut(_), _) | (_, ArgPtr::Mut(_)) => return Err(Status::Overlap),
+            _ => return Err(Status::WrongKind),
+        }
+        if x.type_name != y.type_name || x.type_id != y.type_id {
+            return Err(Status::WrongType);
+        }
+        record.args[i] = Some(y);
+        Ok(())
+    })
 }
 
 #[cfg(test)]
@@ -1164,5 +1536,113 @@ mod tests {
             assert_eq!(live_path_handles(), 1);
         });
         assert_eq!(live_path_handles(), 0);
+    }
+
+    // ---- W8 ----
+
+    /// A type with a lifetime and no table: only an opaque handle is possible.
+    struct Holder<'a> {
+        label: &'a str,
+        hits: u32,
+    }
+
+    #[test]
+    fn three_arguments_are_readable_replaceable_and_original_receives_the_replacements() {
+        let mut first = Thing { count: 1, x: 0.5 };
+        let mut third = Thing { count: 3, x: 0.25 };
+        let label = String::from("holder");
+        let mut holder = Holder { label: &label, hits: 0 };
+        let seen = RefCell::new(Vec::new());
+        let result = RefCell::new(0i64);
+        let args = ArgSet::new().mut_ref(&mut first, &THING).value(40).opaque_mut(&mut holder).mut_ref(&mut third, &THING);
+        let (_, finished) = scope_n(
+            args,
+            &mut |view: &ArgView<'_>| {
+                let a = view.mut_ref::<Thing>(0).expect("arg 0");
+                let h = view.opaque_mut::<Holder<'_>>(2).expect("arg 2");
+                let c = view.mut_ref::<Thing>(3).expect("arg 3");
+                assert!(view.mut_ref::<Thing>(0).is_none(), "a second &mut to one argument is refused (borrow table)");
+                assert!(view.shared::<Thing>(0).is_none(), "and so is a shared view while the &mut is out");
+                h.hits += 1;
+                let sum = i64::from(a.count) + view.value(1).unwrap() + i64::from(c.count) + i64::from(h.hits) + h.label.len() as i64;
+                *result.borrow_mut() = sum;
+                sum
+            },
+            |h0| {
+                let h = |i: u64| (h0 & !0xff) | i;
+                // read every argument
+                seen.borrow_mut().push(get(h(0), 0).unwrap());
+                seen.borrow_mut().push(arg_value(h(1)).unwrap());
+                seen.borrow_mut().push(get(h(3), 0).unwrap());
+                assert_eq!(get(h(2), 0), Err(Status::BadField), "an opaque argument has no fields");
+                assert_eq!(arg_value(h(0)), Err(Status::WrongKind));
+                assert_eq!(set_arg_value(h(0), 1), Err(Status::WrongKind));
+                // replace every argument
+                set(h(0), 0, 10).unwrap();
+                set_arg_value(h(1), 2).unwrap();
+                set(h(3), 0, 100).unwrap();
+                assert_eq!(arg_value(h(1)), Ok(2));
+                assert_eq!(run_original(h0).unwrap(), 10 + 2 + 100 + 1 + 6);
+            },
+        )
+        .unwrap();
+        assert_eq!(*seen.borrow(), vec![1, 40, 3]);
+        assert_eq!(*result.borrow(), 119);
+        assert_eq!(finished.original_calls, 1);
+        assert_eq!(first.count, 10, "the field write reached the owner");
+        assert_eq!(holder.hits, 1);
+        assert_eq!(live_activations(), 0);
+    }
+
+    #[test]
+    fn swapping_exchanges_two_objects_without_aliasing_and_replace_refuses_mut() {
+        let mut a = Thing { count: 1, x: 0.0 };
+        let mut b = Thing { count: 2, x: 0.0 };
+        let (s1, s2) = (Thing { count: 5, x: 0.0 }, Thing { count: 6, x: 0.0 });
+        let got = RefCell::new((0, 0, 0, 0));
+        scope_n(
+            ArgSet::new().mut_ref(&mut a, &THING).mut_ref(&mut b, &THING).shared(&s1, &THING_REF).shared(&s2, &THING_REF),
+            &mut |view: &ArgView<'_>| {
+                let (x, y) = (view.mut_ref::<Thing>(0).unwrap().count, view.mut_ref::<Thing>(1).unwrap().count);
+                let (p, q) = (view.shared::<Thing>(2).unwrap().count, view.shared::<Thing>(3).unwrap().count);
+                *got.borrow_mut() = (x, y, p, q);
+                0
+            },
+            |h0| {
+                let h = |i: u64| (h0 & !0xff) | i;
+                assert_eq!(replace_arg(h(0), h(1)), Err(Status::Overlap), "a &mut cannot be replaced by another object");
+                assert_eq!(replace_arg(h(2), h(0)), Err(Status::Overlap));
+                assert_eq!(swap_args(h(0), h(2)), Err(Status::WrongType), "kinds must match");
+                assert_eq!(swap_args(h(0), h(7)), Err(Status::NoSuchArg));
+                swap_args(h(0), h(1)).unwrap();
+                replace_arg(h(2), h(3)).unwrap();
+                assert_eq!(get(h(0), 0), Ok(2), "the tables travel with the objects");
+                run_original(h0).unwrap();
+            },
+        )
+        .unwrap();
+        assert_eq!(*got.borrow(), (2, 1, 6, 6), "original saw the swapped &mut and the replaced shared argument");
+        assert_eq!((a.count, b.count), (1, 2), "nothing moved in the owners");
+    }
+
+    #[test]
+    fn too_many_arguments_refuse_the_scope_and_value_slots_reject_object_calls() {
+        let mut t = Thing::default();
+        let mut many = ArgSet::new();
+        for _ in 0..MAX_ARGS {
+            many = many.value(0);
+        }
+        many = many.mut_ref(&mut t, &THING);
+        let ran = Cell::new(false);
+        let outcome = scope_n(many, &mut |_: &ArgView<'_>| 0, |_| ran.set(true));
+        assert!(matches!(outcome, Err(Status::LimitReached)));
+        assert!(!ran.get(), "the body did not run");
+        assert_eq!(live_activations(), 0);
+        let args = ArgSet::new().value(1);
+        scope_n(args, &mut |_: &ArgView<'_>| 0, |h| {
+            assert_eq!(set(h, 0, 1), Err(Status::WrongKind));
+            assert_eq!(with_arg::<Thing, _>(h, |_| ()), Err(Status::WrongType));
+        })
+        .unwrap();
     }
 }

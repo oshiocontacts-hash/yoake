@@ -302,16 +302,17 @@ fn installing_twice_adds_no_second_dispatcher() {
 
 #[test]
 fn install_separates_installed_not_bridgeable_and_not_mine() {
-    // 1: an entities hook that cannot be bridged; 103: a game::item_use hook (another module); 0x8000_0000: synthetic
-    let report = hook_bridge::install(&[(71, 0), (1, 0), (103, 0), (0x8000_0000, 0), (999_999, 0)]);
+    // 211: an entities hook that cannot be bridged (borrowed return type); 103: a game::item_use hook (another module); 0x8000_0000: synthetic
+    let report = hook_bridge::install(&[(71, 0), (211, 0), (103, 0), (0x8000_0000, 0), (999_999, 0)]);
     assert_eq!(report.installed, [71]);
-    assert_eq!(report.not_bridgeable.iter().map(|(id, _)| *id).collect::<Vec<_>>(), [1]);
+    assert_eq!(report.not_bridgeable.iter().map(|(id, _)| *id).collect::<Vec<_>>(), [211]);
     assert_eq!(report.not_mine, [103, 0x8000_0000, 999_999]);
     assert!(report.failed.is_empty());
     use yoake_slice::bridge::Mode;
     assert_eq!(hook_bridge::mode(71), Some(Mode::Full));
     assert_eq!(hook_bridge::mode(215), Some(Mode::ObserveOnly));
-    assert_eq!(hook_bridge::mode(1), None);
+    assert_eq!(hook_bridge::mode(211), None, "unbridged: borrowed return type");
+    assert_eq!(hook_bridge::mode(1), Some(Mode::Full), "five scalar arguments: bridged n-ary");
     assert_eq!(hook_bridge::mode(103), None, "another module's id");
     assert!(hook_bridge::BRIDGED.windows(2).all(|w| w[0] < w[1]) && hook_bridge::OBSERVE_ONLY.windows(2).all(|w| w[0] < w[1]), "sorted for binary_search");
 }
@@ -433,5 +434,41 @@ fn a_read_only_hook_reads_fields_cannot_write_them_and_can_replace_the_result() 
     assert_eq!(reports(&all, 3), [7], "set was refused ReadOnly (7)");
     assert_eq!((xp.total, xp.level), (50, 3), "the argument is unchanged");
     assert!(!runtime::stats().disabled);
+    runtime::uninstall().unwrap();
+}
+
+// ---- W9: a hook with five scalar arguments goes through the n-ary bridge; the guest reads and replaces them.
+#[test]
+fn a_five_argument_fn_is_bridged_n_ary_and_the_guest_reads_and_replaces_scalars() {
+    use horizon_client_lib::entities::vertical_collision_velocity as velocity;
+    let call = || velocity(-1.0, -0.5, 0.04, true, true);
+    runtime::uninstall().unwrap();
+    let plain = call();
+    assert_ne!(plain, 0.0, "slime bounce (else this proves nothing)");
+    let wat = r#"(module
+  (import "env" "original" (func $orig (param i64 i32) (result i32)))
+  (import "env" "arg_get" (func $aget (param i64 i32) (result i32)))
+  (import "env" "arg_set" (func $aset (param i64 i64) (result i32)))
+  (import "env" "hook_register" (func $register (param i32 i32) (result i32)))
+  (import "env" "report" (func $report (param i32 i64)))
+  (memory (export "memory") 1)
+  (func (export "yoake_init") (drop (call $register (i32.const 1) (i32.const 0))))
+  (func (export "yoake_hook") (param $id i32) (param $h i64) (result i64)
+    ;; read argument 0 (current_y bits) and argument 4 (slime)
+    (drop (call $aget (local.get $h) (i32.const 32)))
+    (call $report (i32.const 2) (i64.load (i32.const 32)))
+    (drop (call $aget (i64.add (local.get $h) (i64.const 4)) (i32.const 32)))
+    (call $report (i32.const 5) (i64.load (i32.const 32)))
+    ;; replace `slime` by false: no bounce
+    (drop (call $aset (i64.add (local.get $h) (i64.const 4)) (i64.const 0)))
+    (drop (call $orig (local.get $h) (i32.const 64)))
+    (i64.load (i32.const 64))))"#;
+    runtime::install(wat.as_bytes(), ModConfig::new("")).unwrap();
+    let report = hook_bridge::install(&runtime::stats().registered);
+    assert_eq!(report.installed, [1], "{report:?}");
+    assert_eq!(call(), 0.0, "the guest replaced `slime`: the original saw false");
+    let r = runtime::take_reports().unwrap();
+    assert_eq!(reports(&r, 2), vec![(-1.0f64).to_bits() as i64], "argument 0 read as f64 bits");
+    assert_eq!(reports(&r, 5), vec![1], "argument 4 read as bool");
     runtime::uninstall().unwrap();
 }
