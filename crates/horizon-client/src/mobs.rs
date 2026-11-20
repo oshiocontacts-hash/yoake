@@ -2581,13 +2581,20 @@ pub fn apply_brain_events(mobs: &mut [Mob], events: &mut Vec<MobEvent>, from: us
                 }
                 events.remove(i);
             }
+            // A custom vehicle with seats is boarded by the game, which asks the native mods first
+            // (`native_mob_may_ride`, the veto `/ride` honours); the event stays for it.
+            MobEvent::StartRiding { vehicle, .. }
+                if mobs.iter().any(|m| m.id == vehicle && custom::ai::riding::has_seats(m)) =>
+            {
+                i += 1;
+            }
             MobEvent::StartRiding { rider, vehicle } => {
                 riders::start_riding(mobs, rider, vehicle);
                 events.remove(i);
             }
-            MobEvent::SeatSet { vehicle, seat, rider } => {
-                custom::ai::riding::seat_set(mobs, vehicle, seat as usize, rider);
-                events.remove(i);
+            // Likewise a script's `seat-set`.
+            MobEvent::SeatSet { .. } => {
+                i += 1;
             }
             MobEvent::StartFollowing { fish, leader } => {
                 aquatic::start_following(mobs, fish, leader);

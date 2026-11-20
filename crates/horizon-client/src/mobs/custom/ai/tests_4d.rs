@@ -356,35 +356,83 @@ fn a_custom_type_without_seats_keeps_the_old_link_and_the_ai_boards_seats() {
 
 // ---- seat-set ---------------------------------------------------------------------------------------
 
+/// What the game does with the events `apply_brain_events` leaves for it (`Game::script_seat_set`): plan,
+/// ask the native mods (`veto`: the test double, told the rider, the vehicle and whether it boards), apply.
+fn game_seat_set(mobs: &mut [Mob], event: MobEvent, veto: &mut dyn FnMut(u32, u32, bool) -> bool) {
+    let MobEvent::SeatSet { vehicle, seat, rider } = event else { panic!("{event:?}") };
+    let Some((who, mounting)) = riding::plan_seat_set(mobs, vehicle, seat as usize, rider) else { return };
+    if veto(who, vehicle, mounting) {
+        riding::seat_set(mobs, vehicle, seat as usize, rider);
+    }
+}
+
 /// The `seat-set` command: the vehicle asks for the event, the engine seats (or frees) the rider.
 #[test]
 fn the_seat_set_command_seats_and_frees_a_rider() {
     let t = seated(three());
     let mut mobs = vec![vehicle(&t), chicken(2), chicken(3)];
     let mut events: Vec<MobEvent> = Vec::new();
+    let mut yes = |_: u32, _: u32, _: bool| true;
     // Without an event queue the command waits.
     let cmd = Command::SeatSet { seat: 2, rider: Some(2) };
     assert!(!script_apply::apply_in(&mut mobs[0], None, None, cmd.clone()));
     assert!(script_apply::apply_in(&mut mobs[0], None, Some(&mut events), cmd));
     assert_eq!(events.len(), 1);
+    // The brain pass leaves it for the game (which asks the native mods).
     crate::mobs::apply_brain_events(&mut mobs, &mut events, 0);
-    assert!(events.is_empty(), "the event was taken");
+    assert_eq!(events.len(), 1, "the event stays for the game");
+    game_seat_set(&mut mobs, events.remove(0), &mut yes);
     assert_eq!(claims(&mobs[0]), [(2, 2)]);
     assert_eq!(mobs[1].extra.mount, Some(1));
     // A taken seat changes nothing; another rider takes a free one.
     for (seat, rider) in [(2, 3), (1, 3)] {
         script_apply::apply_in(&mut mobs[0], None, Some(&mut events), Command::SeatSet { seat, rider: Some(rider) });
         crate::mobs::apply_brain_events(&mut mobs, &mut events, 0);
+        game_seat_set(&mut mobs, events.remove(0), &mut yes);
     }
     assert_eq!(claims(&mobs[0]), [(3, 1), (2, 2)]);
     // `none` frees the seat: its rider gets off (and cannot board for 60 ticks), the other stays.
     script_apply::apply_in(&mut mobs[0], None, Some(&mut events), Command::SeatSet { seat: 2, rider: None });
     crate::mobs::apply_brain_events(&mut mobs, &mut events, 0);
+    game_seat_set(&mut mobs, events.remove(0), &mut yes);
     assert_eq!(claims(&mobs[0]), [(3, 1)]);
     assert_eq!((mobs[1].extra.mount, mobs[1].extra.boarding_cooldown), (None, 60));
     // Freeing an empty seat does nothing.
     riding::seat_set(&mut mobs, 1, 0, None);
     assert_eq!(claims(&mobs[0]), [(3, 1)]);
+}
+
+/// A native mod that vetoes (`EntityMountEvent` canceled) stops `seat-set` boarding and freeing, and the AI
+/// boarding of a seated vehicle; it is asked once and only for what would really happen.
+#[test]
+fn a_native_veto_stops_seat_set_and_ai_boarding() {
+    let t = seated(three());
+    let mut mobs = vec![vehicle(&t), chicken(2), chicken(3)];
+    let asked = std::cell::RefCell::new(Vec::new());
+    let mut no = |who: u32, v: u32, mounting: bool| {
+        asked.borrow_mut().push((who, v, mounting));
+        false
+    };
+    // seat-set boarding: vetoed.
+    game_seat_set(&mut mobs, MobEvent::SeatSet { vehicle: 1, seat: 1, rider: Some(2) }, &mut no);
+    assert!(claims(&mobs[0]).is_empty() && mobs[1].extra.mount.is_none());
+    // Nothing would happen on a seat that does not exist: the mods are not asked.
+    game_seat_set(&mut mobs, MobEvent::SeatSet { vehicle: 1, seat: 9, rider: Some(2) }, &mut no);
+    assert_eq!(*asked.borrow(), [(2, 1, true)]);
+    // AI boarding: the game plans, asks, and only then commits.
+    let plan = riding::plan_board(&mobs, 3, 1, None, true).unwrap();
+    assert_eq!(plan.seat, 0);
+    assert!(!no(3, 1, true), "vetoed: no commit");
+    assert!(claims(&mobs[0]).is_empty() && mobs[2].extra.mount.is_none());
+    // Allowed: it boards. Then freeing its seat is vetoed too and it stays.
+    riding::commit_board(&mut mobs, 3, 1, plan);
+    assert_eq!(claims(&mobs[0]), [(3, 0)]);
+    game_seat_set(&mut mobs, MobEvent::SeatSet { vehicle: 1, seat: 0, rider: None }, &mut no);
+    assert_eq!(claims(&mobs[0]), [(3, 0)]);
+    assert_eq!(asked.borrow().last(), Some(&(3, 1, false)));
+    // Planning a refused boarding (cooldown) never asks.
+    mobs[1].extra.boarding_cooldown = 5;
+    assert_eq!(riding::plan_board(&mobs, 2, 1, None, true), Err(Refusal::Cooldown));
 }
 
 // ---- the save ----------------------------------------------------------------------------------------

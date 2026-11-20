@@ -71,4 +71,25 @@ impl Game<'_> {
     pub(super) fn mob_has_seats(&self, vehicle: u32) -> bool {
         self.mobs.iter().any(|m| m.id == vehicle && riding::has_seats(m))
     }
+
+    /// The AI's boarding of a custom vehicle with seats (honours the boarding cooldown): the native mods
+    /// may veto it, as they may a `/ride` (`native_mob_may_ride`).
+    pub(super) fn board_seated_mob(&mut self, rider: u32, vehicle: u32) -> bool {
+        let Ok(plan) = riding::plan_board(&self.mobs, rider, vehicle, None, true) else { return false };
+        if !self.native_mob_may_ride(rider, vehicle, true) {
+            return false;
+        }
+        riding::commit_board(&mut self.mobs, rider, vehicle, plan);
+        true
+    }
+
+    /// A script's `seat-set`: puts a mob on a seat or takes the one on it off, unless a native mod vetoes
+    /// the boarding or the dismounting (`native_mob_may_ride`).
+    pub(super) fn script_seat_set(&mut self, vehicle: u32, seat: usize, rider: Option<u32>) {
+        let Some((who, mounting)) = riding::plan_seat_set(&self.mobs, vehicle, seat, rider) else { return };
+        if !self.native_mob_may_ride(who, vehicle, mounting) {
+            return;
+        }
+        riding::seat_set(&mut self.mobs, vehicle, seat, rider);
+    }
 }

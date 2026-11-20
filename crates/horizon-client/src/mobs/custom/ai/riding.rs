@@ -524,6 +524,26 @@ pub fn board(
     seat: Option<usize>,
     honour_cooldown: bool,
 ) -> Result<usize, Refusal> {
+    let plan = plan_board(mobs, rider, vehicle, seat, honour_cooldown)?;
+    Ok(commit_board(mobs, rider, vehicle, plan))
+}
+
+/// What [`plan_board`] worked out: the seat and the claims of the riders already aboard.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BoardPlan {
+    pub seat: usize,
+    claims: Vec<SeatClaim>,
+}
+
+/// The checks of [`board`] without changing anything: the game asks the native mods (`native_mob_may_ride`)
+/// between this and [`commit_board`], so a boarding no mod may veto is the one that is allowed.
+pub fn plan_board(
+    mobs: &[Mob],
+    rider: u32,
+    vehicle: u32,
+    seat: Option<usize>,
+    honour_cooldown: bool,
+) -> Result<BoardPlan, Refusal> {
     if rider == vehicle {
         return Err(Refusal::Itself);
     }
@@ -581,10 +601,42 @@ pub fn board(
         (chosen, claims)
     };
     claims.push(SeatClaim { rider, seat: u8::try_from(chosen).map_err(|_| Refusal::NoSuchSeat)? });
-    mobs[ri].extra.mount = Some(vehicle);
-    mobs[ri].extra.passenger = true;
-    store_claims(&mut mobs[vi], claims);
-    Ok(chosen)
+    Ok(BoardPlan { seat: chosen, claims })
+}
+
+/// Does what [`plan_board`] planned (nothing may have changed in between) and returns the seat.
+pub fn commit_board(mobs: &mut [Mob], rider: u32, vehicle: u32, plan: BoardPlan) -> usize {
+    if let Some(ri) = mobs.iter().position(|m| m.id == rider) {
+        mobs[ri].extra.mount = Some(vehicle);
+        mobs[ri].extra.passenger = true;
+    }
+    if let Some(vi) = mobs.iter().position(|m| m.id == vehicle) {
+        store_claims(&mut mobs[vi], plan.claims);
+    }
+    plan.seat
+}
+
+/// What a script's `seat-set` is about to do, for the mods to veto first: the mob that boards (`true`) or
+/// is taken off (`false`) and the vehicle. `None` when it would change nothing (the seat is taken, the
+/// rider is not allowed, nobody sits there ...).
+pub fn plan_seat_set(mobs: &[Mob], vehicle: u32, seat: usize, rider: Option<u32>) -> Option<(u32, bool)> {
+    match rider {
+        Some(r) => plan_board(mobs, r, vehicle, Some(seat), false).ok().map(|_| (r, true)),
+        None => seat_occupant(mobs, vehicle, seat).map(|r| (r, false)),
+    }
+}
+
+/// The mob that sits on seat `seat` of `vehicle`.
+pub fn seat_occupant(mobs: &[Mob], vehicle: u32, seat: usize) -> Option<u32> {
+    mobs.iter()
+        .find(|m| m.id == vehicle)?
+        .extra
+        .custom
+        .as_ref()?
+        .seat_claims
+        .iter()
+        .find(|c| usize::from(c.seat) == seat)
+        .map(|c| c.rider)
 }
 
 /// Sets the claims of `vehicle` and its `extra.rider` (the mob on the lowest seat, or none).
