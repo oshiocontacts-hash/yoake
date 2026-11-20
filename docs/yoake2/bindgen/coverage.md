@@ -10,6 +10,7 @@ Functions counted: free functions, inherent methods, and non-derived trait-impl 
 | `motion` | 367 | 35 | 6 | **41 (11.2%)** | 6 (1.6%) | 320 (87.2%) | 2 / 6 | 89 / 110 | 3 |
 | `game_items` | 5 | 5 | 0 | **5 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 0 / 0 | 0 / 0 | 0 |
 | `entity_query` | 20 | 1 | 6 | **7 (35.0%)** | 4 (20.0%) | 9 (45.0%) | 6 / 10 | 14 / 43 | 4 |
+| `mod_generator` | 25 | 8 | 1 | **9 (36.0%)** | 8 (32.0%) | 8 (32.0%) | 0 / 3 | 8 / 21 | 4 |
 
 ## `items` (horizon-items/src/items.rs)
 
@@ -464,18 +465,79 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | `QuerySources` carries a lifetime (cannot be a handle type) | 20 |
 | field `0` of `NativeWorldEpoch` is private to another module | 1 |
 
+## `mod_generator` (horizon-client/src/mod_generator.rs)
+
+- bound now: **9 of 25** (36.0%): 8 basic + 1 mechanical
+- handle-required, not yet bound: 8 (32.0%)
+- excluded: 8 (32.0%)
+- field accessors (get + set pairs): 8 of 21 fields
+- handle types (receivers of bound methods or owners of bound fields): 4
+
+### Handle types and how a guest reaches them
+
+A type is reachable as a hook argument (`Root::HookArg`) when one of its methods is hooked; every type below has bound methods or accessors. The last column is the shortest chain of `Game` fields that mentions the type (resolution from `Game` is not built; this is where it would start).
+
+| handle type | bound methods | bound field pairs | from `Game` by field path |
+|---|---:|---:|---|
+| `crate::mod_generator::ModChunk` | 5 | 3 | - |
+| `crate::mod_generator::ModGeneratorContext` | 1 | 3 | - |
+| `crate::mod_generator::ModGenerators` | 1 | 0 | `Game.mod_generators` |
+| `crate::mod_generator::ModTerrain` | 1 | 2 | - |
+
+### Handle-required: reasons
+
+| reason | occurrences |
+|---|---:|
+| external type `serde_json::value::Value` (crate not loaded) | 3 |
+| external type `serde_json::value::Value` (crate not loaded) [return value] | 2 |
+| external type `horizon_client_render::chunk::Chunk` (crate not loaded) [&mut argument] | 1 |
+| external type `horizon_client_render::chunk::Chunk` (crate not loaded) [return value] | 1 |
+| external type `horizon_client_render::streaming::Proto` (crate not loaded) | 1 |
+| external type `horizon_client_render::streaming::Proto` (crate not loaded) [return value] | 1 |
+
+### Excluded: reasons
+
+| reason | occurrences |
+|---|---:|
+| `dyn Trait` values cannot cross the data ABI | 6 |
+| `impl Trait` requires a listed instantiation | 1 |
+| external type `horizon_client_render::assets::Assets` (crate not loaded) | 1 |
+| external type `horizon_client_render::biome::Biomes` (crate not loaded) | 1 |
+| external type `horizon_client_render::chunk::LevelShape` (crate not loaded) | 1 |
+| external type `serde_json::value::Value` (crate not loaded) | 1 |
+| lifetime-carrying type `std::sync::MutexGuard` | 1 |
+
+### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
+
+(none writable; 8 read-only field accessors)
+
+### Fields without accessors
+
+| reason | fields |
+|---|---:|
+| `dyn Trait` values cannot cross the data ABI | 4 |
+| external type `horizon_client_render::assets::Assets` (crate not loaded) | 1 |
+| external type `horizon_client_render::biome::Biomes` (crate not loaded) | 1 |
+| external type `horizon_client_render::chunk::Chunk` (crate not loaded) | 1 |
+| external type `horizon_client_render::chunk::LevelShape` (crate not loaded) | 3 |
+| external type `serde_json::value::Value` (crate not loaded) | 3 |
+
 ## External types whose crate JSON was not loaded
 
 - `glam::f32::mat3::Mat3`
 - `glam::f32::sse2::mat4::Mat4`
 - `glam::f64::dvec3::DVec3`
 - `horizon_client_render::assets::Assets`
+- `horizon_client_render::biome::Biomes`
 - `horizon_client_render::camera::AvatarBob`
+- `horizon_client_render::chunk::Chunk`
+- `horizon_client_render::chunk::LevelShape`
 - `horizon_client_render::chunk::block_entity::Data`
 - `horizon_client_render::collisions::PowderSnowSubject`
 - `horizon_client_render::effects::StatusFlags`
 - `horizon_client_render::mesher::Vertex`
 - `horizon_client_render::particles::ParticleOptions`
+- `horizon_client_render::streaming::Proto`
 - `horizon_client_render::world::World`
 - `horizon_mods::custom_mob::CustomMobFile`
 - `horizon_protocol::entity_data::Profile`

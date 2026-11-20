@@ -261,6 +261,13 @@
       "glue": "crates/horizon-client-render/src/yoake_glue/settings.rs",
       "writable": {},
       "guest_stubs": "crates/yoake-guest-sdk/src/stubs/render_settings.rs"
+    },
+    {
+      "name": "mod_generator",
+      "crate_name": "horizon_client_lib",
+      "source": "horizon-client/src/mod_generator.rs",
+      "glue": "crates/horizon-client/src/yoake_glue/mod_generator.rs",
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/mod_generator.rs"
     }
   ],
   "frozen_files": [

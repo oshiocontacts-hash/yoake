@@ -2070,6 +2070,7 @@ interface server-services {
     level-regenerate: func(id: string, seed: option<s64>) -> result<_, string>;
     level-list: func() -> result<list<string>, string>;
     generator-register: func(id: string) -> result<_, string>;
+    current-level: func(player: string) -> result<string, string>;
 }
 
 interface client-types {

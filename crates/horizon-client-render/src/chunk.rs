@@ -550,6 +550,9 @@ pub struct Chunk {
     /// Finished from a proto chunk just now, in any kind of world, not read
     /// from a save (`ChunkEvent.Load`'s `isNewChunk`).
     pub generated: bool,
+    /// Filled by a generator that failed (a mod's chunk generator ran over its limits): the saves skip
+    /// it, so it generates again when it next loads. The first block written into it clears the mark.
+    pub not_generated: bool,
     /// Block entities read from a save, moved into the world on arrival.
     pub block_entities: Vec<((i32, i32, i32), block_entity::BlockEntity)>,
     /// `CustomName` of the container block entities (shown as the screen title).
@@ -588,6 +591,7 @@ impl Chunk {
             light_loaded: false,
             fresh: false,
             generated: false,
+            not_generated: false,
             block_entities: Vec::new(),
             block_names: Vec::new(),
             structure_refs: Vec::new(),
@@ -653,6 +657,7 @@ impl Chunk {
         // `Heightmap.update`: a write two or more below a map's height can't
         // move it. Any other change rebuilds that map on the next read.
         if previous != v {
+            self.not_generated = false;
             for map in [&mut self.surface, &mut self.motion_blocking] {
                 if map
                     .get()
@@ -871,6 +876,15 @@ pub struct ChunkExtras {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn an_edit_clears_the_not_generated_mark() {
+        let mut chunk = Chunk::empty(0, 0);
+        chunk.not_generated = true;
+        chunk.set(1, 64, 1, 0);
+        assert!(chunk.not_generated, "writing what is there changes nothing");
+        chunk.set(1, 64, 1, 1);
+        assert!(!chunk.not_generated);
+    }
     #[test]
     fn each_light_form_keeps_every_value_and_run() {
         // Sky varies alone, block varies alone, both, neither.
