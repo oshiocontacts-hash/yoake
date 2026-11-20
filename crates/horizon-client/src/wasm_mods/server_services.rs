@@ -309,6 +309,10 @@ impl ServerHost for GameServerHost {
         mob::gate(mob::granted(&self.id))?;
         mob::impulse(entity, &velocity)
     }
+    fn mob_seat_set(&mut self, entity: u32, rider: Option<u32>, seat: u32) -> Result<bool, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::seat_set(entity, rider, seat)
+    }
 
     fn services(&mut self) -> Result<yoake_wasm::package_services::ServiceHandle, String> {
         super::package::services(&self.id, horizon_mods::yak::ConfigRuntimeSide::Server)

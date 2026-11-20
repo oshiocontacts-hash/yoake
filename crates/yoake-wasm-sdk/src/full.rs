@@ -438,6 +438,12 @@ pub mod server {
         pub fn release_controller_state(entity: u32, controller: &str) -> Result<bool, String> {
             services::mob_release_controller_state(controller, entity)
         }
+        /// Seats the mob `rider` (another mob by handle; `None`: whoever sits there gets off) on seat `seat` of the custom
+        /// vehicle `entity`. `Ok(false)`: the vehicle is dead; an error for a seat the type does not have. A taken seat or a
+        /// rider the seat does not allow change nothing (logged by the engine).
+        pub fn seat_set(entity: u32, seat: u32, rider: Option<u32>) -> Result<bool, String> {
+            services::mob_seat_set(entity, rider, seat)
+        }
         pub fn navigate_to(entity: u32, position: types::Vec3, speed: f64) -> Result<bool, String> {
             services::mob_navigate_to(entity, position, speed)
         }
