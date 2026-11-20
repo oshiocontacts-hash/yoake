@@ -7,6 +7,7 @@
 mod advancements;
 pub mod anticheat;
 pub mod attack_hitbox;
+pub mod mob_sync;
 pub mod attributes;
 pub mod border;
 pub mod chunks;

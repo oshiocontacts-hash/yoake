@@ -40,6 +40,16 @@ pub mod types {
         Creeper,
     }
     #[derive(Clone, Debug, PartialEq)]
+    pub struct CustomLevel {
+        pub spawn_light: types::LightRule,
+        pub piglins_zombify: bool,
+        pub snow_golem_melts: bool,
+        pub fast_lava: bool,
+        pub has_skylight: bool,
+        pub day_cycle: bool,
+        pub ambient: f32,
+    }
+    #[derive(Clone, Debug, PartialEq)]
     pub struct Damage {
         pub kind: types::DamageKind,
         pub attacker: Option<types::Who>,
@@ -371,6 +381,13 @@ pub mod types {
         pub pre_hurt_health: f32,
     }
     #[derive(Clone, Debug, PartialEq)]
+    pub struct LightRule {
+        pub block_limit: i32,
+        pub min: i32,
+        pub max: i32,
+        pub constant: bool,
+    }
+    #[derive(Clone, Debug, PartialEq)]
     pub enum Species {
         Tadpole,
         ZombieHorse,
@@ -462,6 +479,7 @@ pub mod types {
         ZombieNautilus,
         SulfurCube,
         Mannequin,
+        Custom,
     }
     #[derive(Clone, Debug, PartialEq)]
     pub enum Pose {
@@ -629,6 +647,33 @@ pub mod types {
             5 => Ok(types::Brain::Creeper),
             n => Err(CallError::InvalidTag("Brain", n)),
         }
+    }
+
+    fn enc_crate__mobs__CustomLevel(v: &types::CustomLevel, out: &mut Vec<u8>) {
+        enc_crate__mobs__spawn_rules__LightRule(&v.spawn_light, out);
+        Encode::encode(&v.piglins_zombify, out);
+        Encode::encode(&v.snow_golem_melts, out);
+        Encode::encode(&v.fast_lava, out);
+        Encode::encode(&v.has_skylight, out);
+        Encode::encode(&v.day_cycle, out);
+        Encode::encode(&v.ambient, out);
+    }
+    fn dec_crate__mobs__CustomLevel(d: &mut Decoder<'_>) -> Result<types::CustomLevel, CallError> {
+        d.enter()?;
+        let r = dec_crate__mobs__CustomLevel_body(d);
+        d.leave();
+        r
+    }
+    fn dec_crate__mobs__CustomLevel_body(d: &mut Decoder<'_>) -> Result<types::CustomLevel, CallError> {
+        Ok(types::CustomLevel {
+            spawn_light: dec_crate__mobs__spawn_rules__LightRule(d)?,
+            piglins_zombify: <bool as Decode>::decode(d)?,
+            snow_golem_melts: <bool as Decode>::decode(d)?,
+            fast_lava: <bool as Decode>::decode(d)?,
+            has_skylight: <bool as Decode>::decode(d)?,
+            day_cycle: <bool as Decode>::decode(d)?,
+            ambient: <f32 as Decode>::decode(d)?,
+        })
     }
 
     fn enc_crate__mobs__Damage(v: &types::Damage, out: &mut Vec<u8>) {
@@ -2355,6 +2400,27 @@ pub mod types {
         })
     }
 
+    fn enc_crate__mobs__spawn_rules__LightRule(v: &types::LightRule, out: &mut Vec<u8>) {
+        Encode::encode(&v.block_limit, out);
+        Encode::encode(&v.min, out);
+        Encode::encode(&v.max, out);
+        Encode::encode(&v.constant, out);
+    }
+    fn dec_crate__mobs__spawn_rules__LightRule(d: &mut Decoder<'_>) -> Result<types::LightRule, CallError> {
+        d.enter()?;
+        let r = dec_crate__mobs__spawn_rules__LightRule_body(d);
+        d.leave();
+        r
+    }
+    fn dec_crate__mobs__spawn_rules__LightRule_body(d: &mut Decoder<'_>) -> Result<types::LightRule, CallError> {
+        Ok(types::LightRule {
+            block_limit: <i32 as Decode>::decode(d)?,
+            min: <i32 as Decode>::decode(d)?,
+            max: <i32 as Decode>::decode(d)?,
+            constant: <bool as Decode>::decode(d)?,
+        })
+    }
+
     fn enc_crate__mobs__species__Species(v: &types::Species, out: &mut Vec<u8>) {
         match v {
             types::Species::Tadpole => {
@@ -2627,6 +2693,9 @@ pub mod types {
             types::Species::Mannequin => {
                 Encode::encode(&89u32, out);
             }
+            types::Species::Custom => {
+                Encode::encode(&90u32, out);
+            }
         }
     }
     fn dec_crate__mobs__species__Species(d: &mut Decoder<'_>) -> Result<types::Species, CallError> {
@@ -2727,6 +2796,7 @@ pub mod types {
             87 => Ok(types::Species::ZombieNautilus),
             88 => Ok(types::Species::SulfurCube),
             89 => Ok(types::Species::Mannequin),
+            90 => Ok(types::Species::Custom),
             n => Err(CallError::InvalidTag("Species", n)),
         }
     }
@@ -10623,6 +10693,149 @@ pub fn mobs_exact_attributes(a0: &[u8]) -> Result<Vec<(String, Vec<(String, f64)
             }
             v0
         };
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::Seen.custom#get`
+pub fn mobs_seen_custom_get(h: Handle) -> Result<Option<String>, Error> {
+    let result = call(h, 2515, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<Option<String>, CallError> {
+        let d = &mut dec;
+        let value = match d.tag()? {
+            0 => None,
+            1 => Some(<String as Decode>::decode(d)?),
+            t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+        };
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::<CustomLevel as Clone>::clone`
+pub fn mobs_customlevel_as_clone_clone(h: Handle) -> Result<types::CustomLevel, Error> {
+    let mut args: Vec<u8> = Vec::new();
+    {
+        let out = &mut args;
+    }
+    let result = call(h, 2517, &args)?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<types::CustomLevel, CallError> {
+        let d = &mut dec;
+        let value = dec_crate__mobs__CustomLevel(d)?;
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::<CustomLevel as PartialEq>::eq`
+pub fn mobs_customlevel_as_partialeq_eq(h: Handle, a0: &types::CustomLevel) -> Result<bool, Error> {
+    let mut args: Vec<u8> = Vec::new();
+    {
+        let out = &mut args;
+        enc_crate__mobs__CustomLevel(a0, out);
+    }
+    let result = call(h, 2518, &args)?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<bool, CallError> {
+        let d = &mut dec;
+        let value = <bool as Decode>::decode(d)?;
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::CustomLevel.ambient#get`
+pub fn mobs_customlevel_ambient_get(h: Handle) -> Result<f32, Error> {
+    let result = call(h, 2519, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<f32, CallError> {
+        let d = &mut dec;
+        let value = <f32 as Decode>::decode(d)?;
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::CustomLevel.day_cycle#get`
+pub fn mobs_customlevel_day_cycle_get(h: Handle) -> Result<bool, Error> {
+    let result = call(h, 2521, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<bool, CallError> {
+        let d = &mut dec;
+        let value = <bool as Decode>::decode(d)?;
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::CustomLevel.fast_lava#get`
+pub fn mobs_customlevel_fast_lava_get(h: Handle) -> Result<bool, Error> {
+    let result = call(h, 2523, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<bool, CallError> {
+        let d = &mut dec;
+        let value = <bool as Decode>::decode(d)?;
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::CustomLevel.has_skylight#get`
+pub fn mobs_customlevel_has_skylight_get(h: Handle) -> Result<bool, Error> {
+    let result = call(h, 2525, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<bool, CallError> {
+        let d = &mut dec;
+        let value = <bool as Decode>::decode(d)?;
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::CustomLevel.piglins_zombify#get`
+pub fn mobs_customlevel_piglins_zombify_get(h: Handle) -> Result<bool, Error> {
+    let result = call(h, 2527, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<bool, CallError> {
+        let d = &mut dec;
+        let value = <bool as Decode>::decode(d)?;
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::CustomLevel.snow_golem_melts#get`
+pub fn mobs_customlevel_snow_golem_melts_get(h: Handle) -> Result<bool, Error> {
+    let result = call(h, 2529, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<bool, CallError> {
+        let d = &mut dec;
+        let value = <bool as Decode>::decode(d)?;
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::CustomLevel.spawn_light#get`
+pub fn mobs_customlevel_spawn_light_get(h: Handle) -> Result<types::LightRule, Error> {
+    let result = call(h, 2531, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<types::LightRule, CallError> {
+        let d = &mut dec;
+        let value = dec_crate__mobs__spawn_rules__LightRule(d)?;
         d.finish()?;
         Ok(value)
     })()?;

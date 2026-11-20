@@ -1,0 +1,25 @@
+{
+  "template": "yoake:mob",
+  "format": 1,
+  "_comment": "Only the part of the type file (FR-F4-MOBS.md 6.1) that F4M-8 and F4M-9 read: model.procedural, model.particles, model.server_events. Synced enum state: idle 0, sit 1, pounce 2.",
+  "synced": { "state": { "type": "enum", "values": ["idle", "sit", "pounce"] } },
+  "model": {
+    "particles": { "cinder_fox_embers": "sample_mobs:ember" },
+    "server_events": ["pounce"],
+    "procedural": [
+      {
+        "type": "two_bone_ik", "root": "leg_fl", "mid": "leg_fl_lower", "tip": "leg_fl_lower", "tip_offset": [0, -1, 0],
+        "target": { "input": 0 }, "pole": { "dir": [0, 0, -1] }, "when": "q.synced('state') == 'sit'", "fade": 0.2
+      },
+      {
+        "type": "two_bone_ik", "root": "leg_fr", "mid": "leg_fr_lower", "tip": "leg_fr_lower", "tip_offset": [0, -1, 0],
+        "target": { "input": 1 }, "pole": { "dir": [0, 0, -1] }, "when": "q.synced('state') == 'sit'", "fade": 0.2
+      },
+      { "type": "look_at", "bone": "head", "target": "view", "yaw": 60, "pitch": 40, "speed": 360 },
+      {
+        "type": "spring", "bones": ["tail1", "tail2", "tail3"], "stiffness": 50, "damping": 3, "gravity": 120,
+        "max_angle": 50, "tip_length": 6
+      }
+    ]
+  }
+}

@@ -231,7 +231,7 @@ pub(crate) fn add_all(slots: &mut [Option<ItemStack>], stack: &ItemStack, max: u
 #[allow(dead_code)]
 impl Game<'_> {
     /// The mod calling now and the server tick it runs in, for a helper that acts on the world.
-    fn wasm_service(&self, operation: &'static str) -> Result<(), String> {
+    pub(super) fn wasm_service(&self, operation: &'static str) -> Result<(), String> {
         require_server_context(
             self.options.execution_role,
             self.remote.is_some(),

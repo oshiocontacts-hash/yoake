@@ -1,6 +1,6 @@
 # 4. サンプル MOD 集を読む
 
-`crates/yoake-wasm-sdk/examples/` には、目的別の 18 個のサンプル MOD が入っています（`hello` と `hello-std` は 4-1 の表で 1 行にまとめています）。
+`crates/yoake-wasm-sdk/examples/` には、目的別の 19 個のサンプル MOD が入っています（`hello` と `hello-std` は 4-1 の表で 1 行にまとめています）。
 自分が作りたい機能に近いサンプルを開いて、`yak.toml` と `src/lib.rs` を真似するのが一番の近道です。
 
 ---
@@ -24,8 +24,9 @@
 | `content-demo` | `server-full` | データだけで定義したブロック・アイテム・エフェクト・レシピ・ルートテーブル・モブ・サウンド・クリエイティブタブに、サーバーモジュールが反応する（`content_demo:gem_cow` を右クリックで鳴き声、倒した数をワールドごとに数える） | `INTERACT_ENTITY`, `MOB_KILLED`, `ENTITY_TICK_POST` | `services::acting_player`, `services::play_sound_at`, `services::tell`, `ext::attachment_get`, `ext::attachment_set` |
 | `mixin-demo` | `inject-mod` | 落下ダメージの半減、骨粉の成長量の 2 倍化、チャットの記録（[8 章](./08-mixin.md)） | なし（フックではなく Mixin の HEAD / RETURN で割り込む） | なし（`println!` のログのみ） |
 | `test-demo` | `test-mod`（テストモジュール） | テストランナー自体を試すための 6 つのテスト（成功・失敗・トラップ・時間切れ・ドライバの全呼び出し・2 クライアント）（[6 章](./06-testing.md)） | なし | `TestWorld` の各呼び出し |
-| `client-services-demo` | `client-full` | クライアントのサービス（キーバインドの登録と状態の取得、ワールド内の線の描画、ポストシェーダーの登録、書き込み可能な GUI テクスチャーの作成と範囲書き込み）を `hud` フックの中で呼び、正しい引数では成功し、不正な入力（無効なシェーダー、範囲外の書き込み）ではエラーが返ることを確かめる。ランタイムの統合テストで使うゲスト | `HUD` | `services::register_key_binding`, `services::key_binding_state`, `services::draw_world_line`, `services::register_post_shader`, `hud::GuiTexture::create`, `services::gui_texture_write` |
+| `client-services-demo` | `client-full` | クライアントのサービス（キーバインドの登録と状態の取得、ワールド内の線の描画、ポストシェーダーの登録、書き込み可能な GUI テクスチャーの作成と範囲書き込み、IME の有効化と候補位置）を `hud` フックの中で呼び、正しい引数では成功し、不正な入力（無効なシェーダー、範囲外の書き込み）ではエラーが返ることを確かめる。ランタイムの統合テストで使うゲスト | `HUD` | `services::register_key_binding`, `services::key_binding_state`, `services::draw_world_line`, `services::register_post_shader`, `hud::GuiTexture::create`, `services::gui_texture_write`, `services::ime_set_allowed`, `services::ime_set_cursor_area` |
 | `gpu-demo` | `client-full` | GPU の口（`gpu` モジュール）の例。テクスチャー付きメッシュ、コンピュートで更新するパーティクル、深度を使ったワールド描画後の色付けを描く。`--features verify` / `reload` / `trap` で検証用のビルドもできる（Cargo の feature） | `HUD` | `gpu::{Shader, RenderPipeline, ComputePipeline, Buffer, BindGroup}` ほか |
+| `ime` | `client-full` | MOD 画面の IME を有効化し、変換途中の文字列とカーソル範囲、確定文字列を受け取り、候補ウィンドウの位置を GUI 座標で設定する（[9 章](./10-ime.md)） | `SCREEN_INIT_POST`, `FRAME`, `IME_PREEDIT`, `IME_COMMIT` | `services::ime_set_allowed`, `services::ime_set_cursor_area` |
 
 ---
 
@@ -136,8 +137,12 @@
 
 どちらも `client-full` ワールドのクライアント MOD で、`export_client_full!` を使います。サンプルのフォルダに `yak.toml` はなく、ランタイムのテストがビルドした `.wasm` を直接読み込みます。実際に配る MOD に使うときは、`yak.toml` の `[wasm] world` に `"client-full"` を書いてください。
 
-- `client-services-demo`: `hud` フックの中でキーバインド、ワールド内の線、ポストシェーダー、GUI テクスチャーの各サービスを呼びます。成功する呼び出しと、エラーが返るべき呼び出し（無効なシェーダー、テクスチャーの範囲外への書き込み）を両方試すので、サービスの使い方とエラーの扱いを確かめる例になります。例は `[wasm] permissions` を宣言しません。
+- `client-services-demo`: `hud` フックの中でキーバインド、ワールド内の線、ポストシェーダー、GUI テクスチャー、IME の各サービスを呼びます。成功する呼び出しと、エラーが返るべき呼び出し（無効なシェーダー、テクスチャーの範囲外への書き込み）を両方試すので、サービスの使い方とエラーの扱いを確かめる例になります。例は `[wasm] permissions` を宣言しません。
 - `gpu-demo`: `gpu` モジュールで WGSL シェーダーからレンダー／コンピュートのパイプラインを作る例です。`gpu` の呼び出しには `[wasm] permissions` の `"service.gpu"` が必要です（4-3 参照）。使い方の詳細は `docs/yoake-wasm-dev.md` の GPU の節を参照してください。
+
+### ⑪ `ime`（MOD 画面の日本語入力）
+
+`ime` は自分の MOD 画面で IME を有効にし、preedit・カーソル範囲・確定文字列を受け取る `client-full` の例です。候補ウィンドウの矩形を GUI スケーリング済み座標で設定します。使い方と既存の文字フックとの二重入力を防ぐ注意は [9. MOD 画面で IME（日本語入力）を使う](./10-ime.md) を参照してください。
 
 ---
 

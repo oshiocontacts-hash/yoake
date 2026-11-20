@@ -54,7 +54,7 @@ WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔�
 - WIT ワールドが `client-mod` の MOD を `YOAKE_WASM_DEV_DIR` と `yoake dev` でホットリロードする方法と、Wasm の開発者モードの安全上の注意
 
 ### 4. [サンプル MOD 集を読む（`04-examples.md`）](./04-examples.md)
-- リポジトリ内の 18 個のサンプル（`hello`、`hello-std`、`hud-item`、`server-storage`、`config-demo`、`permission-demo`、`full-demo`、`full-services`、`mod-call-pair`、`chest-count`、`item-trade`、`player-vitals`、`content-demo`、`mixin-demo`、`test-demo`、`tested-counter`、`client-services-demo`、`gpu-demo`）の解説
+- リポジトリ内の 19 個のサンプル（`hello`、`hello-std`、`hud-item`、`server-storage`、`config-demo`、`permission-demo`、`full-demo`、`full-services`、`mod-call-pair`、`chest-count`、`item-trade`、`player-vitals`、`content-demo`、`mixin-demo`、`test-demo`、`tested-counter`、`client-services-demo`、`gpu-demo`、`ime`）の解説
 - 各サンプルが使うフック（`hook`）とホストサービス（`services`）の一覧
 - `yak.toml` での `[config]`、`[wasm] permissions`、`[permissions."<node>"]` の書き方
 
@@ -84,6 +84,20 @@ WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔�
 - `item-sprite-set` / `item-sprite-reset` による共有アトラス矩形の書き換え
 - `block-sprite-set` / `block-sprite-reset` によるブロック層とミップマップの再生成
 - サイズ不一致・他 MOD 上書き・リソースパック再読み込み・アンロード時の挙動
+
+### 10. [MOD 画面で IME（日本語入力）を使う（`10-ime.md`）](./10-ime.md)
+- `IME_PREEDIT` / `IME_COMMIT` の購読と、変換途中文字列の描画
+- OS の IME 有効化と、候補ウィンドウの GUI スケーリング済み座標での配置
+- 既存の文字フックとの二重入力回避、MOD 画面の所有権とライフサイクル
+
+### 11. [画面・インベントリ・音・食料のサービス（`11-small-services.md`）](./11-small-services.md)
+- 画面の入力フックからの送信、回転したテクスチャー、インベントリの読み取り
+- クライアントだけの音、食料の設定、ブロックエンティティの書き戻し、キーの消費
+
+### 12. [ファイル・ネットワーク・ワーカー（`12-files-network.md`）](./12-files-network.md)
+- `/data`・`/game`・`/host` のフォルダと、`std::fs` での保存
+- ネットワークはワーカーで行う理由と、`worker-send` / `host-recv` のやり取り
+- キューの上限、ワーカーが落ちたとき、古い `permissions` の扱い
 
 ---
 

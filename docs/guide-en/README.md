@@ -54,7 +54,7 @@ Read the chapters in order from top to bottom for a complete walkthrough—from 
 - The two developer-mode switches (one for Wasm, one for DLL) and the safety precautions that go with them
 
 ### 4. [Exploring the Example Mods (`04-examples.md`)](./04-examples.md)
-- Walkthrough of the 18 examples in the repository, including `hello-std` (`hello`, `hello-std`, `hud-item`, `server-storage`, `config-demo`, `permission-demo`, `full-demo`, `full-services`, `mod-call-pair`, `chest-count`, `item-trade`, `player-vitals`, `content-demo`, `mixin-demo`, `test-demo`, `tested-counter`, `client-services-demo`, and `gpu-demo`)
+- Walkthrough of the 19 examples in the repository, including `hello-std` (`hello`, `hello-std`, `hud-item`, `server-storage`, `config-demo`, `permission-demo`, `full-demo`, `full-services`, `mod-call-pair`, `chest-count`, `item-trade`, `player-vitals`, `content-demo`, `mixin-demo`, `test-demo`, `tested-counter`, `client-services-demo`, `gpu-demo`, and `ime`)
 - Overview of the hooks (`hook`) and host services (`services`) each example uses
 - How to write `[config]`, `[wasm] permissions`, and `[permissions."<node>"]` in `yak.toml`
 
@@ -78,6 +78,10 @@ Read the chapters in order from top to bottom for a complete walkthrough—from 
 ### 8. [Getting Started with Yoake Mixin (`08-mixin.md`)](./08-mixin.md)
 - Intercepting engine functions with the `inject-mod` WIT world, injection points (HEAD, RETURN, and overwrite), and the site catalog
 - Value ranges, command and chat interception, ordering, resource limits, and traps
+
+### 11. [Screen, inventory, sound and food services (`11-small-services.md`)](./11-small-services.md)
+- Sending from screen input hooks, turned textures, reading inventories
+- Client-only sound, setting food, block entity write-back, consuming a key
 
 ---
 

@@ -30,6 +30,7 @@ pub mod copper_golem;
 pub mod creaking;
 pub mod creaking_heart;
 pub mod cube;
+pub mod custom;
 pub mod data;
 pub mod dolphin;
 pub mod doors;
@@ -409,6 +410,9 @@ pub struct MobType {
     pub food: Arc<[String]>,
     /// TemptGoal items when they differ from the food.
     pub tempt: Arc<[String]>,
+    /// A mod's fully custom mob (`yoake:mob`): `None` for every vanilla and template-based type.
+    /// F4M: custom species.
+    pub custom: Option<Arc<custom::CustomType>>,
 }
 impl MobType {
     pub fn layer(&self, key: &str) -> Option<&Arc<Part>> {
@@ -524,6 +528,7 @@ impl MobTypes {
             out.insert(
                 id.clone(),
                 MobType {
+                    custom: None,
                     species: def.species,
                     width: t["width"].as_f64().unwrap_or(0.6),
                     height: t["height"].as_f64().unwrap_or(1.8),
@@ -1181,6 +1186,9 @@ pub struct Extra {
     /// (`LivingEntity.lastEquipmentItems`, empty at first), by
     /// `EquipmentSlot` ordinal: see `Mob::equipment_stacks`.
     pub equipment_heard: Option<Box<[Option<crate::items::ItemStack>; 8]>>,
+    /// A fully custom mob's own state: custom attributes, tracked values (`mobs::custom`).
+    /// `None` for every other mob.
+    pub custom: Option<Box<custom::CustomState>>,
 }
 impl Extra {
     #[yoake_hook_macro::yoake_hook(method, id = 433, key = "horizon_client_lib::mobs::Extra::set_main_hand")]
@@ -2124,6 +2132,9 @@ pub struct Seen {
     pub last_damage: Option<Damage>,
     pub id: u32,
     pub species: Species,
+    /// The type id of a custom mob (`Species::Custom`), else `None`: the target and avoid
+    /// lists of a custom data row match custom types by it.
+    pub custom: Option<Arc<str>>,
     pub position: Vec3,
     pub bounds: Aabb,
     pub eye_y: f64,
@@ -2345,6 +2356,7 @@ impl Mob {
             last_damage: self.last_damage.map(|(d, _)| d),
             id: m.id,
             species: m.species(),
+            custom: m.kind.custom.as_ref().map(|t| Arc::from(t.id.as_str())),
             position: m.position,
             bounds: m.bounds(),
             eye_y: m.eye_y(),
@@ -3000,6 +3012,12 @@ impl Mob {
     /// `damage` of a blow whose causing entity is `aim` (`SulfurCube.knockback` reads it).
     #[yoake_hook_macro::yoake_hook(method, id = 469, key = "horizon_client_lib::mobs::Mob::damage_aimed")]
     pub fn damage_aimed(&mut self, amount: f32, source: Damage, aim: Option<Aim>) -> bool {
+        // F4M: the part of a custom mob that is hit scales the blow (`damage_multiplier`).
+        let amount = if self.kind.custom.is_some() {
+            custom::hitbox::scale_damage(self, amount, aim)
+        } else {
+            amount
+        };
         self.attacker_aim = aim;
         let hurt = self.damage(amount, source);
         self.attacker_aim = None;
@@ -3459,6 +3477,11 @@ impl Mob {
         // LivingEntity.tick: CombatTracker.recheckStatus.
         let alive = self.alive();
         self.combat.recheck(alive, self.age);
+        // F4M-5b: a custom mob's server animation (triggers, controllers, timeline events) runs
+        // before its goals, so a damage frame it emits is seen by the goal in the same tick.
+        if self.kind.custom.is_some() {
+            custom::anim_sync::tick(self, w);
+        }
         ai::tick(self, w, level_random, events)
     }
     /// The section the mob is in, noted when it changes (`EntitySection` lists).
@@ -4231,6 +4254,7 @@ pub(crate) mod sensor_scan_tests {
 
     pub(crate) fn kind() -> Arc<MobType> {
         Arc::new(MobType {
+            custom: None,
             id: "minecraft:cow".into(),
             species: Species::Cow,
             width: 0.9,
@@ -5097,7 +5121,7 @@ mod yoake_glue_tests {
     }
 }
 
-#[cfg(feature = "yoake-hook-bench")]
+#[cfg(any(test, feature = "yoake-hook-bench"))]
 pub mod mob_hook_bench {
     use super::{Anim, Brain, Flags, Mob, MobData, MobType, MobWorld, Part, Species};
     use crate::{
@@ -5370,6 +5394,25 @@ pub mod mob_hook_bench {
             }
         }
 
+        /// A stone block at `(x, y, z)` (the world's only block besides air).
+        #[yoake_hook(skip = "benchmark helper")]
+        pub fn set_stone(&mut self, x: i32, y: i32, z: i32) {
+            self.world.set(x, y, z, BlockStateId(1)).unwrap();
+        }
+
+        /// Air at `(x, y, z)`.
+        #[yoake_hook(skip = "benchmark helper")]
+        pub fn set_air(&mut self, x: i32, y: i32, z: i32) {
+            self.world.set(x, y, z, BlockStateId(0)).unwrap();
+        }
+
+        /// Lists `blocks` (ids) under the block tag `tag`.
+        #[yoake_hook(skip = "benchmark helper")]
+        pub fn set_tag(&mut self, tag: &str, blocks: &[&str]) {
+            self.block_tags
+                .insert(tag.to_owned(), blocks.iter().map(|b| (*b).to_owned()).collect());
+        }
+
         #[yoake_hook(skip = "benchmark helper")]
         pub fn world(&self) -> MobWorld<'_> {
             MobWorld {
@@ -5418,6 +5461,7 @@ pub mod mob_hook_bench {
     #[yoake_hook(skip = "benchmark helper")]
     pub fn kind() -> Arc<MobType> {
         Arc::new(MobType {
+            custom: None,
             id: "minecraft:cow".into(),
             species: Species::Cow,
             width: 0.9,

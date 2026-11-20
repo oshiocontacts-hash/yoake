@@ -93,7 +93,7 @@ impl<Reader: Read + Seek> Archive<Reader> {
             }
         }
         if let Some(wasm) = &manifest.wasm {
-            for (side, path) in wasm.modules() {
+            for (side, path) in wasm.declared_files() {
                 let entry = container.entries().iter().find(|entry| entry.name == path)
                     .ok_or_else(|| format!("missing declared wasm {side} module: {path}"))?;
                 if entry.size > MAX_WASM_SIZE {
@@ -155,6 +155,14 @@ impl<Reader: Read + Seek> Archive<Reader> {
             .filter(|wasm| wasm.full_access())
             .and_then(|wasm| if client { wasm.client.clone() } else { wasm.server.clone() })
         else {
+            return Ok(None);
+        };
+        self.container.read_small(&path, MAX_WASM_SIZE).map(Some)
+    }
+
+    /// The bytes of the package's worker component (`[wasm] worker`), bounded by [`MAX_WASM_SIZE`].
+    pub fn worker_module(&mut self) -> Result<Option<Vec<u8>>, String> {
+        let Some(path) = self.manifest.wasm.as_ref().and_then(|wasm| wasm.worker.clone()) else {
             return Ok(None);
         };
         self.container.read_small(&path, MAX_WASM_SIZE).map(Some)
@@ -230,7 +238,7 @@ fn classify(name: &str, manifest: &Manifest) -> Result<Part, String> {
         "config" => Ok(Part::Config),
         "bin" if rest.starts_with("wasm/") => {
             let wasm = manifest.wasm.as_ref().ok_or("bin/wasm files require [wasm]")?;
-            if !wasm.modules().iter().any(|(_, path)| *path == name) {
+            if !wasm.declared_files().iter().any(|(_, path)| *path == name) {
                 return Err(format!("undeclared wasm module: {name}"));
             }
             Ok(Part::Wasm)

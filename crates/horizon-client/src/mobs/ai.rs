@@ -510,6 +510,14 @@ fn generic(m: &mut Mob) {
         }
     }
 }
+/// `instanceof Monster` for a mob: a fully custom mob is one when its type's category is
+/// `monster` (it has no Java class); every vanilla mob answers as [`is_monster`] does.
+pub fn mob_is_monster(m: &Mob) -> bool {
+    match &m.kind.custom {
+        Some(t) => t.category == super::spawn_selection::Category::Monster,
+        None => is_monster(m.species()),
+    }
+}
 /// Subclasses of `net.minecraft.world.entity.monster.Monster`.
 pub fn is_monster(s: Species) -> bool {
     use Species as S;
@@ -1391,7 +1399,7 @@ fn ai_step(m: &mut Mob, w: &MobWorld, level_random: &mut LegacyRandom, events: &
         super::equine::tail_tick(m);
     }
     // Monster.aiStep: updateNoActionTime (Raider: always +2).
-    if is_monster(m.species())
+    if mob_is_monster(m)
         && (super::raider::is_raider(m.species()) || super::hostile::mob_brightness(m, w) > 0.5)
     {
         m.ai.no_action_time += 2;
@@ -1921,6 +1929,10 @@ pub fn requires_custom_persistence(m: &Mob) -> bool {
 /// Mob.checkDespawn, before the tick (players are the only despawn
 /// reference). Returns false when the mob is discarded.
 fn check_despawn(m: &mut Mob, w: &MobWorld) -> bool {
+    // F4M: a fully custom mob has its own despawn distances, age limit and peaceful rule.
+    if let Some(c) = m.kind.custom.clone() {
+        return super::custom::spawn::check_despawn(m, w, &c);
+    }
     // A mannequin is a LivingEntity, which never despawns.
     if m.species() == Species::Mannequin {
         return true;
@@ -2930,7 +2942,7 @@ pub fn swim_sound(m: &mut Mob) -> &'static str {
         Species::ZombieNautilus => "entity.zombie_nautilus.swim",
         Species::Turtle => "entity.turtle.swim",
         // Monster.getSwimSound, and Hoglin's own override of it.
-        s if s == Species::Hoglin || is_monster(s) => "entity.hostile.swim",
+        _ if m.species() == Species::Hoglin || mob_is_monster(m) => "entity.hostile.swim",
         _ => "entity.generic.swim",
     }
 }

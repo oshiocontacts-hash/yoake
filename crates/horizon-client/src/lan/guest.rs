@@ -306,6 +306,9 @@ pub struct Guest {
     pub known_movement: [f64; 3],
     /// A native mod's attack hit box for this player (width, height; `lan::attack_hitbox`).
     pub attack_hitbox: Option<(f32, f32)>,
+    /// Custom mobs this player started tracking and has not been sent a `horizon:mob_sync` snapshot of
+    /// (`lan::mob_sync`).
+    pub mob_sync_starts: Vec<i32>,
     pub dead: bool,
     /// `LivingEntity.deathTime`: ticks since the guest died.
     pub death_time: u32,
@@ -479,6 +482,7 @@ impl Guest {
             moves_from_ground: false,
             known_movement: [0.0; 3],
             attack_hitbox: None,
+            mob_sync_starts: Vec::new(),
             dead: false,
             death_time: 0,
             placed: false,

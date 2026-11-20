@@ -185,6 +185,9 @@ pub struct ModConfig {
     /// `original` is not counted) is **logged**, once per activation, and keeps running; it is never trapped.
     /// Ignored when `epoch_ticks` is set (that budget traps). `None`: no watchdog.
     pub watchdog_ms: Option<u64>,
+    /// Files, WASI log lines and an optional worker for this mod (FR-F2). `None`: no preopened directory, no worker;
+    /// stdout and stderr still go to the log.
+    pub io: Option<yoake_mod_io::ModIo>,
 }
 
 impl ModConfig {
@@ -196,6 +199,7 @@ impl ModConfig {
             epoch_ticks: None,
             pause_epoch_in_original: true,
             watchdog_ms: None,
+            io: None,
         }
     }
 
@@ -268,7 +272,16 @@ struct Host {
     /// Results that did not fit the guest's buffer, kept for `engine_take` (never re-run).
     tickets: Vec<Ticket>,
     next_ticket: u32,
+    /// WASI preview 1 for guests built with Rust `std` (`wasm32-wasip1`): preopens, log lines, clocks, random.
+    wasi: yoake_mod_io::wasmtime_wasi::p1::WasiP1Ctx,
+    /// The mod's worker (FR-F2), stopped when the mod is unloaded.
+    worker: Option<yoake_mod_io::WorkerHandle>,
 }
+
+// SAFETY: a `Host` is created on the thread that loads the mod and lives in that thread's `RT` slot for its whole
+// life; it is never moved to or used from another thread. The `Send` bound only exists because wasmtime-wasi's
+// `p1::add_to_linker_sync` asks for it; the `Rc` and `Cell` fields are what keep the type from being `Send` itself.
+unsafe impl Send for Host {}
 
 impl Host {
     /// The trap rule's last step: never enter this mod again, and drop it from every chain.
@@ -451,6 +464,7 @@ pub fn load(wasm_or_wat: &[u8], cfg: ModConfig, name: &str) -> R<ModId> {
         Ticker { stop, thread: Some(thread) }
     });
     let linker = build_linker(&engine)?;
+    let (wasi, worker) = build_io(&cfg, name)?;
     let export = cfg.hook_export.clone();
     let registered = Rc::new(RefCell::new(std::collections::HashMap::new()));
     let active = Rc::new(Cell::new(std::ptr::null_mut()));
@@ -478,6 +492,8 @@ pub fn load(wasm_or_wat: &[u8], cfg: ModConfig, name: &str) -> R<ModId> {
         acts: Vec::new(),
         tickets: Vec::new(),
         next_ticket: 0,
+        wasi,
+        worker,
     };
     let mut store = Store::new(&engine, host);
     store.set_fuel(INITIAL_FUEL)?;
@@ -969,6 +985,7 @@ fn build_linker(engine: &Engine) -> R<Linker<Host>> {
     linker.func_wrap("env", "ticks", |c: Caller<'_, Host>| -> i64 {
         c.data().ticks.load(Ordering::Relaxed) as i64
     })?;
+    link_io(&mut linker)?;
     Ok(linker)
 }
 
@@ -1304,4 +1321,140 @@ mod tests {
         assert_eq!(call_status::ticket_of(-2), None);
         assert_eq!(call_status::ticket_of(0), None);
     }
+}
+
+// ---- FR-F2: files, WASI p1 and the worker ----------------------------------------------------------
+
+/// The longest wait (nanoseconds) a full-access guest may ask `poll_oneoff` for: the same rule as the sandboxed
+/// route's bounded clock, so `std::thread::sleep` can never stop the game thread. A longer wait traps the mod.
+pub const MAX_POLL_WAIT_NANOS: u64 = 2_000_000;
+
+/// `yoake_worker_send` results.
+pub mod worker_send_status {
+    pub const OK: i32 = 0;
+    pub const QUEUE_FULL: i32 = -1;
+    /// The mod has no worker, or it stopped.
+    pub const NO_WORKER: i32 = -2;
+    pub const TOO_LARGE: i32 = -3;
+    pub const BAD_POINTER: i32 = -4;
+}
+
+/// `yoake_worker_recv` special results (a positive result is the message length, 0 means none, any other negative
+/// value is minus the length the buffer needs: the message stays queued).
+pub mod worker_recv_status {
+    pub const NO_WORKER: i32 = i32::MIN;
+    pub const BAD_POINTER: i32 = i32::MIN + 1;
+}
+
+/// The WASI p1 context (log lines, clocks, random, preopens) and the worker of one mod.
+fn build_io(cfg: &ModConfig, name: &str) -> R<(yoake_mod_io::wasmtime_wasi::p1::WasiP1Ctx, Option<yoake_mod_io::WorkerHandle>)> {
+    use yoake_mod_io::{LinePipe, LogSink, WorkerHandle, WorkerOptions};
+    let sink = cfg.io.as_ref().map_or_else(LogSink::stderr, |io| io.log.clone());
+    let prefix = format!("wasm mod {name}");
+    let mut builder = yoake_mod_io::wasmtime_wasi::WasiCtxBuilder::new();
+    builder.stdout(LinePipe::new(&prefix, "stdout", sink.clone())).stderr(LinePipe::new(&prefix, "stderr", sink));
+    let mut worker = None;
+    if let Some(io) = &cfg.io {
+        io.files.apply(&mut builder).map_err(Error::msg)?;
+        if let Some(bytes) = &io.worker {
+            let options = WorkerOptions { log: io.log.clone(), ..WorkerOptions::default() };
+            worker = Some(WorkerHandle::spawn(name, bytes, io.files.clone(), options).map_err(Error::msg)?);
+        }
+    }
+    Ok((builder.build_p1(), worker))
+}
+
+fn guest_memory(caller: &mut Caller<'_, Host>) -> Option<Memory> {
+    caller.get_export("memory").and_then(wasmtime::Extern::into_memory)
+}
+
+/// Links `wasi_snapshot_preview1` (std guests) and the worker imports. A module that imports none of them loads as before.
+fn link_io(linker: &mut Linker<Host>) -> R<()> {
+    yoake_mod_io::wasmtime_wasi::p1::add_to_linker_sync(linker, |host: &mut Host| &mut host.wasi)?;
+    // `poll_oneoff` is how `thread::sleep` waits. The stock one sleeps the host thread: replace it with the bounded one.
+    linker.allow_shadowing(true);
+    linker.func_wrap("wasi_snapshot_preview1", "poll_oneoff", poll_oneoff)?;
+    linker.allow_shadowing(false);
+    linker.func_wrap("env", "yoake_worker_send", |mut c: Caller<'_, Host>, ptr: i32, len: i32| -> i32 {
+        use worker_send_status as s;
+        let Some(memory) = guest_memory(&mut c) else { return s::BAD_POINTER };
+        if len < 0 {
+            return s::BAD_POINTER;
+        }
+        if c.data().worker.is_none() {
+            return s::NO_WORKER;
+        }
+        let mut bytes = vec![0u8; len as usize];
+        if memory.read(&c, ptr as u32 as usize, &mut bytes).is_err() {
+            return s::BAD_POINTER;
+        }
+        match c.data().worker.as_ref().map(|w| w.send(bytes)) {
+            Some(Ok(())) => s::OK,
+            Some(Err(yoake_mod_io::SendError::Full)) => s::QUEUE_FULL,
+            Some(Err(yoake_mod_io::SendError::TooLarge)) => s::TOO_LARGE,
+            _ => s::NO_WORKER,
+        }
+    })?;
+    linker.func_wrap("env", "yoake_worker_recv", |mut c: Caller<'_, Host>, ptr: i32, cap: i32| -> i32 {
+        use worker_recv_status as s;
+        let Some(memory) = guest_memory(&mut c) else { return s::BAD_POINTER };
+        let Some(worker) = c.data().worker.as_ref() else { return s::NO_WORKER };
+        let cap = cap.max(0) as usize;
+        match worker.recv_into(cap) {
+            yoake_mod_io::RecvOutcome::None => 0,
+            yoake_mod_io::RecvOutcome::TooSmall(needed) => -(needed.min(i32::MAX as usize) as i32),
+            yoake_mod_io::RecvOutcome::Message(bytes) => {
+                if memory.write(&mut c, ptr as u32 as usize, &bytes).is_err() {
+                    return s::BAD_POINTER;
+                }
+                bytes.len() as i32
+            }
+        }
+    })?;
+    Ok(())
+}
+
+/// WASI p1 `poll_oneoff` without host sleeping: a clock wait of up to [`MAX_POLL_WAIT_NANOS`] (and any file
+/// readiness) is reported ready at once; a longer wait traps the mod ("a hook must not block").
+fn poll_oneoff(mut caller: Caller<'_, Host>, input: i32, output: i32, count: i32, nevents_ptr: i32) -> R<i32> {
+    const ERRNO_INVAL: i32 = 28;
+    const SUBSCRIPTION: usize = 48;
+    const EVENT: usize = 32;
+    if count <= 0 || count > 1024 {
+        return Ok(ERRNO_INVAL);
+    }
+    let memory = guest_memory(&mut caller).ok_or_else(|| Error::msg("guest has no memory"))?;
+    let mut subscriptions = vec![0u8; count as usize * SUBSCRIPTION];
+    memory.read(&caller, input as u32 as usize, &mut subscriptions)?;
+    let mut events = vec![0u8; count as usize * EVENT];
+    for (i, sub) in subscriptions.chunks_exact(SUBSCRIPTION).enumerate() {
+        let event = &mut events[i * EVENT..(i + 1) * EVENT];
+        event[..8].copy_from_slice(&sub[..8]); // userdata
+        let tag = sub[8];
+        event[10] = tag; // event type: clock 0, fd_read 1, fd_write 2
+        if tag == 0 {
+            let clock = u32::from_le_bytes(sub[16..20].try_into().unwrap());
+            let timeout = u64::from_le_bytes(sub[24..32].try_into().unwrap());
+            let absolute = u16::from_le_bytes(sub[40..42].try_into().unwrap()) & 1 != 0;
+            let wait = if !absolute {
+                timeout
+            } else if clock == 0 {
+                let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64);
+                timeout.saturating_sub(now)
+            } else if timeout == 0 {
+                0
+            } else {
+                u64::MAX // an absolute monotonic deadline: its base is the guest context's, not ours; refuse
+            };
+            if wait > MAX_POLL_WAIT_NANOS {
+                return Err(Error::msg(format!(
+                    "the mod waited {} ms in poll_oneoff; waiting is not allowed (a hook must not block)",
+                    wait / 1_000_000
+                )));
+            }
+        }
+    }
+    memory.write(&mut caller, output as u32 as usize, &events)?;
+    memory.write(&mut caller, nevents_ptr as u32 as usize, &(count as u32).to_le_bytes())?;
+    Ok(0)
 }

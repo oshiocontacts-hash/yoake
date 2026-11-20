@@ -53,6 +53,7 @@ horizon-narrator = { path = "../horizon-narrator" }
 # Horizon mods: sandboxed WebAssembly components, off unless installed and turned on (docs/mods.md).
 # Their runtime is the `mods` feature.
 horizon-mods = { path = "../horizon-mods", default-features = false, features = ["index", "yak"] }
+horizon-mobmodel = { path = "../horizon-mobmodel" }
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "parking_lot", "vulkan", "metal", "wgsl", "naga-ir"] }
 winit = "0.30.13"
 pollster = "0.4"
@@ -241,6 +242,10 @@ path = "../horizon-client/tests/forced_chunks.rs"
 [[test]]
 name = "generation_saves"
 path = "../horizon-client/tests/generation_saves.rs"
+
+[[test]]
+name = "f4m_parity"
+path = "../horizon-client/tests/f4m_parity.rs"
 
 [[test]]
 name = "lan_bot"

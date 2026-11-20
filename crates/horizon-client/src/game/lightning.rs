@@ -769,6 +769,7 @@ mod tests {
     fn a_baby_pig_hit_by_lightning_becomes_a_baby_zombified_piglin() {
         let make_pig = |baby: bool| {
             let kind = Arc::new(MobType {
+                custom: None,
                 id: "minecraft:pig".into(),
                 species: Species::Pig,
                 width: 0.9,

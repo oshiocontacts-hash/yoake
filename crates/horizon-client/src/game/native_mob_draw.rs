@@ -520,6 +520,7 @@ mod tests {
         Mob::new(
             7,
             Arc::new(MobType {
+                custom: None,
                 id: "minecraft:player".into(),
                 species: Species::Mannequin,
                 width: 0.6,

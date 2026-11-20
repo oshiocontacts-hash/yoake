@@ -1,0 +1,6 @@
+id = "sample_mobs"
+name = "Cinder Fox (F4M fixture)"
+version = "0.1.0"
+api = "0.2"
+side = "both"
+capabilities = ["registries"]

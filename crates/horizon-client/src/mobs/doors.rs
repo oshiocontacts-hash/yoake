@@ -8,6 +8,7 @@ use super::{
     raider,
 };
 use horizon_core::{geometry::Vec3, random::RandomSource};
+use std::sync::Arc;
 
 /// `DefaultDoorBreakTime`: `BreakDoorGoal.getDoorBreakTime` is
 /// `max(240, doorBreakTime)`, and the vindicator's 6 is below it.
@@ -49,8 +50,26 @@ pub fn wooden_door(w: &MobWorld, p: [i32; 3]) -> bool {
 struct Interact {
     door: [i32; 3],
     has_door: bool,
+    /// A custom mob's door block tag (`open_door`): when set, a door is a block of this tag
+    /// instead of the vanilla wooden doors.
+    tag: Option<Arc<str>>,
 }
 impl Interact {
+    fn tagged(tag: Arc<str>) -> Self {
+        Self {
+            tag: Some(tag),
+            ..Self::default()
+        }
+    }
+    /// Whether the block at `p` is a door of this interaction: of the tag, else a wooden door
+    /// (`wooden`) or any block whose name ends in `_door`.
+    fn is_door(&self, w: &MobWorld, p: [i32; 3], wooden: bool) -> bool {
+        match &self.tag {
+            Some(tag) => w.has_tag(tag, w.block_name(p[0], p[1], p[2])),
+            None if wooden => wooden_door(w, p),
+            None => w.block_name(p[0], p[1], p[2]).ends_with("_door"),
+        }
+    }
     /// `DoorInteractGoal.canUse`: the mob bumped into something and a
     /// wooden door is on its path within 1.5 blocks, or at its own head.
     fn can_use(&mut self, m: &Mob, w: &MobWorld) -> bool {
@@ -69,7 +88,7 @@ impl Interact {
             let dx = m.position.x - f64::from(node.x);
             let dz = m.position.z - f64::from(node.z);
             if dx * dx + dz * dz <= 2.25 {
-                self.has_door = wooden_door(w, self.door);
+                self.has_door = self.is_door(w, self.door, true);
                 if self.has_door {
                     return true;
                 }
@@ -81,7 +100,7 @@ impl Interact {
             at.y.floor() as i32 + 1,
             at.z.floor() as i32,
         ];
-        self.has_door = wooden_door(w, self.door);
+        self.has_door = self.is_door(w, self.door, true);
         self.has_door
     }
     /// `DoorInteractGoal.isOpen`: the door is still there and open.
@@ -90,7 +109,7 @@ impl Interact {
             return false;
         }
         let d = self.door;
-        if !w.block_name(d[0], d[1], d[2]).ends_with("_door") {
+        if !self.is_door(w, d, false) {
             self.has_door = false;
             return false;
         }
@@ -99,7 +118,7 @@ impl Interact {
     /// `DoorInteractGoal.setOpen`.
     fn set_open(&self, cx: &mut Cx, open: bool) {
         let d = self.door;
-        if self.has_door && cx.w.block_name(d[0], d[1], d[2]).ends_with("_door") {
+        if self.has_door && self.is_door(cx.w, d, false) {
             cx.events.push(MobEvent::SetDoorOpen { pos: d, open });
         }
     }
@@ -134,6 +153,14 @@ impl BreakDoor {
     pub fn vindicator() -> Self {
         Self::new(true)
     }
+    /// A custom mob's `open_door` with `break`: breaks the doors of the block tag `tag` in its
+    /// way, on any difficulty, when mob griefing allows it.
+    pub fn tagged(tag: Arc<str>) -> Self {
+        Self {
+            interact: Interact::tagged(tag),
+            ..Self::new(false)
+        }
+    }
     fn new(vindicator: bool) -> Self {
         Self {
             interact: Interact::default(),
@@ -144,7 +171,9 @@ impl BreakDoor {
     }
     /// `DOOR_BREAKING_PREDICATE`.
     fn valid_difficulty(&self, w: &MobWorld) -> bool {
-        if self.vindicator {
+        if self.interact.tag.is_some() {
+            true
+        } else if self.vindicator {
             w.difficulty.normal || w.difficulty.hard
         } else {
             w.difficulty.hard
@@ -172,7 +201,7 @@ impl Goal for BreakDoor {
                 && m.random.next_int_bound(reduced(10)).unwrap_or(1) == 0
                 && self.can_break(m, cx.w);
         }
-        m.extra.can_break_doors && self.can_break(m, cx.w)
+        (m.extra.can_break_doors || self.interact.tag.is_some()) && self.can_break(m, cx.w)
     }
     fn can_continue(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
         (!self.vindicator || raider::has_active_raid(m))
@@ -245,6 +274,44 @@ impl Goal for RaiderOpenDoor {
     }
     fn can_continue(&mut self, _m: &mut Mob, _cx: &mut Cx) -> bool {
         false
+    }
+    fn start(&mut self, _m: &mut Mob, cx: &mut Cx) {
+        self.interact.set_open(cx, true);
+    }
+    fn stop(&mut self, _m: &mut Mob, cx: &mut Cx) {
+        self.interact.set_open(cx, false);
+    }
+}
+
+/// A custom mob's `open_door` (`DoorInteractGoal` with `OpenDoorGoal`'s opening, for the doors of
+/// a block tag): when the mob bumps into a door on its path it opens it, keeps it open while it is
+/// within two blocks of it, and closes it again when it has gone by.
+#[derive(Clone, Debug)]
+pub struct OpenTaggedDoor {
+    interact: Interact,
+}
+impl OpenTaggedDoor {
+    pub fn new(tag: Arc<str>) -> Self {
+        Self {
+            interact: Interact::tagged(tag),
+        }
+    }
+}
+impl Goal for OpenTaggedDoor {
+    goal_clone!();
+    fn flags(&self) -> u8 {
+        0
+    }
+    fn every_tick(&self) -> bool {
+        true
+    }
+    fn can_use(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
+        self.interact.can_use(m, cx.w)
+    }
+    fn can_continue(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
+        self.interact.has_door
+            && self.interact.is_door(cx.w, self.interact.door, false)
+            && closer_to_center(self.interact.door, m.position, 2.0)
     }
     fn start(&mut self, _m: &mut Mob, cx: &mut Cx) {
         self.interact.set_open(cx, true);

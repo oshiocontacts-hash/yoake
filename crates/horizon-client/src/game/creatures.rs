@@ -6511,7 +6511,7 @@ impl Game<'_> {
                 .res
                 .mob_types()
                 .get(kind)
-                .is_none_or(|t| horizon_client::mobs::spawn_rules::allowed_in_peaceful(t.species))
+                .is_none_or(|t| horizon_client::mobs::spawn_rules::allowed_in_peaceful_type(t))
     }
     /// `SpawnEggItem.useOn` for a block, or `use` for a fluid source.
     fn use_spawn_egg(&mut self, stack: &ItemStack) -> Result<bool> {

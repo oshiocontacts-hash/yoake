@@ -2341,8 +2341,46 @@ impl HudUniform {
         }
     }
 }
+/// The texel rect `[x, y, width, height]` of `rect` in an atlas of `atlas` size, as
+/// `animate_sprites` uploads it.
+fn rect_texels(rect: &Rect, atlas: (u32, u32)) -> [u32; 4] {
+    let (w, h) = rect.texels(atlas);
+    [
+        (rect.u0 * atlas.0 as f32).round() as u32,
+        (rect.v0 * atlas.1 as f32).round() as u32,
+        w,
+        h,
+    ]
+}
+
+fn rect_overridden(overridden: &[[u32; 4]], rect: &Rect, atlas: (u32, u32)) -> bool {
+    overridden.contains(&rect_texels(rect, atlas))
+}
+
+/// Forget the last drawn state of animations whose rect was overridden in `old` but not in `new`,
+/// so `animate_sprites` redraws their current frame.
+fn release_overrides(
+    animations: &mut [(Rect, crate::sprites::SpriteAnimation, (usize, usize, u32))],
+    old: &[[u32; 4]],
+    new: &[[u32; 4]],
+    atlas: (u32, u32),
+) {
+    if old.is_empty() {
+        return;
+    }
+    for (rect, _, previous) in animations {
+        let texels = rect_texels(rect, atlas);
+        if old.contains(&texels) && !new.contains(&texels) {
+            *previous = (usize::MAX, 0, 0);
+        }
+    }
+}
+
 pub struct HudRenderer {
     pub sprite_animations: Vec<(Rect, crate::sprites::SpriteAnimation, (usize, usize, u32))>,
+    /// Atlas rects `[x, y, width, height]` (texels) a mod currently overrides; `animate_sprites`
+    /// leaves an animation on such a rect alone. Empty unless a mod set an item sprite.
+    overridden_rects: Vec<[u32; 4]>,
     /// The shared atlas texture, for run-time glyph uploads.
     pub atlas_texture: Option<wgpu::Texture>,
     pipeline: wgpu::RenderPipeline,
@@ -2607,6 +2645,7 @@ impl HudRenderer {
         Ok(Self {
             atlas_texture: None,
             sprite_animations: Vec::new(),
+            overridden_rects: Vec::new(),
             pipeline,
             invert_pipeline,
             additive_pipeline,
@@ -2747,6 +2786,14 @@ impl HudRenderer {
         }
     }
 
+    /// Replace the set of atlas rects a mod overrides (`[x, y, width, height]` in texels of an atlas
+    /// of `atlas` size). Animations on a rect that just left the set show their current frame again
+    /// on the next `animate_sprites`.
+    pub fn set_overridden_rects(&mut self, rects: Vec<[u32; 4]>, atlas: (u32, u32)) {
+        release_overrides(&mut self.sprite_animations, &self.overridden_rects, &rects, atlas);
+        self.overridden_rects = rects;
+    }
+
     pub fn animate_sprites(
         &mut self,
         uploads: &mut crate::gfx::upload::Uploads,
@@ -2757,6 +2804,15 @@ impl HudRenderer {
             return;
         };
         for (rect, animation, previous) in &mut self.sprite_animations {
+            if !self.overridden_rects.is_empty()
+                && rect_overridden(
+                    &self.overridden_rects,
+                    rect,
+                    (texture.width(), texture.height()),
+                )
+            {
+                continue;
+            }
             // `SpriteContents.AnimationState`: the frame from the mcmeta's
             // list, blended into the next one by the sub-frame's thousandths
             // when the sprite interpolates.
@@ -3135,6 +3191,40 @@ impl HudRenderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn atlas_rect(x: u32, y: u32, w: u32, h: u32, atlas: (u32, u32)) -> Rect {
+        Rect {
+            u0: x as f32 / atlas.0 as f32,
+            v0: y as f32 / atlas.1 as f32,
+            u1: (x + w) as f32 / atlas.0 as f32,
+            v1: (y + h) as f32 / atlas.1 as f32,
+            w,
+            h,
+        }
+    }
+
+    #[test]
+    fn overridden_animation_rects_are_skipped_and_redrawn_on_release() {
+        let atlas = (64, 64);
+        let drawn = (3usize, 4usize, 250u32);
+        let mut animations = vec![
+            (atlas_rect(0, 0, 16, 16, atlas), crate::sprites::test_animation(16, 0), drawn),
+            (atlas_rect(16, 0, 16, 16, atlas), crate::sprites::test_animation(16, 1), drawn),
+        ];
+        let first = [0, 0, 16, 16];
+        assert!(rect_overridden(&[first], &animations[0].0, atlas));
+        assert!(!rect_overridden(&[first], &animations[1].0, atlas));
+        // Nothing overridden before: releasing is a no-op.
+        release_overrides(&mut animations, &[], &[first], atlas);
+        assert_eq!(animations[0].2, drawn);
+        // Still overridden: its last drawn state is kept (animate_sprites skips it).
+        release_overrides(&mut animations, &[first], &[first], atlas);
+        assert_eq!(animations[0].2, drawn);
+        // Reset (or mod unload): only the released rect redraws its current frame.
+        release_overrides(&mut animations, &[first], &[], atlas);
+        assert_eq!(animations[0].2, (usize::MAX, 0, 0));
+        assert_eq!(animations[1].2, drawn);
+    }
 
     #[test]
     fn carried_runs_are_raised_after_mod_drawing() {

@@ -622,6 +622,9 @@ static HORIZON_COMMANDS: std::sync::atomic::AtomicBool = std::sync::atomic::Atom
 pub fn set_horizon_commands(on: bool) {
     HORIZON_COMMANDS.store(on, std::sync::atomic::Ordering::Relaxed);
 }
+/// The registry name under which the game lists the loaded custom mob types
+/// (`Registries::by_registry`), for `/horizon custommobs stats <type>`.
+pub const CUSTOM_MOB_REGISTRY: &str = "yoake:custom_mob";
 /// The server.properties key that turns `/pregen` on (Horizon's own; vanilla
 /// ignores keys it doesn't know).
 pub const PREGEN_PROPERTY: &str = "horizon-pregen";
@@ -643,6 +646,14 @@ pub(crate) fn game_tree(dev: bool, horizon: bool, dedicated: bool) -> &'static D
 /// Commands vanilla doesn't have, after its own: `/pregen`
 /// (docs/pregeneration.md).
 fn horizon_commands(d: &mut Dispatcher, root: usize) {
+    // horizon custommobs stats [<type>]: the custom mob debug report (game masters).
+    let horizon = d.literal(root, "horizon");
+    d.requires(horizon, GAMEMASTERS);
+    let custommobs = d.literal(horizon, "custommobs");
+    let stats = d.literal(custommobs, "stats");
+    d.executes(stats, "horizon.custommobs.stats");
+    let kind = d.argument(stats, "type", ArgType::ResKey(CUSTOM_MOB_REGISTRY));
+    d.executes(kind, "horizon.custommobs.stats");
     let pregen = d.literal(root, "pregen");
     d.requires(pregen, GAMEMASTERS);
     let start = d.literal(pregen, "start");

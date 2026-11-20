@@ -1301,6 +1301,10 @@ pub fn mob_to_nbt(
             map.insert("equipment".into(), Tag::Compound(equipment));
         }
     }
+    // F4M: a custom mob's own compound (`yoake`); vanilla mobs never get the key.
+    if m.kind.custom.is_some() {
+        crate::mobs::custom::persist::write(&mut tag, m);
+    }
     tag
 }
 /// `AttributeMap.pack` for the attributes with a base or permanent modifier
@@ -2107,6 +2111,10 @@ pub fn mob_from_nbt(
     }
     crate::mobs::raider::read_nbt(&mut m, tag);
     crate::mobs::riders::read_nbt(&mut m, tag);
+    // F4M: a custom mob's own compound (`yoake`).
+    if m.kind.custom.is_some() {
+        crate::mobs::custom::persist::read(&mut m, tag);
+    }
     // A mob saved mid-death finishes dying; one saved dead is dropped.
     if m.health <= 0.0 && m.death_time == 0 {
         return None;

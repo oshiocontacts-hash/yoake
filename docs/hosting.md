@@ -155,6 +155,7 @@ view_distance = 10
 simulation_distance = 10
 max_view_distance = 0        # past view_distance, saved chunks only, up to this (0: off)
 admin_feedback_to_ops = true # operators see each other's commands ([name: ...]); false: only the log
+custom_mob_path_budget = 8192 # nodes all mods' custom mobs together may search for paths each tick
 
 [world]
 name = "world"

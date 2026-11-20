@@ -583,9 +583,15 @@ impl Game<'_> {
         let thrown = horizon_client::projectiles::thrown_types().iter();
         summonable.extend(thrown.map(|t| t.id.to_owned()));
         summonable.extend(horizon_client::mobs::mod_mob::ids());
+        summonable.extend(horizon_client::mobs::custom::ids());
         summonable.sort();
         summonable.dedup();
         reg.summonable = summonable;
+        // The loaded custom mob types, for `/horizon custommobs stats <type>`.
+        reg.by_registry
+            .entry(horizon_client::command::vanilla::CUSTOM_MOB_REGISTRY.to_owned())
+            .or_default()
+            .ids = horizon_client::mobs::custom::ids();
         let mut types = ids.entity_types.clone();
         if types.is_empty() {
             types = reg.summonable.clone();

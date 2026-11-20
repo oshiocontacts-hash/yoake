@@ -88,6 +88,14 @@ pub fn entity_types(mods: &[ContentMod]) -> Vec<&EntityType> {
     types
 }
 
+/// the mods' fully custom mobs (`yoake:mob`) in registry order, by id: they take their network ids
+/// among the entity types' (see [`Plan::entity_ids`]).
+pub fn custom_mobs(mods: &[ContentMod]) -> Vec<&horizon_mods::custom_mob::CustomMobFile> {
+    let mut mobs: Vec<_> = mods.iter().flat_map(|m| &m.content.custom_mobs).collect();
+    mobs.sort_by(|a, b| a.id.cmp(&b.id));
+    mobs
+}
+
 /// the mods' menu types in registry order, by id as effects are.
 pub fn menu_types(mods: &[ContentMod]) -> Vec<&MenuType> {
     let mut menus: Vec<&MenuType> = mods.iter().flat_map(|m| &m.content.menu_types).collect();
@@ -677,6 +685,8 @@ struct Plan<'a> {
     vanilla_items: BTreeSet<String>,
     effects: Vec<&'a MobEffect>,
     entity_types: Vec<&'a EntityType>,
+    /// The fully custom mobs: entity types too, with their rows made from their own file.
+    custom_mobs: Vec<&'a horizon_mods::custom_mob::CustomMobFile>,
     menu_types: Vec<&'a MenuType>,
     /// Vanilla's state count (the tables' length before).
     states: usize,
@@ -891,9 +901,139 @@ impl Plan<'_> {
             out.push(b':');
             out.extend(row.get().as_bytes());
         }
+        // A fully custom mob's row is made from its file (it has no template): its box and eyes,
+        // its category and its attribute defaults.
+        let defaults = vanilla_mob_attributes(&rows);
+        for c in &self.custom_mobs {
+            if rows.contains_key(&c.id) {
+                continue;
+            }
+            if !std::mem::take(&mut empty) {
+                out.push(b',');
+            }
+            out.extend(serde_json::to_vec(&c.id).map_err(|e| e.to_string())?);
+            out.push(b':');
+            out.extend(custom_row(c, &defaults)?);
+        }
         out.push(b'}');
         Ok(out)
     }
+    /// The ids of every mod entity type, template mobs, projectiles and custom mobs, in network
+    /// order (sorted by id as every mod registry is). Without custom mobs this is the entity types'
+    /// own order.
+    fn entity_ids(&self) -> Vec<String> {
+        let mut ids: Vec<String> = self
+            .entity_types
+            .iter()
+            .map(|t| t.id.clone())
+            .chain(self.custom_mobs.iter().map(|c| c.id.clone()))
+            .collect();
+        ids.sort();
+        ids
+    }
+}
+
+/// The attributes every vanilla living mob row carries, with the base value most rows give each:
+/// the keys that all rows of the base `entity-types.json` that have attributes and are not `misc`
+/// (so not the player or an armor stand) share. That is the default set (`LivingEntity` and `Mob`
+/// suppliers) a custom mob's row starts from. The values stay the base file's own text, so a float
+/// is not rounded. Empty when the base has no such rows (the file's own attributes are all a row
+/// gets then).
+fn vanilla_mob_attributes(
+    rows: &BTreeMap<String, Box<serde_json::value::RawValue>>,
+) -> BTreeMap<String, Box<serde_json::value::RawValue>> {
+    use serde_json::value::RawValue;
+    type Raw = BTreeMap<String, Box<RawValue>>;
+    let mut shared: Option<Vec<(String, Vec<String>)>> = None;
+    for row in rows.values() {
+        let Ok(row) = serde_json::from_str::<Raw>(row.get()) else {
+            continue;
+        };
+        if row
+            .get("category")
+            .is_none_or(|c| c.get().trim() == "\"misc\"")
+        {
+            continue;
+        }
+        let Some(attributes) = row
+            .get("attributes")
+            .and_then(|a| serde_json::from_str::<Raw>(a.get()).ok())
+        else {
+            continue;
+        };
+        shared = Some(match shared {
+            None => attributes
+                .into_iter()
+                .map(|(k, v)| (k, vec![v.get().trim().to_owned()]))
+                .collect(),
+            Some(old) => old
+                .into_iter()
+                .filter_map(|(k, mut values)| {
+                    let v = attributes.get(&k)?;
+                    values.push(v.get().trim().to_owned());
+                    Some((k, values))
+                })
+                .collect(),
+        });
+    }
+    shared
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|(k, values)| {
+            // The most common value; the smallest text among equals.
+            let mut counts: BTreeMap<&String, usize> = BTreeMap::new();
+            for v in &values {
+                *counts.entry(v).or_default() += 1;
+            }
+            let best = counts
+                .into_iter()
+                .max_by(|a, b| a.1.cmp(&b.1).then(b.0.cmp(a.0)))?
+                .0;
+            Some((k, RawValue::from_string(best.clone()).ok()?))
+        })
+        .collect()
+}
+
+/// A custom mob's row of `entity-types.json`: its box and eyes, its category and its attributes
+/// (the full default set of a vanilla mob, then what the file sets).
+fn custom_row(
+    c: &horizon_mods::custom_mob::CustomMobFile,
+    defaults: &BTreeMap<String, Box<serde_json::value::RawValue>>,
+) -> std::result::Result<Vec<u8>, String> {
+    use horizon_mods::custom_mob::{Attribute, BUILTIN_ATTRIBUTES};
+    use serde_json::value::to_raw_value;
+    let mut attributes = defaults.clone();
+    let mut put = |name: String, v: f64| -> std::result::Result<(), String> {
+        attributes.insert(name, to_raw_value(&v).map_err(|e| e.to_string())?);
+        Ok(())
+    };
+    for (name, value) in &c.attributes {
+        match value {
+            Attribute::Value(v) if BUILTIN_ATTRIBUTES.contains(&name.as_str()) => {
+                put(format!("minecraft:{name}"), *v)?;
+            }
+            Attribute::Value(v) => put(name.clone(), *v)?,
+            Attribute::Custom(a) => put(name.clone(), a.default)?,
+        }
+    }
+    #[derive(serde::Serialize)]
+    struct Row<'a> {
+        width: f64,
+        height: f64,
+        eye_height: f64,
+        category: &'a str,
+        fire_immune: bool,
+        attributes: BTreeMap<String, Box<serde_json::value::RawValue>>,
+    }
+    serde_json::to_vec(&Row {
+        width: c.size.width,
+        height: c.size.height,
+        eye_height: c.size.eye_height.unwrap_or(c.size.height * 0.85),
+        category: &c.category,
+        fire_immune: false,
+        attributes,
+    })
+    .map_err(|e| e.to_string())
 }
 
 impl<'a> Plan<'a> {
@@ -1190,6 +1330,7 @@ impl<'a> Plan<'a> {
             vanilla_items,
             effects: mob_effects(mods),
             entity_types: entity_types(mods),
+            custom_mobs: custom_mobs(mods),
             menu_types: menu_types(mods),
             states: names.len(),
             defaults,
@@ -1513,9 +1654,8 @@ impl<'a> Plan<'a> {
                     let new_effects = self.effects.iter().map(|e| e.id.clone());
                     registries.push(("minecraft:mob_effect", new_effects.collect()));
                 }
-                if !self.entity_types.is_empty() {
-                    let new_types = self.entity_types.iter().map(|t| t.id.clone());
-                    registries.push(("minecraft:entity_type", new_types.collect()));
+                if !self.entity_types.is_empty() || !self.custom_mobs.is_empty() {
+                    registries.push(("minecraft:entity_type", self.entity_ids()));
                 }
                 // `ClientboundOpenScreenPacket` carries a menu type's id.
                 if !self.menu_types.is_empty() {
@@ -1573,7 +1713,7 @@ impl<'a> Plan<'a> {
                     ids.extend(new_effects());
                 }
                 // entity type arguments and `type=` in selectors.
-                let new_types = || self.entity_types.iter().map(|t| J::Str(t.id.clone()));
+                let new_types = || self.entity_ids().into_iter().map(J::Str);
                 if let Some(J::Arr(ids)) = doc.at("entity_types") {
                     ids.extend(new_types());
                 }
@@ -2580,6 +2720,27 @@ pub fn build(base: &Path, mods: &[ContentMod], out: &Path) -> Result<Vec<String>
             modifiers.extend(biomes::Modifier::read(&m.id, &file, &text, &mut warnings)?);
         }
     }
+    // A custom mob's rules are `add_spawns` modifiers too, one per rule; the rest of a rule (light,
+    // placement, time, height...) is checked by `mobs::custom::spawn` when the spawner picks it.
+    for m in mods {
+        for c in &m.content.custom_mobs {
+            for (i, rule) in c.spawn.iter().enumerate() {
+                let text = serde_json::json!({
+                    "type": "neoforge:add_spawns",
+                    "biomes": rule.biomes,
+                    "spawners": {
+                        "type": c.id,
+                        "weight": rule.weight,
+                        "minCount": rule.min,
+                        "maxCount": rule.max,
+                    },
+                })
+                .to_string();
+                let file = format!("data/{}/horizon/{}.{i}.json", m.id, c.id.replace(':', "/"));
+                modifiers.extend(biomes::Modifier::read(&m.id, &file, &text, &mut warnings)?);
+            }
+        }
+    }
     if !modifiers.is_empty() {
         place_in_biomes(
             base,
@@ -2663,18 +2824,119 @@ pub fn build(base: &Path, mods: &[ContentMod], out: &Path) -> Result<Vec<String>
     if !mobs.is_empty() {
         overlay.write(horizon_mods::content::MOBS_FILE, &serde_json::to_vec(&mobs)?)?;
     }
+    // the fully custom mobs, which the mob loader (`mobs::custom::build`) builds its types from.
+    if !plan.custom_mobs.is_empty() {
+        overlay.write(
+            horizon_mods::custom_mob::CUSTOM_MOBS_FILE,
+            &serde_json::to_vec(&plan.custom_mobs)?,
+        )?;
+    }
+    // Each generated spawn egg (`spawn_egg: {primary, secondary}`): the mod's own item definition,
+    // model or texture when it ships one, else a per-mob model from the engine's egg base texture
+    // (two layers) tinted with the file's colours. 26.3 has no shared egg template.
+    let mut egg_base = false;
+    for m in mods {
+        for c in &m.content.custom_mobs {
+            let Some(horizon_mods::custom_mob::SpawnEgg::Generated { primary, secondary }) =
+                &c.spawn_egg
+            else {
+                continue;
+            };
+            let (ns, path) = c.id.split_once(':').unwrap_or((&m.id, &c.id));
+            let art = spawn_egg_files(ns, path, primary.0, secondary.0, &|f: &str| {
+                m.content.files.contains(&f.to_owned())
+            });
+            egg_base |= art.uses_base;
+            for (file, bytes) in art.files {
+                overlay.write(&file, &bytes)?;
+            }
+        }
+    }
+    if egg_base {
+        overlay.write(EGG_BASE_FILE, EGG_BASE_PNG)?;
+        overlay.write(EGG_OVERLAY_FILE, EGG_OVERLAY_PNG)?;
+    }
     // clients must agree on the block states and the items', mob effects',
     // entity types' and menu types' network ids.
     if !plan.blocks.is_empty()
         || !plan.items.is_empty()
         || !plan.effects.is_empty()
         || !plan.entity_types.is_empty()
+        || !plan.custom_mobs.is_empty()
         || !plan.menu_types.is_empty()
     {
         overlay.write(crate::content_identity::MARKER, b"1")?;
     }
     overlay.write(WARNINGS, warnings.join("\n").as_bytes())?;
     Ok(warnings)
+}
+
+/// The engine's own spawn egg textures (original art, 16 by 16): the egg, and its spots, both
+/// white-ish so that the egg's two colours tint them.
+const EGG_BASE_PNG: &[u8] = include_bytes!("../assets/horizon/textures/item/spawn_egg.png");
+const EGG_OVERLAY_PNG: &[u8] = include_bytes!("../assets/horizon/textures/item/spawn_egg_overlay.png");
+/// Where they go in a content root, and what the models call them.
+const EGG_BASE_FILE: &str = "assets/horizon/textures/item/spawn_egg.png";
+const EGG_OVERLAY_FILE: &str = "assets/horizon/textures/item/spawn_egg_overlay.png";
+const EGG_BASE_TEXTURE: &str = "horizon:item/spawn_egg";
+const EGG_OVERLAY_TEXTURE: &str = "horizon:item/spawn_egg_overlay";
+
+/// What a custom mob's generated spawn egg writes into the content root.
+#[derive(Debug, Default, PartialEq)]
+struct EggArt {
+    /// Files to write, by path in the root.
+    files: Vec<(String, Vec<u8>)>,
+    /// The engine's egg textures are used (the caller writes them once).
+    uses_base: bool,
+}
+
+/// The files of the spawn egg of mob `ns:path`, given what the mod ships (`has` asks for a file of
+/// the mod): nothing when it ships the item definition; its own model when it ships one; a model of
+/// its own texture when it ships `textures/item/<path>_spawn_egg.png`; else a model of the engine's
+/// two egg layers, with an item definition that tints them with `primary` and `secondary`.
+fn spawn_egg_files(ns: &str, path: &str, primary: u32, secondary: u32, has: &dyn Fn(&str) -> bool) -> EggArt {
+    let item = format!("assets/{ns}/items/{path}_spawn_egg.json");
+    let model_file = format!("assets/{ns}/models/item/{path}_spawn_egg.json");
+    let texture_file = format!("assets/{ns}/textures/item/{path}_spawn_egg.png");
+    let model = format!("{ns}:item/{path}_spawn_egg");
+    let mut art = EggArt::default();
+    if has(&item) {
+        return art;
+    }
+    let definition = |tints: &[u32]| -> Vec<u8> {
+        let mut inner = serde_json::json!({ "type": "minecraft:model", "model": model });
+        if !tints.is_empty() {
+            inner["tints"] = tints
+                .iter()
+                .map(|t| serde_json::json!({ "type": "minecraft:constant", "value": argb(*t) }))
+                .collect();
+        }
+        serde_json::json!({ "model": inner }).to_string().into_bytes()
+    };
+    if has(&model_file) {
+        art.files.push((item, definition(&[])));
+    } else if has(&texture_file) {
+        let json = serde_json::json!({
+            "parent": "minecraft:item/generated",
+            "textures": { "layer0": model },
+        });
+        art.files.push((model_file, json.to_string().into_bytes()));
+        art.files.push((item, definition(&[])));
+    } else {
+        let json = serde_json::json!({
+            "parent": "minecraft:item/generated",
+            "textures": { "layer0": EGG_BASE_TEXTURE, "layer1": EGG_OVERLAY_TEXTURE },
+        });
+        art.files.push((model_file, json.to_string().into_bytes()));
+        art.files.push((item, definition(&[primary, secondary])));
+        art.uses_base = true;
+    }
+    art
+}
+
+/// A colour as a tint value: opaque ARGB, as the signed int vanilla's item definitions hold.
+fn argb(rgb: u32) -> i32 {
+    (0xFF00_0000 | (rgb & 0x00FF_FFFF)) as i32
 }
 
 /// The root to load: `base` itself with no content, else the mods' overlay

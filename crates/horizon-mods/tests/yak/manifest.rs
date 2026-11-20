@@ -475,3 +475,20 @@ fn full_access_modules_decide_the_threads_and_side_must_agree() {
     // the old `side` key of the first MX3CL1 draft is gone
     assert!(parse(both, &format!("{both_modules}\nside = \"both\"")).is_err());
 }
+
+#[test]
+fn wasm_worker_and_host_filesystem_parse_and_are_checked() {
+    let parse = |body: &str| Manifest::parse(&with_wasm(&format!("\n[wasm]\ninterface = \"1.0\"\n{body}\n")));
+    let wasm = parse("client = \"bin/wasm/sample.wasm\"\nworker = \"bin/wasm/net.wasm\"\nhost_filesystem = true").unwrap().wasm.unwrap();
+    assert_eq!(wasm.worker.as_deref(), Some("bin/wasm/net.wasm"));
+    assert!(wasm.host_filesystem);
+    assert_eq!(wasm.declared_files(), [("client", "bin/wasm/sample.wasm"), ("worker", "bin/wasm/net.wasm")]);
+    // `modules()` stays the client/server pair the build tools use
+    assert_eq!(wasm.modules(), [("client", "bin/wasm/sample.wasm")]);
+    let plain = parse("client = \"bin/wasm/sample.wasm\"").unwrap().wasm.unwrap();
+    assert!(!plain.host_filesystem && plain.worker.is_none());
+    assert!(parse("client = \"bin/wasm/sample.wasm\"\nworker = \"net.wasm\"").is_err(), "the worker path follows the module rules");
+    assert!(parse("worker = \"bin/wasm/net.wasm\"").is_err(), "a worker needs a module that talks to it");
+    // old mods that still list permissions keep loading
+    assert!(parse("client = \"bin/wasm/sample.wasm\"\npermissions = [\"service.storage\"]").is_ok());
+}

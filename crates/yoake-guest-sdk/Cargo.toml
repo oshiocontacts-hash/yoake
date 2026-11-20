@@ -14,6 +14,7 @@ autoexamples = false
 
 [dev-dependencies]
 yoake-slice = { path = "../yoake-slice", features = ["wasm"] }
+yoake-mod-io = { path = "../yoake-mod-io" }
 
 [lints]
 workspace = true

@@ -47,6 +47,13 @@ pub struct Death<'a> {
     pub world_seed: i64,
 }
 
+/// [`is_monster`] for a mob: a fully custom mob is one when its type's category is `monster`.
+pub fn mob_is_monster(m: &Mob) -> bool {
+    match &m.kind.custom {
+        Some(t) => t.category == super::spawn_selection::Category::Monster,
+        None => is_monster(m.species()),
+    }
+}
 /// `instanceof Monster` (Monster.shouldDropLoot/shouldDropExperience).
 pub fn is_monster(s: Species) -> bool {
     use Species as S;
@@ -102,7 +109,7 @@ fn xp_reward(m: &Mob) -> i32 {
         S::Ghast | S::Hoglin | S::Phantom | S::Shulker => 5,
         // Slime.setSize / MagmaCube.setSize (unsized cubes keep 0).
         S::Slime | S::MagmaCube => m.extra.size.max(0),
-        s if is_monster(s) => 5,
+        _ if mob_is_monster(m) => 5,
         _ => 0,
     }
 }
@@ -613,7 +620,7 @@ pub fn die(
 /// rolls one: none with `doMobLoot` off, nor for a baby that isn't a monster.
 pub fn death_loot_table(m: &Mob, mob_drops: bool) -> Option<String> {
     // Mob.getLootTable: the mob's own `DeathLootTable`, else its type's.
-    (mob_drops && (is_monster(m.species()) || !m.is_baby())).then(|| {
+    (mob_drops && (mob_is_monster(m) || !m.is_baby())).then(|| {
         m.extra.death_loot_table.clone().unwrap_or_else(|| {
             super::mod_mob::loot_table(&m.kind.id).unwrap_or_else(|| {
                 format!(
@@ -653,7 +660,7 @@ pub fn drops_experience(m: &Mob) -> bool {
     match m.species() {
         Species::Tadpole => false,
         Species::Hoglin => true,
-        s if is_monster(s) => true,
+        _ if mob_is_monster(m) => true,
         _ => !m.is_baby(),
     }
 }

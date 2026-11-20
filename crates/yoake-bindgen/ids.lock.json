@@ -9085,6 +9085,120 @@
       "path": "motion::native_living_jump",
       "sig": "fn native_living_jump(u32, &str) -> ()",
       "status": "bound"
+    },
+    {
+      "id": 2514,
+      "path": "custom_mobs::__reserved_range_end",
+      "sig": "reserved: ids 1515..=2514 belong to the custom_mobs module (FR-F4-MOB F4M-0)",
+      "status": "unbound"
+    },
+    {
+      "id": 2515,
+      "path": "mobs::Seen.custom#get",
+      "sig": "get custom: Option<std::sync::Arc<str>>",
+      "status": "bound"
+    },
+    {
+      "id": 2516,
+      "path": "mobs::Seen.custom#set",
+      "sig": "set custom: Option<std::sync::Arc<str>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2517,
+      "path": "mobs::<CustomLevel as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2518,
+      "path": "mobs::<CustomLevel as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2519,
+      "path": "mobs::CustomLevel.ambient#get",
+      "sig": "get ambient: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2520,
+      "path": "mobs::CustomLevel.ambient#set",
+      "sig": "set ambient: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2521,
+      "path": "mobs::CustomLevel.day_cycle#get",
+      "sig": "get day_cycle: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2522,
+      "path": "mobs::CustomLevel.day_cycle#set",
+      "sig": "set day_cycle: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2523,
+      "path": "mobs::CustomLevel.fast_lava#get",
+      "sig": "get fast_lava: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2524,
+      "path": "mobs::CustomLevel.fast_lava#set",
+      "sig": "set fast_lava: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2525,
+      "path": "mobs::CustomLevel.has_skylight#get",
+      "sig": "get has_skylight: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2526,
+      "path": "mobs::CustomLevel.has_skylight#set",
+      "sig": "set has_skylight: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2527,
+      "path": "mobs::CustomLevel.piglins_zombify#get",
+      "sig": "get piglins_zombify: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2528,
+      "path": "mobs::CustomLevel.piglins_zombify#set",
+      "sig": "set piglins_zombify: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2529,
+      "path": "mobs::CustomLevel.snow_golem_melts#get",
+      "sig": "get snow_golem_melts: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2530,
+      "path": "mobs::CustomLevel.snow_golem_melts#set",
+      "sig": "set snow_golem_melts: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2531,
+      "path": "mobs::CustomLevel.spawn_light#get",
+      "sig": "get spawn_light: crate::mobs::spawn_rules::LightRule",
+      "status": "bound"
+    },
+    {
+      "id": 2532,
+      "path": "mobs::CustomLevel.spawn_light#set",
+      "sig": "set spawn_light: crate::mobs::spawn_rules::LightRule",
+      "status": "ReadOnly"
     }
   ]
 }

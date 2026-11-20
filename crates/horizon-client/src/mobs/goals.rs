@@ -654,8 +654,10 @@ impl Mob {
     /// Mob.isWithinMeleeAttackRange: the box inflated by sqrt(2.04) - 0.6.
     pub fn within_melee_range(&self, t: &TargetInfo) -> bool {
         let reach = 2.04f32.sqrt() as f64 - 0.6;
-        let b = self.bounds().inflate(Vec3::new(reach, 0.0, reach));
-        b.intersects(t.bounds)
+        let by = Vec3::new(reach, 0.0, reach);
+        let b = self.bounds().inflate(by);
+        // A custom mob with hitbox parts also reaches with them (none for any other mob).
+        b.intersects(t.bounds) || super::custom::hitbox::part_touches(self, by, &t.bounds)
     }
     /// Whether the species is a `TamableAnimal` (not the horses and llamas,
     /// which are tamed another way).
@@ -1494,11 +1496,21 @@ impl Goal for LeapAtTarget {
         m.velocity = Vec3::new(d[0], f64::from(self.yd), d[2]);
     }
 }
+/// Whether `s` is one of the listed vanilla `species`, or a custom mob of one of the listed
+/// custom type ids (a custom mob's species is `Species::Custom`, which no vanilla list holds).
+pub fn seen_is_type(species: &[Species], custom: &[Arc<str>], s: &Seen) -> bool {
+    match &s.custom {
+        Some(id) => custom.iter().any(|c| **c == **id),
+        None => species.contains(&s.species),
+    }
+}
 /// What a target goal hunts.
 #[derive(Clone, Debug)]
 pub enum Prey {
     Player,
     Species(Vec<Species>),
+    /// Vanilla species and custom mob types (by id; a custom data row's `types` list).
+    Types(Vec<Species>, Vec<Arc<str>>),
     /// Any mob matching a predicate on its snapshot.
     Filter(fn(&Seen) -> bool),
 }
@@ -1561,6 +1573,10 @@ impl NearestTarget {
     }
     pub fn species(list: &[Species], must_see: bool) -> Self {
         Self::new(Prey::Species(list.to_vec()), must_see)
+    }
+    /// Vanilla species and custom mob types.
+    pub fn types(list: &[Species], custom: &[Arc<str>], must_see: bool) -> Self {
+        Self::new(Prey::Types(list.to_vec(), custom.to_vec()), must_see)
     }
     pub fn interval(mut self, i: i32) -> Self {
         self.interval = reduced(i);
@@ -1682,6 +1698,7 @@ impl Goal for NearestTarget {
                             && !illager_spares(attacker, s)
                             && match prey {
                                 Prey::Species(list) => list.contains(&s.species),
+                                Prey::Types(list, custom) => seen_is_type(list, custom, s),
                                 Prey::Filter(f) => f(s),
                                 Prey::Player => false,
                             }
@@ -1896,6 +1913,8 @@ impl Goal for HurtByTarget {
 pub enum Avoid {
     Player,
     Species(Vec<Species>),
+    /// Vanilla species and custom mob types by id (a custom data row's list).
+    Types(Vec<Species>, Vec<Arc<str>>),
 }
 /// AvoidEntityGoal.
 #[derive(Clone, Debug)]
@@ -1966,14 +1985,19 @@ impl Goal for AvoidEntity {
                     })
                     .map(|p| p.position)
             }
-            Avoid::Species(list) => {
+            what @ (Avoid::Species(_) | Avoid::Types(..)) => {
+                let (list, custom): (&[Species], &[Arc<str>]) = match what {
+                    Avoid::Species(list) => (list, &[]),
+                    Avoid::Types(list, custom) => (list, custom),
+                    Avoid::Player => (&[], &[]),
+                };
                 let id = m.id;
                 let y = m.position.y;
                 let seen_when = self.seen_when;
                 let hit =
                     cx.w.nearby(m.position, max, move |s| {
                         s.id != id
-                            && list.contains(&s.species)
+                            && seen_is_type(list, custom, s)
                             && seen_when.is_none_or(|f| f(s))
                             && (s.position.y - y).abs() <= 3.0 + max
                     })
@@ -2023,7 +2047,7 @@ impl Goal for AvoidEntity {
                     .map(|p| p.position)
                     .unwrap_or(self.from)
             }
-            Avoid::Species(_) => self.from,
+            Avoid::Species(_) | Avoid::Types(..) => self.from,
         };
         m.ai.nav.speed_modifier = if m.distance_sqr(from) < 49.0 {
             self.sprint

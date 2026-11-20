@@ -323,6 +323,8 @@ world = "full-access"
 | `[wasm] interface` | `"1.0"`（メジャーは 1。マイナーが 1 以上だと別の world が必要になるので `1.0` を使う） |
 | `[wasm] server` | `bin/wasm/` の **直下** にある、`.wasm` で終わるファイル。このツリーでは必須。`wasm.client` は不可（第 6 章） |
 | `[wasm] permissions` | 指定不可。フルアクセスは全か無かだから |
+| `[wasm] worker` | 省略可。`bin/wasm/` 直下のコンポーネント（第 14 章） |
+| `[wasm] host_filesystem` | 省略可。真偽値。`/host/<ドライブ文字>` を使えるようにする（第 14 章） |
 | `[side]` | `server = true` |
 
 ほかに `name_ja`、`license`、`homepage`、`dependencies`、`optional`、`conflicts` が使えます。`yak.toml` と同じ場所にある `README.md`、`LICENSE`、`content/`、`assets/`、`shaders/`、`config/` も一緒にパックされます。
@@ -426,6 +428,76 @@ MOD の更新: 同じ ID の別バージョンは「already installed in another
 インポート、バインディング、ステータスの追加はマイナーの変更です。既存のインポートやバインディングの変更や削除、ステータスの意味の変更、ワイヤ形式の変更はメジャーの変更です。バインディング ID は追記のみで再利用されないので、ビルド済みの MOD は同じメジャーの範囲のエンジン更新をまたいで動き続けます。
 
 MOD 自身の `yak.toml` の `version` は別物です。リリースのたびに上げてください。そのたびにプレイヤーは新しいファイルを許可することになります。
+
+## 14. ファイル・ネットワーク・ワーカー (FR-F2)
+
+Yoake の MOD は、身内のグループの中だけで使います。だから Forge や Fabric の MOD と同じように、ファイルとネットワークが使えます。変わらない決まりは 2 つです。MOD を入れていないときは何も変わりません。そして、**ゲームのメインスレッドは MOD を待ちません**。ファイルは短くて同期的なので、メインスレッドで使ってかまいません。ネットワークは何秒も待つことがあります。だから**ワーカー**を通します。
+
+この節は、フルアクセス MOD（このガイド）にも、サンドボックスのコンポーネント（`docs/yoake-wasm-dev.md`）にも当てはまります。
+
+### フォルダ
+
+| MOD から見えるパス | 実際のフォルダ | できること |
+|---|---|---|
+| `/data` | `<ゲームフォルダ>/mod-data/<MOD の id>/`（最初に自動で作ります） | 読み書き |
+| `/game` | インスタンスのゲームフォルダ | 読み書き |
+| `/host/<ドライブ文字>` | PC のローカルドライブのルート。例: `/host/c`（Unix では `/host/root`） | 読み書き。`[wasm] host_filesystem = true` のときだけ |
+
+保存したいものは `/data` の下にファイルとして置きます。別のストレージ API はありません。
+
+フルアクセス MOD で `std::fs` を使うには、Rust の `std` を **`wasm32-wasip1`** 向けにビルドします。
+
+```sh
+rustup target add wasm32-wasip1
+rustc --edition 2024 --target wasm32-wasip1 --crate-type cdylib -C panic=abort -o my_mod.wasm src/lib.rs
+```
+
+これまでどおり `yoake_init` と `yoake_hook` を書き出し、`env` の関数を使います。`wasi_snapshot_preview1` を何も取り込まない `no_std` の MOD は、今までと同じように読み込まれます。WASI で使えるものは次のとおりです。
+
+- `println!` と `eprintln!` はログの行になります。`wasm mod <id> [stdout]: ...` と `[stderr]: ...` です。サンドボックス側と同じ行です。
+- 実時間・単調時計・乱数が使えます。
+- **待つことには上限があります。** `thread::sleep`（WASI の `poll_oneoff`）で 2 ms より長く待つと、その MOD は止まります。それより短い待ちはすぐに終わります。ファイルの呼び出しも、フックの時間に入ります。大きなファイルのコピーはワーカーでやってください。
+
+### ワーカー
+
+MOD は **ワーカー** を 1 つ宣言できます。ワーカーは WebAssembly の**コンポーネント**で、エンジンが専用の OS スレッドで動かします。
+
+```toml
+[wasm]
+interface = "1.0"
+world = "full-access"
+server = "bin/wasm/my_mod.wasm"
+worker = "bin/wasm/my_worker.wasm"   # コンポーネント（world は `worker-mod`）
+host_filesystem = false               # 省略できます
+```
+
+ワーカーでは WASI preview 2 がすべて使えます。上のファイル、`wasi:sockets`（TCP・UDP・名前解決）、`wasi:http` の送信、時間のかかる待ち、本物の時計です。ただし**エンジンのハンドルは持ちません**。MOD とのやり取りは、バイト列のメッセージだけです。WIT は `crates/yoake-wasm/wit-worker/yoake-worker.wit`（パッケージ `yoake:mods@1.6.0`）にあります。追加だけのマイナー更新で、1.0〜1.2 のものは何も変えていません。
+
+| 側 | 呼び出し |
+|---|---|
+| MOD（フルアクセスのコアモジュール） | `yoake_worker_send(ptr, len) -> i32`、`yoake_worker_recv(ptr, cap) -> i32`（モジュール `env`）。SDK: `yoake_guest_sdk::worker::{send, recv}` |
+| MOD（サンドボックスのコンポーネント） | `worker-send(list<u8>) -> result<_, string>`、`worker-recv() -> option<list<u8>>`（`yoake:mods/worker@1.6.0`） |
+| ワーカーのコンポーネント | `host-send`、`host-recv`（メッセージが来るか、ワーカーが止まるまで待つ）、`host-try-recv` を取り込む（`yoake:mods/worker-host@1.6.0`）。`run: func()` を書き出す（`yoake:mods/worker-run@1.6.0`） |
+
+決まり:
+
+- 行きと帰りに、それぞれキューがあります。最大 **1024 件・16 MiB** です。いっぱいのとき、送信はエラーを返します（`queue-full`。コア ABI では `-1`）。待ちません。16 MiB を超える 1 件は `too-large`（`-3`）です。
+- `yoake_worker_send` の戻り値は、`0` 成功、`-1` キューがいっぱい、`-2` ワーカーなし（宣言がない、または止まった）、`-3` 大きすぎる、`-4` ポインタが不正です。
+- `yoake_worker_recv` の戻り値は、長さ（0 より大きい）、`0` なし、`-n` 次のメッセージに `n` バイト必要（メッセージはキューに残る）、`i32::MIN` ワーカーなし、`i32::MIN + 1` ポインタ不正です。コア ABI では、空のメッセージは「なし」と同じ扱いです。
+- `run` はワーカーのスレッドで 1 回だけ呼ばれます。戻るとワーカーは終わります。トラップ・パニック・`exit` で止まるのはワーカーだけです。`wasm mod <id> worker: ended, the worker is disabled: ...` というログが出ます。MOD は動き続け、送信は `closed`（`-2`）になります。
+- MOD をアンロードしたとき（ホットリロード、ワールドを出たとき）と、ゲームを終了したときに、ワーカーも止まります。キューを閉じ、待っている `host-recv` は `none` を返し、ワーカーのコードは約 10 ms 以内に止められます。ソケットの中で待っているワーカーは、0.5 秒待ってそのまま手放します。
+- クライアントとサーバーの両方のモジュールがあるパッケージは、インスタンスごとにワーカーが 1 つ動きます。
+- ワーカーの標準出力と標準エラーは `wasm mod <id> worker [stdout]: ...` というログになります。
+
+例（ワーカー側、Rust と `wit-bindgen`）: `crates/yoake-wasm-sdk/examples/f2-io`（`--features worker`）。
+
+### メインのインスタンスのネットワーク
+
+サンドボックスのコンポーネントのメインのインスタンスには、`wasi:sockets` と `wasi:http` をつなぎますが、使うことは断ります。接続やリクエストはアクセス拒否のエラーを返します。待つ呼び出しはゲームのメインスレッドを止めてしまうからです。ネットワークはワーカーで行ってください。（`Sandbox::set_main_network(true)` で解除できます。ツールとテスト用で、ゲームは使いません。）
+
+### サービスの権限ゲートはなくなりました
+
+サンドボックスの MOD のサービス呼び出し（`config`・`permissions`・`storage`）は、`[wasm] permissions` がなくても使えます。古い MOD が読み込めるように、この項目は今も読み取ります。`service.commands`・`service.chat`・`service.gpu` の意味は変わりません。`service.http` はマニフェストでは受け付けていましたが、通信の部分はつながっていませんでした。HTTP はワーカーの `wasi:http` を使ってください。
 
 ## 要確認（確かめられていないこと）
 

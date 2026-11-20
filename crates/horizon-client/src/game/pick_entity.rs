@@ -100,10 +100,18 @@ impl Game<'_> {
         let Some(eye) = self.eye_position() else {
             return false;
         };
-        let mob = u32::try_from(id)
+        let found = u32::try_from(id)
             .ok()
-            .and_then(|id| self.mobs.iter().find(|m| m.id == id))
-            .map(|m| m.bounds());
+            .and_then(|id| self.mobs.iter().find(|m| m.id == id));
+        // F4M: a custom mob is reached by its hitbox parts too, not only its collision box.
+        if let Some(m) = found
+            && m.kind.custom.is_some()
+            && self.object_target(id).is_none()
+        {
+            let range = self.entity_reach + 3.0;
+            return horizon_client::mobs::custom::hitbox::distance_sqr(m, eye) < range * range;
+        }
+        let mob = found.map(|m| m.bounds());
         let Some(b) = self
             .object_target(id)
             .map(|(lo, hi, _)| (lo, hi))

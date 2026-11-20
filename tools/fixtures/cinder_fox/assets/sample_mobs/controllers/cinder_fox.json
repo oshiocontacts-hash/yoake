@@ -1,0 +1,82 @@
+{
+  "controllers": {
+    "locomotion": {
+      "initial": "idle",
+      "states": {
+        "idle": {
+          "animations": [
+            "idle"
+          ],
+          "transitions": [
+            {
+              "to": "walk",
+              "when": "q.ground_speed > 0.05"
+            }
+          ],
+          "blend": 0.15
+        },
+        "walk": {
+          "animations": [
+            {
+              "name": "walk",
+              "speed": "q.ground_speed * 4"
+            }
+          ],
+          "transitions": [
+            {
+              "to": "idle",
+              "when": "q.ground_speed < 0.03"
+            },
+            {
+              "to": "run",
+              "when": "q.ground_speed > 0.2"
+            }
+          ]
+        },
+        "run": {
+          "animations": [
+            "run"
+          ],
+          "transitions": [
+            {
+              "to": "walk",
+              "when": "q.ground_speed < 0.15"
+            }
+          ]
+        }
+      }
+    },
+    "action": {
+      "weight": 1,
+      "bones_mask": [],
+      "triggers": {
+        "pounce": "pounce"
+      }
+    },
+    "pose": {
+      "initial": "none",
+      "states": {
+        "none": {
+          "animations": [],
+          "transitions": [
+            {
+              "to": "sit",
+              "when": "q.synced('state') == 1"
+            }
+          ]
+        },
+        "sit": {
+          "animations": [
+            "sit"
+          ],
+          "transitions": [
+            {
+              "to": "none",
+              "when": "q.synced('state') != 1"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

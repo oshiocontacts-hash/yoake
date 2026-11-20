@@ -819,10 +819,14 @@ pub(super) fn apply_hud(
                 }
             }
             et::HudCommand::Quad(quad) => {
-                if quad.corners.len() == 4 && quad.sprite.is_none() {
+                if quad.corners.len() == 4 {
                     let p =
                         |i: usize| [gui_scalar(quad.corners[i].0), gui_scalar(quad.corners[i].1)];
-                    host.quad(batch, [p(0), p(1), p(2), p(3)], quad.color);
+                    let corners = [p(0), p(1), p(2), p(3)];
+                    match quad.sprite.as_deref() {
+                        None => host.quad(batch, corners, quad.color),
+                        Some(sprite) => draw_sprite_quad(host, batch, sprite, corners, quad),
+                    }
                 }
             }
             et::HudCommand::Sprite(sprite) => {
@@ -853,7 +857,25 @@ pub(super) fn apply_hud(
                     );
                 }
             }
-            et::HudCommand::Texture(_) | et::HudCommand::Highlight(_) => {}
+            et::HudCommand::Texture(texture) => {
+                // The id a mod got from `gui_texture_id`; an unknown id draws nothing.
+                if let Some(handle) = client_services::named_texture(&texture.id) {
+                    host.gui_texture(
+                        batch,
+                        &handle,
+                        [
+                            gui_scalar(texture.x),
+                            gui_scalar(texture.y),
+                            gui_scalar(texture.width),
+                            gui_scalar(texture.height),
+                        ],
+                        [0.0, 0.0, 1.0, 1.0],
+                        texture.color,
+                        None,
+                    );
+                }
+            }
+            et::HudCommand::Highlight(_) => {}
             et::HudCommand::BeginClip(bounds) => {
                 pending.push((
                     Pending::Clip([bounds.x0, bounds.y0, bounds.x1, bounds.y1]),
@@ -894,6 +916,67 @@ pub(super) fn apply_hud(
                 }
             }
         }
+    }
+}
+
+/// A point `s` of the way from `a` to `b`.
+fn lerp2(a: [f32; 2], b: [f32; 2], s: f32) -> [f32; 2] {
+    [a[0] + (b[0] - a[0]) * s, a[1] + (b[1] - a[1]) * s]
+}
+
+/// Where the point `(s, t)` of the unit square lands on a quad whose corners go round it from
+/// the top left: along the top edge by `s`, down by `t`. A square turned about a pivot keeps its
+/// shape; a squeezed or sheared quad stretches the picture over it.
+fn quad_point(corners: &[[f32; 2]; 4], s: f32, t: f32) -> [f32; 2] {
+    let top = lerp2(corners[0], corners[1], s);
+    let bottom = lerp2(corners[3], corners[2], s);
+    lerp2(top, bottom, t)
+}
+
+/// Side of the upright square a textured quad is first drawn as (GUI pixels).
+const TEXTURE_QUAD_SIDE: f32 = 1024.0;
+
+/// A `quad` command with a sprite: `texture:<id>` names a GUI texture the mod got from
+/// `gui_texture_id`, anything else a sprite of the GUI atlas. The corners are in order round the
+/// shape from the top left, so a turned quad is the same four corners turned about its pivot.
+/// `uv` are the corners' UVs, 0 to 1 over the whole image (none takes its own corners); a texture
+/// takes the rectangle between the first and third. An unknown sprite or id draws nothing.
+fn draw_sprite_quad(
+    host: &dyn Host,
+    batch: &mut HudBatch,
+    sprite: &str,
+    corners: [[f32; 2]; 4],
+    quad: &et::HudQuad,
+) {
+    let uv: [[f32; 2]; 4] = match quad.uv.as_deref() {
+        Some([a, b, c, d]) => [[a.0, a.1], [b.0, b.1], [c.0, c.1], [d.0, d.1]],
+        _ => [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
+    };
+    let Some(id) = sprite.strip_prefix("texture:") else {
+        host.sprite_quad(batch, sprite, corners, uv, quad.color);
+        return;
+    };
+    let Some(handle) = client_services::named_texture(id) else {
+        return;
+    };
+    let start = batch.vertices.len();
+    let drawn = host.gui_texture(
+        batch,
+        &handle,
+        [0.0, 0.0, TEXTURE_QUAD_SIDE, TEXTURE_QUAD_SIDE],
+        [uv[0][0], uv[0][1], uv[2][0], uv[2][1]],
+        quad.color,
+        None,
+    );
+    if !drawn {
+        return;
+    }
+    for vertex in &mut batch.vertices[start..] {
+        vertex.pos = quad_point(
+            &corners,
+            vertex.pos[0] / TEXTURE_QUAD_SIDE,
+            vertex.pos[1] / TEXTURE_QUAD_SIDE,
+        );
     }
 }
 
@@ -1590,9 +1673,65 @@ mod tests {
         fills: RefCell<u32>,
         told: RefCell<Vec<String>>,
         gui_dimensions: std::cell::Cell<[f32; 2]>,
+        sprite_quads: RefCell<Vec<(String, [[f32; 2]; 4], [[f32; 2]; 4], u32)>>,
+        shared_sends: RefCell<Vec<(String, Vec<u8>)>>,
+        sends: Vec<(String, Vec<u8>)>,
+        carried: Option<ItemStack>,
+        stacks: RefCell<Vec<ItemStack>>,
+        sounds: RefCell<Vec<(String, Option<[f64; 3]>, f32, f32)>>,
     }
 
     impl Host for FakeHost {
+        fn net_send_to_server(&mut self, channel: &str, data: &[u8]) -> Result<(), String> {
+            self.sends.push((channel.to_owned(), data.to_vec()));
+            Ok(())
+        }
+
+        fn net_send_to_server_shared(&self, channel: &str, data: &[u8]) -> Result<(), String> {
+            self.shared_sends
+                .borrow_mut()
+                .push((channel.to_owned(), data.to_vec()));
+            Ok(())
+        }
+
+        fn screen_carried_stack(&self) -> Option<&ItemStack> {
+            self.carried.as_ref()
+        }
+
+        fn local_player_stacks(&self) -> Vec<ItemStack> {
+            self.stacks.borrow().clone()
+        }
+
+        fn queue_local_sound(
+            &self,
+            sound: &str,
+            at: Option<[f64; 3]>,
+            volume: f32,
+            pitch: f32,
+        ) -> bool {
+            if sound.contains(' ') {
+                return false;
+            }
+            self.sounds
+                .borrow_mut()
+                .push((sound.to_owned(), at, volume, pitch));
+            true
+        }
+
+        fn sprite_quad(
+            &self,
+            _batch: &mut HudBatch,
+            name: &str,
+            corners: [[f32; 2]; 4],
+            uv: [[f32; 2]; 4],
+            argb: u32,
+        ) -> bool {
+            self.sprite_quads
+                .borrow_mut()
+                .push((name.to_owned(), corners, uv, argb));
+            true
+        }
+
         fn gui_size(&self) -> [f32; 2] {
             self.gui_dimensions.get()
         }
@@ -1689,6 +1828,114 @@ mod tests {
         assert_eq!(*host.texts.borrow(), ["hi"]);
         apply_hud(None, &mut batch, &commands);
         assert_eq!(*host.fills.borrow(), 1);
+    }
+
+    #[test]
+    fn quad_points_follow_a_turned_square() {
+        // A 10 x 10 square about its centre, turned a quarter: the top left goes to the top right.
+        let corners = [[10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]];
+        assert_eq!(quad_point(&corners, 0.0, 0.0), [10.0, 0.0]);
+        assert_eq!(quad_point(&corners, 1.0, 0.0), [10.0, 10.0]);
+        assert_eq!(quad_point(&corners, 1.0, 1.0), [0.0, 10.0]);
+        assert_eq!(quad_point(&corners, 0.0, 1.0), [0.0, 0.0]);
+        assert_eq!(quad_point(&corners, 0.5, 0.5), [5.0, 5.0]);
+    }
+
+    #[test]
+    fn a_sprite_quad_goes_to_the_host_with_its_uvs_and_an_unknown_texture_draws_nothing() {
+        let host = FakeHost::default();
+        let mut batch = HudBatch::new([854, 480]);
+        let quad = |sprite: &str, uv: Option<Vec<(f32, f32)>>| {
+            et::HudCommand::Quad(et::HudQuad {
+                corners: vec![(0.0, 0.0), (8.0, 0.0), (8.0, 8.0), (0.0, 8.0)],
+                sprite: Some(sprite.to_owned()),
+                uv,
+                color: 0x80ff00ff,
+            })
+        };
+        let commands = vec![
+            quad("gui/sprites/hud/heart/full", None),
+            quad(
+                "gui/sprites/hud/heart/half",
+                Some(vec![(0.0, 0.0), (0.5, 0.0), (0.5, 1.0), (0.0, 1.0)]),
+            ),
+            // A texture id nobody named: nothing is drawn and nothing is asked of the host.
+            quad("texture:nobody#1", None),
+        ];
+        apply_hud(Some(&host), &mut batch, &commands);
+        let quads = host.sprite_quads.borrow();
+        assert_eq!(quads.len(), 2);
+        assert_eq!(quads[0].0, "gui/sprites/hud/heart/full");
+        assert_eq!(quads[0].2, [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
+        assert_eq!(quads[0].3, 0x80ff00ff);
+        assert_eq!(quads[1].2[1], [0.5, 0.0]);
+    }
+
+    #[test]
+    fn net_send_to_server_works_from_read_only_hooks() {
+        use yoake_wasm::ClientHost;
+        let host = FakeHost::default();
+        let mut service = GameHost::new("net-read-test");
+        // No host at all: refused as before.
+        with_services(HostAccess::None, || {
+            assert!(service.net_send_to_server("net:test", &[1]).is_err());
+        });
+        // A read-only hook (a screen key or mouse hook) goes through the shared path.
+        with_services(HostAccess::Read(&host), || {
+            service.net_send_to_server("net:test", &[1, 2]).unwrap();
+            assert!(service.net_send_to_server(&"c".repeat(300), &[1]).is_err());
+        });
+        assert_eq!(*host.shared_sends.borrow(), [("net:test".to_owned(), vec![1, 2])]);
+        // A hook that may write keeps the ordinary path.
+        let mut writer = FakeHost::default();
+        with_services(HostAccess::Write(&mut writer), || {
+            service.net_send_to_server("net:test", &[3]).unwrap();
+        });
+        assert!(writer.shared_sends.borrow().is_empty());
+        assert_eq!(writer.sends, [("net:test".to_owned(), vec![3])]);
+    }
+
+    #[test]
+    fn client_inventory_reads_and_sounds_go_through_the_host() {
+        use yoake_wasm::ClientServices;
+        let mut host = FakeHost::default();
+        host.carried = Some(ItemStack::new("minecraft:apple", 3));
+        *host.stacks.borrow_mut() = vec![
+            ItemStack::new("minecraft:bread", 1),
+            ItemStack::new("minecraft:stick", 64),
+        ];
+        let mut service = GameHost::new("inventory-read-test");
+        // Without a client host the services are refused.
+        with_services(HostAccess::None, || {
+            assert!(service.screen_carried().is_err());
+            assert!(service.local_player_stacks().is_err());
+            assert!(service.play_local_sound(1.0, "a:b".into(), 1.0).is_err());
+        });
+        with_services(HostAccess::Read(&host), || {
+            let carried = service.screen_carried().unwrap().unwrap();
+            assert_eq!((carried.item.as_str(), carried.count), ("minecraft:apple", 3));
+            let stacks = service.local_player_stacks().unwrap();
+            assert_eq!(stacks.len(), 2);
+            assert_eq!(stacks[1].count, 64);
+            service.play_local_sound(1.0, "ui:click".into(), 0.5).unwrap();
+            let at = yoake_wasm::client_types::Vec3 { x: 1.0, y: 2.0, z: 3.0 };
+            service
+                .play_local_sound_at(0.8, at, "ui:ding".into(), 1.0)
+                .unwrap();
+            // The host refuses a bad id or value, and the service says so.
+            assert!(service.play_local_sound(1.0, "bad id".into(), 1.0).is_err());
+        });
+        assert_eq!(
+            *host.sounds.borrow(),
+            [
+                ("ui:click".to_owned(), None, 0.5, 1.0),
+                ("ui:ding".to_owned(), Some([1.0, 2.0, 3.0]), 1.0, 0.8),
+            ]
+        );
+        host.carried = None;
+        with_services(HostAccess::Read(&host), || {
+            assert!(service.screen_carried().unwrap().is_none());
+        });
     }
 
     #[test]

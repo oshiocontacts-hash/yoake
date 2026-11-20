@@ -176,6 +176,7 @@ mod lan_chat;
 mod lan_crafting;
 mod lan_entities;
 mod lan_far;
+mod lan_mob_sync;
 mod lan_mobs;
 mod lan_mount_menu;
 mod lan_particles;
@@ -283,6 +284,7 @@ mod native_mounts;
 pub(crate) mod native_mouse_buttons;
 pub(crate) mod native_name_lines;
 mod native_net;
+mod native_s1;
 mod native_panel;
 mod native_panel_recipes;
 mod native_perms;
@@ -346,6 +348,7 @@ mod remote;
 mod remote_camera;
 mod remote_chat;
 mod remote_chunks;
+mod remote_custom_mob;
 mod remote_mob_data;
 mod remote_mob_particles;
 mod remote_mob_use;
@@ -2680,6 +2683,11 @@ pub(crate) struct Game<'a> {
     ime_allowed: bool,
     /// The candidate window's area last given to the window, in pixels.
     ime_area: Option<[i32; 4]>,
+    /// What the open mod screen's mod asked of the IME: `None` until it calls
+    /// `ime_set_allowed` (then the engine keeps its old mod-screen behaviour).
+    mod_ime_allowed: Option<bool>,
+    /// The open mod screen's candidate rectangle, in GUI-scaled coordinates.
+    mod_ime_area: Option<[f32; 4]>,
     /// When the window lost focus, while it is still without
     /// (`Minecraft.lastActiveTime`: pausing waits 500 ms).
     focus_lost: Option<Instant>,
@@ -3173,6 +3181,8 @@ pub(crate) struct Game<'a> {
     native_streams: Option<native_streams::NativeStreams>,
     /// Native mods' messages waiting (`game/native_net.rs`).
     native_net: native_net::NativeNet,
+    /// Client sounds queued by hooks with a shared view of the game (`game/native_s1.rs`).
+    native_s1: native_s1::NativeS1,
     native_server_ops: native_server_ops::NativeServerOps,
     /// The mod whose own screen is open (`Screen::Mod`).
     native_mod_screen: Option<String>,
@@ -12045,7 +12055,13 @@ impl Game<'_> {
             if m.removed || Some(m.id) == self.riding || Some(m.id) == self.remote_camera_id() {
                 continue;
             }
-            if let Some(t) = ray_box(eye, dir, reach, self.pick_bounds(m))
+            // F4M: a custom mob is also picked by its pick parts.
+            let hit = if m.kind.custom.is_some() {
+                horizon_client::mobs::custom::hitbox::pick(m, &self.pick_bounds(m), eye, dir, reach)
+            } else {
+                ray_box(eye, dir, reach, self.pick_bounds(m))
+            };
+            if let Some(t) = hit
                 && best.is_none_or(|b| t < b.1)
             {
                 best = Some((i, t));
@@ -15153,7 +15169,7 @@ impl Game<'_> {
             && self.mobs.iter().any(|m| {
                 // `Monster.class` entities that `isPreventingPlayerRest`: a
                 // zombified piglin only while it is angry.
-                horizon_client::mobs::ai::is_monster(m.species())
+                horizon_client::mobs::ai::mob_is_monster(m)
                     && (m.species() != horizon_client::mobs::Species::ZombifiedPiglin
                         || (m.extra.anger > 0 && m.ai.target.is_some()))
                     && m.alive()
@@ -18237,9 +18253,7 @@ impl Game<'_> {
                 WindowEvent::Ime(winit::event::Ime::Preedit(text, cursor)) => {
                     self.ime_preedit(&text, cursor)
                 }
-                WindowEvent::Ime(winit::event::Ime::Disabled) => {
-                    horizon_client::preedit::set_preedit(None)
-                }
+                WindowEvent::Ime(winit::event::Ime::Disabled) => self.ime_disabled(),
                 WindowEvent::Resized(size) => {
                     if let Some(r) = &mut self.renderer {
                         r.resize(size.width, size.height);
@@ -19022,6 +19036,10 @@ impl Game<'_> {
                     let PhysicalKey::Code(key) = event.physical_key else {
                         return Ok(());
                     };
+                    // `native_key_pre`: a mod that consumes the key keeps it from everything below.
+                    if self.native_key_pre_event(key, event.state == ElementState::Pressed, event.repeat) {
+                        return Ok(());
+                    }
                     self.native_key_event(key, event.state == ElementState::Pressed, event.repeat);
                     // Screen.keyPressed sees the physical key, repeats included.
                     if event.state == ElementState::Pressed
@@ -19594,6 +19612,8 @@ impl<'a> Game<'a> {
             focused: start_focused,
             ime_allowed: false,
             ime_area: None,
+            mod_ime_allowed: None,
+            mod_ime_area: None,
             focus_lost: None,
             modifiers: winit::keyboard::ModifiersState::empty(),
             fullscreen: horizon_client::window::FullscreenState::new(false),
@@ -19905,6 +19925,7 @@ impl<'a> Game<'a> {
             native_mix_cursors,
             native_streams: None,
             native_net: Default::default(),
+            native_s1: Default::default(),
             native_server_ops: Default::default(),
             native_mod_screen: None,
             native_title_mod_screen_return: None,

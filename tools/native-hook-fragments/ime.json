@@ -1,0 +1,31 @@
+{
+  "hooks": [
+    {
+      "name": "ime_preedit",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_ime_preedit",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": { "contract": "listen" }
+    },
+    {
+      "name": "ime_commit",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_ime_commit",
+      "side": "client",
+      "cancellable": false,
+      "mod_api": { "contract": "listen" }
+    }
+  ],
+  "helpers": [
+    {
+      "name": "ime_set_allowed",
+      "target": "horizon_client::game::ime::Game<'_>::native_ime_set_allowed"
+    },
+    {
+      "name": "ime_set_cursor_area",
+      "target": "horizon_client::game::ime::Game<'_>::native_ime_set_cursor_area"
+    }
+  ],
+  "rust_summary": "IME composition and commit notifications for mod screens, plus mod-owned IME enablement and candidate-window placement (`native_ime_preedit`, `native_ime_commit`, `native_ime_set_allowed`, `native_ime_set_cursor_area`).",
+  "doc_summary": "While a mod screen is open, `ime_preedit(text, cursor)` reports the live composition and its optional byte-offset cursor range, and `ime_commit(text)` reports committed text before the ordinary screen character hooks. An empty preedit clears the composition. The owner calls `ime_set_allowed(allowed)` to enable or disable the OS input method and `ime_set_cursor_area([x, y, width, height])` to place its candidate window in GUI-scaled coordinates. These hooks do not fire on vanilla screens, and the services require the calling mod's own open screen. Bundles need fragment @API:ime@.",
+  "comments": ["crates/horizon-client/src/game/ime.rs", "crates/horizon-client/src/game/native_hooks.rs"]
+}
