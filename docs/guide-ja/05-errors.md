@@ -105,7 +105,7 @@ server = "bin/wasm/server-storage.wasm"
 permissions = ["service.storage"]
 ```
 
-### ⑫ `unknown wasm permission "..." (known: service.chat, service.commands, service.config, service.gpu, service.http, service.permissions, service.storage)`
+### ⑫ `unknown wasm permission "..." (known: service.browser, service.chat, service.commands, service.config, service.gpu, service.http, service.permissions, service.screen-share, service.storage)`
 
 - **原因**: `[wasm]` の `permissions` リストに、存在しないサービス権限名を書いています。
 - **直し方**: 指定できるのは `"service.chat"`, `"service.commands"`, `"service.config"`, `"service.http"`, `"service.permissions"`, `"service.storage"` の 6 種類のみです。スペルを確認してください。

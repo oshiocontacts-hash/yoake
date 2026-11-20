@@ -151,6 +151,8 @@ There are 7 service permissions (capabilities, `[wasm] permissions`) you can dec
 - `"service.commands"`: Calling `run_command` from a server module (`wasm.server` is required, except with the `inject-mod` WIT world, which does not need a server module). It is also required to register Mixin handlers on the sensitive command and chat sites ([Chapter 8](./08-mixin.md))
 - `"service.config"`: Calling `config_get`, `config_set`, or `config_dir`, and receiving synced config
 - `"service.gpu"`: Calling the `gpu` module from a client module (only in the `client-full` world; not available in `server-full` or `client-mod`)
+- `"service.browser"`: Opening browsers with `media-services` (`full::client::browser`): an installed Edge or Chrome with a profile of the package's own, web pages only (http, https, data, blob, about:blank), frames into a `GuiTexture`, tab sound as PCM. Only for a `wasm.client` with `world = "client-full"`. See `docs/yoake2/reports/FR-MEDIA1.md`.
+- `"service.screen-share"`: Reserved for screen sharing (service ids 255-259, not wired yet). Same rule as `service.browser`.
 - `"service.http"`: A `service.http` service permission declaration that is paired with `[http] hosts` (declaring only one of the two fails validation; note that HTTP transport itself is not connected yet)[^dev-doc]
 - `"service.permissions"`: Calling `has_permission` from a server module (`wasm.server` is required)
 - `"service.storage"`: Calling `storage_*` as well as `world_storage_*`, `config_read`, and `config_write`
