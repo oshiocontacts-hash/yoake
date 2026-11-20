@@ -44,8 +44,21 @@ pub fn apply_in(m: &mut Mob, w: Option<&MobWorld>, events: Option<&mut Vec<MobEv
             }
         }
         Command::SetControllerState { controller, state } => {
-            if !anim_sync::force_state(m, &controller, &state) {
+            if anim_sync::force_state(m, &controller, &state) {
+                // Entering a state by itself lets go of an earlier hold of the controller.
+                anim_sync::release_state(m, &controller);
+            } else {
                 log::debug!("{}: script: no controller {controller:?} or state {state:?}", t.id);
+            }
+        }
+        Command::HoldControllerState { controller, state, hold_ticks } => {
+            if !anim_sync::hold_state(m, &controller, &state, hold_ticks) {
+                log::debug!("{}: script: no controller {controller:?} or state {state:?}", t.id);
+            }
+        }
+        Command::ReleaseControllerState { controller } => {
+            if !anim_sync::release_state(m, &controller) {
+                log::debug!("{}: script: no controller {controller:?}", t.id);
             }
         }
         Command::NavigateTo { position, speed } => {

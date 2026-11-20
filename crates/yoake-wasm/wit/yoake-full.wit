@@ -2187,6 +2187,8 @@ interface server-services {
     mob-despawn: func(entity: u32) -> result<bool, string>;
     mob-claim-control: func(claim: bool, entity: u32) -> result<_, string>;
     mob-impulse: func(entity: u32, velocity: vec3) -> result<_, string>;
+    mob-set-controller-state-hold: func(controller: string, entity: u32, hold-ticks: option<u32>, state: string) -> result<bool, string>;
+    mob-release-controller-state: func(controller: string, entity: u32) -> result<bool, string>;
     level-register-type: func(id: string, type-json: string) -> result<_, string>;
     level-register: func(id: string, stem-json: string) -> result<_, string>;
     level-create: func(id: string, persistent: bool, stem-json: string) -> result<_, string>;

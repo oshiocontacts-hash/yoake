@@ -149,6 +149,24 @@ pub(super) fn set_controller_state(controller: &str, entity: u32, state: &str) -
     Ok(true)
 }
 
+pub(super) fn set_controller_state_hold(controller: &str, entity: u32, state: &str, hold_ticks: Option<u32>) -> Result<bool, String> {
+    name(controller, "controller")?;
+    name(state, "state")?;
+    view(entity)?;
+    script::push(
+        entity,
+        Command::HoldControllerState { controller: controller.to_owned(), state: state.to_owned(), hold_ticks },
+    );
+    Ok(true)
+}
+
+pub(super) fn release_controller_state(controller: &str, entity: u32) -> Result<bool, String> {
+    name(controller, "controller")?;
+    view(entity)?;
+    script::push(entity, Command::ReleaseControllerState { controller: controller.to_owned() });
+    Ok(true)
+}
+
 pub(super) fn navigate_to(entity: u32, position: &st::Vec3, speed: f64) -> Result<bool, String> {
     let position = finite3(position)?;
     if !speed.is_finite() || speed <= 0.0 {

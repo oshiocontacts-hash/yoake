@@ -12,11 +12,11 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 
 const FOX: &str = include_str!(
-    "../../../../../tools/fixtures/cinder_fox/data/sample_mobs/horizon/entity_type/cinder_fox.json"
+    "../../../../../tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json"
 );
 
 pub(crate) fn root() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/fixtures/cinder_fox")
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/fixtures/cinder_fox/content")
 }
 
 /// The Cinder Fox with `ai` replaced (and edited by `edit`), built as the game builds a type: the
@@ -451,4 +451,80 @@ fn a_types_name_tag_height_is_blocks_above_the_feet_times_the_model_scale() {
     // A scaled mob lifts it with the scale (its hitbox follows the same scale).
     m.extra.model_scale = 2.0;
     assert_eq!(crate::mobs::custom::name_tag_height(&m), Some(5.0));
+}
+
+// ----- F4M-10: holding a controller state ---------------------------------------------------------
+
+/// The index of `locomotion` and of its `run` state: a standing fox's `run` goes back to `walk` at once
+/// (`q.ground_speed < 0.15`), so a state that stays is a held one.
+fn loco_and_run(t: &Arc<CustomType>) -> (usize, usize) {
+    let rig = &t.anim.as_ref().unwrap().rig;
+    let li = rig.controllers().iter().position(|c| c.name == "locomotion").unwrap();
+    let run = rig.controllers()[li].states.iter().position(|s| s.name == "run").unwrap();
+    (li, run)
+}
+
+fn loco_state(m: &mut Mob, li: usize) -> usize {
+    anim(m).state.layers[li].cur.state
+}
+
+#[test]
+fn a_held_controller_state_stays_for_its_ticks_then_the_controller_goes_on() {
+    let t = fox_type_with(idle_ai(), |_| {});
+    let (li, run_id) = loco_and_run(&t);
+    let mut m = fox_mob(&t, Vec3::new(0.5, 1.0, 0.5));
+    let fx = flat();
+    let others = [];
+    let mut run = Run::new(view(&fx.world(), &others, None));
+    run.step(&mut m);
+    // Entering `run` alone: the controller leaves it on the next tick (the default stays "enter only").
+    assert!(force_state(&mut m, "locomotion", "run"));
+    run.step(&mut m);
+    assert_ne!(loco_state(&mut m, li), run_id, "enter-only: the controller's transition ran");
+    // Held for 5 ticks: it stays for exactly those, then the controller's own transition runs.
+    assert!(hold_state(&mut m, "locomotion", "run", Some(5)));
+    assert!(is_held(&m, "locomotion"));
+    for tick in 1..=5 {
+        run.step(&mut m);
+        assert_eq!(loco_state(&mut m, li), run_id, "held at tick {tick}");
+    }
+    run.step(&mut m);
+    assert_ne!(loco_state(&mut m, li), run_id, "the hold is over");
+    assert!(!is_held(&m, "locomotion"));
+}
+
+#[test]
+fn a_hold_without_ticks_lasts_until_released_and_a_plain_set_or_a_zero_hold_lets_go() {
+    use crate::mobs::custom::script::Command;
+    use crate::mobs::custom::script_apply::apply_in;
+    let t = fox_type_with(idle_ai(), |_| {});
+    let (li, run_id) = loco_and_run(&t);
+    let mut m = fox_mob(&t, Vec3::new(0.5, 1.0, 0.5));
+    let fx = flat();
+    let others = [];
+    let mut run = Run::new(view(&fx.world(), &others, None));
+    run.step(&mut m);
+    let hold = |ticks| Command::HoldControllerState { controller: "locomotion".into(), state: "run".into(), hold_ticks: ticks };
+    // No tick count: held for as long as nobody lets go.
+    assert!(apply_in(&mut m, None, None, hold(None)));
+    for _ in 0..200 {
+        run.step(&mut m);
+    }
+    assert_eq!(loco_state(&mut m, li), run_id, "still held after 200 ticks");
+    // `release-controller-state`.
+    assert!(apply_in(&mut m, None, None, Command::ReleaseControllerState { controller: "locomotion".into() }));
+    run.step(&mut m);
+    assert_ne!(loco_state(&mut m, li), run_id);
+    // A plain `set-controller-state` lets go of an earlier hold.
+    assert!(apply_in(&mut m, None, None, hold(None)));
+    assert!(apply_in(&mut m, None, None, Command::SetControllerState { controller: "locomotion".into(), state: "run".into() }));
+    assert!(!is_held(&m, "locomotion"));
+    run.step(&mut m);
+    assert_ne!(loco_state(&mut m, li), run_id, "enter-only again");
+    // `Some(0)` is no hold; unknown names change nothing.
+    assert!(apply_in(&mut m, None, None, hold(Some(0))));
+    assert!(!is_held(&m, "locomotion"));
+    assert!(!hold_state(&mut m, "nothing", "run", None));
+    assert!(!hold_state(&mut m, "locomotion", "nothing", None));
+    assert!(!release_state(&mut m, "nothing"));
 }

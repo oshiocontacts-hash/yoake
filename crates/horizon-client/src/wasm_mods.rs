@@ -24,6 +24,28 @@ mod gpu_services;
 mod mob_services;
 #[path = "wasm_mods/mob_runtime.rs"]
 mod mob_runtime;
+
+/// Installs what is process-wide of the script runtimes of fully custom mobs (the client runtime and the
+/// interaction hook; a server's runtime is [`world_script_runtime`]): the WASM modules, then the native mods.
+pub(crate) fn install_script_runtimes() {
+    mob_runtime::install();
+    mob_runtime::install_client();
+}
+
+/// A server's session over the script runtime of custom mobs, opened with its world (`None`: no module or native
+/// mod scripts mobs, or another server holds the one runtime of the process: logged, the first keeps it).
+pub(crate) fn open_world_script_session() -> Option<crate::mobs::custom::script::Session> {
+    let runtime = mob_runtime::world_runtime()?;
+    match crate::mobs::custom::script::open_session(runtime) {
+        Ok(session) => Some(session),
+        Err(_) => {
+            log::warn!(
+                "another server already holds the script runtime of custom mobs: this world's custom mobs run without scripts (one runtime per process)"
+            );
+            None
+        }
+    }
+}
 #[path = "wasm_mods/media_services.rs"]
 mod media_services;
 #[path = "wasm_mods/package.rs"]

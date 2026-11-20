@@ -436,3 +436,106 @@ fn bone_writes_drop_the_invalid_and_keep_the_cap() {
 fn uuid_text_is_the_canonical_form() {
     assert_eq!(script::uuid_text([-1, 0, 1, 0x1234_5678]), "ffffffff-0000-0000-0000-000112345678");
 }
+
+// ----- a server's session (F4M-10): one runtime per open world, nothing left behind --------------------------
+
+fn leave_traces(mob: u32) {
+    let t = fixture_type();
+    let mut m = Mob::new(mob, std::sync::Arc::new(crate::mobs::custom::build::mob_type(&t)), Vec3::ZERO, 0.0);
+    crate::mobs::custom::build::register(&mut m);
+    script::publish(script::MobView::of(&m).expect("a custom mob"));
+    script::push(mob, Command::Jump);
+    script::push(mob, Command::Despawn);
+    script::set_locators(mob, vec![script::LocatorPlace { name: "mouth".into(), position: [1.0, 2.0, 3.0], yaw: 0.0, pitch: 0.0 }]);
+}
+
+fn fixture_type() -> std::sync::Arc<crate::mobs::custom::CustomType> {
+    crate::mobs::custom::anim_sync::tests::fox_type_with(serde_json::json!({"navigator": "ground", "goals": []}), |_| {})
+}
+
+#[test]
+fn a_session_installs_its_runtime_and_a_closed_world_leaves_nothing_behind() {
+    let _g = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    script::set_runtime(None);
+    script::reset();
+    assert!(!script::installed());
+    let mock = Mock::new();
+    let session = script::open_session(mock.clone()).expect("free");
+    assert!(script::installed());
+    assert!(script::runtime().is_some());
+    leave_traces(7);
+    assert_eq!(script::queued(), 2);
+    assert!(script::locator(7, "mouth").is_some());
+    drop(session);
+    assert!(!script::installed(), "the runtime goes with the world");
+    assert!(script::runtime().is_none());
+    assert_eq!(script::queued(), 0, "queued commands are dropped");
+    assert!(script::view(7).is_none());
+    assert!(script::locator(7, "mouth").is_none(), "drawn locators are dropped");
+}
+
+#[test]
+fn a_reopened_world_starts_without_the_last_worlds_scripts_or_commands() {
+    let _g = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    script::set_runtime(None);
+    script::reset();
+    let (first, second) = (Mock::new(), Mock::new());
+    let a = script::open_session(first.clone()).unwrap();
+    leave_traces(1);
+    // The old world closes without anyone draining the bus.
+    drop(a);
+    let b = script::open_session(second.clone()).unwrap();
+    assert_eq!(script::queued(), 0, "none of the old world's commands reach mob 1 of the new one");
+    assert!(script::take_for(1).is_empty());
+    assert!(script::locator(1, "mouth").is_none());
+    // The runtime that answers is the new one: a call reaches `second` only.
+    let t = fixture_type();
+    let mut m = Mob::new(1, std::sync::Arc::new(crate::mobs::custom::build::mob_type(&t)), Vec3::ZERO, 0.0);
+    crate::mobs::custom::build::register(&mut m);
+    let ran = script::call(&mut m, None, None, |rt| rt.mob_tick(1));
+    assert!(ran.is_some());
+    assert_eq!(first.count("mob_tick"), 0, "the first world's runtime is gone");
+    assert_eq!(second.count("mob_tick"), 1);
+    drop(b);
+    assert!(!script::installed());
+}
+
+#[test]
+fn a_second_server_is_refused_while_the_first_holds_the_runtime() {
+    let _g = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    script::set_runtime(None);
+    script::reset();
+    let (first, second) = (Mock::new(), Mock::new());
+    let a = script::open_session(first.clone()).unwrap();
+    leave_traces(3);
+    assert_eq!(script::open_session(second.clone()).err(), Some(script::SessionBusy));
+    // Nothing of the first was touched by the refused open, and its drop is the only thing that ends it.
+    assert_eq!(script::queued(), 2);
+    assert!(script::installed());
+    drop(a);
+    assert!(!script::installed());
+    // After it, the second may open.
+    let b = script::open_session(second).unwrap();
+    drop(b);
+}
+
+#[test]
+fn a_test_runtime_blocks_a_session_and_a_replaced_session_clears_nothing_of_its_successor() {
+    let _g = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    script::set_runtime(None);
+    script::reset();
+    let double = Mock::new();
+    script::set_runtime(Some(double.clone()));
+    assert!(script::open_session(Mock::new()).is_err(), "an installed runtime is not taken over");
+    script::set_runtime(None);
+    let a = script::open_session(Mock::new()).unwrap();
+    // Something else replaced the runtime of the session: its drop must not remove the replacement.
+    let other = Mock::new();
+    script::set_runtime(Some(other));
+    leave_traces(5);
+    drop(a);
+    assert!(script::installed(), "the replacement stays");
+    assert_eq!(script::queued(), 2, "and so does its bus");
+    script::set_runtime(None);
+    script::reset();
+}

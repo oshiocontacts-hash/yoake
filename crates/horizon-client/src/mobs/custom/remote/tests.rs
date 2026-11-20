@@ -384,7 +384,7 @@ fn roaring_fox() -> Arc<CustomType> {
     use crate::mobs::custom::anim_sync::tests::root;
     use horizon_mods::custom_mob::CustomMobFile;
     let text = include_str!(
-        "../../../../../../tools/fixtures/cinder_fox/data/sample_mobs/horizon/entity_type/cinder_fox.json"
+        "../../../../../../tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json"
     );
     let mut v: serde_json::Value = serde_json::from_str(text).unwrap();
     v["ai"] = idle_ai();

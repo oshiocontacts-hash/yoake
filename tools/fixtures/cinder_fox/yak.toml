@@ -1,0 +1,20 @@
+format = 1
+id = "sample_mobs"
+version = "0.1.0"
+name = "Cinder Fox (F4M fixture)"
+authors = ["Horizon test fixtures"]
+description = "The Cinder Fox custom mob with its pounce script goal: content/ is the data and assets, the fox_ai guest is the server module."
+
+[yoake]
+version = ">=0.0.0"
+
+[side]
+client = true
+server = true
+required_on_join = false
+
+# The guest is not committed: it is built from crates/yoake-wasm-sdk/examples/fox_ai (see README.md).
+[wasm]
+interface = "1.0"
+server = "bin/wasm/fox_ai.wasm"
+permissions = ["service.mobs"]
