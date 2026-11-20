@@ -261,7 +261,7 @@ impl WorldRequest {
             dim,
             shape,
             registry.generator_stem(dim.id()),
-            level.seed,
+            registry.seed(dim.id(), level.seed),
             &level.enabled_features,
             // The generators mods staged before the world was read (F3-6): a player saved in a
             // level of one reopens there.

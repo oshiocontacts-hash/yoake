@@ -77,7 +77,17 @@ fn with_world_options(
     let resources = PathBuf::from(
         std::env::var_os("HORIZON_TEST_RESOURCES").expect("set HORIZON_TEST_RESOURCES"),
     );
-    let world = std::env::temp_dir().join(format!("hz-f33-game-{}", std::process::id()));
+    // The tests share process-wide state (the staged mods, the world-data caches) and one machine's
+    // worth of threads: they run one at a time, each in a world folder of its own, so `cargo test`
+    // needs no `--test-threads=1` (F3-7).
+    static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let world = std::env::temp_dir().join(format!(
+        "hz-levels-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+    ));
     let _ = std::fs::remove_dir_all(&world);
     write_pack(&world);
     let settings = Settings::default();
@@ -628,16 +638,20 @@ fn a_level_created_at_run_time_has_its_own_folder_comes_back_and_can_be_deleted(
 #[test]
 #[ignore = "needs HORIZON_TEST_RESOURCES"]
 fn a_player_saved_in_a_mods_level_reopens_there() {
-    horizon_client::mod_generator::clear_staged();
-    horizon_client::mod_generator::stage_generator("testmod:staged", std::sync::Arc::new(FloorFactory)).unwrap();
-    horizon_client::mod_generator::stage_level(
-        "mypack:staged",
-        serde_json::json!({"type": "minecraft:overworld",
-            "generator": {"type": "yoake:mod", "id": "testmod:staged", "settings": {"depth": 2}}}),
-    )
-    .unwrap();
     with_world_options(
-        write_moon_pack,
+        // What the mod registers before the world is read (under the tests' serial guard: the staging
+        // is process wide).
+        |world| {
+            write_moon_pack(world);
+            horizon_client::mod_generator::clear_staged();
+            horizon_client::mod_generator::stage_generator("testmod:staged", std::sync::Arc::new(FloorFactory)).unwrap();
+            horizon_client::mod_generator::stage_level(
+                "mypack:staged",
+                serde_json::json!({"type": "minecraft:overworld",
+                    "generator": {"type": "yoake:mod", "id": "testmod:staged", "settings": {"depth": 2}}}),
+            )
+            .unwrap();
+        },
         // `--dimension`: what the save's player level says.
         |options| options.dimension = Some("mypack:staged".into()),
         |game, _| {
@@ -650,9 +664,9 @@ fn a_player_saved_in_a_mods_level_reopens_there() {
             assert_eq!((chunk.get(4, floor, 4), chunk.get(4, floor + 1, 4), chunk.get(4, floor + 2, 4)), (stone, stone, 0));
             // The vanilla levels beside it are unchanged.
             assert_eq!(game.level_registry.ids().take(3).collect::<Vec<_>>(), ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"]);
+            horizon_client::mod_generator::clear_staged();
         },
     );
-    horizon_client::mod_generator::clear_staged();
 }
 
 /// F3-6: coordinates scale between levels by their types' `coordinate_scale`.
@@ -672,5 +686,80 @@ fn travel_scales_by_the_coordinate_scale_of_the_types() {
         assert_eq!(game.travel_scale(hell, Dim::Overworld), 8.0);
         assert_eq!(game.travel_scale(hell, Dim::Nether), 1.0);
         assert_eq!(game.travel_scale(moon, Dim::Overworld), 1.0);
+    });
+}
+
+/// A mod generator that remembers the seed it was made with.
+static SEEN_SEED: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(i64::MIN);
+struct SeedFactory;
+impl horizon_client::mod_generator::ModGeneratorFactory for SeedFactory {
+    fn create(
+        &self,
+        c: &horizon_client::mod_generator::ModGeneratorContext,
+    ) -> Result<std::sync::Arc<dyn horizon_client::mod_generator::ModColumnSource>, String> {
+        SEEN_SEED.store(c.seed, std::sync::atomic::Ordering::SeqCst);
+        FloorFactory.create(c)
+    }
+}
+
+/// F3-7: a created level takes its own seed (the world's by default), can be unloaded (kept
+/// registered, saved, closed, back on demand) and regenerated (its terrain gone, a new seed).
+#[test]
+#[ignore = "needs HORIZON_TEST_RESOURCES"]
+fn levels_take_their_own_seed_unload_and_regenerate() {
+    use std::sync::atomic::Ordering::SeqCst;
+    with_moon_game(|game, world| {
+        game.register_mod_generator("testmod:seeded", std::sync::Arc::new(SeedFactory)).unwrap();
+        let stem = |seed: Option<i64>| {
+            let mut s = serde_json::json!({"type": "minecraft:overworld",
+                "generator": {"type": "yoake:mod", "id": "testmod:seeded", "settings": {"depth": 1}}});
+            if let Some(seed) = seed {
+                s["seed"] = serde_json::json!(seed);
+            }
+            s
+        };
+        let stone = game.pack.assets.registry.default_state("minecraft:stone").unwrap().0;
+        let world_seed = game.level.seed;
+        // The world's seed by default, the stem's when it has one.
+        let plain = game.create_level("made:plain", stem(None), true).unwrap();
+        game.enter_level(None, plain).unwrap();
+        assert_eq!(SEEN_SEED.load(SeqCst), world_seed);
+        game.enter_level(None, Dim::Overworld).unwrap();
+        let own = game.create_level("made:own", stem(Some(424242)), true).unwrap();
+        game.enter_level(None, own).unwrap();
+        assert_eq!(SEEN_SEED.load(SeqCst), 424242);
+        assert_eq!(game.world.shape, game.level_registry.shape("made:own").unwrap());
+        // An edit, saved; then unloaded: closed but registered, the edit comes back on re-entering.
+        let _ = generated_chunk(game, 0, 0);
+        let y = game.world.shape.min_y + 5;
+        game.level_set([1, y, 1], horizon_world::registry::BlockStateId(stone)).unwrap();
+        // Occupied: the player is in it.
+        assert!(matches!(game.unload_level("made:own"), Err(super::level_manager::LevelManagerError::Occupied(_))));
+        game.enter_level(None, Dim::Overworld).unwrap();
+        assert!(game.list_levels().iter().any(|l| l.id == "made:own" && l.open));
+        game.unload_level("made:own").unwrap();
+        assert!(game.list_levels().iter().any(|l| l.id == "made:own" && !l.open), "closed");
+        assert!(game.level_dim("made:own").is_some(), "still registered");
+        let region = game.level_registry.save_dir(world, "made:own").join("region");
+        assert!(region.exists(), "saved");
+        SEEN_SEED.store(0, SeqCst);
+        game.enter_level(None, own).unwrap();
+        assert_eq!(SEEN_SEED.load(SeqCst), 424242, "reopened with its seed");
+        let chunk = generated_chunk(game, 0, 0);
+        assert_eq!(chunk.get(1, y, 1), stone, "the saved edit is back");
+        game.enter_level(None, Dim::Overworld).unwrap();
+        // Regenerate: the terrain goes, the id stays, a new seed is kept in the side file.
+        assert!(game.regenerate_level("minecraft:the_nether", None).is_err(), "vanilla");
+        assert!(game.regenerate_level("mypack:moon", Some(1)).is_err(), "a pack's level has no seed to change");
+        game.regenerate_level("made:own", Some(-9)).unwrap();
+        assert!(!region.exists());
+        assert_eq!(game.level_registry.seed("made:own", world_seed), -9);
+        assert!(std::fs::read_to_string(world.join("data").join("yoake_levels.json")).unwrap().contains("-9"));
+        game.enter_level(None, own).unwrap();
+        assert_eq!(SEEN_SEED.load(SeqCst), -9);
+        let chunk = generated_chunk(game, 0, 0);
+        assert_eq!(chunk.get(1, y, 1), 0, "regenerated: the edit is gone");
+        game.enter_level(None, Dim::Overworld).unwrap();
+        assert_eq!(game.level_facts(), super::level_facts::LevelFacts::OVERWORLD);
     });
 }

@@ -80,6 +80,9 @@ pub struct LevelEntry {
     /// A created level that saves nothing in the world folder: its chunks live under
     /// `yoake_temp/` and go with the level, or the next time the world opens.
     pub ephemeral: bool,
+    /// The level's own seed (`"seed"` in its stem; a Yoake extension), `None` for the world's,
+    /// which is what every level has in vanilla.
+    pub seed: Option<i64>,
 }
 
 /// A level after the vanilla three, as the network side sees it (F3-4).
@@ -283,6 +286,16 @@ fn generator_sea_level(generator: &GeneratorSpec, noise_sea: &BTreeMap<String, i
     }
 }
 
+/// The `seed` a stem gives its level, when it does (a number, or a numeric string as vanilla's
+/// seed fields allow).
+fn json_seed(stem: &Value) -> Option<i64> {
+    match stem.get("seed")? {
+        Value::Number(n) => n.as_i64(),
+        Value::String(s) => s.parse().ok(),
+        _ => None,
+    }
+}
+
 /// What a registry is built from.
 pub struct LevelInputs<'a> {
     /// The prepared dimension type files, by id (`prepared_dimension_types`).
@@ -441,6 +454,7 @@ impl LevelRegistry {
                 shape: inputs.vanilla_shapes.get(id),
                 sea_level: None,
                 ephemeral: false,
+                seed: None,
             });
         }
         // The others.
@@ -495,6 +509,7 @@ impl LevelRegistry {
             stem_json["type"] = dimension_type.to_value();
         }
         let sea_level = generator_sea_level(&stem.generator, &self.noise_sea);
+        let seed = json_seed(&stem_json);
         Ok(LevelEntry {
             id: id.to_owned(),
             source: from,
@@ -505,6 +520,7 @@ impl LevelRegistry {
             shape,
             sea_level,
             ephemeral: false,
+            seed,
         })
     }
 
@@ -561,6 +577,32 @@ impl LevelRegistry {
         entry.ephemeral = ephemeral;
         self.entries.push(entry);
         Ok(self.entries.last().expect("pushed"))
+    }
+
+    /// The seed the level generates with: its own, else `world_seed`.
+    pub fn seed(&self, id: &str, world_seed: i64) -> i64 {
+        self.get(id).and_then(|e| e.seed).unwrap_or(world_seed)
+    }
+
+    /// Gives a created level a new seed (or the world's again with `None`), in its stem too, so
+    /// the side file keeps it (F3-7). Only created levels change; the others come from data.
+    pub fn set_seed(&mut self, id: &str, seed: Option<i64>) -> Result<(), LevelError> {
+        let Some(entry) = self.entries.iter_mut().find(|e| e.id == id) else {
+            return Err(LevelError::Unknown(id.to_owned()));
+        };
+        match entry.source {
+            LevelSource::Vanilla => return Err(LevelError::Vanilla(id.to_owned())),
+            LevelSource::Created => {}
+            _ => return Err(LevelError::NotCreated(id.to_owned())),
+        }
+        entry.seed = seed;
+        if let Some(Value::Object(stem)) = entry.stem_json.as_mut() {
+            match seed {
+                Some(s) => stem.insert("seed".into(), Value::from(s)),
+                None => stem.remove("seed"),
+            };
+        }
+        Ok(())
     }
 
     /// Takes a created level out of the registry (F3-6). The caller has closed it and cleared
@@ -848,6 +890,36 @@ mod tests {
         next.write_created(&world).unwrap();
         assert!(!world.join("data").join(STORED_LEVELS).exists(), "the file goes with the last level");
         let _ = std::fs::remove_dir_all(&world);
+    }
+
+    /// F3-7: a level's stem may carry its own seed; otherwise it generates with the world's.
+    #[test]
+    fn a_level_may_have_its_own_seed() {
+        let cat = catalog();
+        let mut reg = LevelRegistry::vanilla();
+        let mut stem = grid_stem("minecraft:overworld");
+        stem["seed"] = serde_json::json!(-77);
+        reg.create_level("a:seeded", stem, &cat, false).unwrap();
+        let mut text = grid_stem("minecraft:overworld");
+        text["seed"] = serde_json::json!("123");
+        reg.create_level("a:text", text, &cat, false).unwrap();
+        reg.create_level("a:plain", grid_stem("minecraft:overworld"), &cat, false).unwrap();
+        assert_eq!(reg.seed("a:seeded", 5), -77);
+        assert_eq!(reg.seed("a:text", 5), 123);
+        assert_eq!(reg.seed("a:plain", 5), 5);
+        assert_eq!(reg.seed("minecraft:overworld", 5), 5, "vanilla levels use the world's seed");
+        // A created level's seed changes and is kept in its stem (for the side file); the rest do not.
+        reg.set_seed("a:plain", Some(9)).unwrap();
+        assert_eq!(reg.seed("a:plain", 5), 9);
+        assert_eq!(reg.generator_stem("a:plain").unwrap()["seed"], 9);
+        reg.set_seed("a:plain", None).unwrap();
+        assert_eq!(reg.seed("a:plain", 5), 5);
+        assert!(reg.generator_stem("a:plain").unwrap().get("seed").is_none());
+        assert_eq!(reg.set_seed("minecraft:the_end", Some(1)).unwrap_err(), LevelError::Vanilla("minecraft:the_end".into()));
+        assert_eq!(reg.set_seed("a:none", Some(1)).unwrap_err(), LevelError::Unknown("a:none".into()));
+        let mut o = LevelRegistry::vanilla();
+        o.register_level("a:mod", grid_stem("minecraft:overworld"), &cat).unwrap();
+        assert_eq!(o.set_seed("a:mod", Some(1)).unwrap_err(), LevelError::NotCreated("a:mod".into()));
     }
 
     /// F3-5: superflat, debug, mod and every biome-source variant are levels of their own.
