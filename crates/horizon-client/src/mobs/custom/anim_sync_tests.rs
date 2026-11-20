@@ -528,3 +528,78 @@ fn a_hold_without_ticks_lasts_until_released_and_a_plain_set_or_a_zero_hold_lets
     assert!(!hold_state(&mut m, "locomotion", "nothing", None));
     assert!(!release_state(&mut m, "nothing"));
 }
+
+/// The real-game strike of `tools/custom_mob_render_e2e.py`: the fox has only `swim` and a
+/// `melee_attack` with `trigger` and `damage_frame` (no `damage_delay`), the attack damage is 2, it picks
+/// the player itself (nearest_target) and a survival player stands within reach.
+#[test]
+fn the_e2e_fox_picks_the_player_and_its_pounce_strikes() {
+    let ai = json!({"navigator": "ground",
+        "goals": [{"type": "swim", "priority": 0},
+                  {"type": "melee_attack", "priority": 2, "speed": 1.0, "interval": 600, "trigger": "pounce", "damage_frame": "hit"}],
+        "targets": [{"type": "nearest_target", "priority": 1, "types": ["minecraft:chicken", "minecraft:player"]}]});
+    let t = fox_type_with(ai, |v| {
+        v["attributes"]["attack_damage"] = json!(2);
+    });
+    let mut m = fox_mob(&t, Vec3::new(0.5, 1.0, 0.5));
+    let fx = flat();
+    let others = [];
+    let mut run = Run::new(view(&fx.world(), &others, Some(Vec3::new(0.5, 1.0, 1.5))));
+    for _ in 0..60 {
+        run.step(&mut m);
+    }
+    assert!(run.hits() >= 1, "target {:?} attack_damage {}", m.ai.target, m.attrs.attack_damage);
+    let amount = run
+        .events
+        .iter()
+        .find_map(|e| match e {
+            MobEvent::AttackPlayer(a, _) => Some(*a),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(amount, 2.0);
+}
+
+/// The same fox beside a chicken (no player): the blow is an `AttackMob` on the chicken.
+#[test]
+fn the_e2e_fox_picks_a_chicken_and_its_pounce_strikes() {
+    let ai = json!({"navigator": "ground",
+        "goals": [{"type": "swim", "priority": 0},
+                  {"type": "melee_attack", "priority": 2, "speed": 1.0, "interval": 600, "trigger": "pounce", "damage_frame": "hit"}],
+        "targets": [{"type": "nearest_target", "priority": 1, "types": ["minecraft:chicken", "minecraft:player"]}]});
+    let t = fox_type_with(ai, |v| {
+        v["attributes"]["attack_damage"] = json!(2);
+    });
+    let mut m = fox_mob(&t, Vec3::new(0.5, 1.0, 0.5));
+    let fx = flat();
+    let others = [seen(9, crate::mobs::Species::Chicken, Vec3::new(0.5, 1.0, 1.5))];
+    let mut run = Run::new(view(&fx.world(), &others, None));
+    for _ in 0..60 {
+        run.step(&mut m);
+    }
+    let hits: Vec<_> = run.events.iter().filter(|e| matches!(e, MobEvent::AttackMob { .. })).collect();
+    assert!(!hits.is_empty(), "target {:?}", m.ai.target);
+}
+
+/// A chicken at one block and a player at five: the fox picks the nearer one.
+#[test]
+fn the_e2e_fox_prefers_the_nearer_of_a_chicken_and_a_player() {
+    let ai = json!({"navigator": "ground",
+        "goals": [{"type": "swim", "priority": 0},
+                  {"type": "melee_attack", "priority": 2, "speed": 1.0, "interval": 600, "trigger": "pounce", "damage_frame": "hit"}],
+        "targets": [{"type": "nearest_target", "priority": 1, "types": ["minecraft:chicken", "minecraft:player"]}]});
+    let t = fox_type_with(ai, |v| {
+        v["attributes"]["attack_damage"] = json!(2);
+    });
+    let mut m = fox_mob(&t, Vec3::new(0.5, 1.0, 0.5));
+    let fx = flat();
+    let others = [seen(9, crate::mobs::Species::Chicken, Vec3::new(0.5, 1.0, 1.5))];
+    let mut run = Run::new(view(&fx.world(), &others, Some(Vec3::new(5.5, 1.0, 0.5))));
+    for _ in 0..60 {
+        run.step(&mut m);
+        if m.ai.target.is_some() {
+            break;
+        }
+    }
+    assert_eq!(m.ai.target, Some(Who::Mob(9)), "the nearer chicken");
+}

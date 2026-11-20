@@ -1242,6 +1242,23 @@ impl Game<'_> {
         self.handle_mob_events(queued)?;
         Ok(())
     }
+    /// One info line for the blow of a fully custom mob that reached the game's damage code (what
+    /// `Horizon custom-mob strike:` in the mob's goal handed over, and whether it hurt): `from` is where the
+    /// attacker stood. Silent for every other attacker.
+    fn log_custom_strike(&self, victim: &str, amount: f32, from: [f64; 3], hurt: bool) {
+        let Some(m) = self.mobs.iter().find(|m| {
+            m.kind.custom.is_some()
+                && (m.position.x - from[0]).abs() < 1e-6
+                && (m.position.z - from[2]).abs() < 1e-6
+        }) else {
+            return;
+        };
+        log::info!(
+            "Horizon custom-mob strike: mob {} hit {victim} for {amount}: hurt {hurt} tick {}",
+            m.id,
+            self.world.game_time
+        );
+    }
     /// `LivingEntity.makePoofParticles` (entity event 60) about a mob's box.
     pub(super) fn death_poof(&mut self, at: [f64; 3], width: f64, height: f64) {
         let options = horizon_client::particles::ParticleOptions::simple(
@@ -2029,7 +2046,8 @@ impl Game<'_> {
                 // above use their movement's flyDist/nextFlap threshold.
                 MobEvent::GameEvent { .. } => {}
                 MobEvent::AttackPlayer(amount, from) => {
-                    self.mob_hits_player(amount, from, "minecraft:mob_attack");
+                    let hurt = self.mob_hits_player(amount, from, "minecraft:mob_attack");
+                    self.log_custom_strike("the player", amount, from, hurt);
                 }
                 // doHurtTarget: the effect only when hurtServer took damage.
                 // Bee.doHurtTarget: a sting that hurt leaves the stinger in the
@@ -2233,7 +2251,8 @@ impl Game<'_> {
                     amount,
                     source,
                 } => {
-                    self.mob_hits_mob(target, amount, source);
+                    let hurt = self.mob_hits_mob(target, amount, source);
+                    self.log_custom_strike(&format!("mob {target}"), amount, source.from.unwrap_or_default(), hurt);
                 }
                 MobEvent::AttackMobWithEffect {
                     target,
