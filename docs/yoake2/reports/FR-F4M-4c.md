@@ -42,7 +42,14 @@ No new `yoake_hook` ids; `Mob::tick` has the same signature.
 
 ## Tests
 
-(see the end of this file for the exact counts)
+Before the merges (F4M-4c on f4m-5b): `-p horizon-client-lib --lib` **1801 passed** (1773 + 1 step-0 test + 27 new), `-p horizon-client --lib` 1203, `-p horizon-mods` 59 (+1), `-p horizon-protocol` 227.
+After merging `yoake-free/merge` (fed161c18) and `yoake-free/f4m-robust` (7ce41f690): `horizon-client-lib --lib` **1825 passed**, 48 ignored; `horizon-client --lib` **1228 passed**, 50 ignored; `horizon-mods` **59**; `horizon-protocol` **227**; `horizon-mobmodel` all test binaries pass. 0 failures.
+New tests: `ai/tests_4c.rs` 24 (tame chance by seed, berries tame and notice, sit order, sitting stays put, follow owner, far owner teleport, default goals, owner_hurt_by / owner_hurt_target / owner_target, exclusions, feeding, breeding and cooldown, baby clock and scale, offspring/partner types, tamed baby, follow_parent, passenger position by the server offset, seat assignment, saddle/owner/rideable_when, ride click, hook double and ordering, installed hook, rows and tags, Mob::tick clock), `persist` 1 (owner, sitting, age, love round trip), `lan::mob_sync` 1 (owner values to the owner only, snapshot and delta), `horizon-mods` 1 (schema), `remote` 1 (step 0).
+Also: the derived default attribute set (`mod_content`) is now the union of the non-misc vanilla rows' keys with the attribute registry's default values (`attributes.json`); the existing test was rewritten for it (28 keys incl. `tempt_range`).
+
+## Merges
+
+`yoake-free/merge` and `yoake-free/f4m-robust` merged without conflicts (`mobs/custom/spawn.rs` was not touched here). Fix-up: `horizon-mods/src/custom_mob.rs` `load_model` passes the asset path as `file` to `parse_animation_file` and `parse_controllers` (their error text now carries it). No custom-mob hook ids were handed out. `regen.sh` was not run.
 
 ## Needs checking
 
