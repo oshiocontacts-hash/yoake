@@ -179,7 +179,7 @@ impl Game<'_> {
             .into());
         };
         let shape = entry.shape;
-        let (streaming, save, locator) = super::world_loading::make_streaming(
+        let (mut streaming, save, locator) = super::world_loading::make_streaming(
             &self.res,
             &self.pack,
             &self.options,
@@ -191,6 +191,10 @@ impl Game<'_> {
             self.level.seed,
             &self.level.enabled_features,
         )?;
+        // F3-4: a level past the vanilla three shades blocks as its type says.
+        if !matches!(dim, Dim::Overworld | Dim::Nether | Dim::End) {
+            streaming.nether_shading = entry.dimension_type.cardinal_light == "nether";
+        }
         let mut world = World::new(self.res.facts().air, self.level.seed);
         world.attachments = save.load_attachments();
         world.shape = shape;
@@ -353,6 +357,7 @@ impl Game<'_> {
             }
             p.idle = 0;
             let left = std::mem::replace(&mut self.dim, target);
+            self.ensure_level_ctx(None);
             self.levels.parked.insert(left, p);
             if opened {
                 // The new streaming's radius and meshing options.

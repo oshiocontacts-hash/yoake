@@ -478,6 +478,7 @@ pub(crate) fn with_resource_test_world(
         raining: false,
         thundering: false,
         nether: false,
+        spawn_light: None,
         block_tags: &items.block_tags,
         landing: &motion.landing,
         biomes: &biomes,

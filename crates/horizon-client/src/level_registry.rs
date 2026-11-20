@@ -66,6 +66,17 @@ pub struct LevelEntry {
     pub shape: LevelShape,
 }
 
+/// A level after the vanilla three, as the network side sees it (F3-4).
+#[derive(Clone, Debug, PartialEq)]
+pub struct NetLevel {
+    pub id: String,
+    /// The `minecraft:dimension_type` entry the level uses.
+    pub type_name: String,
+    pub shape: LevelShape,
+    /// The type's data, sent to clients that do not know the entry.
+    pub type_json: Value,
+}
+
 /// Why a level or a registration was refused.
 #[derive(Clone, Debug, PartialEq)]
 pub enum LevelError {
@@ -486,6 +497,25 @@ impl LevelRegistry {
     /// The stem the chunk generator takes below the packs' own.
     pub fn generator_stem(&self, id: &str) -> Option<&Value> {
         self.get(id)?.stem_json.as_ref()
+    }
+    /// What the network side needs of each level a client could not know
+    /// from vanilla: the levels after the three vanilla ones, with the
+    /// dimension type they name (a registered id, or the level's own id for
+    /// an inline type) and that type's data (F3-4).
+    pub fn network_levels(&self) -> Vec<NetLevel> {
+        self.entries
+            .iter()
+            .filter(|e| !VANILLA_LEVELS.contains(&e.id.as_str()))
+            .map(|e| NetLevel {
+                id: e.id.clone(),
+                type_name: match e.stem.as_ref().map(|s| &s.dimension_type) {
+                    Some(TypeRef::Id(name)) => name.clone(),
+                    _ => e.id.clone(),
+                },
+                shape: e.shape,
+                type_json: e.dimension_type.to_value(),
+            })
+            .collect()
     }
     /// The level's save folder inside the world.
     pub fn save_dir(&self, world: &Path, id: &str) -> PathBuf {

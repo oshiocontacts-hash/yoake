@@ -728,7 +728,7 @@ pub(super) fn level_fast_lava(
     match dim {
         Dim::Overworld | Dim::End => false,
         Dim::Nether => true,
-        // F3-4 replaces the three-way match by the type query for all levels.
+        // A level past the vanilla three asks its type.
         _ => registry.get(dim.id()).is_some_and(|e| e.dimension_type.fast_lava()),
     }
 }
@@ -947,7 +947,7 @@ pub(super) fn make_streaming(
         .horizon
         .leaf_culling_effective(&settings.resource_packs);
     streaming.biome_zoom = BiomeZoom::new(obfuscate_seed(seed));
-    // F3-4 makes this the type's `has_skylight`; the three vanilla levels keep their rule.
+    // A level past the vanilla three uses its type's `has_skylight`; the vanilla levels keep their rule.
     streaming.sky_light = match dim {
         Dim::Overworld | Dim::End => true,
         Dim::Nether => false,

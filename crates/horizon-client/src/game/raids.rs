@@ -225,7 +225,7 @@ impl Game<'_> {
     /// `Heightmap.Types.WORLD_SURFACE`: the first free block above the
     /// highest non-air one.
     pub(super) fn surface_height(&self, x: i32, z: i32) -> i32 {
-        let top = if self.dim == Dim::Nether { 127 } else { 319 };
+        let top = self.level_facts().top;
         (self.world.bottom_y()..=top)
             .rev()
             .find(|&y| !self.res.facts().is_air(self.world.block(x, y, z)))
@@ -1136,7 +1136,7 @@ impl Game<'_> {
     /// The raid bar a living player at `at` is in (`Raid.getPlayers`): red,
     /// notched in tens. The name is the translate component the client draws.
     pub(super) fn raid_boss_at(&self, at: [f64; 3], alive: bool) -> Option<(i32, Tag, f32)> {
-        if !alive || self.dim != Dim::Overworld {
+        if !alive || !self.level_facts().raids {
             return None;
         }
         let block = block_of(Vec3::new(at[0], at[1], at[2]));

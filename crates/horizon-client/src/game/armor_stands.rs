@@ -1517,7 +1517,7 @@ impl Game<'_> {
         out: &mut Vec<Vertex>,
     ) {
         let lights =
-            horizon_client::block_entity_render::diffuse_lights(self.dim == super::Dim::Nether);
+            horizon_client::block_entity_render::diffuse_lights(self.level_facts().nether_light);
         let mut submit = |state: &horizon_client::item_render::ItemRenderState,
                           pose: glam::Mat4,
                           out: &mut Vec<Vertex>| {
@@ -1593,7 +1593,7 @@ impl Game<'_> {
                 out,
                 light,
                 lights: Some(horizon_client::block_entity_render::diffuse_lights(
-                    self.dim == super::Dim::Nether,
+                    self.level_facts().nether_light,
                 )),
                 glint: self.glint(),
                 tier: 0,

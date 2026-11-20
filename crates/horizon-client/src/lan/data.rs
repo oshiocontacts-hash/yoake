@@ -107,9 +107,13 @@ pub struct SyncData {
     /// ClientboundUpdateRecipesPacket's payload.
     pub recipes: Vec<u8>,
     pub advancements: super::advancements::ServerAdvancements,
+    /// The world's levels after the vanilla three (F3-4): their dimension
+    /// type entry and shape, for the hub's login, respawn and chunk packets.
+    pub levels: Vec<NetLevel>,
 }
 
 use crate::crafting::qualified;
+use crate::level_registry::NetLevel;
 
 /// Every `*.json` under `dir`, as (path without extension relative to dir, value), sorted;
 /// a file that can't be read or doesn't parse is left out. Through `json_folder`: from the
@@ -216,6 +220,7 @@ impl SyncData {
                 HashMap::new(),
             ),
             content_identity: None,
+            levels: Vec::new(),
         }
     }
     pub fn load(
@@ -313,6 +318,7 @@ impl SyncData {
             None
         };
         let mut sync = Self {
+            levels: Vec::new(),
             content_identity,
             builtin,
             dynamic,
@@ -340,6 +346,77 @@ impl SyncData {
         Ok(sync)
     }
 
+    /// No other registry than the four vanilla dimension types, in the order
+    /// the game lists them: for tests of levels.
+    #[cfg(test)]
+    pub(crate) fn with_vanilla_dimension_types() -> Self {
+        let names: Vec<String> = [
+            "minecraft:overworld",
+            "minecraft:overworld_caves",
+            "minecraft:the_end",
+            "minecraft:the_nether",
+        ]
+        .map(str::to_owned)
+        .to_vec();
+        let mut sync = Self::empty();
+        sync.registries.push((
+            "minecraft:dimension_type".to_owned(),
+            Entries {
+                names: names.clone(),
+                json: vec![serde_json::json!({ "min_y": 0 }); 4],
+                from_pack: vec![false; 4],
+            },
+        ));
+        sync.dynamic.registries.insert(
+            "minecraft:dimension_type".to_owned(),
+            names.iter().map(|n| (n.clone(), None)).collect(),
+        );
+        sync
+    }
+
+    /// The world's levels after the vanilla three (F3-4). A level whose
+    /// dimension type no client knows (a data pack's, a mod's, or one written
+    /// into the stem) joins the `minecraft:dimension_type` registry after
+    /// every entry it has, with its data; the three vanilla types keep their
+    /// places, so a world with no such level sends what it always did.
+    pub fn add_levels(&mut self, levels: Vec<NetLevel>) {
+        for level in &levels {
+            let Some((_, e)) = self
+                .registries
+                .iter_mut()
+                .find(|(k, _)| k == "minecraft:dimension_type")
+            else {
+                continue;
+            };
+            if e.names.contains(&level.type_name) {
+                continue;
+            }
+            e.names.push(level.type_name.clone());
+            e.json.push(level.type_json.clone());
+            e.from_pack.push(true);
+            self.dynamic
+                .registries
+                .entry("minecraft:dimension_type".to_owned())
+                .or_default()
+                .push((level.type_name.clone(), None));
+        }
+        self.levels = levels;
+    }
+    /// The level `id` when it is one of the levels past the vanilla three.
+    pub fn level(&self, id: &str) -> Option<&NetLevel> {
+        self.levels.iter().find(|l| l.id == id)
+    }
+    /// The shape of level `id`: the world's own for a level past the vanilla
+    /// three, else what `vanilla` says.
+    pub fn level_shape(&self, id: &str, vanilla: &LevelShapes) -> crate::chunk::LevelShape {
+        self.level(id).map_or_else(|| vanilla.get(id), |l| l.shape)
+    }
+    /// The `minecraft:dimension_type` index a level's packets carry.
+    pub fn level_type_id(&self, id: &str) -> i32 {
+        let name = self.level(id).map_or(id, |l| l.type_name.as_str());
+        self.id("minecraft:dimension_type", name).unwrap_or(0)
+    }
+
     /// MinecraftServer.reloadResources: `/reload` keeps the synchronized
     /// registries the server started with (`kept`'s, its
     /// LayeredRegistryAccess) and reads the tags against them
@@ -347,6 +424,7 @@ impl SyncData {
     pub fn keep_registries(&mut self, resources: &Path, kept: &SyncData) {
         self.dynamic = kept.dynamic.clone();
         self.registries = kept.registries.clone();
+        self.levels = kept.levels.clone();
         self.tags = Self::load_tags(
             &resources.join("data/minecraft"),
             &self.builtin,
@@ -730,6 +808,53 @@ mod tests {
         assert!(matches!(t.get("a"), Some(Tag::Int(1))));
         assert!(matches!(t.get("c"), Some(Tag::String(_))));
         assert!(matches!(t.get("b"), Some(Tag::List(l)) if l.len() == 2));
+    }
+
+    /// F3-4: a level past the vanilla three brings its own dimension type
+    /// after the vanilla ones; a world without one sends what it always did.
+    #[test]
+    fn a_level_type_is_added_after_the_vanilla_ones() {
+        let mut sync = SyncData::with_vanilla_dimension_types();
+        let wire = |sync: &SyncData| format!("{:?}", sync.registry_packets(true, &LevelShapes::VANILLA));
+        let before = wire(&sync);
+        let vanilla_ids: Vec<i32> = [
+            "minecraft:overworld",
+            "minecraft:the_nether",
+            "minecraft:the_end",
+        ]
+        .iter()
+        .map(|l| sync.level_type_id(l))
+        .collect();
+        assert_eq!(vanilla_ids, [0, 3, 2]);
+        sync.add_levels(Vec::new());
+        assert_eq!(wire(&sync), before, "no level past the vanilla three: the same registry");
+
+        let shape = crate::chunk::LevelShape::new(0, 128, 128, true, false).unwrap();
+        sync.add_levels(vec![NetLevel {
+            id: "mypack:moon".into(),
+            type_name: "mypack:moon_type".into(),
+            shape,
+            type_json: serde_json::json!({ "min_y": 0, "height": 128, "logical_height": 128,
+                "has_skylight": true, "has_ceiling": false, "ambient_light": 0.3 }),
+        }]);
+        let packets = sync.registry_packets(true, &LevelShapes::VANILLA);
+        let types = &packets[0].entries;
+        assert_eq!(types.len(), 5);
+        assert_eq!(types[4].id, "mypack:moon_type");
+        assert!(types[4].data.is_some(), "a type no client knows carries its data");
+        assert!(types[..4].iter().all(|e| e.data.is_none()), "the vanilla ones are known");
+        assert_eq!(sync.level_type_id("mypack:moon"), 4);
+        assert_eq!(sync.level_shape("mypack:moon", &LevelShapes::VANILLA), shape);
+        for (i, level) in ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"]
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(sync.level_type_id(level), vanilla_ids[i]);
+            assert_eq!(
+                sync.level_shape(level, &LevelShapes::VANILLA),
+                LevelShapes::VANILLA.get(level)
+            );
+        }
     }
 
     #[test]

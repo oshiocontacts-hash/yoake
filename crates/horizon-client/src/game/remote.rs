@@ -81,6 +81,43 @@ fn remote_input_flags(keys: Keys) -> u8 {
 /// of the frame that joins a server (or opens a single-player world).
 /// `None` when it is missing or invalid (not cached: a fixed install can
 /// join again).
+/// What a client reads of the dimension type the server named for a level
+/// (F3-4): the type, the shape of the level's chunks, and the type's own data
+/// when the server sent it (a level past the vanilla three has a type a
+/// client may not know), for the level's sky and rules.
+pub(super) struct RemoteLevelType {
+    pub dimension: horizon_protocol::registry::DimensionType,
+    pub shape: horizon_client::chunk::LevelShape,
+    pub sent: (String, Option<serde_json::Value>),
+}
+/// The type at index `id` of the `minecraft:dimension_type` registry the
+/// server sent.
+pub(super) fn remote_level_type(registries: &Dynamic, id: i32) -> RemoteLevelType {
+    let dimension = registries.dimension(id);
+    let sent = (
+        dimension.name.clone(),
+        registries
+            .data("minecraft:dimension_type", id)
+            .map(super::level_facts::type_json),
+    );
+    // The server's dimension type gives the level's shape, and its chunks the
+    // shape's column.
+    let shape = horizon_client::chunk::LevelShape::new(
+        dimension.min_y,
+        dimension.height,
+        dimension.logical_height,
+        dimension.has_skylight,
+        dimension.has_ceiling,
+    )
+    // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
+    .unwrap_or_else(|_| super::Dim::lookup_or_overworld(&dimension.name).shape());
+    RemoteLevelType {
+        dimension,
+        shape,
+        sent,
+    }
+}
+
 pub(super) fn builtin_registries(root: &std::path::Path) -> Option<Arc<Builtin>> {
     let mut cache = BUILTIN.lock().unwrap_or_else(|e| e.into_inner());
     if let Some((_, builtin)) = cache.iter().find(|(cached, _)| cached == root) {
@@ -525,6 +562,9 @@ pub(super) struct Remote {
     /// The dimension of the client level the mods heard made
     /// (`native_client_level_load`), to be told dropped once.
     heard_level: Option<String>,
+    /// The level keys the server listed at login (`ClientboundLoginPacket.levels`):
+    /// the only ids a respawn may name that this client has not met.
+    level_keys: Vec<String>,
     /// `ClientPacketListener.levelLoadTracker`: the loading screen after a login
     /// or respawn, until the player's section is shown.
     pub(super) level_load: horizon_client::level_loading::LevelLoadTracker,
@@ -1119,6 +1159,7 @@ impl Game<'_> {
             abilities: None,
             loaded_sent: false,
             heard_level: None,
+            level_keys: Vec::new(),
             level_load: horizon_client::level_loading::LevelLoadTracker::new(0),
             sent_info: info,
             predictions: HashMap::new(),
@@ -2263,18 +2304,12 @@ impl Game<'_> {
         let Some(r) = self.remote.as_mut() else {
             return;
         };
-        let dimension = r.registries.dimension(spawn.dimension_type);
-        // The server's dimension type gives the level's shape, and its
-        // chunks the shape's column.
-        let shape = horizon_client::chunk::LevelShape::new(
-            dimension.min_y,
-            dimension.height,
-            dimension.logical_height,
-            dimension.has_skylight,
-            dimension.has_ceiling,
-        )
-        // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
-        .unwrap_or_else(|_| super::Dim::lookup_or_overworld(&dimension.name).shape());
+        let RemoteLevelType {
+            dimension,
+            shape,
+            sent: sent_type,
+        } = remote_level_type(&r.registries, spawn.dimension_type);
+        let listed = r.level_keys.iter().any(|k| *k == spawn.dimension);
         // handleRespawn keeps the ClientLevel only for the same level key:
         // two levels sharing a dimension type are still two levels.
         let same = keep_world && r.heard_level.as_deref() == Some(spawn.dimension.as_str());
@@ -2302,7 +2337,14 @@ impl Game<'_> {
         r.predictions.clear();
         self.set_mode_id(spawn.game_type);
         // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
-        self.dim = Dim::lookup_or_overworld(&spawn.dimension);
+        // F3-4: a level the server listed at login is a level of its own, so
+        // it is interned; any other unknown id is still the Overworld.
+        self.dim = if listed {
+            Dim::intern(&spawn.dimension)
+        } else {
+            Dim::lookup_or_overworld(&spawn.dimension)
+        };
+        self.ensure_level_ctx(Some(sent_type));
         self.audio.set_world(&spawn.dimension);
         // ClientPacketListener.handleLogin / handleRespawn: the server's
         // Player.getLastDeathLocation, for the recovery compass.
@@ -2376,7 +2418,7 @@ impl Game<'_> {
             .as_ref()
             .is_none_or(|r| r.dimension.has_skylight);
         self.streaming.sky_light = has_sky;
-        self.streaming.nether_shading = self.dim == Dim::Nether;
+        self.streaming.nether_shading = self.level_facts().nether_light;
         // The seed in SpawnInfo is already the hashed one the client's BiomeManager holds.
         self.streaming.biome_zoom = horizon_core::biome::BiomeZoom::new(spawn.seed);
         self.player = None;
@@ -3287,6 +3329,7 @@ impl Game<'_> {
                 if let Some(r) = self.remote.as_mut() {
                     r.reconfiguring = None;
                     r.attachments.clear();
+                    r.level_keys = p.levels.clone();
                 }
                 // handleLogin makes a new MultiPlayerGameMode (carried index 0) and a
                 // new LocalPlayer (slot 0, no effects, riding nothing: the server

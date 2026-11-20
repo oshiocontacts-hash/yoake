@@ -299,13 +299,8 @@ impl EyeOfEnder {
 impl Game<'_> {
     /// The environment attributes of the current dimension.
     pub(super) fn dim_environment(&self) -> &Environment {
-        match self.dim {
-            Dim::Overworld => self.res.environment(),
-            Dim::Nether => self.res.nether_environment(),
-            Dim::End => self.res.end_environment(),
-            // F3-4: dimension-type query
-            _ => self.res.environment(),
-        }
+        // F3-4: a level past the vanilla three reads its own type's attributes.
+        super::level_facts::environment_for(self.dim, &self.level_ctxs, &self.res)
     }
 
     /// SkyRenderer.renderEndFlash, drawn after the renderer's resident sky mesh.

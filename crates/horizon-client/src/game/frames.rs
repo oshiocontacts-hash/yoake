@@ -635,7 +635,7 @@ impl Game<'_> {
         // `extractRenderState`: FIXED, seeded by the frame entity.
         let skinning = self.skinning();
         let lights =
-            horizon_client::block_entity_render::diffuse_lights(self.dim == super::Dim::Nether);
+            horizon_client::block_entity_render::diffuse_lights(self.level_facts().nether_light);
         for (stack, id, m, light) in items {
             let entity_start = out.len();
             let owner = super::item_draw::owner_at([0.0; 3], 0.0, "minecraft:item_frame");

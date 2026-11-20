@@ -2549,7 +2549,7 @@ impl Game<'_> {
             emissive: &self.gui.atlas.emissive,
             translucent_sprites: &self.gui.atlas.translucent,
             atlas_revision: self.gui.atlas.revision,
-            nether: self.dim == super::Dim::Nether,
+            nether: self.level_facts().nether_light,
             lid: &lid,
             sign: &|_| None,
             banner: &|_| Vec::new(),
