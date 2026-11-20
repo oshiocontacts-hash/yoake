@@ -6227,6 +6227,7 @@ impl Game<'_> {
         self.tick_hand();
         if running {
             self.tick_particles();
+            self.tick_custom_mob_events();
         }
         self.tick_client_ambient();
         self.tick_client_effects();

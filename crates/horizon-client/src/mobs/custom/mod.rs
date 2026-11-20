@@ -17,6 +17,7 @@ pub mod hitbox;
 pub mod persist;
 pub mod registry;
 pub mod remote;
+pub mod render_state;
 pub mod spawn;
 pub mod stats;
 
@@ -185,6 +186,8 @@ pub struct CustomType {
     pub synced: Vec<SyncedDef>,
     /// The type's animation runtime (F4M-5b): `None` when it has no model with animations.
     pub anim: Option<anim_sync::TypeAnim>,
+    /// What the client draws it with (F4M-6): baked quads, layers, LOD, cull box; `None` without a model.
+    pub render: Option<render_state::TypeRender>,
     /// Identifies the layout of the tracked values and controllers on the wire (`horizon:mob_sync`).
     pub sync_version: u32,
     /// `tameable`, `breedable`, the seats with `saddle_item` and `rideable_when`, and the `interact`
@@ -194,7 +197,26 @@ pub struct CustomType {
     pub ride: ai::riding::RideDef,
 }
 
+/// Where a custom mob's name tag hangs when its type sets `model.name_tag_height`: blocks above the
+/// feet, times the mob's model scale. `None` for every other mob (the hitbox height plus 0.5).
+pub fn name_tag_height(m: &crate::mobs::Mob) -> Option<f64> {
+    let h = m.kind.custom.as_ref()?.file.model.name_tag_height?;
+    Some(h * f64::from(m.model_scale()))
+}
+
+/// `LivingEntity.tickDeath` removes a body after 20 ticks; a custom mob whose type has a `death`
+/// animation stays until it ends (at most 60 ticks).
+pub fn removal_ticks(m: &crate::mobs::Mob) -> i32 {
+    m.kind.custom.as_ref().and_then(|c| c.death_ticks()).unwrap_or(20)
+}
+
 impl CustomType {
+    /// Ticks a dying mob of this type stays before it is removed: its `death` animation's length
+    /// (at most 60); `None` without that animation (the engine's 20 ticks and tilt then).
+    pub fn death_ticks(&self) -> Option<i32> {
+        self.anim.as_ref()?.death_ticks()
+    }
+
     /// Builds the type from its validated file. `model` is the loaded model (hitbox parts that
     /// follow a bone need it).
     pub fn new(file: CustomMobFile, model: Option<&LoadedModel>) -> Result<Self, String> {
@@ -249,6 +271,7 @@ impl CustomType {
             format!("{ns}:entities/{path}")
         });
         let anim = model.and_then(anim_sync::TypeAnim::new);
+        let render = model.and_then(|m| render_state::TypeRender::new(&file, m));
         let mut me = Self {
             id: file.id.clone(),
             file,
@@ -261,6 +284,7 @@ impl CustomType {
             loot_table,
             synced,
             anim,
+            render,
             sync_version: 0,
             tame: None,
             breed: None,

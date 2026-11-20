@@ -712,9 +712,14 @@ fn name_tag_quads_at(
 /// shortcut: the scale attribute is not in the tag height, add `model_scale`
 /// when tags on scaled players matter.
 fn name_tag_at(m: &Mob, alpha: f64) -> glam::DVec3 {
+    let y = m.previous.y + (m.position.y - m.previous.y) * alpha;
     glam::DVec3::new(
         m.previous.x + (m.position.x - m.previous.x) * alpha,
-        m.previous.y + (m.position.y - m.previous.y) * alpha + f64::from(m.height()) + 0.5,
+        // A custom mob's type may set its own height (`model.name_tag_height`).
+        match horizon_client::mobs::custom::name_tag_height(m) {
+            Some(h) => y + h,
+            None => y + f64::from(m.height()) + 0.5,
+        },
         m.previous.z + (m.position.z - m.previous.z) * alpha,
     )
 }

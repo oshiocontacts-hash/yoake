@@ -71,15 +71,27 @@ pub fn add(root: &Path, types: &mut HashMap<String, MobType>) {
 }
 
 /// `entity.fox.ambient` for `minecraft:entity.fox.ambient`: the engine's mob sounds are vanilla
-/// events without their namespace. A sound of another namespace has no path in the mob events
-/// yet: it is left out (silent).
+/// events without their namespace. A sound of another namespace keeps its full id (interned like
+/// the others, `sample_mobs:entity.fox.hurt`): the places that play a mob event ask
+/// [`sound_event`], which only prefixes a bare name, so the vanilla path is unchanged (F4M-6).
 fn vanilla_sound(slot: &str, id: &str) -> &'static str {
     match id.strip_prefix("minecraft:") {
         Some(name) => intern(name),
+        None if id.contains(':') => intern(id),
         None => {
-            log::warn!("Horizon: sound {slot}: {id} is not a minecraft: sound event; custom mob sounds are vanilla ones for now");
+            log::warn!("Horizon: sound {slot}: {id} is not a sound event id (namespace:path)");
             ""
         }
+    }
+}
+
+/// The full sound event id of a mob event's name: a vanilla one is stored without its namespace
+/// (`entity.fox.hurt`), a custom mob's with it (`sample_mobs:entity.fox.hurt`).
+pub fn sound_event(name: &str) -> std::borrow::Cow<'_, str> {
+    if name.contains(':') {
+        std::borrow::Cow::Borrowed(name)
+    } else {
+        std::borrow::Cow::Owned(format!("minecraft:{name}"))
     }
 }
 
@@ -190,6 +202,18 @@ mod tests {
 
     pub(crate) fn fox() -> Arc<MobType> {
         Arc::new(mob_type(&Arc::new(fox_type())))
+    }
+
+    #[test]
+    fn vanilla_sound_event_ids_are_the_same_strings_as_before() {
+        // The three playing sites used `format!("minecraft:{name}")`; vanilla names have no ':'.
+        for name in ["entity.fox.hurt", "entity.zombie.ambient", "block.note_block.bell"] {
+            assert_eq!(sound_event(name), format!("minecraft:{name}"));
+        }
+        assert_eq!(sound_event("sample_mobs:entity.fox.hurt"), "sample_mobs:entity.fox.hurt");
+        assert_eq!(vanilla_sound("hurt", "minecraft:entity.fox.hurt"), "entity.fox.hurt");
+        assert_eq!(vanilla_sound("hurt", "sample_mobs:entity.fox.hurt"), "sample_mobs:entity.fox.hurt");
+        assert_eq!(vanilla_sound("hurt", "nonamespace"), "");
     }
 
     #[test]

@@ -358,3 +358,97 @@ fn the_values_of_a_type_fit_256_bytes() {
     assert_eq!(t, 256);
     assert_eq!(horizon_protocol::mob_sync::max_value_len("string"), Some(65));
 }
+
+// ----- death: the entity stays until the `death` animation ends (F4M-6) ------------------------
+
+/// The fox with its `death` animation `length` seconds long (`None`: the animation removed).
+fn fox_with_death(length: Option<f64>) -> Arc<CustomType> {
+    let mut v: Value = serde_json::from_str(FOX).unwrap();
+    v["ai"] = idle_ai();
+    let file = CustomMobFile::parse("sample_mobs:cinder_fox", v.to_string().as_bytes()).unwrap();
+    let model = file
+        .load_model(&mut |p| {
+            let bytes = std::fs::read(root().join(p)).map_err(|e| e.to_string())?;
+            if !p.ends_with(".animation.json") {
+                return Ok(bytes);
+            }
+            let mut a: Value = serde_json::from_slice(&bytes).unwrap();
+            let anims = a["animations"].as_object_mut().unwrap();
+            match length {
+                // The keyframes are dropped: only the length matters here.
+                Some(l) => anims["animation.cinder_fox.death"] = json!({"loop": "hold_on_last_frame", "animation_length": l}),
+                None => drop(anims.remove("animation.cinder_fox.death")),
+            }
+            Ok(a.to_string().into_bytes())
+        })
+        .unwrap();
+    Arc::new(CustomType::new(file, Some(&model)).unwrap())
+}
+
+/// Ticks a killed fox is ticked until `Mob::tick` stops keeping it, and the engine's removal test
+/// (`game::creatures::custom_death_ticks`) at that point: `(death_time, kept_until, limit)`.
+fn dying_ticks(t: &Arc<CustomType>) -> (i32, i32) {
+    let mut m = fox_mob(t, Vec3::new(0.5, 1.0, 0.5));
+    let fx = flat();
+    let others = [];
+    let mut run = Run::new(view(&fx.world(), &others, None));
+    m.health = 0.0;
+    let mut ticks = 0;
+    loop {
+        let w = {
+            let mut w = run.w0.clone();
+            w.game_time = run.tick;
+            w
+        };
+        run.tick += 1;
+        ticks += 1;
+        let kept = m.tick(&w, &mut run.lr, &mut run.events);
+        let limit = crate::mobs::custom::removal_ticks(&m);
+        if !kept {
+            assert!(m.death_time >= limit, "removed at {} before the limit {limit}", m.death_time);
+            return (m.death_time, ticks);
+        }
+        assert!(m.death_time < limit, "kept past the limit {limit}");
+        assert!(ticks < 200, "never removed");
+    }
+}
+
+#[test]
+fn a_dying_mob_stays_until_its_death_animation_ends_with_a_cap_of_60_ticks() {
+    // 0.6 s: 12 ticks (shorter than the engine's 20: removed when the animation is over).
+    assert_eq!(fox_with_death(Some(0.6)).death_ticks(), Some(12));
+    assert_eq!(dying_ticks(&fox_with_death(Some(0.6))).0, 12);
+    // 1.5 s: 30 ticks, longer than the vanilla 20.
+    let t = fox_with_death(Some(1.5));
+    assert_eq!(t.death_ticks(), Some(30));
+    assert_eq!(dying_ticks(&t).0, 30);
+    // 5 s: capped at 60.
+    let t = fox_with_death(Some(5.0));
+    assert_eq!(t.death_ticks(), Some(60));
+    assert_eq!(dying_ticks(&t).0, 60);
+}
+
+#[test]
+fn a_type_without_a_death_animation_is_removed_after_the_engines_20_ticks() {
+    let t = fox_with_death(None);
+    assert_eq!(t.death_ticks(), None);
+    assert_eq!(dying_ticks(&t).0, 20);
+}
+
+// ----- the name tag height (F4M-6) ---------------------------------------------------------------
+
+#[test]
+fn a_types_name_tag_height_is_blocks_above_the_feet_times_the_model_scale() {
+    let at = Vec3::new(0.5, 1.0, 0.5);
+    // Not set: the engine's own hitbox height plus 0.5 (the caller's default).
+    let plain = fox_type_with(idle_ai(), |_| {});
+    assert_eq!(plain.file.model.name_tag_height, None);
+    assert_eq!(crate::mobs::custom::name_tag_height(&fox_mob(&plain, at)), None);
+    // Set.
+    let tall = fox_type_with(idle_ai(), |v| v["model"]["name_tag_height"] = json!(2.5));
+    let mut m = fox_mob(&tall, at);
+    assert_eq!(crate::mobs::custom::name_tag_height(&m), Some(2.5));
+    // A scaled mob lifts it with the scale (its hitbox follows the same scale).
+    m.extra.model_scale = 2.0;
+    assert_eq!(crate::mobs::custom::name_tag_height(&m), Some(5.0));
+}
