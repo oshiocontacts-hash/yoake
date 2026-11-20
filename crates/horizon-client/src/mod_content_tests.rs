@@ -4307,3 +4307,69 @@ fn a_symlink_file_is_copied_through() {
     assert_eq!(fs::read(&at).unwrap(), b"real");
     let _ = fs::remove_dir_all(&scratch);
 }
+
+/// What a mod ships, for the spawn egg tests.
+fn ships(files: &'static [&'static str]) -> impl Fn(&str) -> bool {
+    move |f| files.contains(&f)
+}
+
+fn json_of(art: &super::EggArt, file: &str) -> serde_json::Value {
+    let (_, bytes) = art
+        .files
+        .iter()
+        .find(|(name, _)| name == file)
+        .unwrap_or_else(|| panic!("{file} is not written: {:?}", art.files.iter().map(|f| &f.0).collect::<Vec<_>>()));
+    serde_json::from_slice(bytes).unwrap()
+}
+
+#[test]
+fn a_generated_egg_is_a_model_of_the_engines_two_layers_tinted_with_the_colours() {
+    let art = super::spawn_egg_files("demo", "fox", 0xD2691E, 0xFFF0A0, &ships(&[]));
+    assert!(art.uses_base);
+    assert_eq!(art.files.len(), 2);
+    let model = json_of(&art, "assets/demo/models/item/fox_spawn_egg.json");
+    assert_eq!(model["parent"], "minecraft:item/generated");
+    assert_eq!(model["textures"]["layer0"], "horizon:item/spawn_egg");
+    assert_eq!(model["textures"]["layer1"], "horizon:item/spawn_egg_overlay");
+    let item = json_of(&art, "assets/demo/items/fox_spawn_egg.json");
+    assert_eq!(item["model"]["type"], "minecraft:model");
+    assert_eq!(item["model"]["model"], "demo:item/fox_spawn_egg");
+    assert_ne!(item["model"]["model"], "minecraft:item/template_spawn_egg", "26.3 has no such model");
+    let tints = item["model"]["tints"].as_array().unwrap();
+    assert_eq!(tints.len(), 2);
+    // Opaque ARGB as a signed int: 0xFFD2691E and 0xFFFFF0A0.
+    assert_eq!(tints[0]["type"], "minecraft:constant");
+    assert_eq!(tints[0]["value"], i64::from(0xFFD2691E_u32 as i32));
+    assert_eq!(tints[1]["value"], i64::from(0xFFFFF0A0_u32 as i32));
+    assert!(tints[0]["value"].as_i64().unwrap() < 0, "the alpha makes it negative as a signed int");
+}
+
+#[test]
+fn a_mods_own_egg_art_is_used_instead() {
+    // Its own item definition: nothing is written.
+    let none = super::spawn_egg_files("demo", "fox", 1, 2, &ships(&["assets/demo/items/fox_spawn_egg.json"]));
+    assert_eq!(none, super::EggArt::default());
+    // Its own model: only the item definition, without tints.
+    let model = super::spawn_egg_files("demo", "fox", 1, 2, &ships(&["assets/demo/models/item/fox_spawn_egg.json"]));
+    assert!(!model.uses_base && model.files.len() == 1);
+    let item = json_of(&model, "assets/demo/items/fox_spawn_egg.json");
+    assert_eq!(item["model"]["model"], "demo:item/fox_spawn_egg");
+    assert!(item["model"].get("tints").is_none());
+    // Its own texture: a one-layer model of it, untinted.
+    let texture = super::spawn_egg_files("demo", "fox", 1, 2, &ships(&["assets/demo/textures/item/fox_spawn_egg.png"]));
+    assert!(!texture.uses_base && texture.files.len() == 2);
+    let model = json_of(&texture, "assets/demo/models/item/fox_spawn_egg.json");
+    assert_eq!(model["textures"]["layer0"], "demo:item/fox_spawn_egg");
+    assert!(json_of(&texture, "assets/demo/items/fox_spawn_egg.json")["model"].get("tints").is_none());
+}
+
+#[test]
+fn the_engines_egg_textures_are_16_by_16_pngs() {
+    for png in [super::EGG_BASE_PNG, super::EGG_OVERLAY_PNG] {
+        assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
+        assert_eq!(u32::from_be_bytes(png[16..20].try_into().unwrap()), 16, "width");
+        assert_eq!(u32::from_be_bytes(png[20..24].try_into().unwrap()), 16, "height");
+    }
+    assert_eq!(super::argb(0x123456), 0xFF123456_u32 as i32);
+    assert_eq!(super::argb(0xAA123456), 0xFF123456_u32 as i32, "alpha bits of the input are ignored");
+}

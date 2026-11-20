@@ -2754,8 +2754,10 @@ pub fn build(base: &Path, mods: &[ContentMod], out: &Path) -> Result<Vec<String>
             &serde_json::to_vec(&plan.custom_mobs)?,
         )?;
     }
-    // Each generated spawn egg (`spawn_egg: {primary, secondary}`) looks like the vanilla egg, in the
-    // colours of the file, unless the mod ships the item's own definition.
+    // Each generated spawn egg (`spawn_egg: {primary, secondary}`): the mod's own item definition,
+    // model or texture when it ships one, else a per-mob model from the engine's egg base texture
+    // (two layers) tinted with the file's colours. 26.3 has no shared egg template.
+    let mut egg_base = false;
     for m in mods {
         for c in &m.content.custom_mobs {
             let Some(horizon_mods::custom_mob::SpawnEgg::Generated { primary, secondary }) =
@@ -2764,12 +2766,18 @@ pub fn build(base: &Path, mods: &[ContentMod], out: &Path) -> Result<Vec<String>
                 continue;
             };
             let (ns, path) = c.id.split_once(':').unwrap_or((&m.id, &c.id));
-            let file = format!("assets/{ns}/items/{path}_spawn_egg.json");
-            if m.content.files.contains(&file) {
-                continue;
+            let art = spawn_egg_files(ns, path, primary.0, secondary.0, &|f: &str| {
+                m.content.files.contains(&f.to_owned())
+            });
+            egg_base |= art.uses_base;
+            for (file, bytes) in art.files {
+                overlay.write(&file, &bytes)?;
             }
-            overlay.write(&file, generated_egg_definition(primary.0, secondary.0).as_bytes())?;
         }
+    }
+    if egg_base {
+        overlay.write(EGG_BASE_FILE, EGG_BASE_PNG)?;
+        overlay.write(EGG_OVERLAY_FILE, EGG_OVERLAY_PNG)?;
     }
     // clients must agree on the block states and the items', mob effects',
     // entity types' and menu types' network ids.
@@ -2786,20 +2794,72 @@ pub fn build(base: &Path, mods: &[ContentMod], out: &Path) -> Result<Vec<String>
     Ok(warnings)
 }
 
-/// The item definition of a generated spawn egg: vanilla's template model tinted with the
-/// egg's two colours (`items/<name>.json` of 1.21.4 and later).
-fn generated_egg_definition(primary: u32, secondary: u32) -> String {
-    serde_json::json!({
-        "model": {
-            "type": "minecraft:model",
-            "model": "minecraft:item/template_spawn_egg",
-            "tints": [
-                { "type": "minecraft:constant", "value": primary },
-                { "type": "minecraft:constant", "value": secondary },
-            ],
-        },
-    })
-    .to_string()
+/// The engine's own spawn egg textures (original art, 16 by 16): the egg, and its spots, both
+/// white-ish so that the egg's two colours tint them.
+const EGG_BASE_PNG: &[u8] = include_bytes!("../assets/horizon/textures/item/spawn_egg.png");
+const EGG_OVERLAY_PNG: &[u8] = include_bytes!("../assets/horizon/textures/item/spawn_egg_overlay.png");
+/// Where they go in a content root, and what the models call them.
+const EGG_BASE_FILE: &str = "assets/horizon/textures/item/spawn_egg.png";
+const EGG_OVERLAY_FILE: &str = "assets/horizon/textures/item/spawn_egg_overlay.png";
+const EGG_BASE_TEXTURE: &str = "horizon:item/spawn_egg";
+const EGG_OVERLAY_TEXTURE: &str = "horizon:item/spawn_egg_overlay";
+
+/// What a custom mob's generated spawn egg writes into the content root.
+#[derive(Debug, Default, PartialEq)]
+struct EggArt {
+    /// Files to write, by path in the root.
+    files: Vec<(String, Vec<u8>)>,
+    /// The engine's egg textures are used (the caller writes them once).
+    uses_base: bool,
+}
+
+/// The files of the spawn egg of mob `ns:path`, given what the mod ships (`has` asks for a file of
+/// the mod): nothing when it ships the item definition; its own model when it ships one; a model of
+/// its own texture when it ships `textures/item/<path>_spawn_egg.png`; else a model of the engine's
+/// two egg layers, with an item definition that tints them with `primary` and `secondary`.
+fn spawn_egg_files(ns: &str, path: &str, primary: u32, secondary: u32, has: &dyn Fn(&str) -> bool) -> EggArt {
+    let item = format!("assets/{ns}/items/{path}_spawn_egg.json");
+    let model_file = format!("assets/{ns}/models/item/{path}_spawn_egg.json");
+    let texture_file = format!("assets/{ns}/textures/item/{path}_spawn_egg.png");
+    let model = format!("{ns}:item/{path}_spawn_egg");
+    let mut art = EggArt::default();
+    if has(&item) {
+        return art;
+    }
+    let definition = |tints: &[u32]| -> Vec<u8> {
+        let mut inner = serde_json::json!({ "type": "minecraft:model", "model": model });
+        if !tints.is_empty() {
+            inner["tints"] = tints
+                .iter()
+                .map(|t| serde_json::json!({ "type": "minecraft:constant", "value": argb(*t) }))
+                .collect();
+        }
+        serde_json::json!({ "model": inner }).to_string().into_bytes()
+    };
+    if has(&model_file) {
+        art.files.push((item, definition(&[])));
+    } else if has(&texture_file) {
+        let json = serde_json::json!({
+            "parent": "minecraft:item/generated",
+            "textures": { "layer0": model },
+        });
+        art.files.push((model_file, json.to_string().into_bytes()));
+        art.files.push((item, definition(&[])));
+    } else {
+        let json = serde_json::json!({
+            "parent": "minecraft:item/generated",
+            "textures": { "layer0": EGG_BASE_TEXTURE, "layer1": EGG_OVERLAY_TEXTURE },
+        });
+        art.files.push((model_file, json.to_string().into_bytes()));
+        art.files.push((item, definition(&[primary, secondary])));
+        art.uses_base = true;
+    }
+    art
+}
+
+/// A colour as a tint value: opaque ARGB, as the signed int vanilla's item definitions hold.
+fn argb(rgb: u32) -> i32 {
+    (0xFF00_0000 | (rgb & 0x00FF_FFFF)) as i32
 }
 
 /// The root to load: `base` itself with no content, else the mods' overlay
