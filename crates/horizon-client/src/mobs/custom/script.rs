@@ -210,6 +210,9 @@ pub enum Command {
     SetSynced { key: String, value: MobScriptValue },
     TriggerAnim { name: String, speed: f32 },
     SetControllerState { controller: String, state: String },
+    /// Enters the state and holds it for `hold_ticks` ticks (`None`: until released).
+    HoldControllerState { controller: String, state: String, hold_ticks: Option<u32> },
+    ReleaseControllerState { controller: String },
     NavigateTo { position: [f64; 3], speed: f64 },
     NavigateStop,
     LookAt { position: [f64; 3], yaw_speed: f32, pitch_speed: f32 },

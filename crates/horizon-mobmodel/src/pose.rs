@@ -234,11 +234,25 @@ impl Rig {
         inputs: &mut ExprInputs,
         sink: &mut dyn FnMut(RigEvent<'_>),
     ) {
+        self.update_holding(st, dt, inputs, sink, &[]);
+    }
+
+    /// [`update`](Self::update) where the layers with `held[layer] == true` keep their state (no transition is
+    /// tested; their clocks and events run as usual).
+    pub fn update_holding(
+        &self,
+        st: &mut RigState,
+        dt: f32,
+        inputs: &mut ExprInputs,
+        sink: &mut dyn FnMut(RigEvent<'_>),
+        held: &[bool],
+    ) {
         if st.layers.len() != self.controllers.len() {
             *st = self.initial_state();
         }
         for (li, (c, ls)) in self.controllers.iter().zip(st.layers.iter_mut()).enumerate() {
-            c.update(ls, dt, inputs, &mut |state, slot, old, new| {
+            let hold = held.get(li).copied().unwrap_or(false);
+            c.update_holding(ls, dt, inputs, &mut |state, slot, old, new| {
                 let Some(a) = c.states.get(state).and_then(|s| s.animations.get(slot)) else { return };
                 if let Some(anim) = self.animations.get(a.index) {
                     anim.emit_events_indexed(old, new, |event_index, event, loop_index| {
@@ -252,7 +266,7 @@ impl Rig {
                         })
                     });
                 }
-            });
+            }, hold);
         }
     }
 

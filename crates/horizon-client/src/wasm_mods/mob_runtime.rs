@@ -507,4 +507,32 @@ mod tests {
         assert!(!module_live("fox_ai_spin"));
         script::reset();
     }
+
+    #[test]
+    fn the_hold_services_queue_their_commands_and_are_gated_by_service_mobs() {
+        use yoake_wasm::ServerHost;
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        script::reset();
+        let m = fox(1, Vec3::new(0.5, 1.0, 0.5));
+        script::publish(script::MobView::of(&m).unwrap());
+        mob_services::grant("hold_granted");
+        let mut host = GameServerHost { id: "hold_granted".into(), commands: false };
+        assert_eq!(host.mob_set_controller_state_hold("locomotion".into(), 1, Some(10), "run".into()), Ok(true));
+        assert_eq!(host.mob_set_controller_state_hold("locomotion".into(), 1, None, "run".into()), Ok(true));
+        assert_eq!(host.mob_release_controller_state("locomotion".into(), 1), Ok(true));
+        assert_eq!(
+            script::take_for(1),
+            vec![
+                script::Command::HoldControllerState { controller: "locomotion".into(), state: "run".into(), hold_ticks: Some(10) },
+                script::Command::HoldControllerState { controller: "locomotion".into(), state: "run".into(), hold_ticks: None },
+                script::Command::ReleaseControllerState { controller: "locomotion".into() },
+            ]
+        );
+        // Not for a mob nobody published, and not without the permission.
+        assert!(host.mob_set_controller_state_hold("locomotion".into(), 99, None, "run".into()).is_err());
+        let mut ungranted = GameServerHost { id: "hold_ungranted".into(), commands: false };
+        let e = ungranted.mob_release_controller_state("locomotion".into(), 1).unwrap_err();
+        assert!(e.contains("service.mobs"), "{e}");
+        script::reset();
+    }
 }
