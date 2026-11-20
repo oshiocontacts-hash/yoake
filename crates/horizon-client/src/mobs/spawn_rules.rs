@@ -101,6 +101,10 @@ pub trait SpawnLevel {
     fn world_surface(&self, x: i32, z: i32) -> i32;
     fn peaceful(&self) -> bool;
     fn dimension(&self) -> Dimension;
+    /// The id of a level past the vanilla three (`mypack:moon`), empty for the vanilla three.
+    fn level_id(&self) -> &str {
+        ""
+    }
     /// The `gameplay/surface_slime_spawn_chance` environment attribute.
     fn surface_slime_chance(&self, x: i32, y: i32, z: i32) -> f32;
     fn world_seed(&self) -> i64;
@@ -620,6 +624,9 @@ impl SpawnLevel for super::MobWorld<'_> {
     }
     fn peaceful(&self) -> bool {
         self.difficulty.effective == 0.0
+    }
+    fn level_id(&self) -> &str {
+        self.level_id
     }
     fn dimension(&self) -> Dimension {
         if let Some(custom) = self.custom {

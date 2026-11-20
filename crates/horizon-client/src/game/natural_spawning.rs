@@ -323,6 +323,9 @@ impl SpawnLevel for GameLevel<'_, '_> {
     fn dimension(&self) -> Dimension {
         self.w.dimension()
     }
+    fn level_id(&self) -> &str {
+        self.w.level_id()
+    }
     fn surface_slime_chance(&self, x: i32, y: i32, z: i32) -> f32 {
         self.w.surface_slime_chance(x, y, z)
     }
