@@ -50,11 +50,13 @@ pub fn add(m: &mut Mob, g: &GoalDef) -> bool {
         }
         "flee" | "avoid" => {
             let from = p.strings("from");
-            let (list, player, _) = super::species_list(&from);
-            let what = if from.is_empty() || player {
+            let types = super::type_list(&from, &format!("avoid {}", g.kind));
+            let what = if from.is_empty() || types.player {
                 Avoid::Player
+            } else if types.custom.is_empty() {
+                Avoid::Species(types.species)
             } else {
-                Avoid::Species(list)
+                Avoid::Types(types.species, types.custom)
             };
             m.ai.goals.add(
                 prio,

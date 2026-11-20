@@ -2132,6 +2132,9 @@ pub struct Seen {
     pub last_damage: Option<Damage>,
     pub id: u32,
     pub species: Species,
+    /// The type id of a custom mob (`Species::Custom`), else `None`: the target and avoid
+    /// lists of a custom data row match custom types by it.
+    pub custom: Option<Arc<str>>,
     pub position: Vec3,
     pub bounds: Aabb,
     pub eye_y: f64,
@@ -2353,6 +2356,7 @@ impl Mob {
             last_damage: self.last_damage.map(|(d, _)| d),
             id: m.id,
             species: m.species(),
+            custom: m.kind.custom.as_ref().map(|t| Arc::from(t.id.as_str())),
             position: m.position,
             bounds: m.bounds(),
             eye_y: m.eye_y(),

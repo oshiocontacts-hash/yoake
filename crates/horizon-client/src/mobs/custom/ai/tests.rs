@@ -1070,3 +1070,71 @@ fn the_rest_place_can_be_the_nearest_block_of_a_tag() {
     let end = m.ai.nav.path.as_ref().and_then(|p| p.end()).unwrap();
     assert!((end.x - 3).abs() <= 1 && end.z.abs() <= 1, "to the bed at x = 3, not {end:?}");
 }
+
+// ---- custom types in target and avoid lists -----------------------------------------------
+
+/// The snapshot of a custom mob of type `demo:thing` standing at `at`.
+fn custom_seen(id: u32, at: Vec3) -> crate::mobs::Seen {
+    let mut o = mob("{}", at);
+    o.id = id;
+    o.seen(None)
+}
+
+#[test]
+fn a_snapshot_carries_the_custom_type_id_and_a_vanilla_one_does_not() {
+    assert_eq!(custom_seen(4, at(3.5, 0.5)).custom.as_deref(), Some("demo:thing"));
+    assert_eq!(seen(2, Species::Cow, at(3.5, 0.5)).custom, None);
+}
+
+#[test]
+fn custom_types_in_a_target_list_are_matched_by_id() {
+    let fx = flat();
+    let w0 = fx.world();
+    let mut ctx = Ctx::new();
+    let other = [custom_seen(4, at(3.5, 0.5))];
+    let row = r#"{"type":"nearest_attackable","priority":2,"types":["demo:thing"]}"#;
+    let mut m = mob(&ai_targets(row), at(0.5, 0.5));
+    let w = view(&w0, &other, None);
+    assert!(select_until(&mut m, &w, &mut ctx, 100, |m| m.ai.target == Some(Who::Mob(4))).is_some());
+    // A list of vanilla types does not match a custom mob, and a custom id does not match a cow.
+    let vanilla = r#"{"type":"nearest_attackable","priority":2,"types":["minecraft:cow"]}"#;
+    let mut m = mob(&ai_targets(vanilla), at(0.5, 0.5));
+    assert!(select_until(&mut m, &w, &mut ctx, 100, |m| m.ai.target.is_some()).is_none());
+    let cow = [seen(3, Species::Cow, at(3.5, 0.5))];
+    let w = view(&w0, &cow, None);
+    let mut m = mob(&ai_targets(row), at(0.5, 0.5));
+    assert!(select_until(&mut m, &w, &mut ctx, 100, |m| m.ai.target.is_some()).is_none());
+    // Both kinds in one list.
+    let both = r#"{"type":"nearest_attackable","priority":2,"types":["minecraft:cow","demo:thing"]}"#;
+    let mut m = mob(&ai_targets(both), at(0.5, 0.5));
+    assert!(select_until(&mut m, &w, &mut ctx, 100, |m| m.ai.target == Some(Who::Mob(3))).is_some());
+}
+
+#[test]
+fn custom_types_in_an_avoid_list_are_matched_by_id() {
+    let fx = flat();
+    let w0 = fx.world();
+    let mut ctx = Ctx::new();
+    let near = [custom_seen(4, at(0.5, 3.5))];
+    let w = view(&w0, &near, None);
+    let mut m = mob(
+        &ai(r#"{"type":"avoid","priority":2,"from":["demo:thing"],"distance":8}"#),
+        at(0.5, 0.5),
+    );
+    let mut ran = false;
+    for _ in 0..30 {
+        select(&mut m, &w, &mut ctx);
+        ran |= m.ai.goals.is_running("AvoidEntity");
+    }
+    assert!(ran, "it avoids the custom mob");
+    let cow = [seen(3, Species::Cow, at(0.5, 3.5))];
+    let w = view(&w0, &cow, None);
+    let mut m = mob(
+        &ai(r#"{"type":"avoid","priority":2,"from":["demo:thing"],"distance":8}"#),
+        at(0.5, 0.5),
+    );
+    for _ in 0..30 {
+        select(&mut m, &w, &mut ctx);
+        assert!(!m.ai.goals.is_running("AvoidEntity"), "a cow is not a demo:thing");
+    }
+}
