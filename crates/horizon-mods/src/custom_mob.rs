@@ -63,20 +63,16 @@ pub mod limits {
     pub const MAX_SIZE: f64 = 16.0;
 }
 
-/// Hook ids and binding ids set aside for custom mobs, so that other lanes' additions do not take
-/// the numbers the F4M items will need. `hook-ledger/meta.json`'s `next_id` was moved from 8475 to
-/// 11755 (first 710 to 1710; FR-F1 W2 then used ids 710..=8474 for the stamped hooks, so the range moved
-/// to 8475..=9474 (MERGE4); FR-F1 W10/W12 used up to 10754, so it moved again, MERGE5. Every F1 wave
-/// moves `next_id`, so a wave that merges later may need the range moved once more): the ledger tool hands out ids from `next_id`, so ledger ids `HOOK_FIRST..=HOOK_LAST` stay
-/// free for the custom mob hooks (they are assigned in that range by hand, one per new hook).
-/// `crates/yoake-bindgen/ids.lock.json` got an `unbound` sentinel at `BINDING_LAST`: the generator
-/// assigns `max id + 1`, so every later generated binding (the `custom_mobs` module included) is
-/// numbered from 2515 on and ids `BINDING_FIRST..BINDING_LAST` are never handed out by it. A test
-/// below keeps both in place; nothing existing was renumbered.
+/// Hook ids and binding ids set aside for custom mobs, so that other lanes' additions never take the
+/// numbers the F4M items need. Both lock files carry a `reserved` list that their allocators skip:
+/// `hook-ledger/meta.json` (ledger ids `HOOK_FIRST..=HOOK_LAST`, far above the ledger, below
+/// `TEST_ID_BASE`; assigned by hand, one per new hook) and `crates/yoake-bindgen/ids.lock.json`
+/// (binding ids `BINDING_FIRST..=BINDING_LAST`, with an `unbound` sentinel at the end of the range).
+/// Both tools refuse an entry inside a reserved range; the test below keeps the lists in place.
 pub mod reserved_ids {
     /// Ledger hook ids `FIRST..=LAST` belong to the custom mob hooks (FR-F4-MOB section 7).
-    pub const HOOK_FIRST: u32 = 10755;
-    pub const HOOK_LAST: u32 = 11754;
+    pub const HOOK_FIRST: u32 = 1_040_000;
+    pub const HOOK_LAST: u32 = 1_040_999;
     /// Engine-call binding ids of the `custom_mobs` module (section 6.3).
     pub const BINDING_FIRST: u32 = 1515;
     pub const BINDING_LAST: u32 = 2514;
@@ -1830,8 +1826,9 @@ mod tests {
         use reserved_ids::*;
         let meta: serde_json::Value =
             serde_json::from_str(include_str!("../../../hook-ledger/meta.json")).unwrap();
-        // The hook ledger hands out ids from `next_id`: past the reserved range.
-        assert!(meta["next_id"].as_u64().unwrap() > u64::from(HOOK_LAST));
+        // The hook ledger's allocator skips the reserved range (`reserved` in meta.json).
+        let reserved = meta["reserved"].as_array().expect("hook-ledger reserved list");
+        assert!(reserved.iter().any(|r| r["first"] == HOOK_FIRST && r["last"] == HOOK_LAST));
         for ledger in [
             include_str!("../../../hook-ledger/horizon_client.json"),
             include_str!("../../../hook-ledger/horizon_client_lib.json"),
@@ -1852,6 +1849,8 @@ mod tests {
             .iter()
             .find(|b| b["path"] == BINDING_SENTINEL)
             .expect("the sentinel binding");
+        assert!(lock["reserved"].as_array().expect("bindgen reserved list").iter()
+            .any(|r| r["first"] == BINDING_FIRST && r["last"] == BINDING_LAST));
         assert_eq!(sentinel["id"].as_u64().unwrap(), u64::from(BINDING_LAST));
         assert_eq!(sentinel["status"], "unbound");
         // Nothing else lives in the reserved range, and the generator's next id is past it.

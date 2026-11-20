@@ -17,11 +17,23 @@ pub struct LockEntry {
     pub status: String,
 }
 
+/// A range of ids the generator never allocates into (set aside for hand-assigned bindings of a later
+/// module). Existing entries inside it are a violation (`reserved_violations`), except an `unbound`
+/// sentinel, which marks the range's end.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct Reserved {
+    pub first: u32,
+    pub last: u32,
+    pub owner: String,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Lock {
     pub format: u32,
     pub rustdoc_format_version: u64,
     pub bindings: Vec<LockEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reserved: Vec<Reserved>,
 }
 
 /// What changed in the lock during one run.
@@ -36,7 +48,7 @@ pub struct LockDelta {
 
 impl Lock {
     pub fn empty() -> Lock {
-        Lock { format: 1, rustdoc_format_version: crate::FORMAT_VERSION, bindings: Vec::new() }
+        Lock { format: 1, rustdoc_format_version: crate::FORMAT_VERSION, bindings: Vec::new(), reserved: Vec::new() }
     }
 
     pub fn load(path: &Path) -> R<Lock> {
@@ -47,11 +59,40 @@ impl Lock {
         }
     }
 
+    /// The first id at or after `id` that is in no reserved range.
+    pub fn skip_reserved(&self, mut id: u32) -> u32 {
+        while let Some(range) = self.reserved.iter().find(|r| (r.first..=r.last).contains(&id)) {
+            id = range.last + 1;
+        }
+        id
+    }
+
+    /// Entries inside a reserved range (an `unbound` sentinel excepted), and ranges that are empty or overlap.
+    pub fn reserved_violations(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        for (i, r) in self.reserved.iter().enumerate() {
+            if r.first > r.last {
+                out.push(format!("reserved range {}..={} ({}) is empty", r.first, r.last, r.owner));
+            }
+            for other in &self.reserved[i + 1..] {
+                if r.first <= other.last && other.first <= r.last {
+                    out.push(format!("reserved ranges of {} and {} overlap", r.owner, other.owner));
+                }
+            }
+            for e in &self.bindings {
+                if (r.first..=r.last).contains(&e.id) && e.status != "unbound" {
+                    out.push(format!("binding id {} (`{}`) is inside the range reserved for {}", e.id, e.path, r.owner));
+                }
+            }
+        }
+        out
+    }
+
     /// Gives every wanted path an id (existing ones keep theirs, new ones get the next free id in
     /// sorted order) and marks the rest `unbound`.
     pub fn assign(&mut self, wanted: &BTreeMap<String, (String, &'static str)>) -> (BTreeMap<String, u32>, LockDelta) {
         let mut delta = LockDelta::default();
-        let mut next = self.bindings.iter().map(|e| e.id).max().unwrap_or(0) + 1;
+        let mut next = self.skip_reserved(self.bindings.iter().map(|e| e.id).max().unwrap_or(0) + 1);
         let mut ids = BTreeMap::new();
         for (path, (sig, status)) in wanted {
             match self.bindings.iter_mut().find(|e| &e.path == path) {
@@ -72,7 +113,7 @@ impl Lock {
                     self.bindings.push(LockEntry { id: next, path: path.clone(), sig: sig.clone(), status: (*status).to_string() });
                     delta.added.push(path.clone());
                     ids.insert(path.clone(), next);
-                    next += 1;
+                    next = self.skip_reserved(next + 1);
                 }
             }
         }
@@ -107,6 +148,7 @@ impl Lock {
                 out.push(format!("id {} is used twice", e.id));
             }
         }
+        out.extend(self.reserved_violations());
         out
     }
 
@@ -114,5 +156,41 @@ impl Lock {
         let mut text = serde_json::to_string_pretty(self)?;
         text.push('\n');
         Ok(text)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entry(id: u32, path: &str, status: &str) -> LockEntry {
+        LockEntry { id, path: path.into(), sig: "s".into(), status: status.into() }
+    }
+
+    #[test]
+    fn new_ids_skip_a_reserved_range() {
+        let mut lock = Lock::empty();
+        lock.bindings.push(entry(1, "a", "bound"));
+        lock.bindings.push(entry(2, "b", "bound"));
+        lock.reserved.push(Reserved { first: 3, last: 6, owner: "later".into() });
+        let wanted: BTreeMap<String, (String, &'static str)> =
+            ["a", "b", "c", "d"].iter().map(|p| (p.to_string(), ("s".to_string(), "bound"))).collect();
+        let (ids, delta) = lock.assign(&wanted);
+        assert_eq!((ids["c"], ids["d"]), (7, 8), "{ids:?}");
+        assert_eq!(delta.added, ["c", "d"]);
+        assert!(lock.reserved_violations().is_empty());
+    }
+
+    #[test]
+    fn an_entry_inside_a_reserved_range_is_a_violation_but_the_unbound_sentinel_is_not() {
+        let mut lock = Lock::empty();
+        lock.reserved.push(Reserved { first: 10, last: 20, owner: "later".into() });
+        lock.bindings.push(entry(20, "later::__reserved_range_end", "unbound"));
+        assert!(lock.reserved_violations().is_empty());
+        lock.bindings.push(entry(12, "oops", "bound"));
+        let v = lock.reserved_violations();
+        assert_eq!(v.len(), 1, "{v:?}");
+        assert!(v[0].contains("12") && v[0].contains("later"));
+        assert!(lock.append_only_violations(&Lock::empty()).iter().any(|m| m.contains("reserved")));
     }
 }

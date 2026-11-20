@@ -9,6 +9,17 @@ use crate::{Assigned, Entry, Kind, Ledger, LedgerError, Status, TEST_ID_BASE};
 pub(crate) struct Meta {
     pub(crate) version: u32,
     pub(crate) next_id: u32,
+    /// Id ranges the allocator skips (set aside for hand-assigned hooks of a later feature). A live or
+    /// excluded entry inside one is a validation error.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) reserved: Vec<Reserved>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Reserved {
+    pub first: u32,
+    pub last: u32,
+    pub owner: String,
 }
 
 #[derive(Clone, Debug)]
@@ -23,6 +34,7 @@ impl LedgerSet {
             meta: Meta {
                 version: 2,
                 next_id: 1,
+                reserved: Vec::new(),
             },
             shards: BTreeMap::new(),
         }
@@ -89,6 +101,23 @@ impl LedgerSet {
                 crate::SYNTHETIC_HOOK_BASE
             )));
         }
+        for (i, range) in self.meta.reserved.iter().enumerate() {
+            if range.first == 0 || range.first > range.last || range.last >= TEST_ID_BASE {
+                return Err(LedgerError::Invalid(format!(
+                    "reserved range {}..={} ({}) is empty or outside 1..{TEST_ID_BASE}",
+                    range.first, range.last, range.owner
+                )));
+            }
+            if let Some(other) = self.meta.reserved[i + 1..]
+                .iter()
+                .find(|other| range.first <= other.last && other.first <= range.last)
+            {
+                return Err(LedgerError::Invalid(format!(
+                    "reserved ranges of {} and {} overlap",
+                    range.owner, other.owner
+                )));
+            }
+        }
         let mut ids = BTreeMap::new();
         let mut live_keys = BTreeMap::new();
         let mut excluded_keys = BTreeSet::new();
@@ -109,6 +138,17 @@ impl LedgerSet {
                         "entry id {} is at or above SYNTHETIC_HOOK_BASE ({})",
                         entry.id,
                         crate::SYNTHETIC_HOOK_BASE
+                    )));
+                }
+                if let Some(range) = self
+                    .meta
+                    .reserved
+                    .iter()
+                    .find(|range| (range.first..=range.last).contains(&entry.id))
+                {
+                    return Err(LedgerError::Invalid(format!(
+                        "entry id {} ({}) is inside the range reserved for {}",
+                        entry.id, entry.key, range.owner
                     )));
                 }
                 if entry.id >= self.meta.next_id {
@@ -164,6 +204,15 @@ impl LedgerSet {
             assert_eq!(owner, crate_name, "live hook key cannot move between crates: {key}");
             return self.shards.get_mut(&owner).unwrap().assign(kind, key, sig);
         }
+        // Skip the ranges set aside for hand-assigned hooks.
+        while let Some(range) = self
+            .meta
+            .reserved
+            .iter()
+            .find(|range| (range.first..=range.last).contains(&self.meta.next_id))
+        {
+            self.meta.next_id = range.last + 1;
+        }
         crate::assert_hook_id(self.meta.next_id);
         assert!(self.meta.next_id < TEST_ID_BASE, "hook id space exhausted");
         let next_id = self.meta.next_id;
@@ -178,6 +227,16 @@ impl LedgerSet {
 
     pub fn next_id(&self) -> u32 {
         self.meta.next_id
+    }
+
+    /// The id ranges the allocator skips.
+    pub fn reserved(&self) -> &[Reserved] {
+        &self.meta.reserved
+    }
+
+    /// Sets a range aside (the caller saves the set). Ids already live inside it make `validate` fail.
+    pub fn reserve(&mut self, first: u32, last: u32, owner: &str) {
+        self.meta.reserved.push(Reserved { first, last, owner: owner.to_owned() });
     }
 }
 

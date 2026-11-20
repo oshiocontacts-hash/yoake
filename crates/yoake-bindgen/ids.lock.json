@@ -10952,5 +10952,12 @@
       "sig": "set shape: crate::LevelShape",
       "status": "ReadOnly"
     }
+  ],
+  "reserved": [
+    {
+      "first": 1515,
+      "last": 2514,
+      "owner": "custom_mobs module (FR-F4-MOB F4M-0), hand-assigned bindings"
+    }
   ]
 }

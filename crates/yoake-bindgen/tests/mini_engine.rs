@@ -231,7 +231,7 @@ fn writable_is_opt_in_and_never_opens_identities() {
 fn lock_is_append_only_against_a_base() {
     use yoake_bindgen::lock::{Lock, LockEntry};
     let entry = |id: u32, path: &str| LockEntry { id, path: path.into(), sig: "s".into(), status: "bound".into() };
-    let base = Lock { format: 1, rustdoc_format_version: 61, bindings: vec![entry(1, "a"), entry(2, "b")] };
+    let base = Lock { format: 1, rustdoc_format_version: 61, bindings: vec![entry(1, "a"), entry(2, "b")], reserved: Vec::new() };
     let mut now = base.clone();
     now.bindings.push(entry(3, "c"));
     now.bindings[1].status = "unbound".into();

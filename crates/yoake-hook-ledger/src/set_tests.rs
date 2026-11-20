@@ -210,3 +210,46 @@ fn set_assign_rejects_synthetic_range() {
     set.meta.next_id = super::SYNTHETIC_HOOK_BASE;
     set.assign("a", Kind::Fn, "a::f", "signature");
 }
+
+#[test]
+fn the_allocator_skips_a_reserved_range() {
+    let mut set = LedgerSet::new();
+    set.reserve(3, 5, "later");
+    let ids: Vec<u32> = ["f", "g", "h", "i"]
+        .iter()
+        .map(|name| set.assign("a", Kind::Fn, &format!("a::{name}"), "x").id)
+        .collect();
+    assert_eq!(ids, [1, 2, 6, 7]);
+    set.validate().unwrap();
+    // The range survives a save and a load.
+    let dir = temp_dir();
+    set.save(&dir).unwrap();
+    assert_eq!(LedgerSet::load(&dir).unwrap().reserved(), set.reserved());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_live_id_inside_a_reserved_range_fails_validation() {
+    let dir = temp_dir();
+    std::fs::write(
+        dir.join("meta.json"),
+        r#"{"version":2,"next_id":9,"reserved":[{"first":3,"last":5,"owner":"later"}]}"#,
+    )
+    .unwrap();
+    let shard = r#"{"crate":"a","entries":[{"id":4,"key":"a::f","sig":"x","status":"live"}],"excluded":[]}"#;
+    std::fs::write(dir.join("a.json"), shard).unwrap();
+    let error = LedgerSet::load(&dir).unwrap_err().to_string();
+    assert!(error.contains("reserved for later"), "{error}");
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn reserved_ranges_must_not_overlap_or_be_empty() {
+    let mut set = LedgerSet::new();
+    set.reserve(10, 20, "one");
+    set.reserve(20, 30, "two");
+    assert!(set.validate().unwrap_err().to_string().contains("overlap"));
+    let mut set = LedgerSet::new();
+    set.reserve(5, 4, "empty");
+    assert!(set.validate().is_err());
+}

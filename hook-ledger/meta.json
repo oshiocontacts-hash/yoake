@@ -1,4 +1,11 @@
 {
   "version": 2,
-  "next_id": 11755
+  "next_id": 11755,
+  "reserved": [
+    {
+      "first": 1040000,
+      "last": 1040999,
+      "owner": "custom mob hooks (FR-F4-MOB), assigned by hand"
+    }
+  ]
 }

@@ -27,7 +27,7 @@ pub(crate) fn assert_hook_id(id: u32) {
 pub mod build;
 mod set;
 
-pub use set::{LedgerSet, check_append_only};
+pub use set::{LedgerSet, Reserved, check_append_only};
 
 #[derive(Clone, Debug)]
 pub struct Ledger {
