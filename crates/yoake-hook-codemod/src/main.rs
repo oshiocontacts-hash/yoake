@@ -539,6 +539,7 @@ fn parse_bridge_args(args: std::env::Args) -> Result<Option<Command>, String> {
     let mut shallow = false;
     let mut glues = Vec::new();
     let mut exclude_file = None;
+    let mut nary = false;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -581,6 +582,7 @@ fn parse_bridge_args(args: std::env::Args) -> Result<Option<Command>, String> {
                     glues.push(PathBuf::from(args.next().unwrap()));
                 }
             }
+            "--nary" => nary = true,
             "--exclude-file" => {
                 let val = args
                     .next()
@@ -598,6 +600,7 @@ fn parse_bridge_args(args: std::env::Args) -> Result<Option<Command>, String> {
         return Err(format!("at least one --module is required\n{}", usage()));
     }
     Ok(Some(Command::Bridge(bridge::BridgeConfig {
+        nary,
         check,
         crate_root,
         crate_name,

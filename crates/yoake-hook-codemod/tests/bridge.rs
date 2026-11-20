@@ -896,3 +896,96 @@ fn hot_callers_ignores_keys_from_other_crates_silently() {
         "{stderr}"
     );
 }
+
+#[test]
+fn bridge_nary_takes_every_hook_shape_the_arg0_forms_cannot() {
+    let dir = TestDir::new("nary");
+    setup_bridge_fixture(dir.path());
+    let root = dir.path();
+    fs::write(root.join("src/lib.rs"), "pub mod entities;\npub mod game;\npub mod extra;\n").unwrap();
+    fs::write(
+        root.join("src/extra.rs"),
+        r#"use crate::entities::{Other, Thing};
+
+#[yoake_hook_macro::yoake_hook(id = 17, key = "demo::extra::scale")]
+pub fn scale(t: &mut Thing, factor: f32, n: u8, label: &str, extra: &Other, owned: Vec<u32>) -> i32 {
+    let _ = (factor, n, label, extra, owned);
+    t.count
+}
+
+#[yoake_hook_macro::yoake_hook(id = 18, key = "demo::extra::tick_global")]
+pub fn tick_global() -> bool {
+    true
+}
+
+#[yoake_hook_macro::yoake_hook(id = 19, key = "demo::extra::by_value", )]
+pub fn by_value(first: Vec<u32>, scale: i64) -> u64 {
+    first.len() as u64 + scale as u64
+}
+"#,
+    )
+    .unwrap();
+    let meta = fs::read_to_string(root.join("ledger/demo.json")).unwrap();
+    let meta = meta.replace(
+        "  ],\n  \"excluded\"",
+        concat!(
+            "    ,{ \"id\": 17, \"key\": \"demo::extra::scale\", \"sig\": \"0000000000000017\", \"status\": \"live\", \"kind\": \"fn\" },\n",
+            "    { \"id\": 18, \"key\": \"demo::extra::tick_global\", \"sig\": \"0000000000000018\", \"status\": \"live\", \"kind\": \"fn\" },\n",
+            "    { \"id\": 19, \"key\": \"demo::extra::by_value\", \"sig\": \"0000000000000019\", \"status\": \"live\", \"kind\": \"fn\" }\n",
+            "  ],\n  \"excluded\""
+        ),
+    );
+    fs::write(root.join("ledger/demo.json"), meta).unwrap();
+    let glue = root.join("src/yoake_glue/entities.rs");
+    let run = |nary: bool| {
+        let mut cmd = Command::new(codemod_bin());
+        cmd.args(["bridge", "--crate-root"])
+            .arg(root)
+            .args(["--crate-name", "demo", "--ledger"])
+            .arg(root.join("ledger"))
+            .args(["--module", "entities", "--module", "extra", "--module", "game::item_use", "--glue"])
+            .arg(&glue);
+        if nary {
+            cmd.arg("--nary");
+        }
+        let out = cmd.output().unwrap();
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    };
+
+    // without --nary the hooks the arg0 forms cannot take are unbridged (unchanged behaviour)
+    run(false);
+    let plain = fs::read_to_string(root.join("src/yoake_glue/hook_bridge_extra.rs")).unwrap();
+    assert!(plain.contains("(18, \"no parameters\")"), "{plain}");
+    assert!(plain.contains("(19, \"arg0 is not &T or &mut T\")"), "{plain}");
+
+    run(true);
+    let extra = fs::read_to_string(root.join("src/yoake_glue/hook_bridge_extra.rs")).unwrap();
+    // 17: &mut Thing (table), f32 and u8 by value, &str, &Other (no table), Vec by value
+    assert!(extra.contains("fn __bridge_17("), "{extra}");
+    assert!(extra.contains("yoake_slice::runtime::dispatch_n_id(17, yoake_slice::activation::ArgSet::new()"), "{extra}");
+    assert!(extra.contains(".mut_ref(&mut *p0, &crate::entities::yoake_glue::FIELDS_crate__entities__Thing)"), "{extra}");
+    assert!(extra.contains(".value(yoake_slice::bridge::encode::f32(p1))"), "{extra}");
+    assert!(extra.contains(".value(yoake_slice::bridge::encode::int(p2))"), "{extra}");
+    assert!(extra.contains(".opaque_shared(&p3_h)"), "&str is held as a copied reference: {extra}");
+    assert!(extra.contains(".opaque_shared(&p4_h)"), "{extra}");
+    assert!(extra.contains(".opaque_mut(&mut p5_h)"), "{extra}");
+    assert!(extra.contains("view.mut_ref::<Thing>(0)"), "{extra}");
+    assert!(extra.contains("view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1)"), "{extra}");
+    // 18: no arguments at all
+    assert!(extra.contains("fn __bridge_18("), "{extra}");
+    assert!(extra.contains("dispatch_n_id(18, yoake_slice::activation::ArgSet::new(), &mut |view"), "{extra}");
+    // 19: first argument by value, result u64
+    assert!(extra.contains("fn __bridge_19("), "{extra}");
+    assert!(extra.contains("view.value(1).map_or(p1, |v| v)") || extra.contains("view.value(1).unwrap_or(p1)"), "{extra}");
+    assert!(!extra.contains("UNBRIDGED: &[(u32, &str)] = &[\n        (17"), "{extra}");
+    // the already-bridged ids keep their arg0 form
+    let entities = fs::read_to_string(root.join("src/yoake_glue/hook_bridge_entities.rs")).unwrap();
+    assert!(entities.contains("dispatch_id(4, p0, &crate::entities::yoake_glue::FIELDS_crate__entities__Thing"), "single-argument hooks keep the arg0 form: {entities}");
+    assert!(entities.contains("dispatch_n_id(1, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::entities::yoake_glue::FIELDS_crate__entities__Thing).opaque_mut(&mut p1_h).value(yoake_slice::bridge::encode::int(p2))"), "multi-argument hooks show every argument: {entities}");
+    // and the former UNBRIDGED ones are n-ary now
+    assert!(entities.contains("dispatch_n_id(6, "), "no-table &mut Other: {entities}");
+    assert!(entities.contains("dispatch_n_id(14, "), "{entities}");
+    assert!(entities.contains("dispatch_n_id(15, "), "{entities}");
+    let game = fs::read_to_string(root.join("src/yoake_glue/hook_bridge_game__item_use.rs")).unwrap();
+    assert!(game.contains("dispatch_n_id(16, "), "&Game (peek) is bridged held: {game}");
+}
