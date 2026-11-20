@@ -4,7 +4,7 @@ use proc_macro2::TokenTree;
 use syn::visit::{self, Visit};
 use syn::{
     Attribute, Block, ExprMacro, ExprMethodCall, FnArg, Generics, ImplItem, ItemImpl,
-    Lifetime, Pat, Path, Signature, StmtMacro, Type,
+    Lifetime, Path, Signature, StmtMacro, Type,
 };
 
 pub fn check_fn(attrs: &[Attribute], sig: &Signature) -> Result<(), &'static str> {
@@ -73,12 +73,7 @@ pub fn check_fn(attrs: &[Attribute], sig: &Signature) -> Result<(), &'static str
                 if !pat_type.attrs.is_empty() {
                     return Err("attribute on parameter");
                 }
-                let Pat::Ident(pattern) = &*pat_type.pat else {
-                    return Err("destructuring argument");
-                };
-                if pattern.by_ref.is_some() || pattern.subpat.is_some() {
-                    return Err("ref or @ argument pattern");
-                }
+                // F1 W4: destructuring, `_`, `ref` and `@` patterns are fine (the macro names them).
                 let mut input_check = Unsupported::default();
                 input_check.visit_type(&pat_type.ty);
                 if input_check.impl_trait {

@@ -77,6 +77,8 @@ struct ScanCtx<'a> {
     min_stmts: usize,
     /// W7: the ledger is read-only: no new ids, no ledger writes, nothing fails because of ledger state.
     frozen: bool,
+    /// W4: hook impls on types that have no crate-level path (private types of private modules).
+    private_types: bool,
     /// W5: keys stamped regardless of the size rule (`hook-ledger/stamp-allow.txt`).
     allow_small: &'a BTreeSet<String>,
 }
@@ -324,7 +326,13 @@ impl VisitMut for FileVisitor<'_, '_> {
                 SelfTyStatus::Local {
                     is_struct_enum_union: true,
                     crate_level_visible: false,
-                } => Err("self type has no crate-level path"),
+                } => {
+                    if self.ctx.private_types {
+                        Ok(())
+                    } else {
+                        Err("self type has no crate-level path")
+                    }
+                }
                 SelfTyStatus::Local {
                     is_struct_enum_union: false,
                     ..
@@ -339,7 +347,7 @@ impl VisitMut for FileVisitor<'_, '_> {
                 SelfTyStatus::Local {
                     crate_level_visible: false,
                     ..
-                } => Err("self type has no crate-level path"),
+                } if !self.ctx.private_types => Err("self type has no crate-level path"),
                 _ => Ok(()),
             }
         };
@@ -849,6 +857,7 @@ pub fn execute(config: &Config) -> Result<bool, String> {
             stats: &mut stats,
             min_stmts: config.min_stmts,
             frozen: config.frozen_ledger,
+            private_types: config.private_types,
             allow_small: &allow_small,
         };
 
@@ -1544,6 +1553,7 @@ impl Stand {
             stats: &mut stats,
             min_stmts: 0,
             frozen: false,
+            private_types: false,
             allow_small: &BTreeSet::new(),
         };
         let mut visitor = FileVisitor {

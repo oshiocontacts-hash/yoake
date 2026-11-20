@@ -436,3 +436,32 @@ fn dyn_trait_objects_in_results_and_arguments_are_hookable() {
     assert_eq!(static_shape().sides(), 3);
     assert_eq!(sides_of(&Tri, 1), 14);
 }
+
+// F1 W4: destructuring, `_` and `ref` parameters are hookable (the outer fn names them, the original keeps them).
+#[yoake_hook(test_id = 44)]
+fn destructured((first, second): (u32, u32), _unused: u8, Wrapper { inner }: Wrapper) -> u32 {
+    first * 100 + second * 10 + inner
+}
+
+#[yoake_hook(test_id = 45)]
+fn wildcard(_: u32, kept: u32) -> u32 {
+    kept
+}
+
+struct Wrapper {
+    inner: u32,
+}
+
+#[test]
+fn destructuring_and_wildcard_parameters_are_hookable() {
+    assert_eq!(destructured((1, 2), 0, Wrapper { inner: 3 }), 123);
+    assert_eq!(wildcard(9, 4), 4);
+    __yoake_register_destructured(
+        |original, pair, byte, wrapper| original((pair.1, pair.0), byte, wrapper),
+        Order::default(),
+    )
+    .unwrap();
+    __yoake_register_wildcard(|original, first, second| original(first, second + 1), Order::default()).unwrap();
+    assert_eq!(destructured((1, 2), 0, Wrapper { inner: 3 }), 213, "the hook swapped the tuple");
+    assert_eq!(wildcard(9, 4), 5);
+}

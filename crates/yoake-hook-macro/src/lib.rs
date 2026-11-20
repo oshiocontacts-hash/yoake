@@ -303,18 +303,21 @@ fn expand(
                 outer_arg_names.push(quote!(self));
             }
             FnArg::Typed(argument) => {
-                let Pat::Ident(pattern) = &mut *argument.pat else {
-                    return Err(syn::Error::new_spanned(
-                        &argument.pat,
-                        "S2 requires identifier arguments; destructuring needs skip",
-                    ));
-                };
-                if pattern.by_ref.is_some() || pattern.subpat.is_some() {
-                    return Err(syn::Error::new_spanned(
-                        pattern,
-                        "S2 does not support ref/subpatterns",
-                    ));
+                // F1 W4: the outer fn only forwards its arguments, so a destructuring, `_`, `ref` or `@` pattern
+                // gets a synthetic name there; the original body (with its pattern) lives in `__yoake_orig_*`,
+                // whose signature was cloned before this loop.
+                let plain = matches!(&*argument.pat, Pat::Ident(p) if p.by_ref.is_none() && p.subpat.is_none());
+                if !plain {
+                    let synthetic = format_ident!("__yoake_pat_{}", outer_arg_names.len());
+                    *argument.pat = Pat::Ident(syn::PatIdent {
+                        attrs: Vec::new(),
+                        by_ref: None,
+                        mutability: None,
+                        ident: synthetic,
+                        subpat: None,
+                    });
                 }
+                let Pat::Ident(pattern) = &mut *argument.pat else { unreachable!() };
                 pattern.mutability = None;
                 let name = pattern.ident.clone();
                 let argument_type = *argument.ty.clone();
@@ -1284,13 +1287,21 @@ mod tests {
     }
 
     #[test]
-    fn destructured_arguments_require_an_explicit_exclusion() {
-        rejected(
+    fn destructured_arguments_get_a_synthetic_name_on_the_outer_fn() {
+        let expanded = expand(
+            quote!(id = 1, key = "test::pair"),
             quote!(
-                fn pair((first, second): (u32, u32)) {}
+                fn pair((first, second): (u32, u32), _: u8, ref r: u16) -> u32 {
+                    first + second + u32::from(*r)
+                }
             ),
-            "destructuring needs skip",
-        );
+        )
+        .expect("destructuring is accepted")
+        .to_string();
+        assert!(expanded.contains("__yoake_pat_0"), "{expanded}");
+        assert!(expanded.contains("__yoake_pat_1") && expanded.contains("__yoake_pat_2"), "{expanded}");
+        // the original keeps its patterns
+        assert!(expanded.contains("(first , second) : (u32 , u32)"), "{expanded}");
     }
 
     #[test]

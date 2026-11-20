@@ -1529,3 +1529,45 @@ fn stamp_config_supplies_modules_exclusions_and_size_rule() {
     assert!(entry_id(&shard, "demo_crate::alpha::tiny").is_none());
     assert!(entry_id(&shard, "demo_crate::beta::other").is_none());
 }
+
+#[test]
+fn private_types_flag_hooks_private_self_types_and_destructuring_params() {
+    let tmp = TempDir::new("w4");
+    let root = tmp.path();
+    write_fixture(
+        root,
+        &[
+            ("Cargo.toml", "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n"),
+            ("src/lib.rs", "pub(crate) mod m;\n"),
+            (
+                "src/m.rs",
+                "pub trait Tr { fn work(&self) -> u32; }\n\
+                 struct Secret(u32);\n\
+                 impl Secret {\n    pub fn hidden(&self, (a, b): (u32, u32), _: u8) -> u32 {\n        self.0 + a + b\n    }\n}\n\
+                 impl Tr for Secret {\n    fn work(&self) -> u32 {\n        self.0\n    }\n}\n",
+            ),
+        ],
+    );
+    let root_s = root.to_string_lossy().into_owned();
+    let ledger_s = root.join("hook-ledger").to_string_lossy().into_owned();
+    let args = |extra: &[&str]| {
+        let mut v: Vec<String> = ["apply", "--crate-root", &root_s, "--crate-name", "demo", "--ledger", &ledger_s, "--module", "m"]
+            .iter().map(|s| s.to_string()).collect();
+        v.extend(extra.iter().map(|s| s.to_string()));
+        v
+    };
+    let run = |a: Vec<String>| {
+        let refs: Vec<&str> = a.iter().map(String::as_str).collect();
+        run_codemod(&refs)
+    };
+    let out = run(args(&[]));
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let shard = read_shard(&root.join("hook-ledger"), "demo");
+    assert!(entry_id(&shard, "demo::m::Secret::hidden").is_none(), "default: no crate-level path, excluded");
+
+    let out = run(args(&["--private-types"]));
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let shard = read_shard(&root.join("hook-ledger"), "demo");
+    assert!(entry_id(&shard, "demo::m::Secret::hidden").is_some(), "private type hooked; destructuring param no longer excludes it");
+    assert!(entry_id(&shard, "demo::m::<Secret as Tr>::work").is_some(), "trait impl on a private type converted");
+}

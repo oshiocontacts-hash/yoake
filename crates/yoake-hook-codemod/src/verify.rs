@@ -537,6 +537,7 @@ pub fn bad(x: u32) -> u32 {
             verify_rounds: 4,
             verify_max_withdraw: 300,
             frozen_ledger: false,
+            private_types: false,
             overlay: false,
         };
         let options = VerifyOptions { overlay: None, cargo_args: vec![], dir: dir.clone(), rounds: 4, max_withdraw_per_round: 300 };
@@ -604,6 +605,7 @@ pub fn bad(x: u32) -> u32 {
             verify_rounds: 1,
             verify_max_withdraw: 300,
             frozen_ledger: false,
+            private_types: false,
             overlay: false,
         }
     }
@@ -674,6 +676,7 @@ pub fn b(x: u32) -> u32 {
             verify_rounds: 4,
             verify_max_withdraw: 300,
             frozen_ledger: false,
+            private_types: false,
             overlay: false,
         }
     }

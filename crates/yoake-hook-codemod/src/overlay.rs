@@ -172,7 +172,8 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
     let mut modules = Vec::new();
     let mut exclude = Vec::new();
     let mut min_stmts = 0usize;
-    crate::apply_stamp_config(&args.stamp_config, &args.crate_name, &mut modules, &mut exclude, &mut min_stmts)?;
+    let mut private_types = false;
+    crate::apply_stamp_config(&args.stamp_config, &args.crate_name, &mut modules, &mut exclude, &mut min_stmts, &mut private_types)?;
     let config = Config {
         mode: Mode::Apply,
         crate_root: args.overlay_root.join(&crate_rel),
@@ -198,6 +199,7 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
         verify_rounds: 1,
         verify_max_withdraw: 0,
         frozen_ledger: args.frozen,
+        private_types,
         overlay: false,
     };
     crate::run::execute(&config)?;
