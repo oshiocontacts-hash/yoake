@@ -434,3 +434,21 @@ fn a_type_without_a_death_animation_is_removed_after_the_engines_20_ticks() {
     assert_eq!(t.death_ticks(), None);
     assert_eq!(dying_ticks(&t).0, 20);
 }
+
+// ----- the name tag height (F4M-6) ---------------------------------------------------------------
+
+#[test]
+fn a_types_name_tag_height_is_blocks_above_the_feet_times_the_model_scale() {
+    let at = Vec3::new(0.5, 1.0, 0.5);
+    // Not set: the engine's own hitbox height plus 0.5 (the caller's default).
+    let plain = fox_type_with(idle_ai(), |_| {});
+    assert_eq!(plain.file.model.name_tag_height, None);
+    assert_eq!(crate::mobs::custom::name_tag_height(&fox_mob(&plain, at)), None);
+    // Set.
+    let tall = fox_type_with(idle_ai(), |v| v["model"]["name_tag_height"] = json!(2.5));
+    let mut m = fox_mob(&tall, at);
+    assert_eq!(crate::mobs::custom::name_tag_height(&m), Some(2.5));
+    // A scaled mob lifts it with the scale (its hitbox follows the same scale).
+    m.extra.model_scale = 2.0;
+    assert_eq!(crate::mobs::custom::name_tag_height(&m), Some(5.0));
+}

@@ -197,6 +197,13 @@ pub struct CustomType {
     pub ride: ai::riding::RideDef,
 }
 
+/// Where a custom mob's name tag hangs when its type sets `model.name_tag_height`: blocks above the
+/// feet, times the mob's model scale. `None` for every other mob (the hitbox height plus 0.5).
+pub fn name_tag_height(m: &crate::mobs::Mob) -> Option<f64> {
+    let h = m.kind.custom.as_ref()?.file.model.name_tag_height?;
+    Some(h * f64::from(m.model_scale()))
+}
+
 /// `LivingEntity.tickDeath` removes a body after 20 ticks; a custom mob whose type has a `death`
 /// animation stays until it ends (at most 60 ticks).
 pub fn removal_ticks(m: &crate::mobs::Mob) -> i32 {

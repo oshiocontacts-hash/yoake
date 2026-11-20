@@ -552,6 +552,10 @@ pub struct Model {
     pub shadow: Option<Shadow>,
     #[serde(default)]
     pub cull: Option<Cull>,
+    /// Where the name tag hangs, in blocks above the feet of an unscaled mob (times the mob's model scale); the default is the hitbox
+    /// height plus 0.5, as for any mob.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name_tag_height: Option<f64>,
     #[serde(default)]
     pub layers: Vec<Layer>,
     #[serde(default)]
@@ -584,6 +588,7 @@ impl Default for Model {
             scale: 1.0,
             shadow: None,
             cull: None,
+            name_tag_height: None,
             layers: Vec::new(),
             lod: Vec::new(),
             lod_min_bones: Vec::new(),
@@ -1146,6 +1151,9 @@ impl CustomMobFile {
             finite_in("model.cull.width", c.width, 0.0, 64.0)?;
             finite_in("model.cull.height", c.height, 0.0, 64.0)?;
             finite_in("model.cull.y_offset", c.y_offset, -64.0, 64.0)?;
+        }
+        if let Some(h) = m.name_tag_height {
+            finite_in("model.name_tag_height", h, 0.0, 64.0)?;
         }
         let mut names = BTreeSet::new();
         for l in &m.layers {
@@ -1727,6 +1735,16 @@ mod tests {
     }
 
     /// The fixture's real model, animations and controllers go through the real loaders.
+    #[test]
+    fn name_tag_height_is_optional_and_a_height_in_blocks() {
+        assert_eq!(parse(FOX).unwrap().model.name_tag_height, None);
+        let file = with(|v| v["model"]["name_tag_height"] = 2.25.into()).unwrap();
+        assert_eq!(file.model.name_tag_height, Some(2.25));
+        assert!(with(|v| v["model"]["name_tag_height"] = (-1.0).into()).is_err());
+        assert!(with(|v| v["model"]["name_tag_height"] = 65.0.into()).is_err());
+        assert!(with(|v| v["model"]["name_tag_height"] = "high".into()).is_err());
+    }
+
     #[test]
     fn lod_min_bones_must_exist_in_the_model_and_name_the_file_and_path() {
         let ok = with(|v| v["model"]["lod_min_bones"] = serde_json::json!(["head"])).unwrap();
