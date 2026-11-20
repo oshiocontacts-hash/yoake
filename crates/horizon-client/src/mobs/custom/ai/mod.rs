@@ -25,6 +25,8 @@ use crate::mobs::{Mob, Species, species};
 use horizon_mods::custom_mob::{CustomMobFile, Goal as GoalDef};
 
 pub mod attacks;
+pub mod expr;
+pub mod rest;
 pub mod goals;
 pub mod nav_select;
 pub mod targets;
@@ -48,7 +50,7 @@ pub fn support(kind: &str) -> Support {
         | "fly_wander" | "look_at_player" | "random_look" | "look_at_target" | "panic"
         | "tempt" | "flee" | "avoid" | "retreat_when_hurt" | "go_to_block" | "stay_near_home"
         | "patrol_around" | "leap_at_target" | "leap_attack" | "melee_attack"
-        | "ranged_attack" | "area_attack" | "climb" => Goal,
+        | "ranged_attack" | "area_attack" | "climb" | "sleep_in_bed_like" => Goal,
         "target_player" | "hurt_by_target" | "hurt_by" | "call_for_help" | "nearest_target"
         | "nearest_attackable" => Target,
         "follow_owner" | "sit" | "owner_hurt_target" | "owner_hurt_by" | "owner_target" => {
@@ -56,9 +58,6 @@ pub fn support(kind: &str) -> Support {
         }
         "breed" | "follow_parent" => Deferred("F4M-4c: needs the breedable data and offspring"),
         "eat_block" => Deferred("the engine's EatBlock goal is the sheep's; a data version needs a generic rewrite"),
-        "sleep_in_bed_like" => {
-            Deferred("the schema row does not say what it does; needs a definition")
-        }
         "open_door" => Deferred("the engine's door goals are private to raiders; needs a generic OpenDoorGoal"),
         "script" => Deferred("F4M-10: script goals"),
         _ => Deferred("unknown goal type"),
@@ -84,7 +83,7 @@ pub fn unsupported(file: &CustomMobFile) -> Vec<(String, &'static str)> {
 pub fn attach(m: &mut Mob, t: &CustomType) {
     nav_select::apply(m, &t.file.ai.navigator);
     for g in t.file.ai.goals.iter().chain(&t.file.ai.targets) {
-        let _ = goals::add(m, g) || attacks::add(m, g) || targets::add(m, g);
+        let _ = goals::add(m, g) || attacks::add(m, g) || rest::add(m, t, g) || targets::add(m, g);
     }
 }
 

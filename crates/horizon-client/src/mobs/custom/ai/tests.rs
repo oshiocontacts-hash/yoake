@@ -47,7 +47,7 @@ fn every_schema_goal_type_has_a_status() {
             }
         }
     }
-    assert_eq!(running, 30);
+    assert_eq!(running, 31);
     deferred.sort();
     assert_eq!(
         deferred,
@@ -62,7 +62,6 @@ fn every_schema_goal_type_has_a_status() {
             "owner_target",
             "script",
             "sit",
-            "sleep_in_bed_like"
         ]
     );
     assert_eq!(support("owner_target"), Support::Deferred("F4M-4c: needs the tameable owner state"));
@@ -962,4 +961,112 @@ fn a_climber_gets_up_the_wall_by_pressing_against_it() {
         "on top of the wall, at {:?}",
         m.position
     );
+}
+
+// ---- sleep_in_bed_like ---------------------------------------------------------------------
+
+const SLEEPER: &str = r#"{"goals":[
+    {"type":"stay_near_home","priority":6,"radius":16},
+    {"type":"sleep_in_bed_like","priority":2}]}"#;
+const SLEEP_VALUE: &str = r#","synced":{"sleep":{"type":"bool"}}"#;
+
+fn sleeping(m: &crate::mobs::Mob) -> bool {
+    let c = m.extra.custom.as_ref().unwrap();
+    let t = m.kind.custom.as_ref().unwrap();
+    c.synced_value(t, "sleep") == Some(&crate::mobs::custom::SyncedValue::Bool(true))
+}
+
+#[test]
+fn a_mob_goes_home_at_night_sleeps_and_stays_put() {
+    let fx = flat();
+    let mut night = fx.world();
+    night.daylight = false;
+    let mut ctx = Ctx::new();
+    let mut m = mob_with("creature", SLEEPER, SLEEP_VALUE, at(0.5, 0.5));
+    // Away from its home (where it was made).
+    m.position = at(7.5, 0.5);
+    run(&mut m, &night, &mut ctx, 150);
+    assert!(m.ai.goals.is_running("Rest"));
+    assert!(sleeping(&m), "it lay down at {:?}", m.position);
+    assert!((m.position.x - 0.5).abs() < 2.0, "at home, not at {:?}", m.position);
+    let rest = m.position;
+    run(&mut m, &night, &mut ctx, 100);
+    assert!(sleeping(&m) && m.position.distance_squared(rest) < 0.01, "it does not move");
+}
+
+#[test]
+fn a_mob_does_not_rest_by_day_and_wakes_when_day_comes() {
+    let fx = flat();
+    let day = fx.world();
+    let mut night = fx.world();
+    night.daylight = false;
+    let mut ctx = Ctx::new();
+    let mut m = mob_with("creature", SLEEPER, SLEEP_VALUE, at(0.5, 0.5));
+    run(&mut m, &day, &mut ctx, 60);
+    assert!(!m.ai.goals.is_running("Rest") && !sleeping(&m));
+    run(&mut m, &night, &mut ctx, 60);
+    assert!(sleeping(&m));
+    run(&mut m, &day, &mut ctx, 5);
+    assert!(!sleeping(&m) && !m.ai.goals.is_running("Rest"), "day wakes it");
+}
+
+#[test]
+fn a_hurt_sleeper_wakes_and_does_not_lie_down_again_at_once() {
+    let fx = flat();
+    let mut night = fx.world();
+    night.daylight = false;
+    let mut ctx = Ctx::new();
+    let mut m = mob_with("creature", SLEEPER, SLEEP_VALUE, at(0.5, 0.5));
+    run(&mut m, &night, &mut ctx, 60);
+    assert!(sleeping(&m));
+    assert!(m.damage(1.0, Damage::mob(9, [4.5, 1.0, 0.5])));
+    run(&mut m, &night, &mut ctx, 5);
+    assert!(!sleeping(&m), "hurt: awake");
+    run(&mut m, &night, &mut ctx, 60);
+    assert!(!sleeping(&m), "not again within 100 ticks of the hit");
+    run(&mut m, &night, &mut ctx, 120);
+    assert!(sleeping(&m), "later it rests again");
+}
+
+#[test]
+fn a_when_expression_replaces_the_night() {
+    let fx = flat();
+    let day = fx.world();
+    let mut ctx = Ctx::new();
+    let ai = r#"{"goals":[{"type":"sleep_in_bed_like","priority":2,"when":"q.health < 10"}]}"#;
+    let mut m = mob_with("creature", ai, SLEEP_VALUE, at(0.5, 0.5));
+    run(&mut m, &day, &mut ctx, 60);
+    assert!(!sleeping(&m), "full health: no rest by day");
+    m.health = 5.0;
+    run(&mut m, &day, &mut ctx, 60);
+    assert!(sleeping(&m), "the condition holds, by day too");
+    m.health = 15.0;
+    run(&mut m, &day, &mut ctx, 5);
+    assert!(!sleeping(&m), "the condition turned false: awake");
+    // A bad expression leaves the goal out instead of failing the mob.
+    let bad = r#"{"goals":[{"type":"sleep_in_bed_like","when":"q.nonsense +"}]}"#;
+    let m = mob_with("creature", bad, SLEEP_VALUE, at(0.5, 0.5));
+    assert!(!m.ai.goals.has("Rest"));
+}
+
+#[test]
+fn the_rest_place_can_be_the_nearest_block_of_a_tag() {
+    let mut fx = flat();
+    for x in -4..=2 {
+        for z in -4..=4 {
+            fx.set_air(x, 0, z);
+        }
+    }
+    fx.set_stone(3, 1, 0);
+    fx.set_tag("demo:beds", &["minecraft:stone"]);
+    let mut night = fx.world();
+    night.daylight = false;
+    let mut ctx = Ctx::new();
+    // A flying mob, so the floor under it does not count as the nearest block.
+    let ai = r#"{"navigator":"fly","goals":[{"type":"sleep_in_bed_like","priority":2,"block_tag":"demo:beds","range":8}]}"#;
+    let mut m = mob_with("creature", ai, SLEEP_VALUE, Vec3::new(0.5, 3.0, 0.5));
+    select_until(&mut m, &night, &mut ctx, 5, |m| m.ai.goals.is_running("Rest")).expect("it wants the bed");
+    assert!(m.ai.nav.path.is_some(), "it walks to the bed");
+    let end = m.ai.nav.path.as_ref().and_then(|p| p.end()).unwrap();
+    assert!((end.x - 3).abs() <= 1 && end.z.abs() <= 1, "to the bed at x = 3, not {end:?}");
 }
