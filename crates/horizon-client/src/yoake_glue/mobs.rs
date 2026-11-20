@@ -226,6 +226,33 @@ pub mod yoake_glue {
         }
     }
 
+    fn enc_crate__mobs__CustomLevel(v: &crate::mobs::CustomLevel, out: &mut Vec<u8>) {
+        enc_crate__mobs__spawn_rules__LightRule(&v.spawn_light, out);
+        Encode::encode(&v.piglins_zombify, out);
+        Encode::encode(&v.snow_golem_melts, out);
+        Encode::encode(&v.fast_lava, out);
+        Encode::encode(&v.has_skylight, out);
+        Encode::encode(&v.day_cycle, out);
+        Encode::encode(&v.ambient, out);
+    }
+    fn dec_crate__mobs__CustomLevel(d: &mut Decoder<'_>) -> Result<crate::mobs::CustomLevel, CallError> {
+        d.enter()?;
+        let r = dec_crate__mobs__CustomLevel_body(d);
+        d.leave();
+        r
+    }
+    fn dec_crate__mobs__CustomLevel_body(d: &mut Decoder<'_>) -> Result<crate::mobs::CustomLevel, CallError> {
+        Ok(crate::mobs::CustomLevel {
+            spawn_light: dec_crate__mobs__spawn_rules__LightRule(d)?,
+            piglins_zombify: <bool as Decode>::decode(d)?,
+            snow_golem_melts: <bool as Decode>::decode(d)?,
+            fast_lava: <bool as Decode>::decode(d)?,
+            has_skylight: <bool as Decode>::decode(d)?,
+            day_cycle: <bool as Decode>::decode(d)?,
+            ambient: <f32 as Decode>::decode(d)?,
+        })
+    }
+
     fn enc_crate__mobs__Damage(v: &crate::mobs::Damage, out: &mut Vec<u8>) {
         enc_crate__mobs__DamageKind(&v.kind, out);
         match &v.attacker {
@@ -2042,6 +2069,27 @@ pub mod yoake_glue {
             registered: <bool as Decode>::decode(d)?,
             hurt_seq: <u64 as Decode>::decode(d)?,
             pre_hurt_health: <f32 as Decode>::decode(d)?,
+        })
+    }
+
+    fn enc_crate__mobs__spawn_rules__LightRule(v: &crate::mobs::spawn_rules::LightRule, out: &mut Vec<u8>) {
+        Encode::encode(&v.block_limit, out);
+        Encode::encode(&v.min, out);
+        Encode::encode(&v.max, out);
+        Encode::encode(&v.constant, out);
+    }
+    fn dec_crate__mobs__spawn_rules__LightRule(d: &mut Decoder<'_>) -> Result<crate::mobs::spawn_rules::LightRule, CallError> {
+        d.enter()?;
+        let r = dec_crate__mobs__spawn_rules__LightRule_body(d);
+        d.leave();
+        r
+    }
+    fn dec_crate__mobs__spawn_rules__LightRule_body(d: &mut Decoder<'_>) -> Result<crate::mobs::spawn_rules::LightRule, CallError> {
+        Ok(crate::mobs::spawn_rules::LightRule {
+            block_limit: <i32 as Decode>::decode(d)?,
+            min: <i32 as Decode>::decode(d)?,
+            max: <i32 as Decode>::decode(d)?,
+            constant: <bool as Decode>::decode(d)?,
         })
     }
 
@@ -8567,6 +8615,97 @@ pub mod yoake_glue {
     /// `mobs::Seen.custom#set`
     // read-only: the id is reserved, the dispatcher refuses the call
 
+    /// `mobs::<CustomLevel as Clone>::clone`
+    fn call_2517(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        d.finish()?;
+        let r = <crate::mobs::CustomLevel as core::clone::Clone>::clone(&*recv);
+        enc_crate__mobs__CustomLevel(&r, out);
+        Ok(())
+    }
+
+    /// `mobs::<CustomLevel as PartialEq>::eq`
+    fn call_2518(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        let mut a0 = dec_crate__mobs__CustomLevel(d)?;
+        d.finish()?;
+        let r = <crate::mobs::CustomLevel as core::cmp::PartialEq>::eq(&*recv, &a0);
+        Encode::encode(&r, out);
+        Ok(())
+    }
+
+    /// `mobs::CustomLevel.ambient#get`
+    fn call_2519(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        Encode::encode(&recv.ambient, out);
+        Ok(())
+    }
+
+    /// `mobs::CustomLevel.ambient#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
+    /// `mobs::CustomLevel.day_cycle#get`
+    fn call_2521(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        Encode::encode(&recv.day_cycle, out);
+        Ok(())
+    }
+
+    /// `mobs::CustomLevel.day_cycle#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
+    /// `mobs::CustomLevel.fast_lava#get`
+    fn call_2523(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        Encode::encode(&recv.fast_lava, out);
+        Ok(())
+    }
+
+    /// `mobs::CustomLevel.fast_lava#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
+    /// `mobs::CustomLevel.has_skylight#get`
+    fn call_2525(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        Encode::encode(&recv.has_skylight, out);
+        Ok(())
+    }
+
+    /// `mobs::CustomLevel.has_skylight#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
+    /// `mobs::CustomLevel.piglins_zombify#get`
+    fn call_2527(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        Encode::encode(&recv.piglins_zombify, out);
+        Ok(())
+    }
+
+    /// `mobs::CustomLevel.piglins_zombify#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
+    /// `mobs::CustomLevel.snow_golem_melts#get`
+    fn call_2529(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        Encode::encode(&recv.snow_golem_melts, out);
+        Ok(())
+    }
+
+    /// `mobs::CustomLevel.snow_golem_melts#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
+    /// `mobs::CustomLevel.spawn_light#get`
+    fn call_2531(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        enc_crate__mobs__spawn_rules__LightRule(&recv.spawn_light, out);
+        Ok(())
+    }
+
+    /// `mobs::CustomLevel.spawn_light#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
     /// Scalar fields of `crate::mobs::Attrs` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__mobs__Attrs: FieldTable<crate::mobs::Attrs> = FieldTable {
         get: |t, f| match f {
@@ -8596,6 +8735,35 @@ pub mod yoake_glue {
             5 => Some(t.knockback_resistance.to_bits() as i64),
             6 => Some(t.spawn_reinforcements.to_bits() as i64),
             7 => Some(t.jump_strength.to_bits() as i64),
+            _ => None,
+        },
+    };
+
+    /// Scalar fields of `crate::mobs::CustomLevel` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
+    pub static FIELDS_crate__mobs__CustomLevel: FieldTable<crate::mobs::CustomLevel> = FieldTable {
+        get: |t, f| match f {
+            1 => Some(i64::from(t.piglins_zombify)),
+            2 => Some(i64::from(t.snow_golem_melts)),
+            3 => Some(i64::from(t.fast_lava)),
+            4 => Some(i64::from(t.has_skylight)),
+            5 => Some(i64::from(t.day_cycle)),
+            6 => Some(i64::from(t.ambient.to_bits())),
+            _ => None,
+        },
+        set: |t, f, v| match f {
+            _ => false,
+        },
+    };
+
+    /// The getters of `FIELDS_crate__mobs__CustomLevel` over a shared `&crate::mobs::CustomLevel` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__mobs__CustomLevel: RefFieldTable<crate::mobs::CustomLevel> = RefFieldTable {
+        get: |t, f| match f {
+            1 => Some(i64::from(t.piglins_zombify)),
+            2 => Some(i64::from(t.snow_golem_melts)),
+            3 => Some(i64::from(t.fast_lava)),
+            4 => Some(i64::from(t.has_skylight)),
+            5 => Some(i64::from(t.day_cycle)),
+            6 => Some(i64::from(t.ambient.to_bits())),
             _ => None,
         },
     };
@@ -10125,6 +10293,22 @@ pub mod yoake_glue {
         (1293, "mobs::exact_attributes"),
         (2515, "mobs::Seen.custom#get"),
         (2516, "mobs::Seen.custom#set"),
+        (2517, "mobs::<CustomLevel as Clone>::clone"),
+        (2518, "mobs::<CustomLevel as PartialEq>::eq"),
+        (2519, "mobs::CustomLevel.ambient#get"),
+        (2520, "mobs::CustomLevel.ambient#set"),
+        (2521, "mobs::CustomLevel.day_cycle#get"),
+        (2522, "mobs::CustomLevel.day_cycle#set"),
+        (2523, "mobs::CustomLevel.fast_lava#get"),
+        (2524, "mobs::CustomLevel.fast_lava#set"),
+        (2525, "mobs::CustomLevel.has_skylight#get"),
+        (2526, "mobs::CustomLevel.has_skylight#set"),
+        (2527, "mobs::CustomLevel.piglins_zombify#get"),
+        (2528, "mobs::CustomLevel.piglins_zombify#set"),
+        (2529, "mobs::CustomLevel.snow_golem_melts#get"),
+        (2530, "mobs::CustomLevel.snow_golem_melts#set"),
+        (2531, "mobs::CustomLevel.spawn_light#get"),
+        (2532, "mobs::CustomLevel.spawn_light#set"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -10964,6 +11148,22 @@ pub mod yoake_glue {
             1293 => call_1293(args, out),
             2515 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_2515(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2516 => Err(CallError::ReadOnly(id)),
+            2517 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2517(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2518 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2518(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2519 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2519(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2520 => Err(CallError::ReadOnly(id)),
+            2521 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2521(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2522 => Err(CallError::ReadOnly(id)),
+            2523 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2523(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2524 => Err(CallError::ReadOnly(id)),
+            2525 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2525(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2526 => Err(CallError::ReadOnly(id)),
+            2527 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2527(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2528 => Err(CallError::ReadOnly(id)),
+            2529 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2529(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2530 => Err(CallError::ReadOnly(id)),
+            2531 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2531(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2532 => Err(CallError::ReadOnly(id)),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {
