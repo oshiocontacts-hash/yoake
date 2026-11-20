@@ -135,12 +135,14 @@ pub fn execute(config: &BridgeConfig) -> Result<bool, String> {
     for out in &outputs {
         std::fs::write(&out.path, &out.content)
             .map_err(|e| format!("failed to write {}: {e}", out.path.display()))?;
-        println!(
-            "bridge: {} (bridged={}, unbridged={})",
-            out.path.display(),
-            out.bridged,
-            out.unbridged
-        );
+        if !run::is_quiet() {
+            println!(
+                "bridge: {} (bridged={}, unbridged={})",
+                out.path.display(),
+                out.bridged,
+                out.unbridged
+            );
+        }
     }
     Ok(true)
 }
@@ -772,6 +774,8 @@ enum NaryKind {
     Held,
     /// A shared reference without a table (or to an unsized type): the reference is copied, the guest holds a handle.
     HeldRef,
+    /// `&Game`: registered as a shared path root, so the guest can open read-only path handles to what `Game` reaches.
+    RootShared,
 }
 
 #[derive(Clone)]
@@ -1107,12 +1111,12 @@ fn classify_hook(
     // all of them); one-argument hooks keep the arg0 forms, which already show everything there is.
     if NARY.load(std::sync::atomic::Ordering::Relaxed)
         && hook.sig.inputs.len() != 1
-        && let Ok(bridged) = classify_nary(target_mod, hook, crate_index, field_tables)
+        && let Ok(bridged) = classify_nary(crate_ident, target_mod, hook, crate_index, field_tables)
     {
         return Ok(bridged);
     }
     match classify_hook_old(crate_ident, target_mod, hook, crate_index, field_tables) {
-        Err(reason) if NARY.load(std::sync::atomic::Ordering::Relaxed) && nary_fallback(&reason) => classify_nary(target_mod, hook, crate_index, field_tables),
+        Err(reason) if NARY.load(std::sync::atomic::Ordering::Relaxed) && nary_fallback(&reason) => classify_nary(crate_ident, target_mod, hook, crate_index, field_tables),
         other => other,
     }
 }
@@ -1133,6 +1137,7 @@ fn scalar_name(ty: &Type) -> Option<String> {
 /// W9: the n-ary form for hooks the arg0 forms cannot take: any argument kinds, any number (up to the runtime's
 /// `MAX_ARGS`), zero arguments too.
 fn classify_nary(
+    crate_ident: &str,
     target_mod: &[String],
     hook: &CollectedHook,
     crate_index: &CrateIndex,
@@ -1173,7 +1178,9 @@ fn classify_nary(
                 let elem = r.elem.as_ref();
                 let canon = crate_index.resolve_bridge_type_canon(&hook.mod_path, elem);
                 let named = !eligible::type_has_non_static_lifetime(elem) && !matches!(canon.as_deref(), Some("str"));
-                if r.mutability.is_some() {
+                if r.mutability.is_none() && canon.as_deref() == Some(format!("{crate_ident}::game::Game").as_str()) {
+                    NaryKind::RootShared
+                } else if r.mutability.is_some() {
                     match (named, canon.as_deref().and_then(|c| lookup_field_table(c, &field_tables.mut_tables))) {
                         (true, Some(path)) => NaryKind::Mut(path),
                         _ => NaryKind::Held,
@@ -1700,6 +1707,13 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
                         "match view.opaque_mut::<::core::option::Option<{ty}>>({i}).and_then(|o| o.take()) {{ ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }}"
                     ));
                     fallback_args.push(format!("p{i}_h.take().expect(\"only an original call moves it, and none ran\")"));
+                }
+                NaryKind::RootShared => {
+                    nary_set.push_str(&format!(".root_shared(p{i})"));
+                    // the guest cannot replace a root: `original` gets the real reference (naming `Game<'_>` again
+                    // through the view would not tie its lifetime to the parameter's)
+                    call_args.push(format!("p{i}"));
+                    fallback_args.push(format!("p{i}"));
                 }
                 NaryKind::HeldRef => {
                     nary_holders.push_str(&format!("        let p{i}_h = p{i};

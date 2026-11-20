@@ -2179,6 +2179,7 @@ dependencies = [
  "yoake-hook-rt",
  "yoake-inject-macro",
  "yoake-inject-rt",
+ "yoake-slice",
  "yoake-state",
  "yoake-value",
 ]
