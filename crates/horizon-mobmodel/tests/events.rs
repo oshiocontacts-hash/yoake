@@ -29,10 +29,10 @@ fn fox() -> Fox {
     let model = load_geo_json("cinder_fox.geo.json", GEO).unwrap();
     let mut syms = Symbols::new(&["state"]);
     let mut lib = AnimationLibrary::new();
-    for a in parse_animation_file(ANIM, &mut syms).unwrap().animations {
+    for a in parse_animation_file("cinder_fox.animation.json", ANIM, &mut syms).unwrap().animations {
         lib.add(a).unwrap();
     }
-    let ctrl = parse_controllers(CTRL, &mut syms).unwrap();
+    let ctrl = parse_controllers("cinder_fox.json", CTRL, &mut syms).unwrap();
     let (rig, _) = Rig::new(model.skeleton.clone(), lib, ctrl.controllers).unwrap();
     Fox { model, rig, ty: serde_json::from_str(TYPE_JSON).unwrap() }
 }
@@ -194,10 +194,10 @@ const LOCO: &str = r#"{"controllers":{
 fn rig() -> Rig {
     let mut syms = Symbols::new(&[]);
     let mut lib = AnimationLibrary::new();
-    for a in parse_animation_file(ANIMS, &mut syms).unwrap().animations {
+    for a in parse_animation_file("anims.json", ANIMS, &mut syms).unwrap().animations {
         lib.add(a).unwrap();
     }
-    let c = parse_controllers(LOCO, &mut syms).unwrap().controllers;
+    let c = parse_controllers("ctrl.json", LOCO, &mut syms).unwrap().controllers;
     Rig::new(skeleton(), lib, c).unwrap().0
 }
 
@@ -312,7 +312,7 @@ fn full_buffer_drops_and_counts() {
 fn build_err(anims: &str, model: &str) -> String {
     let mut syms = Symbols::new(&[]);
     let mut lib = AnimationLibrary::new();
-    for a in parse_animation_file(anims, &mut syms).unwrap().animations {
+    for a in parse_animation_file("x.animation.json", anims, &mut syms).unwrap().animations {
         lib.add(a).unwrap();
     }
     let m: Value = serde_json::from_str(model).unwrap();
@@ -334,7 +334,7 @@ fn load_errors_name_file_and_path() {
     assert!(MobEvents::from_model_json("t", "a", &serde_json::json!({}), &{
         let mut s = Symbols::new(&[]);
         let mut l = AnimationLibrary::new();
-        for a in parse_animation_file(direct, &mut s).unwrap().animations {
+        for a in parse_animation_file("a", direct, &mut s).unwrap().animations {
             l.add(a).unwrap();
         }
         l
@@ -362,11 +362,11 @@ fn load_errors_name_file_and_path() {
 fn bad_sound_parameters_are_load_errors() {
     for (frag, what) in [(r#""volume":9"#, "volume"), (r#""pitch":0.1"#, "pitch")] {
         let src = format!(r#"{{"animations":{{"a":{{"animation_length":1,"sound_effects":{{"0":{{"effect":"s",{frag}}}}}}}}}}}"#);
-        let e = parse_animation_file(&src, &mut Symbols::new(&[])).unwrap_err().to_string();
+        let e = parse_animation_file("a.json", &src, &mut Symbols::new(&[])).unwrap_err().to_string();
         assert!(e.contains(what), "{e}");
     }
     let src = r#"{"animations":{"a":{"animation_length":1,"particle_effects":{"0":{"effect":"s","offset":[1,2]}}}}}"#;
-    assert!(parse_animation_file(src, &mut Symbols::new(&[])).unwrap_err().to_string().contains("offset"));
+    assert!(parse_animation_file("a.json", src, &mut Symbols::new(&[])).unwrap_err().to_string().contains("offset"));
 }
 
 // ----- the client cursor ----------------------------------------------------------------------------------------

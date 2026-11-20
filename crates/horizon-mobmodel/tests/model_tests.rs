@@ -667,13 +667,112 @@ fn deeply_nested_outliner_is_an_error_not_a_stack_overflow() {
     for i in 0..100 {
         node = json!({"name": format!("g{i}"), "children": [node]});
     }
-    // 100 groups are 200 JSON levels: serde_json's own recursion limit (128) answers before ours (64 groups).
+    // 100 groups exceed the JSON nesting pre-scan (120) before serde_json's recursion limit (128).
     let e = load_bbmodel("deep.bbmodel", &bb(16, json!([node]), json!([]))).unwrap_err();
-    assert!(e.to_string().contains("recursion limit") || e.to_string().contains("nested deeper than"), "{e}");
-    // Beyond serde_json's own recursion limit it is a plain JSON error.
+    assert!(e.to_string().contains("nested deeper than"), "{e}");
+    // 49 groups stay under the JSON pre-scan and hit bbmodel's 48-group limit with an element path.
+    let mut node49 = json!({"name": "leaf"});
+    for i in 0..49 {
+        node49 = json!({"name": format!("g{i}"), "children": [node49]});
+    }
+    let e49 = load_bbmodel("deep.bbmodel", &bb(16, json!([node49]), json!([]))).unwrap_err();
+    assert!(e49.path.starts_with("outliner[0].children[0]") && e49.message.contains("nested deeper than 48"), "{e49}");
     let deep = format!("{}{}", "[".repeat(5000), "]".repeat(5000));
     assert!(load_bbmodel("deep.bbmodel", deep.as_bytes()).is_err());
     assert!(load_geo_json("deep.geo.json", deep.as_bytes()).is_err());
+}
+
+fn png_chunk(tag: &[u8; 4], data: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(12 + data.len());
+    out.extend_from_slice(&(data.len() as u32).to_be_bytes());
+    out.extend_from_slice(tag);
+    out.extend_from_slice(data);
+    let mut crc: u32 = 0xFFFF_FFFF;
+    for &b in tag.iter().chain(data) {
+        crc ^= b as u32;
+        for _ in 0..8 {
+            crc = if crc & 1 != 0 { (crc >> 1) ^ 0xEDB8_8320 } else { crc >> 1 };
+        }
+    }
+    out.extend_from_slice(&(!crc).to_be_bytes());
+    out
+}
+
+fn stored_zlib(data: &[u8]) -> Vec<u8> {
+    let mut out = vec![0x78, 0x01];
+    let mut chunks = data.chunks(65535).peekable();
+    if chunks.peek().is_none() {
+        out.extend_from_slice(&[1, 0, 0, 0xFF, 0xFF]);
+    }
+    while let Some(c) = chunks.next() {
+        let last = u8::from(chunks.peek().is_none());
+        let len = c.len() as u16;
+        out.push(last);
+        out.extend_from_slice(&len.to_le_bytes());
+        out.extend_from_slice(&(!len).to_le_bytes());
+        out.extend_from_slice(c);
+    }
+    let (mut s1, mut s2) = (1u32, 0u32);
+    for &b in data {
+        s1 = (s1 + b as u32) % 65521;
+        s2 = (s2 + s1) % 65521;
+    }
+    out.extend_from_slice(&((s2 << 16) | s1).to_be_bytes());
+    out
+}
+
+fn encode_uncompressed_png(w: u32, h: u32, color_type: u8, bpp: usize, pixels: &[u8]) -> String {
+    use base64::Engine;
+    let row_bytes = w as usize * bpp;
+    let mut raw = Vec::with_capacity(h as usize * (1 + row_bytes));
+    for y in 0..h as usize {
+        raw.push(0); // filter None
+        raw.extend_from_slice(&pixels[y * row_bytes..(y + 1) * row_bytes]);
+    }
+    let mut ihdr = Vec::with_capacity(13);
+    ihdr.extend_from_slice(&w.to_be_bytes());
+    ihdr.extend_from_slice(&h.to_be_bytes());
+    ihdr.extend_from_slice(&[8, color_type, 0, 0, 0]);
+    let mut png = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+    png.extend_from_slice(&png_chunk(b"IHDR", &ihdr));
+    png.extend_from_slice(&png_chunk(b"IDAT", &stored_zlib(&raw)));
+    png.extend_from_slice(&png_chunk(b"IEND", &[]));
+    format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(&png))
+}
+
+#[test]
+fn bbmodel_png_color_types_expand_in_place_and_model_budget_caps_at_64_mib() {
+    // 2x1 Grayscale, GrayscaleAlpha, Rgb, Rgba all decode to exact RGBA8.
+    let gs = encode_uncompressed_png(2, 1, 0, 1, &[10, 200]);
+    let ga = encode_uncompressed_png(2, 1, 4, 2, &[10, 128, 200, 64]);
+    let rgb = encode_uncompressed_png(2, 1, 2, 3, &[1, 2, 3, 4, 5, 6]);
+    let rgba = encode_uncompressed_png(2, 1, 6, 4, &[1, 2, 3, 4, 5, 6, 7, 8]);
+    let doc = bytes(&json!({
+        "resolution": {"width": 16, "height": 16}, "elements": [], "outliner": [],
+        "textures": [
+            {"name": "gs", "source": gs},
+            {"name": "ga", "source": ga},
+            {"name": "rgb", "source": rgb},
+            {"name": "rgba", "source": rgba},
+        ]
+    }));
+    let m = load_bbmodel("t.bbmodel", &doc).unwrap();
+    assert_eq!(m.textures[0].rgba, vec![10, 10, 10, 255, 200, 200, 200, 255]);
+    assert_eq!(m.textures[1].rgba, vec![10, 10, 10, 128, 200, 200, 200, 64]);
+    assert_eq!(m.textures[2].rgba, vec![1, 2, 3, 255, 4, 5, 6, 255]);
+    assert_eq!(m.textures[3].rgba, vec![1, 2, 3, 4, 5, 6, 7, 8]);
+
+    // Four 2048x2048 textures = 64 MiB decoded (accepted); a fifth pushes total to 80 MiB (rejected at textures[4].source).
+    let tile_src = encode_uncompressed_png(2048, 2048, 0, 1, &vec![7u8; 2048 * 2048]);
+    let tex4: Vec<Value> = (0..4).map(|i| json!({"name": format!("t{i}"), "source": tile_src})).collect();
+    let ok_doc = bytes(&json!({"resolution": {"width": 16, "height": 16}, "elements": [], "outliner": [], "textures": tex4}));
+    assert_eq!(load_bbmodel("ok.bbmodel", &ok_doc).unwrap().textures.len(), 4);
+
+    let mut tex5 = tex4;
+    tex5.push(json!({"name": "t4", "source": tile_src}));
+    let bad_doc = bytes(&json!({"resolution": {"width": 16, "height": 16}, "elements": [], "outliner": [], "textures": tex5}));
+    let e = load_bbmodel("bad.bbmodel", &bad_doc).unwrap_err();
+    assert_eq!((e.file.as_str(), e.path.as_str()), ("bad.bbmodel", "textures[4].source"), "{e}");
 }
 
 #[test]

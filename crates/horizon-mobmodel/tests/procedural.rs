@@ -901,12 +901,12 @@ const TYPE_JSON: &str = include_str!("fixtures/procedural/cinder_fox_type.json")
 
 fn fox_rig(model: &horizon_mobmodel::Model) -> Rig {
     let mut syms = Symbols::new(&["state"]);
-    let parsed = parse_animation_file(ANIM, &mut syms).expect("animations");
+    let parsed = parse_animation_file("cinder_fox.animation.json", ANIM, &mut syms).expect("animations");
     let mut lib = AnimationLibrary::new();
     for a in parsed.animations {
         lib.add(a).unwrap();
     }
-    let ctrl = parse_controllers(CTRL, &mut syms).expect("controller");
+    let ctrl = parse_controllers("cinder_fox.json", CTRL, &mut syms).expect("controller");
     Rig::new(model.skeleton.clone(), lib, ctrl.controllers).expect("rig").0
 }
 

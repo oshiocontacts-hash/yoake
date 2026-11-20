@@ -100,3 +100,9 @@ is a 1.8 sample.
 3. Blockbench mesh vertices are assumed relative to the mesh origin (as in Blockbench's own mesh data).
 4. Textures referenced by `texture` index on faces are not tracked (one texture per model assumed by the renderer).
 5. `Cargo.toml` still lists `serde` unused.
+
+## Robustness fixes
+
+* **PNG decoding (`src/model.rs`, `src/bbmodel.rs`)**: `MAX_TEXTURE_DIM` lowered from `8192` to `4096`; added `MAX_TEXTURE_BYTES` (16 MiB per texture) and `MAX_MODEL_TEXTURE_BYTES` (64 MiB summed over a model's embedded textures). `decode_png` now parses the PNG signature and `IHDR` dimensions directly from the input slice before constructing `png::Decoder` or allocating, and allocates the output RGBA8 buffer once (non-RGBA colour types expand in place). Errors carry `file` and `textures[i].source`.
+* **JSON nesting pre-scan (`src/model.rs`, `src/bbmodel.rs`, `src/geo.rs`)**: added `check_json_nesting` (zero-allocation scan of `{`/`[` outside strings, respecting `\"`/`\\` escapes) capped at `MAX_JSON_NESTING = 120` before `serde_json` runs. `bbmodel::MAX_DEPTH` lowered from `64` to `48` group levels (and checked on `group()` entry) so outliner depth limits are always reached before `serde_json`'s 128-level recursion limit; pre-scan overflows in `load_bbmodel` report path `outliner`.
+* **Tests**: `tests/robust_bbmodel.rs` (`huge_8192_png_header_stays_within_alloc_cap`, `outliner_past_max_depth_reports_json_path`) turned from `#[ignore]` into passing tests; `tests/model_tests.rs` updated (`deeply_nested_outliner_is_an_error_not_a_stack_overflow` comment/49-group check, plus `bbmodel_png_color_types_expand_in_place_and_model_budget_caps_at_64_mib`).
