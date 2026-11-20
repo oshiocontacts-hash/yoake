@@ -719,6 +719,7 @@ Declare capabilities in `yak.toml`; every guest import checks them before touchi
 | Capability | Authorizes |
 | --- | --- |
 | `service.config` | `config-get`, `config-set`, `config-dir`, and receiving synced config |
+| `service.mobs` | The `mob-*` server services (ids 260-281) and the client `mob-bone-index` / `mob-locator` (282-283) that script fully custom mobs |
 | `service.permissions` | `has-permission` for this package's declared permission nodes |
 | `service.storage` | All `storage-*` imports and legacy `world-storage-*` / raw `config-read/write` |
 
@@ -928,6 +929,31 @@ the seed and the settings. The generating thread waits up to two seconds for the
 The engine's own hooks that carry the `level-dimension` enum still say `overworld` for a level past the three
 vanilla ones (the enum is frozen by the 1.0 baseline); string payloads (loot drops, sounds, particles, the
 level services) carry the real level id.
+
+## Scripting fully custom mobs (F4M-10)
+
+A data-defined custom mob (`yoake:mob`, see mods.md) is scripted by a `server-full` module that declares
+`[wasm] permissions = ["service.mobs"]`. The module implements the exports it needs and subscribes to them
+in `init` like any hook; the SDK wrappers are `yoake_wasm_sdk::full::server::mobs`. Example:
+`crates/yoake-wasm-sdk/examples/fox_ai` (the Cinder Fox `pounce` goal).
+
+* **Script goals.** A goal row `{"type": "script", "id": "pounce", "priority": 2}` plus an
+  `ai.script_goals` entry `{"id": "pounce", "flags": ["move", "look"], "interval": 5}`. The engine goal
+  asks `mob-goal-can-use(mob, "pounce")` at most every `interval` ticks, then `mob-goal-can-continue`,
+  `mob-goal-start`, `mob-goal-tick` and `mob-goal-stop`. Control flags are the engine's. A mob makes at most
+  32 goal calls per tick (a spent budget answers `can-use` no, `can-continue` yes, skips `start` and `tick`);
+  a module that traps, runs out of fuel or time (the limits above) is disabled and its goals stop.
+* **Other exports.** `mob-tick`, `mob-spawn-check` (`placement: custom`), `custom-mob-spawned`, `mob-hurt`,
+  `mob-died`, `mob-interact`, `mob-anim-event` (server timeline events), `mob-load` / `mob-save` (script data),
+  `mob-tamed`, `mob-bred`, `synced-changed-server`; client: `mob-pose` (types with
+  `model.procedural_script`, inside the LOD range that evaluates the pose), `mob-anim-event-client`,
+  `synced-changed-client`.
+* **Services.** `mob-spawn`, `mob-info-call`, `mob-set-synced`, `mob-get-synced`, `mob-trigger-anim`,
+  `mob-set-controller-state`, `mob-navigate-to`, `mob-navigate-stop`, `mob-look-at`, `mob-jump`,
+  `mob-set-target`, `mob-attack`, `mob-attribute-get`, `-set-base`, `-add-modifier`, `-remove-modifier`,
+  `mob-set-hitbox-enabled`, `mob-data-get`, `mob-data-put`, `mob-despawn`, `mob-claim-control`, `mob-impulse`.
+  Reads answer from a snapshot taken when the call began; writes take effect as soon as the guest call
+  returns for the mob whose hook is running, and at the start of another mob's next tick.
 
 ## Client GPU API
 

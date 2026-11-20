@@ -8451,6 +8451,139 @@ fn dimension_id(dimension: LevelDimension) -> &'static str {
     }
 }
 
+#[allow(dead_code)]
+impl Game<'_> {
+    // ---- F4M-10: the exports of a WASM guest that scripts fully custom mobs ----------------
+    // The game reaches the guest through `mobs::custom::script::Runtime`; these functions name
+    // every export and its types for the catalog. A custom type's script goal asks
+    // `native_mob_goal_can_use`; `result` is true when the goal can start.
+
+    /// A custom mob's script goal `goal` asks whether it can start. Server-side.
+    /// API @API:mob_goal_can_use@.
+    pub(super) fn native_mob_goal_can_use(&mut self, mob: u32, goal: &str, result: &mut bool) {
+        mod_api::dispatch_mob_goal_can_use(self, mod_api::mods(), mob, goal, result);
+    }
+    /// A running script goal asks whether it goes on. Server-side.
+    pub(super) fn native_mob_goal_can_continue(&mut self, mob: u32, goal: &str, result: &mut bool) {
+        mod_api::dispatch_mob_goal_can_continue(self, mod_api::mods(), mob, goal, result);
+    }
+    /// A script goal starts. Server-side.
+    pub(super) fn native_mob_goal_start(&mut self, mob: u32, goal: &str) {
+        mod_api::dispatch_mob_goal_start(self, mod_api::mods(), mob, goal);
+    }
+    /// A running script goal ticks. Server-side.
+    pub(super) fn native_mob_goal_tick(&mut self, mob: u32, goal: &str) {
+        mod_api::dispatch_mob_goal_tick(self, mod_api::mods(), mob, goal);
+    }
+    /// A script goal stops. Server-side.
+    pub(super) fn native_mob_goal_stop(&mut self, mob: u32, goal: &str) {
+        mod_api::dispatch_mob_goal_stop(self, mod_api::mods(), mob, goal);
+    }
+    /// A custom mob ticks. Server-side.
+    pub(super) fn native_mob_tick(&mut self, mob: u32) {
+        mod_api::dispatch_mob_tick(self, mod_api::mods(), mob);
+    }
+    /// A type with `placement: custom` asks whether it may spawn at `pos`. Server-side.
+    pub(super) fn native_mob_spawn_check(
+        &mut self,
+        kind: &str,
+        dimension: &str,
+        pos: [i32; 3],
+        allowed: &mut bool,
+    ) {
+        mod_api::dispatch_mob_spawn_check(self, mod_api::mods(), kind, dimension, pos, allowed);
+    }
+    /// A custom mob entered the world; `reason` is `natural`, `egg`, `command`, `script`, `breeding`
+    /// or `load`. Server-side.
+    pub(super) fn native_custom_mob_spawned(&mut self, mob: u32, kind: &str, reason: &str) {
+        mod_api::dispatch_custom_mob_spawned(self, mod_api::mods(), mob, kind, reason);
+    }
+    /// A custom mob is hurt at hitbox part `part` (empty: the main box) by `source` (a damage type
+    /// id) for `amount`; the script may change `amount` or set `cancel`. Server-side.
+    pub(super) fn native_mob_hurt(
+        &mut self,
+        mob: u32,
+        part: &str,
+        source: &str,
+        amount: &mut f32,
+        cancel: &mut bool,
+    ) {
+        mod_api::dispatch_mob_hurt(self, mod_api::mods(), mob, part, source, amount, cancel);
+    }
+    /// A custom mob died; `attacker` is the mob or 0. Server-side.
+    pub(super) fn native_mob_died(&mut self, mob: u32, kind: &str, attacker: u32) {
+        mod_api::dispatch_mob_died(self, mod_api::mods(), mob, kind, attacker);
+    }
+    /// A player (UUID `player`) used `item` (empty: the hand) with `hand` (`main` or `off`) on a
+    /// custom mob. Set `reply` to `consume` or `success` to handle it; empty passes. Server-side.
+    pub(super) fn native_mob_interact(
+        &mut self,
+        mob: u32,
+        player: &str,
+        hand: &str,
+        item: &str,
+        reply: &mut String,
+    ) {
+        mod_api::dispatch_mob_interact(self, mod_api::mods(), mob, player, hand, item, reply);
+    }
+    /// A server timeline event `name` of a custom mob's animation. Server-side.
+    pub(super) fn native_mob_anim_event(&mut self, mob: u32, name: &str) {
+        mod_api::dispatch_mob_anim_event(self, mod_api::mods(), mob, name);
+    }
+    /// A custom mob was loaded; `data` is the script data it was saved with. Server-side.
+    pub(super) fn native_mob_load(&mut self, mob: u32, data: &Vec<u8>) {
+        mod_api::dispatch_mob_load(self, mod_api::mods(), mob, data);
+    }
+    /// A custom mob is about to be saved; the script may replace `data`. Server-side.
+    pub(super) fn native_mob_save(&mut self, mob: u32, data: &mut Vec<u8>) {
+        mod_api::dispatch_mob_save(self, mod_api::mods(), mob, data);
+    }
+    /// A custom mob was tamed by the player with UUID `owner`. Server-side.
+    pub(super) fn native_mob_tamed(&mut self, mob: u32, owner: &str) {
+        mod_api::dispatch_mob_tamed(self, mod_api::mods(), mob, owner);
+    }
+    /// A custom mob bred with `partner` (0: unknown); `child` is the baby (0 until it exists).
+    /// Server-side.
+    pub(super) fn native_mob_bred(&mut self, mob: u32, partner: u32, child: u32) {
+        mod_api::dispatch_mob_bred(self, mod_api::mods(), mob, partner, child);
+    }
+    /// A tracked value `key` of a custom mob changed on the server. Server-side.
+    pub(super) fn native_synced_changed_server(
+        &mut self,
+        mob: u32,
+        key: &str,
+        old: &MobScriptValue,
+        new: &MobScriptValue,
+    ) {
+        mod_api::dispatch_synced_changed_server(self, mod_api::mods(), mob, key, old, new);
+    }
+    /// A custom mob of a type with `model.procedural_script` is about to be posed (inside the LOD
+    /// range): the script appends bone writes to `writes`. Client-side.
+    pub(super) fn native_mob_pose(
+        &mut self,
+        mob: u32,
+        kind: &str,
+        frame: &MobPoseFrame,
+        writes: &mut Vec<MobBoneWrite>,
+    ) {
+        mod_api::dispatch_mob_pose(self, mod_api::mods(), mob, kind, frame, writes);
+    }
+    /// A client timeline event `name` of a custom mob's animation fired. Client-side.
+    pub(super) fn native_mob_anim_event_client(&mut self, mob: u32, name: &str) {
+        mod_api::dispatch_mob_anim_event_client(self, mod_api::mods(), mob, name);
+    }
+    /// A tracked value `key` of a custom mob changed as this client sees it. Client-side.
+    pub(super) fn native_synced_changed_client(
+        &mut self,
+        mob: u32,
+        key: &str,
+        old: &MobScriptValue,
+        new: &MobScriptValue,
+    ) {
+        mod_api::dispatch_synced_changed_client(self, mod_api::mods(), mob, key, old, new);
+    }
+}
+
 /// Server-level helpers for native mods.
 #[allow(dead_code)]
 impl GameLevel<'_> {
@@ -11258,138 +11391,6 @@ fn mod_screen_opens(
         return Some(false);
     }
     None
-}
-
-impl Game<'_> {
-    // ---- F4M-10: the exports of a WASM guest that scripts fully custom mobs ----------------
-    // The game reaches the guest through `mobs::custom::script::Runtime`; these functions name
-    // every export and its types for the catalog. A custom type's script goal asks
-    // `native_mob_goal_can_use`; `result` is true when the goal can start.
-
-    /// A custom mob's script goal `goal` asks whether it can start. Server-side.
-    /// API @API:mob_goal_can_use@.
-    pub(super) fn native_mob_goal_can_use(&mut self, mob: u32, goal: &str, result: &mut bool) {
-        mod_api::dispatch_mob_goal_can_use(self, mod_api::mods(), mob, goal, result);
-    }
-    /// A running script goal asks whether it goes on. Server-side.
-    pub(super) fn native_mob_goal_can_continue(&mut self, mob: u32, goal: &str, result: &mut bool) {
-        mod_api::dispatch_mob_goal_can_continue(self, mod_api::mods(), mob, goal, result);
-    }
-    /// A script goal starts. Server-side.
-    pub(super) fn native_mob_goal_start(&mut self, mob: u32, goal: &str) {
-        mod_api::dispatch_mob_goal_start(self, mod_api::mods(), mob, goal);
-    }
-    /// A running script goal ticks. Server-side.
-    pub(super) fn native_mob_goal_tick(&mut self, mob: u32, goal: &str) {
-        mod_api::dispatch_mob_goal_tick(self, mod_api::mods(), mob, goal);
-    }
-    /// A script goal stops. Server-side.
-    pub(super) fn native_mob_goal_stop(&mut self, mob: u32, goal: &str) {
-        mod_api::dispatch_mob_goal_stop(self, mod_api::mods(), mob, goal);
-    }
-    /// A custom mob ticks. Server-side.
-    pub(super) fn native_mob_tick(&mut self, mob: u32) {
-        mod_api::dispatch_mob_tick(self, mod_api::mods(), mob);
-    }
-    /// A type with `placement: custom` asks whether it may spawn at `pos`. Server-side.
-    pub(super) fn native_mob_spawn_check(
-        &mut self,
-        kind: &str,
-        dimension: &str,
-        pos: [i32; 3],
-        allowed: &mut bool,
-    ) {
-        mod_api::dispatch_mob_spawn_check(self, mod_api::mods(), kind, dimension, pos, allowed);
-    }
-    /// A custom mob entered the world; `reason` is `natural`, `egg`, `command`, `script`, `breeding`
-    /// or `load`. Server-side.
-    pub(super) fn native_custom_mob_spawned(&mut self, mob: u32, kind: &str, reason: &str) {
-        mod_api::dispatch_custom_mob_spawned(self, mod_api::mods(), mob, kind, reason);
-    }
-    /// A custom mob is hurt at hitbox part `part` (empty: the main box) by `source` (a damage type
-    /// id) for `amount`; the script may change `amount` or set `cancel`. Server-side.
-    pub(super) fn native_mob_hurt(
-        &mut self,
-        mob: u32,
-        part: &str,
-        source: &str,
-        amount: &mut f32,
-        cancel: &mut bool,
-    ) {
-        mod_api::dispatch_mob_hurt(self, mod_api::mods(), mob, part, source, amount, cancel);
-    }
-    /// A custom mob died; `attacker` is the mob or 0. Server-side.
-    pub(super) fn native_mob_died(&mut self, mob: u32, kind: &str, attacker: u32) {
-        mod_api::dispatch_mob_died(self, mod_api::mods(), mob, kind, attacker);
-    }
-    /// A player (UUID `player`) used `item` (empty: the hand) with `hand` (`main` or `off`) on a
-    /// custom mob. Set `reply` to `consume` or `success` to handle it; empty passes. Server-side.
-    pub(super) fn native_mob_interact(
-        &mut self,
-        mob: u32,
-        player: &str,
-        hand: &str,
-        item: &str,
-        reply: &mut String,
-    ) {
-        mod_api::dispatch_mob_interact(self, mod_api::mods(), mob, player, hand, item, reply);
-    }
-    /// A server timeline event `name` of a custom mob's animation. Server-side.
-    pub(super) fn native_mob_anim_event(&mut self, mob: u32, name: &str) {
-        mod_api::dispatch_mob_anim_event(self, mod_api::mods(), mob, name);
-    }
-    /// A custom mob was loaded; `data` is the script data it was saved with. Server-side.
-    pub(super) fn native_mob_load(&mut self, mob: u32, data: &Vec<u8>) {
-        mod_api::dispatch_mob_load(self, mod_api::mods(), mob, data);
-    }
-    /// A custom mob is about to be saved; the script may replace `data`. Server-side.
-    pub(super) fn native_mob_save(&mut self, mob: u32, data: &mut Vec<u8>) {
-        mod_api::dispatch_mob_save(self, mod_api::mods(), mob, data);
-    }
-    /// A custom mob was tamed by the player with UUID `owner`. Server-side.
-    pub(super) fn native_mob_tamed(&mut self, mob: u32, owner: &str) {
-        mod_api::dispatch_mob_tamed(self, mod_api::mods(), mob, owner);
-    }
-    /// A custom mob bred with `partner` (0: unknown); `child` is the baby (0 until it exists).
-    /// Server-side.
-    pub(super) fn native_mob_bred(&mut self, mob: u32, partner: u32, child: u32) {
-        mod_api::dispatch_mob_bred(self, mod_api::mods(), mob, partner, child);
-    }
-    /// A tracked value `key` of a custom mob changed on the server. Server-side.
-    pub(super) fn native_synced_changed_server(
-        &mut self,
-        mob: u32,
-        key: &str,
-        old: &MobScriptValue,
-        new: &MobScriptValue,
-    ) {
-        mod_api::dispatch_synced_changed_server(self, mod_api::mods(), mob, key, old, new);
-    }
-    /// A custom mob of a type with `model.procedural_script` is about to be posed (inside the LOD
-    /// range): the script appends bone writes to `writes`. Client-side.
-    pub(super) fn native_mob_pose(
-        &mut self,
-        mob: u32,
-        kind: &str,
-        frame: &MobPoseFrame,
-        writes: &mut Vec<MobBoneWrite>,
-    ) {
-        mod_api::dispatch_mob_pose(self, mod_api::mods(), mob, kind, frame, writes);
-    }
-    /// A client timeline event `name` of a custom mob's animation fired. Client-side.
-    pub(super) fn native_mob_anim_event_client(&mut self, mob: u32, name: &str) {
-        mod_api::dispatch_mob_anim_event_client(self, mod_api::mods(), mob, name);
-    }
-    /// A tracked value `key` of a custom mob changed as this client sees it. Client-side.
-    pub(super) fn native_synced_changed_client(
-        &mut self,
-        mob: u32,
-        key: &str,
-        old: &MobScriptValue,
-        new: &MobScriptValue,
-    ) {
-        mod_api::dispatch_synced_changed_client(self, mod_api::mods(), mob, key, old, new);
-    }
 }
 
 #[cfg(test)]

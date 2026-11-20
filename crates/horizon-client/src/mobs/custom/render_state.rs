@@ -1829,6 +1829,31 @@ mod tests {
         assert!(moved > 3.0, "{moved}");
     }
 
+    #[test]
+    fn mob_pose_writes_of_a_script_move_and_hide_bones_and_only_a_flagged_type_asks() {
+        use crate::mobs::custom::script::{MobBoneWrite, ScriptVec3, bone_writes};
+        let plain = fox();
+        assert!(!plain.render.as_ref().unwrap().script_pose, "the fixture does not ask for scripts");
+        let (ct, _) = fox_with(true, |v| v["model"]["procedural_script"] = serde_json::json!(true), |_| {});
+        let tr = ct.render.as_ref().unwrap();
+        assert!(tr.script_pose);
+        let ear = tr.skeleton.find("ear_l").unwrap().index();
+        let listed = vec![
+            MobBoneWrite { bone: ear as u32, additive: true, translation: Some(ScriptVec3 { x: 0.0, y: 4.0, z: 0.0 }), visible: Some(false), ..Default::default() },
+            MobBoneWrite { bone: 9999, ..Default::default() },
+        ];
+        let mut mr = MobRender::new(tr);
+        mr.writes = bone_writes(&listed, tr.skeleton.len());
+        assert_eq!(mr.writes.len(), 1, "a bone the model lacks is dropped");
+        mr.update(&ct, tr, None, &context(0, 0, LodMode::Full));
+        assert!(!mr.visibility.is_visible(ear));
+        assert!(mr.matrices[ear].w_axis.y - MobRender::new(tr).matrices[ear].w_axis.y > 3.0);
+        // The pose is only asked for when it is evaluated: `due` is false for a held LOD frame.
+        assert!(mr.due(LodMode::Full, 5, 1));
+        assert!(!mr.due(LodMode::Static, 5, 1));
+        assert!(!mr.due(LodMode::Hidden, 5, 1));
+    }
+
     // ----- client events -----------------------------------------------------------------------
 
     #[derive(Default)]
