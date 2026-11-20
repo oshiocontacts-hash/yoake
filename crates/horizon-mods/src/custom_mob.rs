@@ -556,6 +556,9 @@ pub struct Model {
     /// height plus 0.5, as for any mob.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name_tag_height: Option<f64>,
+    /// Ask the WASM `mob-pose` export for bone writes each frame (only inside the LOD range that evaluates the pose).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub procedural_script: bool,
     #[serde(default)]
     pub layers: Vec<Layer>,
     #[serde(default)]
@@ -589,6 +592,7 @@ impl Default for Model {
             shadow: None,
             cull: None,
             name_tag_height: None,
+            procedural_script: false,
             layers: Vec::new(),
             lod: Vec::new(),
             lod_min_bones: Vec::new(),

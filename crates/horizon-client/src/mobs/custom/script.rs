@@ -527,6 +527,95 @@ fn charge(m: &mut Mob, now: i64) -> bool {
     state(m).is_some_and(|s| s.charge(now))
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// The client side: `mob-pose`, `mob-anim-event-client`, `synced-changed-client`
+// ---------------------------------------------------------------------------------------------
+
+/// The guest side of the client exports (the game installs it with [`set_client_runtime`]).
+pub trait ClientRuntime: Send + Sync {
+    fn live(&self) -> bool;
+    /// The bone writes the guests give a mob of a `procedural_script` type for this frame.
+    fn mob_pose(&self, mob: u32, kind: &str, frame: &MobPoseFrame) -> Vec<MobBoneWrite>;
+    fn mob_anim_event(&self, mob: u32, name: &str);
+    fn synced_changed(&self, mob: u32, key: &str, old: &MobScriptValue, new: &MobScriptValue);
+}
+
+static CLIENT: RwLock<Option<Arc<dyn ClientRuntime>>> = RwLock::new(None);
+
+/// Installs (or removes) the client runtime; returns the one it replaced.
+pub fn set_client_runtime(r: Option<Arc<dyn ClientRuntime>>) -> Option<Arc<dyn ClientRuntime>> {
+    match CLIENT.write() {
+        Ok(mut slot) => std::mem::replace(&mut *slot, r),
+        Err(_) => None,
+    }
+}
+
+/// The installed client runtime, if a client module is live.
+pub fn client_runtime() -> Option<Arc<dyn ClientRuntime>> {
+    let r = CLIENT.read().ok()?.clone()?;
+    r.live().then_some(r)
+}
+
+/// Converts a script's bone writes to the engine's, dropping the invalid ones and keeping at most
+/// [`MAX_POSE_WRITES`]: a write is `bone` plus channels (see `BoneWrite`); non-finite numbers drop the
+/// whole write.
+pub fn bone_writes(list: &[MobBoneWrite], bones: usize) -> Vec<horizon_mobmodel::procedural::BoneWrite> {
+    use horizon_mobmodel::procedural::{BoneWrite, WriteMode, WriteRotation};
+    let v3 = |p: &ScriptVec3| glam::Vec3::new(p.x, p.y, p.z);
+    let ok = |p: &ScriptVec3| [p.x, p.y, p.z].iter().all(|n| n.is_finite());
+    let mut out = Vec::new();
+    for w in list.iter().take(MAX_POSE_WRITES) {
+        if (w.bone as usize) >= bones
+            || ![w.translation.as_ref(), w.rotation_degrees.as_ref(), w.scale.as_ref()].into_iter().flatten().all(ok)
+        {
+            continue;
+        }
+        let mut b = BoneWrite::new(w.bone, if w.additive { WriteMode::Additive } else { WriteMode::Absolute });
+        b.translation = w.translation.as_ref().map(v3);
+        b.rotation = w.rotation_degrees.as_ref().map(|r| WriteRotation::EulerDegrees(v3(r)));
+        b.scale = w.scale.as_ref().map(v3);
+        b.visible = w.visible;
+        out.push(b);
+    }
+    out
+}
+
+/// A locator's place in the world as the client last drew the mob.
+#[derive(Clone, Debug, PartialEq)]
+pub struct LocatorPlace {
+    pub name: String,
+    pub position: [f64; 3],
+    pub yaw: f32,
+    pub pitch: f32,
+}
+
+static LOCATORS: Mutex<Option<HashMap<u32, Vec<LocatorPlace>>>> = Mutex::new(None);
+
+/// Stores the locators of mob `id` as drawn this frame (only for `procedural_script` types).
+pub fn set_locators(id: u32, places: Vec<LocatorPlace>) {
+    let mut g = LOCATORS.lock().unwrap_or_else(|e| e.into_inner());
+    g.get_or_insert_with(HashMap::new).insert(id, places);
+}
+
+/// Where locator `name` of mob `id` was drawn last.
+pub fn locator(id: u32, name: &str) -> Option<LocatorPlace> {
+    let g = LOCATORS.lock().unwrap_or_else(|e| e.into_inner());
+    g.as_ref()?.get(&id)?.iter().find(|p| p.name == name).cloned()
+}
+
+/// Forgets the drawn locators (a new world; tests).
+pub fn clear_locators() {
+    *LOCATORS.lock().unwrap_or_else(|e| e.into_inner()) = None;
+}
+
+/// The bone index a script writes for bone `name` of type `type_id` (`bone-index`).
+pub fn bone_index(type_id: &str, name: &str) -> Option<u32> {
+    let t = super::get(type_id)?;
+    let tr = t.render.as_ref()?;
+    tr.skeleton.find(name).map(|i| u32::from(i.0))
+}
+
 /// The state a script keeps on a mob (`CustomState.script`).
 #[derive(Clone, Debug, Default)]
 pub struct ScriptState {

@@ -175,3 +175,86 @@ impl crate::mobs::custom::ai::interact::Hook for WasmRuntime {
         }
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// The client modules
+// ---------------------------------------------------------------------------------------------
+
+type ClientSlot = Arc<Mutex<super::full::SideState<yoake_wasm::ClientFullMod>>>;
+
+static CLIENTS: Mutex<Vec<std::sync::Weak<Mutex<super::full::SideState<yoake_wasm::ClientFullMod>>>>> = Mutex::new(Vec::new());
+
+/// Makes a package's client module reachable by the script hooks of custom mobs.
+pub(super) fn register_client(slot: &ClientSlot) {
+    let mut g = CLIENTS.lock().unwrap_or_else(|e| e.into_inner());
+    g.retain(|w| w.strong_count() > 0);
+    g.push(Arc::downgrade(slot));
+    drop(g);
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        crate::mobs::custom::script::set_client_runtime(Some(Arc::new(WasmRuntime)));
+    });
+}
+
+fn client_each<R>(mut f: impl FnMut(&mut yoake_wasm::ClientFullMod) -> Option<R>) -> Vec<R> {
+    let slots: Vec<ClientSlot> = CLIENTS.lock().unwrap_or_else(|e| e.into_inner()).iter().filter_map(|w| w.upgrade()).collect();
+    let mut out = Vec::new();
+    for slot in slots {
+        let Ok(mut state) = slot.try_lock() else { continue };
+        let Some(module) = state.module.as_mut() else { continue };
+        if module.is_disabled() {
+            continue;
+        }
+        let mut invocation = Invocation { host: HostAccess::None, batch: None, batch_start: 0, client: ClientExtras::default() };
+        let r = {
+            let _scope = Scope::enter(&mut invocation);
+            f(module)
+        };
+        if let Some(r) = r {
+            out.push(r);
+        }
+    }
+    out
+}
+
+impl crate::mobs::custom::script::ClientRuntime for WasmRuntime {
+    fn live(&self) -> bool {
+        CLIENTS.lock().unwrap_or_else(|e| e.into_inner()).iter().filter_map(|w| w.upgrade()).any(|slot| {
+            slot.try_lock().map(|s| s.module.as_ref().is_some_and(|m| !m.is_disabled())).unwrap_or(true)
+        })
+    }
+    fn mob_pose(&self, mob: u32, kind: &str, frame: &crate::mobs::custom::script::MobPoseFrame) -> Vec<crate::mobs::custom::script::MobBoneWrite> {
+        let f = et::MobPoseFrame {
+            time: frame.time,
+            partial: frame.partial,
+            ground_speed: frame.ground_speed,
+            head_yaw: frame.head_yaw,
+            head_pitch: frame.head_pitch,
+            on_ground: frame.on_ground,
+            target: frame.target.as_ref().map(et_vec),
+        };
+        let mut out = Vec::new();
+        for r in client_each(|m| m.dispatch("mob_pose", |e, s| e.yoake_mods_client_hooks().call_mob_pose(s, mob, kind, f, &[]))) {
+            for w in r.writes.unwrap_or_default() {
+                let v = |p: et::ScriptVec3| ScriptVec3 { x: p.x, y: p.y, z: p.z };
+                out.push(crate::mobs::custom::script::MobBoneWrite {
+                    bone: w.bone,
+                    additive: w.additive,
+                    translation: w.translation.map(v),
+                    rotation_degrees: w.rotation_degrees.map(v),
+                    scale: w.scale.map(v),
+                    visible: w.visible,
+                });
+            }
+        }
+        out.truncate(crate::mobs::custom::script::MAX_POSE_WRITES);
+        out
+    }
+    fn mob_anim_event(&self, mob: u32, name: &str) {
+        client_each(|m| m.dispatch("mob_anim_event_client", |e, s| e.yoake_mods_client_hooks().call_mob_anim_event_client(s, mob, name)));
+    }
+    fn synced_changed(&self, mob: u32, key: &str, old: &MobScriptValue, new: &MobScriptValue) {
+        let (o, n) = (et_value(old), et_value(new));
+        client_each(|m| m.dispatch("synced_changed_client", |e, s| e.yoake_mods_client_hooks().call_synced_changed_client(s, mob, key, &o, &n)));
+    }
+}

@@ -132,12 +132,14 @@ impl FullMod {
             dirty: std::sync::atomic::AtomicBool::new(false),
         });
         register_endpoint(&id, &server);
+        let client_slot = Arc::new(Mutex::new(SideState {
+            module: client,
+            reported: false,
+        }));
+        super::mob_runtime::register_client(&client_slot);
         Self {
             id,
-            client: Arc::new(Mutex::new(SideState {
-                module: client,
-                reported: false,
-            })),
+            client: client_slot,
             gpu_owner: None,
             gpu_version: String::new(),
             server,

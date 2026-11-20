@@ -174,6 +174,8 @@ pub struct TypeRender {
     pub shadow: Option<(f32, f32)>,
     pub scale: f32,
     pub procedural: Option<ProceduralSet>,
+    /// `model.procedural_script`: the type's `mob-pose` script writes bones (F4M-10).
+    pub script_pose: bool,
     /// Bones whose name ends in [`LOD_MIN_SUFFIX`].
     pub lod_min: Vec<bool>,
     /// The bones `low_bones` evaluates: everything but `lod_min` bones (with all ancestors).
@@ -310,6 +312,7 @@ impl TypeRender {
             shadow: m.shadow.as_ref().map(|s| (s.radius as f32, s.strength as f32)),
             scale: m.scale as f32,
             procedural,
+            script_pose: m.procedural_script,
             lod_min,
             low_needed,
             rest_matrices,
@@ -602,7 +605,7 @@ impl MobRender {
     }
 
     /// Whether the pose is evaluated this frame at `lod`.
-    fn due(&self, lod: LodMode, frame: u64, id: u32) -> bool {
+    pub fn due(&self, lod: LodMode, frame: u64, id: u32) -> bool {
         let stagger = |period: u64| (frame + u64::from(id)) % period == 0;
         match lod {
             LodMode::Full | LodMode::LowBones => true,
@@ -743,6 +746,11 @@ struct Memo {
 }
 
 impl LocalMirror {
+    /// The `synced-changed` notifications of the mirrored mobs since the last call.
+    pub fn take_changes(&mut self) -> Vec<super::remote::SyncedChanged> {
+        self.store.take_changes()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.store.is_empty() && self.memo.is_empty()
     }

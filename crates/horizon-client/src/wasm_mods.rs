@@ -463,6 +463,9 @@ pub(super) fn extend(
                 }
             }
         } else if source.full {
+            if source.permissions.iter().any(|p| p == "service.mobs") {
+                mob_services::grant(&source.id);
+            }
             let reload = source.watch.as_ref().map(|path| {
                 Arc::new(Reload {
                     shaders: source

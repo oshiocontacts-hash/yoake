@@ -19,6 +19,7 @@ use horizon_client::{
         },
     },
 };
+use horizon_client::mobs::custom::script;
 use std::sync::Arc;
 
 /// How far from the player (blocks) a custom mob's animation events are heard and seen.
@@ -67,7 +68,52 @@ impl Game<'_> {
             ctx.target = self.beam_target(mob.ai.target, alpha).map(|t| rs::model_point_of((t - feet).as_vec3(), scale, yaw, roll));
             ctx.model_to_world = rs::model_to_world_px([feet.x, feet.y, feet.z], scale, yaw, roll);
         }
+        // `look_at: owner` (F4M-10): the owner when it is this client's own player (other owners
+        // are not tracked on the client yet).
+        if tr.procedural.is_some()
+            && lod != rs::LodMode::Static
+            && let (Some(owner), Some(me), Some(p)) = (mob.extra.owner, self.level.player_uuid, self.player.as_ref())
+            && owner == me
+        {
+            let eye = DVec3::new(p.position.x, p.position.y + 1.62, p.position.z);
+            ctx.owner = Some(rs::model_point_of((eye - feet).as_vec3(), scale, yaw, roll));
+        }
+        // `mob-pose` (F4M-10): the script's bone writes, only for a `procedural_script` type and
+        // only when this frame evaluates the pose (so inside the LOD range that does).
+        if tr.script_pose
+            && lod != rs::LodMode::Static
+            && lod != rs::LodMode::Hidden
+            && state.due(lod, frame, mob.id)
+            && let Some(rt) = script::client_runtime()
+        {
+            let speed = (mob.velocity.x * mob.velocity.x + mob.velocity.z * mob.velocity.z).sqrt() as f32;
+            let pf = script::MobPoseFrame {
+                time: (self.world.game_time as f32 + partial) / 20.0,
+                partial,
+                ground_speed: speed,
+                head_yaw: horizon_client::mobs::living::wrap(mob.head_yaw - mob.body_yaw),
+                head_pitch: mob.head_pitch,
+                on_ground: mob.on_ground,
+                target: ctx.target.map(|t| script::ScriptVec3 { x: t.x, y: t.y, z: t.z }),
+            };
+            state.writes = script::bone_writes(&rt.mob_pose(mob.id, &ct.id, &pf), tr.skeleton.len());
+        }
         state.update(ct, tr, anim, &ctx);
+        if tr.script_pose {
+            let at = [feet.x, feet.y, feet.z];
+            let places = (0..tr.locators.len())
+                .filter_map(|i| {
+                    let p = tr.locator_point(i, &state.matrices)?;
+                    Some(script::LocatorPlace {
+                        name: tr.locators[i].name.clone(),
+                        position: rs::model_point_to_world(at, scale, yaw, roll, p),
+                        yaw,
+                        pitch: 0.0,
+                    })
+                })
+                .collect();
+            script::set_locators(mob.id, places);
+        }
         let world_from_model = rs::world_from_model(rel, scale, yaw, roll);
         let red = mob.hurt_time > 0 || mob.death_time > 0;
         let draw = DrawCtx {
@@ -186,6 +232,21 @@ impl Game<'_> {
             );
         }
         render.put_events(buf);
+        // `synced-changed-client` (F4M-10); the queue is emptied even with no script.
+        let changes = match self.remote.as_mut() {
+            Some(r) => r.custom_mobs.take_changes(),
+            None => render.mirror.take_changes(),
+        };
+        if let Some(rt) = script::client_runtime() {
+            for c in changes {
+                if let Some(ct) = self.mobs.iter().find(|m| m.id as i32 == c.entity).and_then(|m| m.kind.custom.clone())
+                    && let Some(def) = ct.synced.get(c.slot)
+                {
+                    let (o, n) = (script::script_value(def, &c.old), script::script_value(def, &c.new));
+                    rt.synced_changed(c.entity as u32, &c.name, &o, &n);
+                }
+            }
+        }
         render.mirror.retain(frame.saturating_sub(600));
     }
 }
@@ -221,7 +282,10 @@ impl EventSink for GameSink<'_> {
         }
     }
     fn custom(&mut self, name: &str, at: [f64; 3]) {
-        // The client hook `mob-anim-event` (F4M-10) takes it; nothing is played for it here.
+        // The client hook `mob-anim-event-client` (F4M-10) takes it; nothing is played for it here.
         log::trace!("Horizon: custom mob {} event {name:?} at {at:?}", self.mob);
+        if let Some(rt) = script::client_runtime() {
+            rt.mob_anim_event(self.mob, name);
+        }
     }
 }
