@@ -91,6 +91,20 @@ pub fn write(tag: &mut Tag, m: &Mob) {
     } else {
         yoake.insert("synced".into(), Tag::Compound(synced));
     }
+    // Where `sleep_in_bed_like` rests: `rest: { home: [x, y, z], place: [x, y, z] }`, over what
+    // the save had (a key of a later version stays).
+    let mut rest = match yoake.get(&"rest".into()) {
+        Some(Tag::Compound(c)) => c.clone(),
+        _ => Compound::new(),
+    };
+    for (key, at) in [("home", state.rest.home), ("place", state.rest.place)] {
+        if let Some(p) = at {
+            rest.insert(key.into(), Tag::List(p.iter().map(|n| Tag::Int(*n)).collect()));
+        }
+    }
+    if !rest.is_empty() {
+        yoake.insert("rest".into(), Tag::Compound(rest));
+    }
     // Attributes: the changed ones, then the saved entries of attributes the type lost.
     let saved: Vec<Tag> = match yoake.get(&"attributes".into()) {
         Some(Tag::List(l)) => l.clone(),
@@ -130,6 +144,23 @@ pub fn read(m: &mut Mob, tag: &Tag) {
     if let Some(Tag::List(list)) = yoake.get("attributes") {
         state.attrs.read_nbt(list);
     }
+    if let Some(rest @ Tag::Compound(_)) = yoake.get("rest") {
+        state.rest.home = block_pos(rest.get("home"));
+        state.rest.place = block_pos(rest.get("place"));
+    }
+}
+
+/// A saved block position: a list of three ints.
+fn block_pos(tag: Option<&Tag>) -> Option<[i32; 3]> {
+    let Some(Tag::List(l)) = tag else { return None };
+    if l.len() != 3 {
+        return None;
+    }
+    let mut out = [0; 3];
+    for (o, t) in out.iter_mut().zip(l) {
+        *o = i32::try_from(number(Some(t))?).ok()?;
+    }
+    Some(out)
 }
 
 /// Whether the type is the one a save was written for (a newer format is read as far as it
@@ -268,6 +299,38 @@ mod tests {
         let m = mob_from_nbt(&tag, &others, 1, None).unwrap();
         assert_eq!(m.species(), Species::Cow);
         assert!(m.extra.custom.is_none());
+    }
+
+    /// The rest place and home of `sleep_in_bed_like` are saved in `yoake.rest`, read back, and
+    /// the keys a later version adds to it stay.
+    #[test]
+    fn the_rest_place_and_home_survive_a_save_and_load() {
+        let types = types();
+        let mut m = fox(&types);
+        m.extra.custom.as_mut().unwrap().rest = crate::mobs::custom::RestMemory {
+            home: Some([-3, 64, 8]),
+            place: Some([12, 70, -5]),
+        };
+        let mut tag = mob_to_nbt(&m, UUID, None, None);
+        let rest = tag.get("yoake").unwrap().get("rest").expect("a rest compound");
+        assert_eq!(block_pos(rest.get("home")), Some([-3, 64, 8]));
+        assert_eq!(block_pos(rest.get("place")), Some([12, 70, -5]));
+        // A key of a later version inside it, and a bad position, which reads as none.
+        let Tag::Compound(map) = &mut tag else { panic!() };
+        let Some(Tag::Compound(yoake)) = map.get_mut(&"yoake".into()) else { panic!() };
+        let Some(Tag::Compound(rest)) = yoake.get_mut(&"rest".into()) else { panic!() };
+        rest.insert("since".into(), Tag::Int(77));
+        let back = mob_from_nbt(&tag, &types, 9, None).unwrap();
+        assert_eq!(back.extra.custom.as_ref().unwrap().rest, m.extra.custom.as_ref().unwrap().rest);
+        let again = mob_to_nbt(&back, UUID, Some(&tag), None);
+        assert_eq!(again, tag, "the second save is the first, unknown key and all");
+        let Tag::Compound(map) = &mut tag else { panic!() };
+        let Some(Tag::Compound(yoake)) = map.get_mut(&"yoake".into()) else { panic!() };
+        yoake.insert("rest".into(), Tag::compound([("home", Tag::List(vec![Tag::Int(1)]))]));
+        let back = mob_from_nbt(&tag, &types, 9, None).unwrap();
+        assert_eq!(back.extra.custom.as_ref().unwrap().rest, crate::mobs::custom::RestMemory::default());
+        // A mob that never rested writes no rest key.
+        assert!(mob_to_nbt(&fox(&types), UUID, None, None).get("yoake").unwrap().get("rest").is_none());
     }
 
     /// A newer type format and a bad value read as far as they can.

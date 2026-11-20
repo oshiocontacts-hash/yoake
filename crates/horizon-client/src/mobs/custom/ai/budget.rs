@@ -13,6 +13,13 @@
 //! waits, so the turns go round and mobs late in the tick order are not starved by the early ones.
 //! A search is charged the nodes it really visited.
 //!
+//! A refused mob does not ask again at once: it is put off by one tick plus a small jitter of 0 to
+//! [`RETRY_JITTER`] more ticks, taken deterministically from its id and the tick (the same mobs in
+//! the same ticks always get the same delays, so a test can rely on it), so that a crowd refused
+//! in one tick does not come back, and get refused again, all in the same tick. While it is put
+//! off its requests are refused without cost (`PathStats::backed_off`); when the delay is over it
+//! is first in line like any mob refused last tick.
+//!
 //! The state is per thread (the server tick runs on one thread); the engine asks it through
 //! [`request`] and [`charge`] from `Mob::query_path_raw`, only for custom mobs. [`stats`] reads
 //! the counters for a debug view. Vanilla mobs never touch it.
@@ -23,6 +30,8 @@ use std::{
 
 /// Nodes all custom mobs may visit in one tick, unless the server setting says otherwise.
 pub const DEFAULT_PATH_BUDGET: i32 = 8192;
+/// The most ticks a refused mob is put off beyond the one tick it always is.
+pub const RETRY_JITTER: u32 = 3;
 /// The server.properties key (Horizon's own; `server.toml`'s `custom_mob_path_budget`).
 pub const PROPERTY: &str = "horizon-custom-mob-path-budget";
 /// The most the setting may be.
@@ -62,6 +71,17 @@ pub struct PathStats {
     pub busiest_tick: i32,
     /// Nodes spent in the tick that last asked.
     pub this_tick: i32,
+    /// Requests refused without a look because the mob was still put off by a jittered delay.
+    pub backed_off: u64,
+}
+
+/// The extra ticks (0 through `max`) a mob refused at `tick` waits: splitmix64 of the id and the tick.
+pub fn jitter_for(id: u32, tick: i64, max: u32) -> u32 {
+    let mut z = ((u64::from(id) << 32) ^ tick as u64).wrapping_add(0x9E37_79B9_7F4A_7C15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^= z >> 31;
+    (z % (u64::from(max) + 1)) as u32
 }
 
 /// The state of the budget: one tick's allowance and who waits.
@@ -82,6 +102,10 @@ pub struct PathBudget {
     granted_now: Vec<(u32, u32)>,
     /// Somebody was waiting when the tick began.
     contended: bool,
+    /// Mobs put off by a jittered delay, with the first tick they may ask again.
+    backoff: Vec<(u32, i64)>,
+    /// The most extra ticks of delay.
+    jitter: u32,
     stats: PathStats,
 }
 
@@ -97,6 +121,8 @@ impl Default for PathBudget {
             granted_before: Vec::new(),
             granted_now: Vec::new(),
             contended: false,
+            backoff: Vec::new(),
+            jitter: RETRY_JITTER,
             stats: PathStats::default(),
         }
     }
@@ -112,8 +138,18 @@ impl PathBudget {
         }
     }
 
+    /// The same budget with at most `max` extra ticks of retry delay (0: the next tick, always).
+    pub fn with_jitter(mut self, max: u32) -> Self {
+        self.jitter = max;
+        self
+    }
+
     pub fn limit(&self) -> i32 {
         self.limit
+    }
+    /// The first tick mob `id` may ask again, if it is put off now.
+    pub fn retry_at(&self, id: u32) -> Option<i64> {
+        self.backoff.iter().find(|(b, _)| *b == id).map(|(_, t)| *t)
     }
     pub fn remaining(&self) -> i32 {
         self.remaining
@@ -148,6 +184,18 @@ impl PathBudget {
             self.granted_now.clear();
             Vec::new()
         };
+        // Mobs whose delay is over are first in line, as if they had been refused last tick.
+        let mut i = 0;
+        while i < self.backoff.len() {
+            if self.backoff[i].1 <= tick {
+                let (id, _) = self.backoff.swap_remove(i);
+                if !self.waiting.contains(&id) {
+                    self.waiting.push(id);
+                }
+            } else {
+                i += 1;
+            }
+        }
         self.contended = !self.waiting.is_empty();
         self.tick = Some(tick);
         self.remaining = self.limit;
@@ -159,6 +207,10 @@ impl PathBudget {
     /// must be followed by [`Self::charge`] with the nodes it really visited.
     pub fn request(&mut self, id: u32, tick: i64, cap: i32) -> bool {
         self.roll(tick);
+        if self.backoff.iter().any(|(b, _)| *b == id) {
+            self.stats.backed_off += 1;
+            return false;
+        }
         let need = cap.clamp(1, self.limit);
         let first = self.waiting.iter().position(|w| *w == id);
         // What the mobs still waiting for their turn are owed.
@@ -185,8 +237,13 @@ impl PathBudget {
             true
         } else {
             self.stats.waited += 1;
-            if !self.refused.contains(&id) {
-                self.refused.push(id);
+            let extra = jitter_for(id, tick, self.jitter);
+            if extra == 0 {
+                if !self.refused.contains(&id) {
+                    self.refused.push(id);
+                }
+            } else {
+                self.backoff.push((id, tick + 1 + i64::from(extra)));
             }
             false
         }
@@ -202,8 +259,59 @@ impl PathBudget {
     }
 }
 
+/// What one custom type's mobs did with the budget (a debug view reads this).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct TypeSearchStats {
+    /// Searches let through.
+    pub granted: u64,
+    /// Searches put off to a later tick.
+    pub waited: u64,
+    /// Requests refused while the mob was put off by its jittered delay.
+    pub backed_off: u64,
+    /// Nodes the granted searches visited.
+    pub nodes: u64,
+}
+
 thread_local! {
     static BUDGET: RefCell<PathBudget> = RefCell::new(PathBudget::default());
+    static BY_TYPE: RefCell<std::collections::BTreeMap<String, TypeSearchStats>> = const { RefCell::new(std::collections::BTreeMap::new()) };
+}
+
+fn add_to_type(kind: &str, f: impl FnOnce(&mut TypeSearchStats)) {
+    BY_TYPE.with(|m| {
+        let mut m = m.borrow_mut();
+        if let Some(s) = m.get_mut(kind) {
+            f(s);
+        } else {
+            let mut s = TypeSearchStats::default();
+            f(&mut s);
+            m.insert(kind.to_owned(), s);
+        }
+    });
+}
+
+/// [`request`] for a mob of custom type `kind`, counted for that type too.
+pub fn request_for(kind: &str, id: u32, tick: i64, cap: i32) -> bool {
+    let before = stats();
+    let ok = request(id, tick, cap);
+    let after = stats();
+    add_to_type(kind, |s| {
+        s.granted += after.granted - before.granted;
+        s.waited += after.waited - before.waited;
+        s.backed_off += after.backed_off - before.backed_off;
+    });
+    ok
+}
+
+/// [`charge`] for a mob of custom type `kind`, counted for that type too.
+pub fn charge_for(kind: &str, nodes: i32) {
+    charge(nodes);
+    add_to_type(kind, |s| s.nodes += nodes.max(0) as u64);
+}
+
+/// This thread's counters by custom type id.
+pub fn stats_by_type() -> std::collections::BTreeMap<String, TypeSearchStats> {
+    BY_TYPE.with(|m| m.borrow().clone())
 }
 
 /// [`PathBudget::request`] on this thread's budget.
@@ -221,8 +329,14 @@ pub fn stats() -> PathStats {
     BUDGET.with(|b| b.borrow().stats())
 }
 
+/// Sets this thread's most extra ticks of retry delay (tests).
+pub fn set_retry_jitter(max: u32) {
+    BUDGET.with(|b| b.borrow_mut().jitter = max);
+}
+
 /// Gives this thread a fresh budget of its own size (tests; the server uses the setting).
 pub fn reset_for_thread(own_limit: Option<i32>) {
+    BY_TYPE.with(|m| m.borrow_mut().clear());
     BUDGET.with(|b| {
         *b.borrow_mut() = own_limit.map_or_else(PathBudget::default, PathBudget::new);
     });

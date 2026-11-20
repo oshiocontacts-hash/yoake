@@ -739,9 +739,50 @@ fn horizon_commands_are_off_unless_the_server_turns_them_on() {
         // Vanilla's commands are the same with or without it.
         assert_eq!(
             d.nodes[0].children.len(),
-            vanilla_tree.nodes[0].children.len() + 1
+            vanilla_tree.nodes[0].children.len() + 2
         );
     }
+}
+
+#[test]
+fn horizon_custommobs_stats_is_a_game_master_command_that_completes_custom_types() {
+    let d = vanilla::game_tree(false, true, false);
+    let parse = |permission: u8, line: &str| {
+        let reg = Registries { permission, ..reg() };
+        d.parse(line, &reg)
+    };
+    assert_eq!(
+        parse(2, "horizon custommobs stats").executable().unwrap().1,
+        "horizon.custommobs.stats"
+    );
+    let with_type = parse(2, "horizon custommobs stats demo:fox");
+    let (ctx, id) = with_type.executable().unwrap();
+    assert_eq!(id, "horizon.custommobs.stats");
+    assert!(matches!(ctx.get("type"), Some(Arg::Resource(t)) if t == "demo:fox"));
+    // Permission level 2: a player without it does not even know the command.
+    for line in ["horizon custommobs stats", "horizon custommobs stats demo:fox"] {
+        let e = parse(0, line).executable().unwrap_err();
+        assert_eq!(e.message.plain(), "command.unknown.command", "{line}");
+    }
+    assert!(parse(2, "horizon custommobs").executable().is_err(), "a subcommand is needed");
+    assert!(parse(2, "horizon custommobs stats a b").executable().is_err());
+    // Completion: the subcommands, then the loaded custom types.
+    let mut reg = Registries { permission: 2, ..reg() };
+    reg.by_registry.insert(
+        vanilla::CUSTOM_MOB_REGISTRY.into(),
+        RegistryIds {
+            ids: vec!["demo:fox".into(), "demo:owl".into()],
+            tags: vec![],
+        },
+    );
+    let complete = |line: &str| -> Vec<String> {
+        let parse = d.parse(line, &reg);
+        d.suggestions(&parse, line.len(), &reg).1.into_iter().map(|s| s.text).collect()
+    };
+    assert_eq!(complete("horizon "), ["custommobs"]);
+    assert_eq!(complete("horizon custommobs "), ["stats"]);
+    assert_eq!(complete("horizon custommobs stats "), ["demo:fox", "demo:owl"]);
+    assert_eq!(complete("horizon custommobs stats demo:o"), ["demo:owl"]);
 }
 /// `run` on a dedicated server's tree.
 fn run_dedicated(input: &str) -> CmdResult<(String, Vec<String>)> {

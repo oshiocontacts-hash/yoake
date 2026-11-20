@@ -238,9 +238,43 @@ damage frames (10). Commit (b) alone does not compile (it declares `ai` whose fi
 * Should a data row be able to override a goal's control flags (for example a `melee_attack` that also takes `JUMP`)? Not done; the schema has no field for it.
 * `damage_delay` as both the plain delay and the timeout of a named frame: fine, or should the timeout be a separate key when server animation arrives?
 * (Answered by the reviewer and done in the follow-up round: `climb`, `sleep_in_bed_like`, the type id in `Seen`, generic `open_door` and `eat_block`, the per-tick path budget.)
-* `sleep_in_bed_like` remembers its home in the goal, so a mob reloaded from a save rests where it is when it first thinks of resting, unless a `stay_near_home` /
-  `patrol_around` row or a `block_tag` gives it a place. Should the first place be saved with the mob?
-* The budget is per thread and counts nodes; a debug view that reads `budget::stats()` is not part of this item. Where should it show?
+* (Answered, follow-up round 2: the home and place are saved with the mob.)
+* The budget is per thread and counts nodes; (answered, follow-up round 2: `/horizon custommobs stats`).
+
+## Follow-up round 2 (reviewer decisions)
+
+Each is its own commit.
+
+1. **Jittered retry after a budget refusal** (`ai/budget.rs`). A refused mob is put off by one tick plus `jitter_for(id, tick, 3)` more (0 to 3, splitmix64 of
+   mob id and tick: the same mobs in the same ticks always get the same delays). While put off its requests are refused at no cost (`PathStats::backed_off`,
+   not counted as new refusals); when the delay is over it is first in line like a mob refused last tick. A delay of 0 is the old behaviour exactly.
+   `PathBudget::with_jitter(n)`, `retry_at(id)`, `set_retry_jitter` (thread, tests). Tests: `a_refused_crowd_comes_back_spread_over_several_ticks` (40 mobs,
+   at least 3 distinct retry ticks within 1..=4 ticks, reproducible, none with jitter 0), `a_put_off_mob_is_refused_until_its_delay_is_over_and_then_has_its_turn`;
+   the older budget tests run with `with_jitter(0)`.
+2. **The rest place is saved.** `CustomState.rest: RestMemory { home, place }` (block positions), written as `yoake.rest: { home: [x,y,z], place: [x,y,z] }`
+   (only the keys that are set; other keys inside `rest` and in `yoake` are kept) and read back. `sleep_in_bed_like` takes its home from the saved one first,
+   then a `stay_near_home` row's, then where it is; with a `block_tag` it keeps the saved place while that block is still of the tag and in range, else the
+   nearest. Tests: `the_rest_place_and_home_survive_a_save_and_load` (round trip, second save equals first, unknown key kept, bad position reads as none),
+   `a_reloaded_mob_rests_at_its_saved_home`.
+3. **`/horizon custommobs stats [<type>]`** (game masters, level 2). It is one of Horizon's own commands (`vanilla::horizon_commands`, next to `/pregen`): the
+   tree is vanilla's unless the server turned them on (`horizon-pregen=true` / `--pregen`, `set_horizon_commands`), so the vanilla tree and parity are untouched
+   and **enabling `/pregen` also enables this command** (one flag for all of Horizon's commands; there is no separate switch). The `type` argument is a
+   `ResKey("yoake:custom_mob")` whose ids the game fills from `custom::ids()` (`chat.rs`, `Registries::by_registry`), so it completes the loaded types; an
+   unknown id is an error at execution. Dispatch: `horizon.custommobs.stats` -> `game/commands/horizon_cmd.rs`. Output (`mobs/custom/stats.rs`, formatting only):
+   per type the live mobs and its path searches (granted, put off, refused while waiting, nodes: new per-type counters `budget::request_for` / `charge_for` /
+   `stats_by_type`, called from `Mob::query_path_raw`), a total over types, the budget's `PathStats` and per-tick limit. **Procedural evaluation does not run on the
+   server** (no `ProceduralState` is held by any mob in `horizon-client`), so there are no `ProceduralStats` to total; the output ends with the line
+   "Procedural evaluation: not run on the server yet, so there are no counters". Counters are per thread (the server tick thread, where the command runs) and
+   count since start; there is no reset. Tests: `horizon-command` `horizon_custommobs_stats_is_a_game_master_command_that_completes_custom_types` (parse,
+   permission, completion), `stats.rs` three formatting tests; `horizon_commands_are_off_unless_the_server_turns_them_on` now expects the root `horizon` too.
+
+Tests of this round (same commands, through `cargo-locked.sh`): `mobs::custom` 97; `-p horizon-client-lib --lib` **1740 passed**, 48 ignored; `-p horizon-client --lib`
+**1203 passed**, 40 ignored; `-p horizon-command --lib` 36 passed; `-p horizon-mods` lib 57 passed, **1 failed**:
+`the_reserved_id_ranges_are_in_the_locks` (binding id 2515 in `ids.lock.json`; it comes from the "Regenerate glue" commit 811cfe9d4 that was already at HEAD, not from
+this round, which changed no bindgen input: the lock's reserved range and the regenerated ids disagree and the coordinator should settle which moves).
+
+Bindgen-visible structs: **none changed in this round.** `CustomState` got a field (`rest`), but it sits behind `Extra.custom`'s box and is not `#[yoake_hook]`'d,
+as `attack` and `events` before it. `PathStats` gained `backed_off` (plain engine struct, not annotated). Not run: `f4m_parity`, clippy, `regen.sh --check`.
 
 ## Fixes from the reviewer's check against real 26.3 resources
 

@@ -5,6 +5,7 @@ pub(super) mod compute;
 mod data;
 pub(super) use data::place_summoned;
 mod effects;
+mod horizon_cmd;
 pub(super) mod execute;
 pub(super) mod extra;
 pub(in crate::game) mod items;
@@ -1156,6 +1157,7 @@ impl Game<'_> {
             "spreadplayers" => self.cmd_spreadplayers(ctx),
             id if id.starts_with("forceload.") => self.cmd_forceload(id, ctx),
             id if id.starts_with("pregen.") => self.cmd_pregen(id, ctx),
+            id if id.starts_with("horizon.") => self.cmd_horizon(id, ctx),
             "fillbiome" => self.cmd_fillbiome(ctx),
             id if id.starts_with("worldborder.") => self.cmd_worldborder(id, ctx),
             id if id.starts_with("loot.") => self.cmd_loot(id, ctx),

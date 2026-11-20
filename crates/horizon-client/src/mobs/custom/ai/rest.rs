@@ -8,7 +8,9 @@
 //!
 //! The rest place is the nearest block of the block tag `block_tag` within `range` (default 16)
 //! when the row names one, else the mob's home: the home of a `stay_near_home` or `patrol_around`
-//! row, or the place it first thought of resting from (where it was made, or loaded).
+//! row, or the place it first thought of resting from (where it was made). That home and the last
+//! place are kept in `CustomState.rest` and saved with the mob (`persist.rs`, `yoake.rest`), so a
+//! reloaded mob rests where it did.
 //!
 //! Parameters: `when` (expression), `state` (tracked value, default `sleep`), `block_tag`,
 //! `range`, `speed` (default 1.0), `reach` (how near, in blocks, counts as there; default 1.5).
@@ -55,7 +57,6 @@ pub fn add(m: &mut Mob, t: &CustomType, g: &GoalDef) -> bool {
             range: p.int("range", 16).clamp(1, 64),
             speed: p.speed(1.0),
             reach: p.num("reach", 1.5).clamp(0.5, 8.0),
-            home: None,
             place: None,
             asleep: false,
             health: 0.0,
@@ -73,8 +74,6 @@ pub struct Rest {
     range: i32,
     speed: f64,
     reach: f64,
-    /// Where the mob first thought of resting, when it has no other home.
-    home: Option<[i32; 3]>,
     /// Where it is going to rest.
     place: Option<[i32; 3]>,
     asleep: bool,
@@ -98,20 +97,38 @@ impl Rest {
                 .is_some_and(|(_, at)| i64::from(m.age) - at <= HURT_MEMORY)
     }
     /// The place to rest at: the nearest block of the tag, else the home.
-    fn find_place(&mut self, m: &Mob, w: &MobWorld) -> Option<[i32; 3]> {
+    fn find_place(&mut self, m: &mut Mob, w: &MobWorld) -> Option<[i32; 3]> {
         let here = [
             m.position.x.floor() as i32,
             m.position.y.floor() as i32,
             m.position.z.floor() as i32,
         ];
-        if let Some(tag) = &self.tag {
-            let range_y = (self.range / 2).max(2);
-            return w.nearest_block(here, self.range, range_y, |_, name| w.has_tag(tag, name));
+        let range_y = (self.range / 2).max(2);
+        let saved = m.extra.custom.as_ref().map(|c| c.rest).unwrap_or_default();
+        let place = if let Some(tag) = &self.tag {
+            // The place it rested at, while it is still such a block and in range; else the nearest.
+            let still = |p: [i32; 3]| {
+                (p[0] - here[0]).abs() <= self.range
+                    && (p[1] - here[1]).abs() <= range_y
+                    && (p[2] - here[2]).abs() <= self.range
+                    && w.nearest_block(p, 0, 0, |_, name| w.has_tag(tag, name)) == Some(p)
+            };
+            saved
+                .place
+                .filter(|p| still(*p))
+                .or_else(|| w.nearest_block(here, self.range, range_y, |_, name| w.has_tag(tag, name)))
+        } else {
+            // The saved home first, so a reloaded mob rests where it did.
+            let home = saved.home.or(m.ai.home.map(|(c, _)| c)).unwrap_or(here);
+            if let Some(c) = m.extra.custom.as_mut() {
+                c.rest.home = Some(home);
+            }
+            Some(home)
+        };
+        if let (Some(p), Some(c)) = (place, m.extra.custom.as_mut()) {
+            c.rest.place = Some(p);
         }
-        if let Some((c, _)) = m.ai.home {
-            return Some(c);
-        }
-        Some(*self.home.get_or_insert(here))
+        place
     }
     fn near(&self, m: &Mob, p: [i32; 3]) -> bool {
         let dx = m.position.x - (f64::from(p[0]) + 0.5);

@@ -16,6 +16,7 @@ pub mod hitbox;
 pub mod persist;
 pub mod registry;
 pub mod spawn;
+pub mod stats;
 
 pub use registry::{CustomRegistry, get, ids, registry};
 
@@ -272,6 +273,17 @@ pub struct CustomState {
     /// Custom events its goals raised (an `eat_block` effect) and nobody has taken yet; at most 8
     /// are kept (see `ai::blocks::take_events`).
     pub events: Vec<String>,
+    /// Where `sleep_in_bed_like` rests and what it counts as home; saved in the `yoake` compound.
+    pub rest: RestMemory,
+}
+
+/// The places a rest goal remembers (block positions), kept with the mob across saves.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RestMemory {
+    /// Where it thought of resting first (or its `stay_near_home` centre).
+    pub home: Option<[i32; 3]>,
+    /// Where it rested last.
+    pub place: Option<[i32; 3]>,
 }
 
 impl CustomState {
@@ -282,6 +294,7 @@ impl CustomState {
             synced: t.synced.iter().map(|s| s.default.clone()).collect(),
             attack: Default::default(),
             events: Vec::new(),
+            rest: RestMemory::default(),
         }
     }
     pub fn synced_value(&self, t: &CustomType, name: &str) -> Option<&SyncedValue> {

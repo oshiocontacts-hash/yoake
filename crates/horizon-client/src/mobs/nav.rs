@@ -311,12 +311,12 @@ impl Mob {
         }
         // The nodes all custom mobs may visit in one tick are shared (`ai::budget`): a search that
         // does not fit waits for the next tick.
-        if !super::custom::ai::budget::request(self.id, world.game_time, max_visited) {
+        if !super::custom::ai::budget::request_for(&self.kind.id, self.id, world.game_time, max_visited) {
             return None;
         }
         let mut visited = 0;
         let path = finder.find_counted(targets, max_len, reach, max_visited, &mut visited);
-        super::custom::ai::budget::charge(visited);
+        super::custom::ai::budget::charge_for(&self.kind.id, visited);
         path
     }
     pub(super) fn path_foot_position(&self, world: &MobWorld, path: &Path, index: usize) -> Vec3 {
