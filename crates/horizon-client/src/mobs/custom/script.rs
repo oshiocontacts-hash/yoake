@@ -364,6 +364,130 @@ pub trait Runtime: Send + Sync {
     fn synced_changed(&self, mob: u32, key: &str, old: &MobScriptValue, new: &MobScriptValue);
 }
 
+/// Two runtimes as one (F4M-10): `first` is asked, then `second`. A claim (`can-use`, `can-continue`,
+/// `spawn-check`) is the OR of the answers that came; a hurt goes through `first` and then `second` (the amount
+/// `first` left, cancels add up); the first interaction that is not a pass wins; the save data goes through both;
+/// everything else is told to both. The game installs the WASM runtime first and the native mods second.
+pub struct Chain {
+    pub first: Arc<dyn Runtime>,
+    pub second: Arc<dyn Runtime>,
+}
+
+fn or_answers(a: Option<bool>, b: Option<bool>) -> Option<bool> {
+    match (a, b) {
+        (None, other) | (other, None) => other,
+        (Some(x), Some(y)) => Some(x || y),
+    }
+}
+
+impl Runtime for Chain {
+    fn live(&self) -> bool {
+        self.first.live() || self.second.live()
+    }
+    fn goal_can_use(&self, mob: u32, goal: &str) -> Option<bool> {
+        or_answers(self.first.goal_can_use(mob, goal), self.second.goal_can_use(mob, goal))
+    }
+    fn goal_can_continue(&self, mob: u32, goal: &str) -> Option<bool> {
+        or_answers(self.first.goal_can_continue(mob, goal), self.second.goal_can_continue(mob, goal))
+    }
+    fn goal_start(&self, mob: u32, goal: &str) {
+        self.first.goal_start(mob, goal);
+        self.second.goal_start(mob, goal);
+    }
+    fn goal_tick(&self, mob: u32, goal: &str) {
+        self.first.goal_tick(mob, goal);
+        self.second.goal_tick(mob, goal);
+    }
+    fn goal_stop(&self, mob: u32, goal: &str) {
+        self.first.goal_stop(mob, goal);
+        self.second.goal_stop(mob, goal);
+    }
+    fn mob_tick(&self, mob: u32) {
+        self.first.mob_tick(mob);
+        self.second.mob_tick(mob);
+    }
+    fn mob_spawn_check(&self, type_id: &str, dimension: &str, pos: [i32; 3]) -> Option<bool> {
+        or_answers(self.first.mob_spawn_check(type_id, dimension, pos), self.second.mob_spawn_check(type_id, dimension, pos))
+    }
+    fn mob_spawned(&self, mob: u32, type_id: &str, reason: &str) {
+        self.first.mob_spawned(mob, type_id, reason);
+        self.second.mob_spawned(mob, type_id, reason);
+    }
+    fn mob_hurt(&self, mob: u32, part: &str, source: &str, amount: f32) -> Option<HurtReply> {
+        let a = self.first.mob_hurt(mob, part, source, amount);
+        let left = a.map_or(amount, |r| r.amount);
+        let b = self.second.mob_hurt(mob, part, source, left);
+        match (a, b) {
+            (None, None) => None,
+            _ => Some(HurtReply {
+                amount: b.map_or(left, |r| r.amount),
+                cancel: a.is_some_and(|r| r.cancel) || b.is_some_and(|r| r.cancel),
+            }),
+        }
+    }
+    fn mob_died(&self, mob: u32, type_id: &str, attacker: Option<u32>) {
+        self.first.mob_died(mob, type_id, attacker);
+        self.second.mob_died(mob, type_id, attacker);
+    }
+    fn mob_interact(&self, mob: u32, player: &str, hand: &str, item: &str) -> InteractReply {
+        match self.first.mob_interact(mob, player, hand, item) {
+            InteractReply::Pass => self.second.mob_interact(mob, player, hand, item),
+            reply => reply,
+        }
+    }
+    fn mob_anim_event(&self, mob: u32, name: &str) {
+        self.first.mob_anim_event(mob, name);
+        self.second.mob_anim_event(mob, name);
+    }
+    fn mob_load(&self, mob: u32, data: &[u8]) {
+        self.first.mob_load(mob, data);
+        self.second.mob_load(mob, data);
+    }
+    fn mob_save(&self, mob: u32, data: &[u8]) -> Option<Vec<u8>> {
+        let a = self.first.mob_save(mob, data);
+        let b = self.second.mob_save(mob, a.as_deref().unwrap_or(data));
+        b.or(a)
+    }
+    fn mob_tamed(&self, mob: u32, owner: &str) {
+        self.first.mob_tamed(mob, owner);
+        self.second.mob_tamed(mob, owner);
+    }
+    fn mob_bred(&self, mob: u32, partner: u32, child: u32) {
+        self.first.mob_bred(mob, partner, child);
+        self.second.mob_bred(mob, partner, child);
+    }
+    fn synced_changed(&self, mob: u32, key: &str, old: &MobScriptValue, new: &MobScriptValue) {
+        self.first.synced_changed(mob, key, old, new);
+        self.second.synced_changed(mob, key, old, new);
+    }
+}
+
+/// [`Chain`] for the client runtimes: bone writes of `first` then `second` (at most [`MAX_POSE_WRITES`]).
+pub struct ClientChain {
+    pub first: Arc<dyn ClientRuntime>,
+    pub second: Arc<dyn ClientRuntime>,
+}
+
+impl ClientRuntime for ClientChain {
+    fn live(&self) -> bool {
+        self.first.live() || self.second.live()
+    }
+    fn mob_pose(&self, mob: u32, kind: &str, frame: &MobPoseFrame) -> Vec<MobBoneWrite> {
+        let mut out = self.first.mob_pose(mob, kind, frame);
+        out.extend(self.second.mob_pose(mob, kind, frame));
+        out.truncate(MAX_POSE_WRITES);
+        out
+    }
+    fn mob_anim_event(&self, mob: u32, name: &str) {
+        self.first.mob_anim_event(mob, name);
+        self.second.mob_anim_event(mob, name);
+    }
+    fn synced_changed(&self, mob: u32, key: &str, old: &MobScriptValue, new: &MobScriptValue) {
+        self.first.synced_changed(mob, key, old, new);
+        self.second.synced_changed(mob, key, old, new);
+    }
+}
+
 static RUNTIME: RwLock<Option<Arc<dyn Runtime>>> = RwLock::new(None);
 
 /// Installs (or removes, with `None`) the guest runtime; returns the one it replaced.

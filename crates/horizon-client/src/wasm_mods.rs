@@ -24,6 +24,12 @@ mod gpu_services;
 mod mob_services;
 #[path = "wasm_mods/mob_runtime.rs"]
 mod mob_runtime;
+
+/// Installs the script runtimes of fully custom mobs (server and client): the WASM modules, then the native mods.
+pub(crate) fn install_script_runtimes() {
+    mob_runtime::install();
+    mob_runtime::install_client();
+}
 #[path = "wasm_mods/media_services.rs"]
 mod media_services;
 #[path = "wasm_mods/package.rs"]

@@ -13,12 +13,27 @@ use yoake_wasm::full_bindings::client::yoake::mods::engine_types as et;
 
 pub(crate) struct WasmRuntime;
 
-/// Installs the runtime (once; the first server module that registers does it).
-pub(super) fn install() {
+/// Installs the runtime (once; the first server module that registers does it, and `entry::run` when native mods
+/// exist): the WASM modules first, then the native mods (`mob_native`, through `mod_api::mods()`).
+pub(crate) fn install() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
-        crate::mobs::custom::script::set_runtime(Some(Arc::new(WasmRuntime)));
+        crate::mobs::custom::script::set_runtime(Some(Arc::new(crate::mobs::custom::script::Chain {
+            first: Arc::new(WasmRuntime),
+            second: Arc::new(crate::mob_native::NativeRuntime::process()),
+        })));
         crate::mobs::custom::ai::interact::set_hook(Some(Arc::new(WasmRuntime)));
+    });
+}
+
+/// Installs the client runtime (once): the WASM client modules first, then the native mods.
+pub(crate) fn install_client() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        crate::mobs::custom::script::set_client_runtime(Some(Arc::new(crate::mobs::custom::script::ClientChain {
+            first: Arc::new(WasmRuntime),
+            second: Arc::new(crate::mob_native::NativeClientRuntime::process()),
+        })));
     });
 }
 
@@ -190,10 +205,7 @@ pub(super) fn register_client(slot: &ClientSlot) {
     g.retain(|w| w.strong_count() > 0);
     g.push(Arc::downgrade(slot));
     drop(g);
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        crate::mobs::custom::script::set_client_runtime(Some(Arc::new(WasmRuntime)));
-    });
+    install_client();
 }
 
 fn client_each<R>(mut f: impl FnMut(&mut yoake_wasm::ClientFullMod) -> Option<R>) -> Vec<R> {
@@ -534,5 +546,20 @@ mod tests {
         let e = ungranted.mob_release_controller_state("locomotion".into(), 1).unwrap_err();
         assert!(e.contains("service.mobs"), "{e}");
         script::reset();
+    }
+}
+
+#[cfg(test)]
+mod hook_ids {
+    /// The 20 script hooks are one block of the catalog: `FullMod::wants` keeps the module adapters of exactly
+    /// that block silent (the runtime reaches the module itself).
+    #[test]
+    fn the_script_hooks_are_the_block_the_module_adapters_skip() {
+        use super::super::full::{H_MOB_GOAL_CAN_USE, H_SYNCED_CHANGED_CLIENT};
+        let names: Vec<&str> = yoake_wasm::FULL_HOOK_LIST[H_MOB_GOAL_CAN_USE..=H_SYNCED_CHANGED_CLIENT].iter().map(|(n, _)| *n).collect();
+        let fragment: serde_json::Value = serde_json::from_str(include_str!("../../../../tools/native-hook-fragments/f4m_mobs.json")).unwrap();
+        let expected: Vec<&str> = fragment["hooks"].as_array().unwrap().iter().map(|h| h["name"].as_str().unwrap()).collect();
+        assert_eq!(names, expected);
+        assert_eq!(names.len(), 20);
     }
 }
