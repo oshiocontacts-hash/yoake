@@ -1665,7 +1665,8 @@ mod tests {
         // Nothing else lives in the reserved range, and the generator's next id is past it.
         for b in bindings {
             let id = b["id"].as_u64().unwrap() as u32;
-            assert!(id < BINDING_FIRST || id == BINDING_LAST, "binding id {id}");
+            // ids past the sentinel are new bindings the generator handed out after the range (max + 1)
+            assert!(!(BINDING_FIRST..BINDING_LAST).contains(&id), "binding id {id} is reserved");
         }
     }
 }
