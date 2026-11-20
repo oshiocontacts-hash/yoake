@@ -603,3 +603,41 @@ fn the_e2e_fox_prefers_the_nearer_of_a_chicken_and_a_player() {
     }
     assert_eq!(m.ai.target, Some(Who::Mob(9)), "the nearer chicken");
 }
+
+/// The game's mob loop (`tick_creature_entities`), reduced to its removal rule: a mob is dropped from the
+/// list when `Mob::tick` returns false, and its poof/removal is announced when
+/// `!kept && !removed && !alive && death_time >= removal_ticks`. Killed by damage (what `/damage` and a
+/// hit do) at the start of tick 0, the body must stay `removal_ticks` ticks, the removal must be the one the
+/// loop announces (never a silent drop before), and nothing else may drop it on the way: the fixture fox's
+/// death clip is 0.6 s, so 20 ticks after the clamp.
+#[test]
+fn a_mob_killed_by_damage_is_removed_exactly_at_removal_ticks_and_announced() {
+    for (clip, want) in [(Some(0.6), 20), (Some(1.5), 30), (Some(5.0), 60), (None, 20)] {
+        let t = fox_with_death(clip);
+        let mut m = fox_mob(&t, Vec3::new(0.5, 1.0, 0.5));
+        m.persistent = false;
+        let fx = flat();
+        let others = [];
+        let mut run = Run::new(view(&fx.world(), &others, Some(Vec3::new(0.5, 1.0, 6.5))));
+        assert!(m.damage(100.0, crate::mobs::Damage::of(crate::mobs::DamageKind::Generic)));
+        assert!(!m.alive());
+        let mut removed_at = None;
+        for tick in 1..=100 {
+            let w = {
+                let mut w = run.w0.clone();
+                w.game_time = run.tick;
+                w
+            };
+            run.tick += 1;
+            let kept = m.tick(&w, &mut run.lr, &mut run.events);
+            let announced = !kept && !m.removed && !m.alive() && m.death_time >= crate::mobs::custom::removal_ticks(&m);
+            if !kept {
+                assert!(announced, "dropped silently at tick {tick} (death_time {})", m.death_time);
+                removed_at = Some(tick);
+                break;
+            }
+        }
+        assert_eq!(removed_at, Some(want), "clip {clip:?}");
+        assert_eq!(m.death_time, want);
+    }
+}

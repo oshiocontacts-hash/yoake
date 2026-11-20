@@ -969,6 +969,15 @@ impl Game<'_> {
             .collect();
         for m in killed {
             self.died.insert(m.id);
+            if m.kind.custom.is_some() {
+                log::info!(
+                    "Horizon custom-mob death: mob {} dies, death_time {} (limit {}) tick {}",
+                    m.id,
+                    m.death_time,
+                    horizon_client::mobs::custom::removal_ticks(&m),
+                    self.world.game_time
+                );
+            }
             self.mob_died(&m);
         }
         // Their victims have been looted and mourned: no charged creeper is
@@ -1126,6 +1135,15 @@ impl Game<'_> {
                 // LivingEntity.tickDeath: after twenty ticks the body is removed.
                 if !kept && !m.removed && !m.alive() && m.death_time >= horizon_client::mobs::custom::removal_ticks(m) {
                     let (width, height) = (f64::from(m.width()), f64::from(m.height()));
+                    if m.kind.custom.is_some() {
+                        log::info!(
+                            "Horizon custom-mob death: mob {} removed at death_time {} (limit {}) tick {}",
+                            m.id,
+                            m.death_time,
+                            horizon_client::mobs::custom::removal_ticks(m),
+                            self.world.game_time
+                        );
+                    }
                     gone.push((m.id, m.position, width, height));
                 }
                 if let Some(conn) = seen_guest {
