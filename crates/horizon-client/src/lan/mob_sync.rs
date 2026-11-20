@@ -234,6 +234,32 @@ pub fn snapshot_for(m: &Mob, viewer: Option<[i32; 4]>) -> Option<Snapshot> {
     })
 }
 
+/// Whether the player with uuid `viewer` may see slot `slot` of custom mob `m`: every value except a
+/// `sync: owner` one is open to all, an owner value only to the mob's owner (the same rule
+/// [`for_viewer_as`] applies to what goes over the wire).
+pub fn value_visible_to(m: &Mob, slot: usize, viewer: Option<[i32; 4]>) -> bool {
+    let Some(t) = m.kind.custom.as_ref() else {
+        return false;
+    };
+    match t.synced.get(slot) {
+        None => false,
+        Some(d) if d.sync == Sync::Owner => viewer.is_some() && m.extra.tame && m.extra.owner == viewer,
+        Some(_) => true,
+    }
+}
+
+/// The value `name` of custom mob `m` as seen from the window of the player `viewer`. The integrated
+/// host reads the server's state directly (no message reaches its own window), so it reads through
+/// this and gets what a remote client would: an owner value only of a mob the host's player owns.
+pub fn host_value<'a>(m: &'a Mob, viewer: Option<[i32; 4]>, name: &str) -> Option<&'a SyncedValue> {
+    let t = m.kind.custom.as_ref()?;
+    let slot = t.synced_slot(name)?;
+    if !value_visible_to(m, slot, viewer) {
+        return None;
+    }
+    m.extra.custom.as_ref()?.synced.get(slot)
+}
+
 /// Frames for `messages` at game tick `now`: as few as fit [`MAX_FRAME`] bytes each, in order.
 /// A message that cannot be encoded is dropped (it would be a bug: the limits are the type's).
 pub fn frames(now: i64, messages: impl IntoIterator<Item = Message>) -> Vec<Vec<u8>> {

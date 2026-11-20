@@ -69,3 +69,8 @@ Also: the derived default attribute set (`mod_content`) is now the union of the 
 6. **`rideable_when` expression inputs** are the goal rows' (`health`, `is_baby`, `synced(...)`...), evaluated on the server at the click; a seat the client shows as free is never trusted.
 7. **Tag matching** of `items`/`food`/`interact.item` is done by the game's matcher (`#tag` through the item tags, else exact id); the pure natives take a matcher closure, so tests and F4M-10 pass their own.
 8. The notices are queued and not drained by anything until F4M-10; the queue keeps the latest 8.
+
+## Reviewer follow-up
+
+1. **Host's own window and `sync: owner`** (open question 2, decided: filter). The integrated host reads the server mob's `CustomState` directly (nothing is sent to its own window). Nothing in the game reads the values yet (F4M-6/F4M-10 will), so the filter is the read point they must use:
+   `lan::mob_sync::host_value(mob, host_player_uuid, name)` / `value_visible_to(mob, slot, viewer)` give a value only when a remote client of that uuid would be sent it (`sync: owner` only of a tamed mob the host's player owns; the same rule as `for_viewer_as`). Test: `the_hosts_own_view_hides_owner_values_of_mobs_it_does_not_own` (also checks it equals the wire result per slot).
