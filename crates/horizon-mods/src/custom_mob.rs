@@ -556,6 +556,10 @@ pub struct Model {
     pub layers: Vec<Layer>,
     #[serde(default)]
     pub lod: Vec<Lod>,
+    /// Bone names the `low_bones` LOD skips (with the bones named `*_lod_min`); each must exist in
+    /// the model (checked when it loads).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub lod_min_bones: Vec<String>,
     /// `mainhand`, `offhand`, `head` to a locator name.
     #[serde(default)]
     pub item_slots: BTreeMap<String, String>,
@@ -582,6 +586,7 @@ impl Default for Model {
             cull: None,
             layers: Vec::new(),
             lod: Vec::new(),
+            lod_min_bones: Vec::new(),
             item_slots: BTreeMap::new(),
             procedural: Vec::new(),
             particles: BTreeMap::new(),
@@ -1116,6 +1121,10 @@ impl CustomMobFile {
         )?;
         too_many("model.layers", m.layers.len(), limits::MAX_LAYERS)?;
         too_many("model.lod", m.lod.len(), limits::MAX_LOD)?;
+        too_many("model.lod_min_bones", m.lod_min_bones.len(), limits::MAX_BONES)?;
+        if let Some(b) = m.lod_min_bones.iter().find(|b| !is_name(b)) {
+            return Err(format!("model.lod_min_bones: {b:?} is not a bone name"));
+        }
         let ids = m
             .geo
             .iter()
@@ -1404,6 +1413,14 @@ impl CustomMobFile {
                 && model.bone_index(bone).is_none()
             {
                 return Err(format!("hitbox {}: the model has no bone {bone:?}", h.name));
+            }
+        }
+        for (i, bone) in self.model.lod_min_bones.iter().enumerate() {
+            if model.bone_index(bone).is_none() {
+                return Err(format!(
+                    "{}: model.lod_min_bones[{i}]: the model has no bone {bone:?}",
+                    self.id
+                ));
             }
         }
         for l in &self.model.layers {
@@ -1710,6 +1727,17 @@ mod tests {
     }
 
     /// The fixture's real model, animations and controllers go through the real loaders.
+    #[test]
+    fn lod_min_bones_must_exist_in_the_model_and_name_the_file_and_path() {
+        let ok = with(|v| v["model"]["lod_min_bones"] = serde_json::json!(["head"])).unwrap();
+        ok.validate_model(&Fake).unwrap();
+        let mut bad = with(|v| v["model"]["lod_min_bones"] = serde_json::json!(["head", "nope"])).unwrap();
+        bad.id = "sample_mobs:cinder_fox".into();
+        let e = bad.validate_model(&Fake).unwrap_err();
+        assert!(e.contains("sample_mobs:cinder_fox") && e.contains("model.lod_min_bones[1]") && e.contains("nope"), "{e}");
+        assert!(with(|v| v["model"]["lod_min_bones"] = serde_json::json!(["bad bone"])).is_err());
+    }
+
     #[test]
     fn the_fixture_model_loads_through_the_real_loader() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

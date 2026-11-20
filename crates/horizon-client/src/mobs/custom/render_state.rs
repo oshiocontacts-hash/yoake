@@ -32,7 +32,8 @@
 //! `model.lod` is a table of `{distance, mode}`: the last row whose distance the mob has reached
 //! applies. `full`: every frame. `half_rate` and `quarter_rate`: the pose is evaluated every second or
 //! fourth frame (staggered by entity id) and held in between: the mob itself still moves smoothly, only
-//! its limbs update at the lower rate. `low_bones`: full rate, bones whose name ends in `_lod_min` are
+//! its limbs update at the lower rate. `low_bones`: full rate, bones whose name ends in `_lod_min` or that
+//! `model.lod_min_bones` names are
 //! neither evaluated nor drawn. `static`: the rest pose. `hidden`: nothing is drawn.
 use super::{
     CustomType, SyncedValue,
@@ -210,7 +211,12 @@ impl TypeRender {
         }
         let n = model.skeleton.len();
         let bone_index = |name: &str| model.skeleton.find(name).map(|b| b.index());
-        let lod_min: Vec<bool> = model.skeleton.bones.iter().map(|b| b.name.ends_with(LOD_MIN_SUFFIX)).collect();
+        let lod_min: Vec<bool> = model
+            .skeleton
+            .bones
+            .iter()
+            .map(|b| b.name.ends_with(LOD_MIN_SUFFIX) || m.lod_min_bones.iter().any(|n| *n == b.name))
+            .collect();
         let keep: Vec<_> = (0..n).filter(|i| !lod_min[*i]).map(|i| horizon_mobmodel::BoneIndex(i as u16)).collect();
         let low_needed = closure(&model.skeleton, &keep);
         let layers = m
@@ -1544,6 +1550,25 @@ mod tests {
         tr.draw(&mr, &draw_ctx(LodMode::Full), &mut hidden);
         assert_eq!(hidden.len(), low.len());
         assert!("fur_lod_min".ends_with(LOD_MIN_SUFFIX));
+    }
+
+    #[test]
+    fn model_lod_min_bones_and_the_name_suffix_are_both_skipped_by_low_bones() {
+        let plain = fox().render.as_ref().unwrap().lod_min.iter().filter(|b| **b).count();
+        assert_eq!(plain, 0, "the fixture has no tagged bone");
+        let (ct, loaded) = fox_with(true, |v| v["model"]["lod_min_bones"] = serde_json::json!(["tail_3", "tail_2"]), |_| {});
+        let tr = TypeRender::new(&ct.file, &loaded).unwrap();
+        let (t2, t3) = (tr.skeleton.find("tail_2").unwrap().index(), tr.skeleton.find("tail_3").unwrap().index());
+        assert!(tr.lod_min[t2] && tr.lod_min[t3]);
+        assert_eq!(tr.lod_min.iter().filter(|b| **b).count(), 2);
+        let mr = MobRender::new(&tr);
+        let (mut full, mut low) = (Vec::new(), Vec::new());
+        tr.draw(&mr, &draw_ctx(LodMode::Full), &mut full);
+        tr.draw(&mr, &draw_ctx(LodMode::LowBones), &mut low);
+        let verts = |b: usize| (tr.bone_quads[b].end - tr.bone_quads[b].start) as usize * 4;
+        assert_eq!(full.len() - low.len(), (verts(t2) + verts(t3)) * 2);
+        // The suffix still works beside the list: a bone named `*_lod_min` joins the union.
+        assert!(!tr.bone_drawn(t3, LodMode::LowBones, &mr.visibility) && tr.bone_drawn(t3, LodMode::Full, &mr.visibility));
     }
 
     // ----- cull box and shadow -----------------------------------------------------------------
