@@ -487,11 +487,11 @@ pub(crate) mod tests {
     /// real loaders (read from the fixture folder as the content root is read).
     pub(crate) fn fox_type() -> CustomType {
         let json = include_str!(
-            "../../../../../tools/fixtures/cinder_fox/data/sample_mobs/horizon/entity_type/cinder_fox.json"
+            "../../../../../tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json"
         );
         let file = CustomMobFile::parse("sample_mobs:cinder_fox", json.as_bytes()).unwrap();
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tools/fixtures/cinder_fox");
+            .join("../../tools/fixtures/cinder_fox/content");
         let model = file
             .load_model(&mut |p| std::fs::read(root.join(p)).map_err(|e| e.to_string()))
             .unwrap();

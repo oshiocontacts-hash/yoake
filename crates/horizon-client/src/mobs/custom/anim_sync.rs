@@ -240,6 +240,9 @@ pub struct MobAnim {
     /// Triggers asked for by name, started by the next tick.
     pending: Vec<(String, f32)>,
     motion: Option<Motion>,
+    /// Per controller layer: the tick until which a script holds the layer's state (`i64::MAX`: until
+    /// released). A held layer's transitions are not tested.
+    holds: Vec<Option<i64>>,
     /// The game time of the last tick.
     now: i64,
 }
@@ -272,6 +275,7 @@ impl MobAnim {
             started: Vec::new(),
             pending: Vec::new(),
             motion: None,
+            holds: vec![None; layers],
             now,
         };
         me.refresh_anchors(t, now);
@@ -465,6 +469,58 @@ pub fn force_state(m: &mut Mob, controller: &str, state: &str) -> bool {
     true
 }
 
+/// Controller layers a hold can name (a type has at most a handful).
+const MAX_HELD_LAYERS: usize = 16;
+/// The most ticks a script may hold a controller state (one hour).
+pub const MAX_HOLD_TICKS: u32 = 72_000;
+
+/// [`force_state`] and then keeps the layer in `state`: its own transitions are not tested for `hold_ticks`
+/// ticks (`None`: until [`release_state`], a later [`force_state`] of the same controller, or another hold).
+/// `Some(0)` is [`force_state`] alone. False when [`force_state`] is.
+pub fn hold_state(m: &mut Mob, controller: &str, state: &str, hold_ticks: Option<u32>) -> bool {
+    if !force_state(m, controller, state) {
+        return false;
+    }
+    if let Some((slot, now)) = hold_slot(m, controller) {
+        // The ticks after the one the call was made in (`now` is the last tick the animation ran).
+        let until = match hold_ticks {
+            None => i64::MAX,
+            Some(n) => now.saturating_add(i64::from(n.min(MAX_HOLD_TICKS))).saturating_add(1),
+        };
+        *slot = (hold_ticks != Some(0)).then_some(until);
+    }
+    true
+}
+
+/// Lets the controller's own transitions run again. False for a mob without such a controller.
+pub fn release_state(m: &mut Mob, controller: &str) -> bool {
+    match hold_slot(m, controller) {
+        Some((slot, _)) => {
+            *slot = None;
+            true
+        }
+        None => false,
+    }
+}
+
+/// Whether a script holds `controller` of `m` now (at the mob's last animation tick).
+pub fn is_held(m: &Mob, controller: &str) -> bool {
+    let (Some(t), Some(state)) = (m.kind.custom.as_ref(), m.extra.custom.as_ref()) else { return false };
+    let (Some(a), Some(anim)) = (&t.anim, &state.anim) else { return false };
+    let Some(li) = a.rig.controllers().iter().position(|c| c.name == controller) else { return false };
+    anim.holds.get(li).copied().flatten().is_some_and(|until| anim.now < until)
+}
+
+fn hold_slot<'a>(m: &'a mut Mob, controller: &str) -> Option<(&'a mut Option<i64>, i64)> {
+    let t = m.kind.custom.clone()?;
+    let a = t.anim.as_ref()?;
+    let li = a.rig.controllers().iter().position(|c| c.name == controller)?;
+    let cs = m.extra.custom.as_mut()?;
+    let anim = cs.anim.get_or_insert_with(|| Box::new(MobAnim::new(a, m.id, 0)));
+    let now = anim.now;
+    anim.holds.get_mut(li).map(|slot| (slot, now))
+}
+
 /// One server tick of the mob's animation (see the module docs). Nothing happens for a mob whose
 /// type has no animations. `w.game_time` is the tick.
 pub fn tick(m: &mut Mob, w: &MobWorld) {
@@ -503,10 +559,31 @@ pub fn tick(m: &mut Mob, w: &MobWorld) {
             marks,
             inputs,
             runs,
+            holds,
             ..
         } = &mut *anim;
-        ta.events
-            .update_marked(&ta.rig, EventSide::Server, state, TICK_SECONDS, inputs, marks, &mut buf);
+        // The layers a script holds (expired holds are let go first).
+        let mut held = [false; MAX_HELD_LAYERS];
+        let mut any = false;
+        for (li, h) in holds.iter_mut().enumerate() {
+            if h.is_some_and(|until| now >= until) {
+                *h = None;
+            }
+            if h.is_some() && li < MAX_HELD_LAYERS {
+                held[li] = true;
+                any = true;
+            }
+        }
+        ta.events.update_marked_holding(
+            &ta.rig,
+            EventSide::Server,
+            state,
+            TICK_SECONDS,
+            inputs,
+            marks,
+            &mut buf,
+            if any { &held } else { &[] },
+        );
         for run in runs.iter_mut() {
             let def = &ta.triggers[usize::from(run.id)];
             let step = TICK_SECONDS * run.speed;

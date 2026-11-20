@@ -13,12 +13,36 @@ use yoake_wasm::full_bindings::client::yoake::mods::engine_types as et;
 
 pub(crate) struct WasmRuntime;
 
-/// Installs the runtime (once; the first server module that registers does it).
-pub(super) fn install() {
+/// Installs what is process-wide (once; the first server module that registers does it): the `mob-interact`
+/// hook of the data dispatch. The script runtime is not: a server opens it with its world (see [`world_runtime`]).
+pub(crate) fn install() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
-        crate::mobs::custom::script::set_runtime(Some(Arc::new(WasmRuntime)));
         crate::mobs::custom::ai::interact::set_hook(Some(Arc::new(WasmRuntime)));
+    });
+}
+
+/// The script runtime a server opens its session with (`script::open_session`): the WASM server modules first,
+/// then the native mods (`mob_native`, through `mod_api::mods()`). `None` when there is neither (the custom
+/// mobs then run without scripts and publish no views).
+pub(crate) fn world_runtime() -> Option<Arc<dyn crate::mobs::custom::script::Runtime>> {
+    if endpoints().is_empty() && crate::mod_api::mods().is_empty() {
+        return None;
+    }
+    Some(Arc::new(crate::mobs::custom::script::Chain {
+        first: Arc::new(WasmRuntime),
+        second: Arc::new(crate::mob_native::NativeRuntime::process()),
+    }))
+}
+
+/// Installs the client runtime (once): the WASM client modules first, then the native mods.
+pub(crate) fn install_client() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        crate::mobs::custom::script::set_client_runtime(Some(Arc::new(crate::mobs::custom::script::ClientChain {
+            first: Arc::new(WasmRuntime),
+            second: Arc::new(crate::mob_native::NativeClientRuntime::process()),
+        })));
     });
 }
 
@@ -190,10 +214,7 @@ pub(super) fn register_client(slot: &ClientSlot) {
     g.retain(|w| w.strong_count() > 0);
     g.push(Arc::downgrade(slot));
     drop(g);
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        crate::mobs::custom::script::set_client_runtime(Some(Arc::new(WasmRuntime)));
-    });
+    install_client();
 }
 
 fn client_each<R>(mut f: impl FnMut(&mut yoake_wasm::ClientFullMod) -> Option<R>) -> Vec<R> {
@@ -280,11 +301,11 @@ mod tests {
     use std::sync::Arc;
     use yoake_wasm::test_guests::{FOX_AI, FOX_AI_SPIN, FOX_AI_TRAP, Guest, load};
 
-    const FOX_JSON: &str = include_str!("../../../../tools/fixtures/cinder_fox/data/sample_mobs/horizon/entity_type/cinder_fox.json");
+    const FOX_JSON: &str = include_str!("../../../../tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json");
 
     fn fox_type() -> Arc<CustomType> {
         let file = CustomMobFile::parse("sample_mobs:cinder_fox", FOX_JSON.as_bytes()).unwrap();
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/fixtures/cinder_fox");
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/fixtures/cinder_fox/content");
         let model = file.load_model(&mut |p| std::fs::read(root.join(p)).map_err(|e| e.to_string())).unwrap();
         Arc::new(CustomType::new(file, Some(&model)).unwrap())
     }
@@ -306,6 +327,84 @@ mod tests {
             mob_services::grant(id);
         }
         Some(Arc::new(FullMod::new(id.into(), None, Some(server))))
+    }
+
+    /// `tools/fixtures/cinder_fox` (the package: `yak.toml`, `content/`) copied to a scratch folder as an installed
+    /// package (`yoake-mods/sample_mobs/0.1.0/`), with the built guest written to the `bin/wasm/fox_ai.wasm` its
+    /// `[wasm]` section names. The scratch folder goes away with the value; the repository is never written.
+    struct DevMod {
+        game: std::path::PathBuf,
+        package: std::path::PathBuf,
+    }
+
+    impl DevMod {
+        fn stage(guest: &[u8]) -> Self {
+            fn copy(from: &std::path::Path, to: &std::path::Path) {
+                std::fs::create_dir_all(to).unwrap();
+                for entry in std::fs::read_dir(from).unwrap() {
+                    let entry = entry.unwrap();
+                    let target = to.join(entry.file_name());
+                    if entry.file_type().unwrap().is_dir() {
+                        copy(&entry.path(), &target);
+                    } else {
+                        std::fs::copy(entry.path(), target).unwrap();
+                    }
+                }
+            }
+            static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+            let game = std::env::temp_dir().join(format!(
+                "cinder-fox-dev-mod-{}-{}",
+                std::process::id(),
+                NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            ));
+            let package = game.join("yoake-mods/sample_mobs/0.1.0");
+            let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/fixtures/cinder_fox");
+            std::fs::create_dir_all(&package).unwrap();
+            std::fs::copy(fixture.join("yak.toml"), package.join("yak.toml")).unwrap();
+            copy(&fixture.join("content"), &package.join("content"));
+            std::fs::create_dir_all(package.join("bin/wasm")).unwrap();
+            std::fs::write(package.join("bin/wasm/fox_ai.wasm"), guest).unwrap();
+            std::fs::write(game.join("yoake-mods.txt"), "sample_mobs 0.1.0\n").unwrap();
+            Self { game, package }
+        }
+    }
+
+    impl Drop for DevMod {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.game);
+        }
+    }
+
+    /// The Cinder Fox dev mod as the game loads it: its `yak.toml` is read, its content must be the same package
+    /// (id and version), the package yields one server module with the `service.mobs` permission and the guest's
+    /// bytes, and that module is loaded and granted as `wasm_mods::extend` does. `None` when the guest cannot be built.
+    fn dev_mod_package() -> Option<(DevMod, Arc<FullMod>)> {
+        use crate::yak_mods::{Installed, WasmSide, wasm_mods_from};
+        let bytes = load(&FOX_AI)?;
+        let dev = DevMod::stage(&bytes);
+        let manifest = horizon_mods::yak::Manifest::read(&dev.package.join("yak.toml")).expect("yak.toml is valid");
+        assert_eq!(manifest.wasm.as_ref().and_then(|w| w.server.as_deref()), Some("bin/wasm/fox_ai.wasm"));
+        let content = horizon_mods::manifest::Package::read(&dev.package.join("content")).expect("content/ is a content mod");
+        assert_eq!(content.manifest.id, manifest.id, "content and package are the same mod");
+        assert_eq!(content.manifest.version, manifest.version.to_string());
+        let entry = Installed::new_for_test(dev.package.clone(), manifest);
+        let found = wasm_mods_from(std::slice::from_ref(&entry), WasmSide::Server, &[], true);
+        assert_eq!(found.len(), 1, "the package declares one server module");
+        let module = &found[0];
+        assert_eq!(module.mod_id, "sample_mobs");
+        assert_eq!(module.bytes, bytes, "the module is the built guest");
+        assert!(module.permissions.iter().any(|p| p == "service.mobs"));
+        if module.permissions.iter().any(|p| p == "service.mobs") {
+            mob_services::grant(&module.mod_id);
+        }
+        let source = super::super::full::ServerSource::new(&module.mod_id, module.bytes.clone(), module.commands);
+        let server = load_server(&source.module()).expect("the guest loads");
+        Some((dev, Arc::new(FullMod::new(module.mod_id.clone(), None, Some(server)).with_server_source(source))))
+    }
+
+    /// The server's session over the registered modules (what the game opens with its world); the tests hold it.
+    fn session() -> script::Session {
+        script::open_session(super::world_runtime().expect("a server module is registered")).expect("no other session is open")
     }
 
     /// One evaluation of the goal selector at game time `t`.
@@ -335,7 +434,9 @@ mod tests {
     fn the_fox_ai_guest_pounces_when_the_target_is_three_to_six_blocks_away_in_sight() {
         let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         script::reset();
-        let Some(_pkg) = package(&FOX_AI, "fox_ai", true) else { return };
+        // The real dev mod: the fixture's `yak.toml` and content with the built fox_ai guest.
+        let Some((_dev, _pkg)) = dev_mod_package() else { return };
+        let _session = session();
         let fx = BenchWorld::new();
         let mut lr = LegacyRandom::new(1);
         let mut events = Vec::new();
@@ -381,6 +482,7 @@ mod tests {
         let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         script::reset();
         let Some(_pkg) = package(&FOX_AI, "fox_ai_ungranted", false) else { return };
+        let _session = session();
         let fx = BenchWorld::new();
         let mut lr = LegacyRandom::new(1);
         let mut events = Vec::new();
@@ -401,6 +503,7 @@ mod tests {
         let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         script::reset();
         let Some(_pkg) = package(&FOX_AI_TRAP, "fox_ai_trap", true) else { return };
+        let _session = session();
         let fx = BenchWorld::new();
         let mut lr = LegacyRandom::new(1);
         let mut events = Vec::new();
@@ -420,6 +523,7 @@ mod tests {
         let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         script::reset();
         let Some(_pkg) = package(&FOX_AI_SPIN, "fox_ai_spin", true) else { return };
+        let _session = session();
         let fx = BenchWorld::new();
         let mut lr = LegacyRandom::new(1);
         let mut events = Vec::new();
@@ -432,5 +536,48 @@ mod tests {
         assert!(!pounce_running(&m));
         assert!(!module_live("fox_ai_spin"));
         script::reset();
+    }
+
+    #[test]
+    fn the_hold_services_queue_their_commands_and_are_gated_by_service_mobs() {
+        use yoake_wasm::ServerHost;
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        script::reset();
+        let m = fox(1, Vec3::new(0.5, 1.0, 0.5));
+        script::publish(script::MobView::of(&m).unwrap());
+        mob_services::grant("hold_granted");
+        let mut host = GameServerHost { id: "hold_granted".into(), commands: false };
+        assert_eq!(host.mob_set_controller_state_hold("locomotion".into(), 1, Some(10), "run".into()), Ok(true));
+        assert_eq!(host.mob_set_controller_state_hold("locomotion".into(), 1, None, "run".into()), Ok(true));
+        assert_eq!(host.mob_release_controller_state("locomotion".into(), 1), Ok(true));
+        assert_eq!(
+            script::take_for(1),
+            vec![
+                script::Command::HoldControllerState { controller: "locomotion".into(), state: "run".into(), hold_ticks: Some(10) },
+                script::Command::HoldControllerState { controller: "locomotion".into(), state: "run".into(), hold_ticks: None },
+                script::Command::ReleaseControllerState { controller: "locomotion".into() },
+            ]
+        );
+        // Not for a mob nobody published, and not without the permission.
+        assert!(host.mob_set_controller_state_hold("locomotion".into(), 99, None, "run".into()).is_err());
+        let mut ungranted = GameServerHost { id: "hold_ungranted".into(), commands: false };
+        let e = ungranted.mob_release_controller_state("locomotion".into(), 1).unwrap_err();
+        assert!(e.contains("service.mobs"), "{e}");
+        script::reset();
+    }
+}
+
+#[cfg(test)]
+mod hook_ids {
+    /// The 20 script hooks are one block of the catalog: `FullMod::wants` keeps the module adapters of exactly
+    /// that block silent (the runtime reaches the module itself).
+    #[test]
+    fn the_script_hooks_are_the_block_the_module_adapters_skip() {
+        use super::super::full::{H_MOB_GOAL_CAN_USE, H_SYNCED_CHANGED_CLIENT};
+        let names: Vec<&str> = yoake_wasm::FULL_HOOK_LIST[H_MOB_GOAL_CAN_USE..=H_SYNCED_CHANGED_CLIENT].iter().map(|(n, _)| *n).collect();
+        let fragment: serde_json::Value = serde_json::from_str(include_str!("../../../../tools/native-hook-fragments/f4m_mobs.json")).unwrap();
+        let expected: Vec<&str> = fragment["hooks"].as_array().unwrap().iter().map(|h| h["name"].as_str().unwrap()).collect();
+        assert_eq!(names, expected);
+        assert_eq!(names.len(), 20);
     }
 }

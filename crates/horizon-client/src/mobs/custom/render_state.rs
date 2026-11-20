@@ -1241,7 +1241,7 @@ mod tests {
     use std::sync::Arc;
 
     const FOX: &str = include_str!(
-        "../../../../../tools/fixtures/cinder_fox/data/sample_mobs/horizon/entity_type/cinder_fox.json"
+        "../../../../../tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json"
     );
     const BODY: &str = "sample_mobs:entity/cinder_fox";
     const GLOW: &str = "sample_mobs:entity/cinder_fox_glowmask";

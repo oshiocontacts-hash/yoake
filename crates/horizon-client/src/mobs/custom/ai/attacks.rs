@@ -351,7 +351,9 @@ impl Goal for ChaseStrike {
         self.pending = None;
     }
     fn stop(&mut self, m: &mut Mob, cx: &mut Cx) {
-        self.pending = None;
+        if self.pending.take().is_some() {
+            log::info!("Horizon custom-mob strike: mob {} dropped, the goal stopped tick {}", m.id, cx.w.game_time);
+        }
         self.inner.stop(m, cx);
     }
     fn every_tick(&self) -> bool {
@@ -370,8 +372,16 @@ impl Goal for ChaseStrike {
         if let Some(p) = self.pending {
             if self.timing.due(m, p, now) {
                 self.pending = None;
-                if t.alive && self.in_reach(m, &t) {
+                let (alive, reach) = (t.alive, self.in_reach(m, &t));
+                if alive && reach {
+                    log::info!("Horizon custom-mob strike: mob {} lands on {who:?} tick {now}", m.id);
                     self.land(m, who, cx);
+                } else {
+                    // The blow is dropped, said once in the log (a rerun must tell this from a lost frame).
+                    log::info!(
+                        "Horizon custom-mob strike: mob {} dropped, target alive {alive} in reach {reach} tick {now}",
+                        m.id
+                    );
                 }
             }
             return;
@@ -379,7 +389,9 @@ impl Goal for ChaseStrike {
         if self.until <= 0 && self.in_reach(m, &t) && m.sees(cx.w, who) {
             self.until = self.interval;
             let p = self.timing.begin(m, now);
+            log::info!("Horizon custom-mob strike: mob {} begins on {who:?} tick {now}", m.id);
             if self.timing.due(m, p, now) {
+                log::info!("Horizon custom-mob strike: mob {} lands on {who:?} tick {now}", m.id);
                 self.land(m, who, cx);
             } else {
                 self.pending = Some(p);

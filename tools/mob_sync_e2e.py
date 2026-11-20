@@ -40,7 +40,7 @@ from integration_env import require_server_reports  # noqa: E402
 from lan_e2e import Game, back_to_game, pos_of  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXTURE = ROOT / 'tools/fixtures/cinder_fox'
+FIXTURE = ROOT / 'tools/fixtures/cinder_fox/content'  # the data-only variant (the package also has yak.toml + the guest)
 FOX = 'sample_mobs:cinder_fox'
 LINE = re.compile(r'Horizon mob-sync: snapshots=(\d+) deltas=(\d+) triggers=(\d+) dropped=(\d+) incompatible=(\d+) known=(\d+)')
 

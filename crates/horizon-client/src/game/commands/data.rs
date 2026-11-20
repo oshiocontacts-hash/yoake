@@ -28,6 +28,17 @@ fn set_key(tag: &mut Tag, key: &str, value: Tag) {
         c.insert(JavaString::from(key), value);
     }
 }
+/// The compound `/summon <kind> <pos> <nbt>` builds the entity from: the command's NBT with the type id
+/// and the position put in (`SummonCommand.createEntity`).
+pub(in crate::game) fn summon_tag(kind: &str, pos: [f64; 3], nbt: &str) -> R<Tag> {
+    let (mut tag, _) = parse_snbt(nbt).map_err(|e| err("argument.nbt.invalid", &[&e]))?;
+    if !matches!(tag, Tag::Compound(_)) {
+        return Err(err("argument.nbt.expected.compound", &[]));
+    }
+    set_key(&mut tag, "id", Tag::String(kind.into()));
+    place_summoned(&mut tag, pos);
+    Ok(tag)
+}
 /// `EntityType.loadEntityRecursive` snaps every entity of the stack,
 /// passengers included, to the position (`/summon`, `native_summon`).
 pub(in crate::game) fn place_summoned(tag: &mut Tag, pos: [f64; 3]) {
@@ -943,12 +954,7 @@ impl Game<'_> {
         pos: [f64; 3],
         nbt: &str,
     ) -> R<Option<Target>> {
-        let (mut tag, _) = parse_snbt(nbt).map_err(|e| err("argument.nbt.invalid", &[&e]))?;
-        if !matches!(tag, Tag::Compound(_)) {
-            return Err(err("argument.nbt.expected.compound", &[]));
-        }
-        set_key(&mut tag, "id", Tag::String(kind.into()));
-        place_summoned(&mut tag, pos);
+        let tag = summon_tag(kind, pos, nbt)?;
         let from = self.mobs.len();
         let canceled = self.persist.joins_canceled;
         let target = self.spawn_entity_from_nbt(tag);
@@ -960,5 +966,68 @@ impl Game<'_> {
             return Err(err("commands.summon.failed.uuid", &[]));
         }
         Ok(target)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use horizon_client::mobs::{custom::{CustomType, build}, MobType};
+    use horizon_mods::custom_mob::CustomMobFile;
+    use std::{collections::HashMap, sync::Arc};
+
+    /// A fully custom mob type (the Cinder Fox's file without a model) in the table the game loads
+    /// mobs from.
+    fn types() -> HashMap<String, Arc<MobType>> {
+        let json = r#"{"template":"yoake:mob","category":"creature",
+            "size":{"width":0.6,"height":0.7,"eye_height":0.5},
+            "attributes":{"max_health":14,"movement_speed":0.3},
+            "ai":{"navigator":"ground","goals":[]}}"#;
+        let file = CustomMobFile::parse("sample_mobs:cinder_fox", json.as_bytes()).unwrap();
+        let t = Arc::new(CustomType::new(file, None).unwrap());
+        let kind = Arc::new(build::mob_type(&t));
+        HashMap::from([(kind.id.to_string(), kind)])
+    }
+
+    /// `/summon sample_mobs:cinder_fox ~ ~ ~ {CustomName:"Foxy",CustomNameVisible:1b}`: the compound the
+    /// command builds loads as a custom mob that has its name and shows it.
+    #[test]
+    fn summoning_a_custom_mob_with_a_name_names_it() {
+        let tag = summon_tag(
+            "sample_mobs:cinder_fox",
+            [1.5, 64.0, -2.5],
+            r#"{CustomName:"Foxy",CustomNameVisible:1b}"#,
+        )
+        .unwrap();
+        let m = entity_nbt::mob_from_nbt(&tag, &types(), 7, None).expect("the custom type is found by its id");
+        assert!(m.kind.custom.is_some());
+        assert_eq!(m.position, horizon_core::geometry::Vec3::new(1.5, 64.0, -2.5));
+        assert_eq!(m.custom_name_text.as_ref().map(|t| t.plain()).as_deref(), Some("Foxy"));
+        assert_eq!(m.command_name().plain(), "Foxy");
+        assert!(m.name_visible);
+    }
+
+    /// `/data merge entity` of a name: the merged compound of the saved mob rebuilds it with the name, and
+    /// the next save keeps it.
+    #[test]
+    fn merging_a_name_into_a_custom_mob_keeps_it_through_a_save() {
+        let types = types();
+        let tag = summon_tag("sample_mobs:cinder_fox", [0.5, 64.0, 0.5], "{}").unwrap();
+        let m = entity_nbt::mob_from_nbt(&tag, &types, 7, None).unwrap();
+        assert!(m.custom_name.is_none() && !m.name_visible);
+        let mut saved = entity_nbt::mob_to_nbt(&m, [1, 2, 3, 4], Some(&tag), None);
+        let (patch, _) = parse_snbt(r#"{CustomName:"Cinder",CustomNameVisible:1b}"#).unwrap();
+        // NbtPath merge: the patch's keys replace the saved ones.
+        if let (Tag::Compound(into), Tag::Compound(from)) = (&mut saved, patch) {
+            for (k, v) in from.iter() {
+                into.insert(k.clone(), v.clone());
+            }
+        }
+        let named = entity_nbt::mob_from_nbt(&saved, &types, 7, None).unwrap();
+        assert_eq!(named.custom_name_text.as_ref().map(|t| t.plain()).as_deref(), Some("Cinder"));
+        assert!(named.name_visible);
+        let again = entity_nbt::mob_to_nbt(&named, [1, 2, 3, 4], Some(&saved), None);
+        assert_eq!(entity_nbt::name_text(again.get("CustomName").unwrap()).plain(), "Cinder");
+        assert!(entity_nbt::flag(&again, "CustomNameVisible"));
     }
 }

@@ -214,7 +214,7 @@ def run(ctl, out, shots, resources):
         # name tag
         host('command', command=f'summon {FOX} {hx + 0.5} {hy} {hz - 6.5}')
         host.wait(20)
-        named = host('command', command=f"data merge entity {FOXES} {{CustomName:'\"Cinder\"',CustomNameVisible:1b}}")
+        named = host('command', command=f"data merge entity @e[type=sample_mobs:cinder_fox,limit=1] {{CustomName:\"Cinder\",CustomNameVisible:1b}}")
         host.wait(10)
         fox = fox_list(host)[0]
         look_at_fox(host, fox, back=3.0, dy=0.9)

@@ -317,6 +317,12 @@ impl FullMod {
     /// Whether this module's `side` instance subscribed to the hook with this catalog ordinal.
     #[inline]
     fn wants(&self, side: Side, hook: usize) -> bool {
+        // F4M-10: the script hooks of custom mobs reach the WASM modules through `mob_runtime` (which also
+        // gives native mods the hooks through `mod_api::mods()`); the adapter of the module stays silent so a
+        // module is never called twice.
+        if (H_MOB_GOAL_CAN_USE..=H_SYNCED_CHANGED_CLIENT).contains(&hook) {
+            return false;
+        }
         if side == Side::Client {
             self.reload_client();
         }

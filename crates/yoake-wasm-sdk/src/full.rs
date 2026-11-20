@@ -428,6 +428,16 @@ pub mod server {
         pub fn set_controller_state(entity: u32, controller: &str, state: &str) -> Result<bool, String> {
             services::mob_set_controller_state(controller, entity, state)
         }
+        /// Enters the state and holds it: the controller's own transitions are not tested for `hold_ticks` ticks
+        /// (`None`: until [`release_controller_state`], a plain `set_controller_state` of the controller, or another
+        /// hold; `Some(0)` holds nothing; at most 72000). False: no such controller or state.
+        pub fn set_controller_state_hold(entity: u32, controller: &str, state: &str, hold_ticks: Option<u32>) -> Result<bool, String> {
+            services::mob_set_controller_state_hold(controller, entity, hold_ticks, state)
+        }
+        /// Lets the controller's own transitions run again after a hold.
+        pub fn release_controller_state(entity: u32, controller: &str) -> Result<bool, String> {
+            services::mob_release_controller_state(controller, entity)
+        }
         pub fn navigate_to(entity: u32, position: types::Vec3, speed: f64) -> Result<bool, String> {
             services::mob_navigate_to(entity, position, speed)
         }

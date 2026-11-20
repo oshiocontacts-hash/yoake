@@ -237,6 +237,14 @@ impl ServerHost for GameServerHost {
         mob::gate(mob::granted(&self.id))?;
         mob::set_controller_state(&controller, entity, &state)
     }
+    fn mob_set_controller_state_hold(&mut self, controller: String, entity: u32, hold_ticks: Option<u32>, state: String) -> Result<bool, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::set_controller_state_hold(&controller, entity, &state, hold_ticks)
+    }
+    fn mob_release_controller_state(&mut self, controller: String, entity: u32) -> Result<bool, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::release_controller_state(&controller, entity)
+    }
     fn mob_navigate_to(&mut self, entity: u32, position: st::Vec3, speed: f64) -> Result<bool, String> {
         mob::gate(mob::granted(&self.id))?;
         mob::navigate_to(entity, &position, speed)

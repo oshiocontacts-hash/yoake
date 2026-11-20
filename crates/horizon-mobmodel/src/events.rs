@@ -652,13 +652,29 @@ impl MobEvents {
         marks: &mut EventMarks,
         buf: &mut EventBuf,
     ) {
-        rig.update(st, dt, inputs, &mut |ev| {
+        self.update_marked_holding(rig, side, st, dt, inputs, marks, buf, &[]);
+    }
+
+    /// [`update_marked`](Self::update_marked) where the layers with `held[layer] == true` keep their state.
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_marked_holding(
+        &self,
+        rig: &Rig,
+        side: EventSide,
+        st: &mut RigState,
+        dt: f32,
+        inputs: &mut ExprInputs,
+        marks: &mut EventMarks,
+        buf: &mut EventBuf,
+        held: &[bool],
+    ) {
+        rig.update_holding(st, dt, inputs, &mut |ev| {
             if marks.allow(ev.layer, ev.source, ev.loop_index, ev.event.time) {
                 if let Some(e) = self.resolve(side, ev.layer, &ev) {
                     buf.push(e);
                 }
             }
-        });
+        }, held);
         marks.commit();
         for (li, l) in st.layers.iter().enumerate() {
             if l.cur.time == 0.0 {

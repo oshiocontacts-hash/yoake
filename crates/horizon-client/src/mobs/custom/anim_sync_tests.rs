@@ -12,11 +12,11 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 
 const FOX: &str = include_str!(
-    "../../../../../tools/fixtures/cinder_fox/data/sample_mobs/horizon/entity_type/cinder_fox.json"
+    "../../../../../tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json"
 );
 
 pub(crate) fn root() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/fixtures/cinder_fox")
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/fixtures/cinder_fox/content")
 }
 
 /// The Cinder Fox with `ai` replaced (and edited by `edit`), built as the game builds a type: the
@@ -451,4 +451,193 @@ fn a_types_name_tag_height_is_blocks_above_the_feet_times_the_model_scale() {
     // A scaled mob lifts it with the scale (its hitbox follows the same scale).
     m.extra.model_scale = 2.0;
     assert_eq!(crate::mobs::custom::name_tag_height(&m), Some(5.0));
+}
+
+// ----- F4M-10: holding a controller state ---------------------------------------------------------
+
+/// The index of `locomotion` and of its `run` state: a standing fox's `run` goes back to `walk` at once
+/// (`q.ground_speed < 0.15`), so a state that stays is a held one.
+fn loco_and_run(t: &Arc<CustomType>) -> (usize, usize) {
+    let rig = &t.anim.as_ref().unwrap().rig;
+    let li = rig.controllers().iter().position(|c| c.name == "locomotion").unwrap();
+    let run = rig.controllers()[li].states.iter().position(|s| s.name == "run").unwrap();
+    (li, run)
+}
+
+fn loco_state(m: &mut Mob, li: usize) -> usize {
+    anim(m).state.layers[li].cur.state
+}
+
+#[test]
+fn a_held_controller_state_stays_for_its_ticks_then_the_controller_goes_on() {
+    let t = fox_type_with(idle_ai(), |_| {});
+    let (li, run_id) = loco_and_run(&t);
+    let mut m = fox_mob(&t, Vec3::new(0.5, 1.0, 0.5));
+    let fx = flat();
+    let others = [];
+    let mut run = Run::new(view(&fx.world(), &others, None));
+    run.step(&mut m);
+    // Entering `run` alone: the controller leaves it on the next tick (the default stays "enter only").
+    assert!(force_state(&mut m, "locomotion", "run"));
+    run.step(&mut m);
+    assert_ne!(loco_state(&mut m, li), run_id, "enter-only: the controller's transition ran");
+    // Held for 5 ticks: it stays for exactly those, then the controller's own transition runs.
+    assert!(hold_state(&mut m, "locomotion", "run", Some(5)));
+    assert!(is_held(&m, "locomotion"));
+    for tick in 1..=5 {
+        run.step(&mut m);
+        assert_eq!(loco_state(&mut m, li), run_id, "held at tick {tick}");
+    }
+    run.step(&mut m);
+    assert_ne!(loco_state(&mut m, li), run_id, "the hold is over");
+    assert!(!is_held(&m, "locomotion"));
+}
+
+#[test]
+fn a_hold_without_ticks_lasts_until_released_and_a_plain_set_or_a_zero_hold_lets_go() {
+    use crate::mobs::custom::script::Command;
+    use crate::mobs::custom::script_apply::apply_in;
+    let t = fox_type_with(idle_ai(), |_| {});
+    let (li, run_id) = loco_and_run(&t);
+    let mut m = fox_mob(&t, Vec3::new(0.5, 1.0, 0.5));
+    let fx = flat();
+    let others = [];
+    let mut run = Run::new(view(&fx.world(), &others, None));
+    run.step(&mut m);
+    let hold = |ticks| Command::HoldControllerState { controller: "locomotion".into(), state: "run".into(), hold_ticks: ticks };
+    // No tick count: held for as long as nobody lets go.
+    assert!(apply_in(&mut m, None, None, hold(None)));
+    for _ in 0..200 {
+        run.step(&mut m);
+    }
+    assert_eq!(loco_state(&mut m, li), run_id, "still held after 200 ticks");
+    // `release-controller-state`.
+    assert!(apply_in(&mut m, None, None, Command::ReleaseControllerState { controller: "locomotion".into() }));
+    run.step(&mut m);
+    assert_ne!(loco_state(&mut m, li), run_id);
+    // A plain `set-controller-state` lets go of an earlier hold.
+    assert!(apply_in(&mut m, None, None, hold(None)));
+    assert!(apply_in(&mut m, None, None, Command::SetControllerState { controller: "locomotion".into(), state: "run".into() }));
+    assert!(!is_held(&m, "locomotion"));
+    run.step(&mut m);
+    assert_ne!(loco_state(&mut m, li), run_id, "enter-only again");
+    // `Some(0)` is no hold; unknown names change nothing.
+    assert!(apply_in(&mut m, None, None, hold(Some(0))));
+    assert!(!is_held(&m, "locomotion"));
+    assert!(!hold_state(&mut m, "nothing", "run", None));
+    assert!(!hold_state(&mut m, "locomotion", "nothing", None));
+    assert!(!release_state(&mut m, "nothing"));
+}
+
+/// The real-game strike of `tools/custom_mob_render_e2e.py`: the fox has only `swim` and a
+/// `melee_attack` with `trigger` and `damage_frame` (no `damage_delay`), the attack damage is 2, it picks
+/// the player itself (nearest_target) and a survival player stands within reach.
+#[test]
+fn the_e2e_fox_picks_the_player_and_its_pounce_strikes() {
+    let ai = json!({"navigator": "ground",
+        "goals": [{"type": "swim", "priority": 0},
+                  {"type": "melee_attack", "priority": 2, "speed": 1.0, "interval": 600, "trigger": "pounce", "damage_frame": "hit"}],
+        "targets": [{"type": "nearest_target", "priority": 1, "types": ["minecraft:chicken", "minecraft:player"]}]});
+    let t = fox_type_with(ai, |v| {
+        v["attributes"]["attack_damage"] = json!(2);
+    });
+    let mut m = fox_mob(&t, Vec3::new(0.5, 1.0, 0.5));
+    let fx = flat();
+    let others = [];
+    let mut run = Run::new(view(&fx.world(), &others, Some(Vec3::new(0.5, 1.0, 1.5))));
+    for _ in 0..60 {
+        run.step(&mut m);
+    }
+    assert!(run.hits() >= 1, "target {:?} attack_damage {}", m.ai.target, m.attrs.attack_damage);
+    let amount = run
+        .events
+        .iter()
+        .find_map(|e| match e {
+            MobEvent::AttackPlayer(a, _) => Some(*a),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(amount, 2.0);
+}
+
+/// The same fox beside a chicken (no player): the blow is an `AttackMob` on the chicken.
+#[test]
+fn the_e2e_fox_picks_a_chicken_and_its_pounce_strikes() {
+    let ai = json!({"navigator": "ground",
+        "goals": [{"type": "swim", "priority": 0},
+                  {"type": "melee_attack", "priority": 2, "speed": 1.0, "interval": 600, "trigger": "pounce", "damage_frame": "hit"}],
+        "targets": [{"type": "nearest_target", "priority": 1, "types": ["minecraft:chicken", "minecraft:player"]}]});
+    let t = fox_type_with(ai, |v| {
+        v["attributes"]["attack_damage"] = json!(2);
+    });
+    let mut m = fox_mob(&t, Vec3::new(0.5, 1.0, 0.5));
+    let fx = flat();
+    let others = [seen(9, crate::mobs::Species::Chicken, Vec3::new(0.5, 1.0, 1.5))];
+    let mut run = Run::new(view(&fx.world(), &others, None));
+    for _ in 0..60 {
+        run.step(&mut m);
+    }
+    let hits: Vec<_> = run.events.iter().filter(|e| matches!(e, MobEvent::AttackMob { .. })).collect();
+    assert!(!hits.is_empty(), "target {:?}", m.ai.target);
+}
+
+/// A chicken at one block and a player at five: the fox picks the nearer one.
+#[test]
+fn the_e2e_fox_prefers_the_nearer_of_a_chicken_and_a_player() {
+    let ai = json!({"navigator": "ground",
+        "goals": [{"type": "swim", "priority": 0},
+                  {"type": "melee_attack", "priority": 2, "speed": 1.0, "interval": 600, "trigger": "pounce", "damage_frame": "hit"}],
+        "targets": [{"type": "nearest_target", "priority": 1, "types": ["minecraft:chicken", "minecraft:player"]}]});
+    let t = fox_type_with(ai, |v| {
+        v["attributes"]["attack_damage"] = json!(2);
+    });
+    let mut m = fox_mob(&t, Vec3::new(0.5, 1.0, 0.5));
+    let fx = flat();
+    let others = [seen(9, crate::mobs::Species::Chicken, Vec3::new(0.5, 1.0, 1.5))];
+    let mut run = Run::new(view(&fx.world(), &others, Some(Vec3::new(5.5, 1.0, 0.5))));
+    for _ in 0..60 {
+        run.step(&mut m);
+        if m.ai.target.is_some() {
+            break;
+        }
+    }
+    assert_eq!(m.ai.target, Some(Who::Mob(9)), "the nearer chicken");
+}
+
+/// The game's mob loop (`tick_creature_entities`), reduced to its removal rule: a mob is dropped from the
+/// list when `Mob::tick` returns false, and its poof/removal is announced when
+/// `!kept && !removed && !alive && death_time >= removal_ticks`. Killed by damage (what `/damage` and a
+/// hit do) at the start of tick 0, the body must stay `removal_ticks` ticks, the removal must be the one the
+/// loop announces (never a silent drop before), and nothing else may drop it on the way: the fixture fox's
+/// death clip is 0.6 s, so 20 ticks after the clamp.
+#[test]
+fn a_mob_killed_by_damage_is_removed_exactly_at_removal_ticks_and_announced() {
+    for (clip, want) in [(Some(0.6), 20), (Some(1.5), 30), (Some(5.0), 60), (None, 20)] {
+        let t = fox_with_death(clip);
+        let mut m = fox_mob(&t, Vec3::new(0.5, 1.0, 0.5));
+        m.persistent = false;
+        let fx = flat();
+        let others = [];
+        let mut run = Run::new(view(&fx.world(), &others, Some(Vec3::new(0.5, 1.0, 6.5))));
+        assert!(m.damage(100.0, crate::mobs::Damage::of(crate::mobs::DamageKind::Generic)));
+        assert!(!m.alive());
+        let mut removed_at = None;
+        for tick in 1..=100 {
+            let w = {
+                let mut w = run.w0.clone();
+                w.game_time = run.tick;
+                w
+            };
+            run.tick += 1;
+            let kept = m.tick(&w, &mut run.lr, &mut run.events);
+            let announced = !kept && !m.removed && !m.alive() && m.death_time >= crate::mobs::custom::removal_ticks(&m);
+            if !kept {
+                assert!(announced, "dropped silently at tick {tick} (death_time {})", m.death_time);
+                removed_at = Some(tick);
+                break;
+            }
+        }
+        assert_eq!(removed_at, Some(want), "clip {clip:?}");
+        assert_eq!(m.death_time, want);
+    }
 }

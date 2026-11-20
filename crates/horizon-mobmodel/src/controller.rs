@@ -504,6 +504,19 @@ impl Controller {
         inputs: &mut ExprInputs,
         events: &mut dyn FnMut(usize, usize, f32, f32),
     ) -> bool {
+        self.update_holding(st, dt, inputs, events, false)
+    }
+
+    /// [`update`](Self::update) that, with `hold`, does not test the transitions: the clocks advance and the
+    /// state stays (a script holding the state, F4M-10).
+    pub fn update_holding(
+        &self,
+        st: &mut ControllerState,
+        dt: f32,
+        inputs: &mut ExprInputs,
+        events: &mut dyn FnMut(usize, usize, f32, f32),
+        hold: bool,
+    ) -> bool {
         let dt = if dt.is_finite() { dt.clamp(0.0, MAX_DT) } else { 0.0 };
         let mut cur = st.cur;
         self.advance_run(&mut cur, dt, inputs, events);
@@ -515,6 +528,9 @@ impl Controller {
         }
         let Some(state) = self.states.get(st.cur.state) else { return false };
         inputs.set(Query::AnimTime, st.cur.time);
+        if hold {
+            return false;
+        }
         for t in &state.transitions {
             if t.when.eval_bool(inputs) {
                 let dur = t.blend.unwrap_or(self.states[t.to].blend);
@@ -596,6 +612,24 @@ mod tests {
         inp.set(Query::GroundSpeed, 0.0);
         assert!(c.update(&mut st, 0.05, &mut inp, &mut noop()));
         assert_eq!(c.state_id(&st), 1);
+    }
+
+    #[test]
+    fn a_held_state_keeps_its_clock_running_but_tests_no_transition() {
+        let (c, _) = load();
+        let c = &c[0];
+        let mut st = c.initial_state();
+        let mut inp = ExprInputs::default();
+        inp.set(Query::IsOnGround, 1.0);
+        inp.set(Query::GroundSpeed, 0.2); // idle -> walk is true
+        let before = st.cur.time;
+        let initial = c.state_id(&st);
+        assert!(!c.update_holding(&mut st, 0.05, &mut inp, &mut noop(), true));
+        assert_eq!(c.state_id(&st), initial, "held: the transition was not tested");
+        assert!(st.cur.time > before, "the clock ran");
+        // Released, the same inputs make the transition (as `update` does).
+        assert!(c.update_holding(&mut st, 0.05, &mut inp, &mut noop(), false));
+        assert_ne!(c.state_id(&st), initial);
     }
 
     #[test]
