@@ -1608,8 +1608,8 @@ mod tests {
     fn a_death_animation_replaces_the_tilt_and_holds_its_last_pose() {
         let ct = fox();
         let ta = ct.anim.as_ref().unwrap();
-        // The fixture's death is 0.6 s: 12 ticks. Alive or without the animation there is no clock.
-        assert_eq!(ct.death_ticks(), Some(12));
+        // The fixture's death is 0.6 s: 12 ticks, kept 20. Alive or without the animation there is no clock.
+        assert_eq!(ct.death_ticks(), Some(20));
         assert_eq!(death_clock(ta, 0.0, 0.5), None);
         assert_eq!(death_clock(ta, 1.0, 0.0), Some(0.0));
         assert!((death_clock(ta, 7.0, 0.5).unwrap() - 6.5 * TICK_SECONDS).abs() < 1e-6);

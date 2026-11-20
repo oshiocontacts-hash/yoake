@@ -60,6 +60,9 @@ pub const ANCHOR_TOLERANCE: f64 = 0.02;
 const FRAME_SLACK_TICKS: i64 = 4;
 /// The animation a dying mob plays (`death`); a type without one keeps the engine's 20 ticks and tilt.
 pub const DEATH_ANIMATION: &str = "death";
+/// The fewest ticks a custom mob with a death animation is kept (the engine's own 20), so XP/drops and
+/// other `death_time` timing stay vanilla-like.
+pub const MIN_DEATH_TICKS: i32 = 20;
 /// The most ticks a custom mob is kept for its death animation.
 pub const MAX_DEATH_TICKS: i32 = 60;
 
@@ -139,10 +142,10 @@ impl TypeAnim {
         })
     }
 
-    /// How many ticks a dying mob is kept: the `death` animation's length (at least 1, at most
-    /// [`MAX_DEATH_TICKS`]); `None` without that animation.
+    /// How many ticks a dying mob is kept: the `death` animation's length clamped to
+    /// [`MIN_DEATH_TICKS`]..=[`MAX_DEATH_TICKS`] (a shorter clip holds its last pose); `None` without it.
     pub fn death_ticks(&self) -> Option<i32> {
-        self.death.map(|(_, length)| ((length / TICK_SECONDS - 1e-3).ceil() as i32).clamp(1, MAX_DEATH_TICKS))
+        self.death.map(|(_, length)| ((length / TICK_SECONDS - 1e-3).ceil() as i32).clamp(MIN_DEATH_TICKS, MAX_DEATH_TICKS))
     }
 
     /// The wire id of the first trigger named `name`.
