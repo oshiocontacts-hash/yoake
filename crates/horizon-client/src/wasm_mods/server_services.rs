@@ -13,6 +13,8 @@ use super::full::{
     server_service, st_player_with, uuid_text, valid_item_id,
 };
 use super::*;
+use super::mob_services as mob;
+use crate::mobs::custom::script::Command;
 use yoake_wasm::full_bindings::client::yoake::mods::engine_types as et;
 use yoake_wasm::{ServerFullMod, ServerHost, server_types as st};
 
@@ -121,6 +123,14 @@ pub(super) fn register_endpoint(id: &str, slot: &Arc<ServerSlot>) {
     let mut endpoints = ENDPOINTS.lock().unwrap_or_else(|error| error.into_inner());
     endpoints.retain(|(name, weak)| name != id && weak.strong_count() > 0);
     endpoints.push((id.to_owned(), Arc::downgrade(slot)));
+    drop(endpoints);
+    super::mob_runtime::install();
+}
+
+/// Every package's server module slot, in registration order.
+pub(super) fn endpoints() -> Vec<Arc<ServerSlot>> {
+    let endpoints = ENDPOINTS.lock().unwrap_or_else(|error| error.into_inner());
+    endpoints.iter().filter_map(|(_, weak)| weak.upgrade()).collect()
 }
 
 fn endpoint(id: &str) -> Option<Arc<ServerSlot>> {
@@ -184,6 +194,97 @@ pub(super) fn call_mod(caller: &str, target: &str, method: &str, payload: &[u8])
 // ---------------------------------------------------------------------------------------------
 
 impl ServerHost for GameServerHost {
+    // ---- fully custom mobs (F4M-10, service.mobs) -------------------------------------------
+
+    fn mob_spawn(&mut self, dimension: String, options: st::MobSpawnOptions, position: st::Vec3, type_id: String) -> Result<u32, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::spawn(&dimension, &options, &position, &type_id)
+    }
+    fn mob_info_call(&mut self, entity: u32) -> Result<Option<st::MobInfo>, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::info(entity)
+    }
+    fn mob_set_synced(&mut self, entity: u32, key: String, value: st::MobValue) -> Result<(), String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::set_synced(entity, &key, &value)
+    }
+    fn mob_get_synced(&mut self, entity: u32, key: String) -> Result<Option<st::MobValue>, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::get_synced(entity, &key)
+    }
+    fn mob_trigger_anim(&mut self, controller: String, entity: u32, name: String, speed: f32) -> Result<bool, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::trigger_anim(&controller, entity, &name, speed)
+    }
+    fn mob_set_controller_state(&mut self, controller: String, entity: u32, state: String) -> Result<bool, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::set_controller_state(&controller, entity, &state)
+    }
+    fn mob_navigate_to(&mut self, entity: u32, position: st::Vec3, speed: f64) -> Result<bool, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::navigate_to(entity, &position, speed)
+    }
+    fn mob_navigate_stop(&mut self, entity: u32) -> Result<(), String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::simple(entity, Command::NavigateStop)
+    }
+    fn mob_look_at(&mut self, entity: u32, pitch_speed: f32, position: st::Vec3, yaw_speed: f32) -> Result<(), String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::look_at(entity, pitch_speed, &position, yaw_speed)
+    }
+    fn mob_jump(&mut self, entity: u32) -> Result<(), String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::simple(entity, Command::Jump)
+    }
+    fn mob_set_target(&mut self, entity: u32, player: Option<String>, target: Option<u32>) -> Result<bool, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::set_target(entity, player.as_deref(), target)
+    }
+    fn mob_attack(&mut self, damage: f32, entity: u32, knockback: f32, player: Option<String>, target: Option<u32>) -> Result<bool, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::attack(damage, entity, knockback, player.as_deref(), target)
+    }
+    fn mob_attribute_get(&mut self, attribute: String, entity: u32) -> Result<st::AttributeValue, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::attribute_get(&attribute, entity)
+    }
+    fn mob_attribute_set_base(&mut self, attribute: String, entity: u32, value: f64) -> Result<(), String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::attribute_set_base(&attribute, entity, value)
+    }
+    fn mob_attribute_add_modifier(&mut self, amount: f64, attribute: String, entity: u32, modifier: String, operation: st::AttributeOperation) -> Result<(), String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::attribute_add_modifier(amount, &attribute, entity, &modifier, operation)
+    }
+    fn mob_attribute_remove_modifier(&mut self, attribute: String, entity: u32, modifier: String) -> Result<bool, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::attribute_remove_modifier(&attribute, entity, &modifier)
+    }
+    fn mob_set_hitbox_enabled(&mut self, enabled: bool, entity: u32, name: String) -> Result<(), String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::set_hitbox_enabled(enabled, entity, &name)
+    }
+    fn mob_data_get(&mut self, entity: u32) -> Result<Vec<u8>, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::data_get(entity)
+    }
+    fn mob_data_put(&mut self, data: Vec<u8>, entity: u32) -> Result<(), String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::data_put(data, entity)
+    }
+    fn mob_despawn(&mut self, entity: u32) -> Result<bool, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::simple(entity, Command::Despawn).map(|_| true)
+    }
+    fn mob_claim_control(&mut self, claim: bool, entity: u32) -> Result<(), String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::simple(entity, Command::Claim(claim))
+    }
+    fn mob_impulse(&mut self, entity: u32, velocity: st::Vec3) -> Result<(), String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::impulse(entity, &velocity)
+    }
+
     fn services(&mut self) -> Result<yoake_wasm::package_services::ServiceHandle, String> {
         super::package::services(&self.id, horizon_mods::yak::ConfigRuntimeSide::Server)
     }

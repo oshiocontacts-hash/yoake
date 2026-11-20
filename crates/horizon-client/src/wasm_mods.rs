@@ -20,6 +20,10 @@ mod dev_shaders;
 mod full;
 #[path = "wasm_mods/gpu_services.rs"]
 mod gpu_services;
+#[path = "wasm_mods/mob_services.rs"]
+mod mob_services;
+#[path = "wasm_mods/mob_runtime.rs"]
+mod mob_runtime;
 #[path = "wasm_mods/package.rs"]
 pub(crate) mod package;
 #[path = "wasm_mods/package_ui.rs"]
@@ -592,6 +596,9 @@ pub(super) fn extend(
                 }
             }
         } else {
+            if server.permissions.iter().any(|p| p == "service.mobs") {
+                mob_services::grant(&server.mod_id);
+            }
             let source =
                 full::ServerSource::new(&server.mod_id, server.bytes.clone(), server.commands);
             match full::load_server(&source.module()) {

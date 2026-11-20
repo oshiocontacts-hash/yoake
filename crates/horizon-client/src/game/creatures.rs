@@ -461,6 +461,12 @@ impl Game<'_> {
         if !self.mobs.iter().any(|m| m.id == id) {
             return None;
         }
+        // F4M-10: the scripts of a custom mob hear that it is here.
+        if let Some(m) = self.mobs.iter_mut().find(|m| m.id == id)
+            && m.kind.custom.is_some()
+        {
+            horizon_client::mobs::custom::script::spawned(m, if natural { "natural" } else { "command" });
+        }
         self.enchant_spawn_equipment(id);
         self.halloween_spawn_head(id);
         if !persistent && !scripted {
@@ -1043,6 +1049,15 @@ impl Game<'_> {
             for (i, s) in snapshot.iter().enumerate() {
                 index.entry(s.id).or_insert(i as u32);
             }
+            // F4M-10: what a script may read about the custom mobs (nothing without a runtime).
+            if horizon_client::mobs::custom::script::installed() {
+                for m in &mobs {
+                    if let Some(mut view) = horizon_client::mobs::custom::script::MobView::of(m) {
+                        view.dimension = self.dim.id().to_owned();
+                        horizon_client::mobs::custom::script::publish(view);
+                    }
+                }
+            }
             for i in 0..mobs.len() {
                 let mut w = MobWorld {
                     others: &snapshot,
@@ -1262,6 +1277,14 @@ impl Game<'_> {
     /// `LivingDeathEvent` for a mob whose health ran out: whether a native
     /// mod canceled the death. A canceled mob stays alive at 1 health.
     fn mob_death_canceled(&mut self, m: &Mob) -> bool {
+        // F4M-10: `mob-died` for a custom mob (the scripts cannot cancel a death).
+        if m.kind.custom.is_some() && horizon_client::mobs::custom::script::installed() {
+            let attacker = match m.last_damage.and_then(|(d, _)| d.attacker) {
+                Some(Who::Mob(id)) => Some(id),
+                _ => None,
+            };
+            horizon_client::mobs::custom::script::died(&mut m.clone(), attacker);
+        }
         if horizon_client::mod_api::mods().is_empty() {
             return false;
         }
