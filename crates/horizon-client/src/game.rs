@@ -141,8 +141,8 @@ mod game_mode;
 mod game_tests;
 #[cfg(test)]
 mod dim_tests;
-#[cfg(test)]
 mod level_facts;
+#[cfg(test)]
 mod level_registry_tests;
 mod gamemode_switcher;
 mod ghasts;
