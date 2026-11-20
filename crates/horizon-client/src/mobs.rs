@@ -2132,6 +2132,9 @@ pub struct Seen {
     pub last_damage: Option<Damage>,
     pub id: u32,
     pub species: Species,
+    /// The type id of a custom mob (`Species::Custom`), else `None`: the target and avoid
+    /// lists of a custom data row match custom types by it.
+    pub custom: Option<Arc<str>>,
     pub position: Vec3,
     pub bounds: Aabb,
     pub eye_y: f64,
@@ -2353,6 +2356,7 @@ impl Mob {
             last_damage: self.last_damage.map(|(d, _)| d),
             id: m.id,
             species: m.species(),
+            custom: m.kind.custom.as_ref().map(|t| Arc::from(t.id.as_str())),
             position: m.position,
             bounds: m.bounds(),
             eye_y: m.eye_y(),
@@ -5383,6 +5387,25 @@ pub mod mob_hook_bench {
                 block_tags: HashMap::new(),
                 lid_openers: HashMap::new(),
             }
+        }
+
+        /// A stone block at `(x, y, z)` (the world's only block besides air).
+        #[yoake_hook(skip = "benchmark helper")]
+        pub fn set_stone(&mut self, x: i32, y: i32, z: i32) {
+            self.world.set(x, y, z, BlockStateId(1)).unwrap();
+        }
+
+        /// Air at `(x, y, z)`.
+        #[yoake_hook(skip = "benchmark helper")]
+        pub fn set_air(&mut self, x: i32, y: i32, z: i32) {
+            self.world.set(x, y, z, BlockStateId(0)).unwrap();
+        }
+
+        /// Lists `blocks` (ids) under the block tag `tag`.
+        #[yoake_hook(skip = "benchmark helper")]
+        pub fn set_tag(&mut self, tag: &str, blocks: &[&str]) {
+            self.block_tags
+                .insert(tag.to_owned(), blocks.iter().map(|b| (*b).to_owned()).collect());
         }
 
         #[yoake_hook(skip = "benchmark helper")]

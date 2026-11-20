@@ -47,23 +47,19 @@ fn every_schema_goal_type_has_a_status() {
             }
         }
     }
-    assert_eq!(running, 29);
+    assert_eq!(running, 33);
     deferred.sort();
     assert_eq!(
         deferred,
         [
             "breed",
-            "climb",
-            "eat_block",
             "follow_owner",
             "follow_parent",
-            "open_door",
             "owner_hurt_by",
             "owner_hurt_target",
             "owner_target",
             "script",
             "sit",
-            "sleep_in_bed_like"
         ]
     );
     assert_eq!(support("owner_target"), Support::Deferred("F4M-4c: needs the tameable owner state"));
@@ -891,4 +887,520 @@ fn only_a_custom_mob_takes_frames() {
     let mut cow = crate::mobs::Mob::new(2, crate::mobs::sensor_scan_tests::kind(), at(0.5, 0.5), 0.0);
     assert!(!attacks::deliver_frame(&mut cow, "hit"));
     assert!(attacks::take_triggers(&mut cow).is_empty());
+}
+
+// ---- climb ---------------------------------------------------------------------------------
+
+/// A wall of stone along `x = 2`, `z` from -6 to 6 and three high, on the flat world.
+fn walled() -> crate::mobs::mob_hook_bench::BenchWorld {
+    let mut fx = flat();
+    for z in -6..=6 {
+        for y in 1..=3 {
+            fx.set_stone(2, y, z);
+        }
+    }
+    fx
+}
+
+#[test]
+fn a_climb_row_gives_the_engines_climber_physics_and_a_path_cost() {
+    let m = mob(&ai(r#"{"type":"climb","priority":2,"cost":1.5}"#), at(0.5, 0.5));
+    assert!(m.kind.flags.climber, "the spider's wall climbing");
+    assert_eq!(m.ai.nav.climb_cost, Some(1.5));
+    assert!(m.path_mob().climb_cost.is_some());
+    let plain = mob("{}", at(0.5, 0.5));
+    assert!(!plain.kind.flags.climber);
+    assert_eq!(plain.ai.nav.climb_cost, None);
+    let default = mob(&ai(r#"{"type":"climb"}"#), at(0.5, 0.5));
+    assert_eq!(default.ai.nav.climb_cost, Some(0.5));
+}
+
+#[test]
+fn the_navigator_routes_up_a_wall_only_for_a_mob_with_a_climb_row() {
+    let fx = walled();
+    let w = fx.world();
+    let mut climber = mob(&ai(r#"{"type":"climb","cost":0.2}"#), at(0.5, 0.5));
+    let path = climber.create_path_to(&w, [2, 4, 0], 0).expect("a path");
+    assert!(path.reached, "over the wall: {:?}", path.nodes);
+    assert!(path.nodes.iter().any(|n| n.y >= 4), "it goes up the face");
+    let mut walker = mob("{}", at(0.5, 0.5));
+    let path = walker.create_path_to(&w, [2, 4, 0], 0);
+    assert!(!path.is_some_and(|p| p.reached), "a plain ground mob cannot get onto the wall");
+}
+
+#[test]
+fn the_climb_cost_decides_between_the_wall_and_the_way_round() {
+    let fx = walled();
+    let w = fx.world();
+    let top = |m: &mut crate::mobs::Mob| {
+        m.create_path_to(&w, [4, 1, 0], 0)
+            .map(|p| (p.reached, p.nodes.iter().map(|n| n.y).max().unwrap_or(0)))
+    };
+    let mut cheap = mob(&ai(r#"{"type":"climb","cost":0.1}"#), at(0.5, 0.5));
+    cheap.attrs.follow_range = 32.0;
+    let (reached, highest) = top(&mut cheap).expect("a path");
+    assert!(reached && highest >= 4, "a cheap wall is climbed (highest {highest})");
+    let mut dear = mob(&ai(r#"{"type":"climb","cost":50}"#), at(0.5, 0.5));
+    dear.attrs.follow_range = 32.0;
+    let (reached, highest) = top(&mut dear).expect("a path");
+    assert!(reached && highest == 1, "a dear wall is walked round (highest {highest})");
+}
+
+#[test]
+fn a_climber_gets_up_the_wall_by_pressing_against_it() {
+    let fx = walled();
+    let w = fx.world();
+    let mut ctx = Ctx::new();
+    let mut m = mob(&ai(r#"{"type":"climb","cost":0.2}"#), at(0.5, 0.5));
+    assert!(m.nav_move_to(&w, [2.5, 4.0, 0.5], 1.0), "a path to the top of the wall");
+    run(&mut m, &w, &mut ctx, 200);
+    assert!(
+        m.position.y >= 3.9 && m.position.x > 1.9,
+        "on top of the wall, at {:?}",
+        m.position
+    );
+}
+
+// ---- sleep_in_bed_like ---------------------------------------------------------------------
+
+const SLEEPER: &str = r#"{"goals":[
+    {"type":"stay_near_home","priority":6,"radius":16},
+    {"type":"sleep_in_bed_like","priority":2}]}"#;
+const SLEEP_VALUE: &str = r#","synced":{"sleep":{"type":"bool"}}"#;
+
+fn sleeping(m: &crate::mobs::Mob) -> bool {
+    let c = m.extra.custom.as_ref().unwrap();
+    let t = m.kind.custom.as_ref().unwrap();
+    c.synced_value(t, "sleep") == Some(&crate::mobs::custom::SyncedValue::Bool(true))
+}
+
+#[test]
+fn a_mob_goes_home_at_night_sleeps_and_stays_put() {
+    let fx = flat();
+    let mut night = fx.world();
+    night.daylight = false;
+    let mut ctx = Ctx::new();
+    let mut m = mob_with("creature", SLEEPER, SLEEP_VALUE, at(0.5, 0.5));
+    // Away from its home (where it was made).
+    m.position = at(7.5, 0.5);
+    run(&mut m, &night, &mut ctx, 150);
+    assert!(m.ai.goals.is_running("Rest"));
+    assert!(sleeping(&m), "it lay down at {:?}", m.position);
+    assert!((m.position.x - 0.5).abs() < 2.0, "at home, not at {:?}", m.position);
+    let rest = m.position;
+    run(&mut m, &night, &mut ctx, 100);
+    assert!(sleeping(&m) && m.position.distance_squared(rest) < 0.01, "it does not move");
+}
+
+#[test]
+fn a_mob_does_not_rest_by_day_and_wakes_when_day_comes() {
+    let fx = flat();
+    let day = fx.world();
+    let mut night = fx.world();
+    night.daylight = false;
+    let mut ctx = Ctx::new();
+    let mut m = mob_with("creature", SLEEPER, SLEEP_VALUE, at(0.5, 0.5));
+    run(&mut m, &day, &mut ctx, 60);
+    assert!(!m.ai.goals.is_running("Rest") && !sleeping(&m));
+    run(&mut m, &night, &mut ctx, 60);
+    assert!(sleeping(&m));
+    run(&mut m, &day, &mut ctx, 5);
+    assert!(!sleeping(&m) && !m.ai.goals.is_running("Rest"), "day wakes it");
+}
+
+#[test]
+fn a_hurt_sleeper_wakes_and_does_not_lie_down_again_at_once() {
+    let fx = flat();
+    let mut night = fx.world();
+    night.daylight = false;
+    let mut ctx = Ctx::new();
+    let mut m = mob_with("creature", SLEEPER, SLEEP_VALUE, at(0.5, 0.5));
+    run(&mut m, &night, &mut ctx, 60);
+    assert!(sleeping(&m));
+    assert!(m.damage(1.0, Damage::mob(9, [4.5, 1.0, 0.5])));
+    run(&mut m, &night, &mut ctx, 5);
+    assert!(!sleeping(&m), "hurt: awake");
+    run(&mut m, &night, &mut ctx, 60);
+    assert!(!sleeping(&m), "not again within 100 ticks of the hit");
+    run(&mut m, &night, &mut ctx, 120);
+    assert!(sleeping(&m), "later it rests again");
+}
+
+#[test]
+fn a_when_expression_replaces_the_night() {
+    let fx = flat();
+    let day = fx.world();
+    let mut ctx = Ctx::new();
+    let ai = r#"{"goals":[{"type":"sleep_in_bed_like","priority":2,"when":"q.health < 10"}]}"#;
+    let mut m = mob_with("creature", ai, SLEEP_VALUE, at(0.5, 0.5));
+    run(&mut m, &day, &mut ctx, 60);
+    assert!(!sleeping(&m), "full health: no rest by day");
+    m.health = 5.0;
+    run(&mut m, &day, &mut ctx, 60);
+    assert!(sleeping(&m), "the condition holds, by day too");
+    m.health = 15.0;
+    run(&mut m, &day, &mut ctx, 5);
+    assert!(!sleeping(&m), "the condition turned false: awake");
+    // A bad expression leaves the goal out instead of failing the mob.
+    let bad = r#"{"goals":[{"type":"sleep_in_bed_like","when":"q.nonsense +"}]}"#;
+    let m = mob_with("creature", bad, SLEEP_VALUE, at(0.5, 0.5));
+    assert!(!m.ai.goals.has("Rest"));
+}
+
+#[test]
+fn the_rest_place_can_be_the_nearest_block_of_a_tag() {
+    let mut fx = flat();
+    for x in -4..=2 {
+        for z in -4..=4 {
+            fx.set_air(x, 0, z);
+        }
+    }
+    fx.set_stone(3, 1, 0);
+    fx.set_tag("demo:beds", &["minecraft:stone"]);
+    let mut night = fx.world();
+    night.daylight = false;
+    let mut ctx = Ctx::new();
+    // A flying mob, so the floor under it does not count as the nearest block.
+    let ai = r#"{"navigator":"fly","goals":[{"type":"sleep_in_bed_like","priority":2,"block_tag":"demo:beds","range":8}]}"#;
+    let mut m = mob_with("creature", ai, SLEEP_VALUE, Vec3::new(0.5, 3.0, 0.5));
+    select_until(&mut m, &night, &mut ctx, 5, |m| m.ai.goals.is_running("Rest")).expect("it wants the bed");
+    assert!(m.ai.nav.path.is_some(), "it walks to the bed");
+    let end = m.ai.nav.path.as_ref().and_then(|p| p.end()).unwrap();
+    assert!((end.x - 3).abs() <= 1 && end.z.abs() <= 1, "to the bed at x = 3, not {end:?}");
+}
+
+// ---- custom types in target and avoid lists -----------------------------------------------
+
+/// The snapshot of a custom mob of type `demo:thing` standing at `at`.
+fn custom_seen(id: u32, at: Vec3) -> crate::mobs::Seen {
+    let mut o = mob("{}", at);
+    o.id = id;
+    o.seen(None)
+}
+
+#[test]
+fn a_snapshot_carries_the_custom_type_id_and_a_vanilla_one_does_not() {
+    assert_eq!(custom_seen(4, at(3.5, 0.5)).custom.as_deref(), Some("demo:thing"));
+    assert_eq!(seen(2, Species::Cow, at(3.5, 0.5)).custom, None);
+}
+
+#[test]
+fn custom_types_in_a_target_list_are_matched_by_id() {
+    let fx = flat();
+    let w0 = fx.world();
+    let mut ctx = Ctx::new();
+    let other = [custom_seen(4, at(3.5, 0.5))];
+    let row = r#"{"type":"nearest_attackable","priority":2,"types":["demo:thing"]}"#;
+    let mut m = mob(&ai_targets(row), at(0.5, 0.5));
+    let w = view(&w0, &other, None);
+    assert!(select_until(&mut m, &w, &mut ctx, 100, |m| m.ai.target == Some(Who::Mob(4))).is_some());
+    // A list of vanilla types does not match a custom mob, and a custom id does not match a cow.
+    let vanilla = r#"{"type":"nearest_attackable","priority":2,"types":["minecraft:cow"]}"#;
+    let mut m = mob(&ai_targets(vanilla), at(0.5, 0.5));
+    assert!(select_until(&mut m, &w, &mut ctx, 100, |m| m.ai.target.is_some()).is_none());
+    let cow = [seen(3, Species::Cow, at(3.5, 0.5))];
+    let w = view(&w0, &cow, None);
+    let mut m = mob(&ai_targets(row), at(0.5, 0.5));
+    assert!(select_until(&mut m, &w, &mut ctx, 100, |m| m.ai.target.is_some()).is_none());
+    // Both kinds in one list.
+    let both = r#"{"type":"nearest_attackable","priority":2,"types":["minecraft:cow","demo:thing"]}"#;
+    let mut m = mob(&ai_targets(both), at(0.5, 0.5));
+    assert!(select_until(&mut m, &w, &mut ctx, 100, |m| m.ai.target == Some(Who::Mob(3))).is_some());
+}
+
+#[test]
+fn custom_types_in_an_avoid_list_are_matched_by_id() {
+    let fx = flat();
+    let w0 = fx.world();
+    let mut ctx = Ctx::new();
+    let near = [custom_seen(4, at(0.5, 3.5))];
+    let w = view(&w0, &near, None);
+    let mut m = mob(
+        &ai(r#"{"type":"avoid","priority":2,"from":["demo:thing"],"distance":8}"#),
+        at(0.5, 0.5),
+    );
+    let mut ran = false;
+    for _ in 0..30 {
+        select(&mut m, &w, &mut ctx);
+        ran |= m.ai.goals.is_running("AvoidEntity");
+    }
+    assert!(ran, "it avoids the custom mob");
+    let cow = [seen(3, Species::Cow, at(0.5, 3.5))];
+    let w = view(&w0, &cow, None);
+    let mut m = mob(
+        &ai(r#"{"type":"avoid","priority":2,"from":["demo:thing"],"distance":8}"#),
+        at(0.5, 0.5),
+    );
+    for _ in 0..30 {
+        select(&mut m, &w, &mut ctx);
+        assert!(!m.ai.goals.is_running("AvoidEntity"), "a cow is not a demo:thing");
+    }
+}
+
+// ---- open_door and eat_block ---------------------------------------------------------------
+
+/// A "door" of the tag `demo:doors` (stone, the test world's one block) at head height on the
+/// path of a mob at `x = 2.5` heading east, and a world that lists it.
+fn door_world() -> crate::mobs::mob_hook_bench::BenchWorld {
+    let mut fx = flat();
+    fx.set_stone(3, 2, 0);
+    fx.set_tag("demo:doors", &["minecraft:stone"]);
+    fx
+}
+
+fn bumping_mob(_w: &crate::mobs::MobWorld, row: &str) -> crate::mobs::Mob {
+    let mut m = mob(&ai(row), at(2.5, 0.5));
+    m.horizontal_collision = true;
+    // A path through the door block (a real search would walk round a solid block).
+    let node = |x| crate::mobs::path::PathNode {
+        x,
+        y: 1,
+        z: 0,
+        kind: crate::mobs::path::PathType::Walkable,
+    };
+    m.ai.nav.path = Some(crate::mobs::path::Path {
+        nodes: vec![node(2), node(3), node(4)],
+        next: 0,
+        target: [4, 1, 0],
+        dist_to_target: 0.0,
+        reached: true,
+    });
+    m
+}
+
+#[test]
+fn open_door_opens_a_door_of_its_tag_on_the_path_and_closes_it_after() {
+    use crate::mobs::doors::OpenTaggedDoor;
+    let fx = door_world();
+    let w = fx.world();
+    let mut ctx = Ctx::new();
+    let row = r#"{"type":"open_door","priority":3,"door_tag":"demo:doors"}"#;
+    let mut m = bumping_mob(&w, row);
+    assert!(m.ai.goals.has("OpenTaggedDoor"));
+    assert!(m.ai.nav.can_open_doors, "its navigation goes through doors");
+    let mut g = OpenTaggedDoor::new("demo:doors".into());
+    {
+        let mut cx = ctx.cx(&w);
+        assert!(g.can_use(&mut m, &mut cx), "a door at head height on its path");
+        g.start(&mut m, &mut cx);
+        assert!(g.can_continue(&mut m, &mut cx), "near the door");
+        g.stop(&mut m, &mut cx);
+    }
+    let doors: Vec<([i32; 3], bool)> = ctx
+        .events
+        .iter()
+        .filter_map(|e| match e {
+            MobEvent::SetDoorOpen { pos, open } => Some((*pos, *open)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(doors, [([3, 2, 0], true), ([3, 2, 0], false)]);
+    // A door of another tag is nothing to it.
+    let mut other = OpenTaggedDoor::new("demo:gates".into());
+    let mut cx = ctx.cx(&w);
+    assert!(!other.can_use(&mut m, &mut cx));
+}
+
+#[test]
+fn open_door_with_break_breaks_the_door_after_240_ticks_and_only_when_griefing() {
+    use crate::mobs::doors::BreakDoor;
+    let fx = door_world();
+    let mut w = fx.world();
+    let mut ctx = Ctx::new();
+    let row = r#"{"type":"open_door","priority":3,"door_tag":"demo:doors","break":true}"#;
+    let mut m = bumping_mob(&w, row);
+    assert!(m.ai.goals.has("BreakDoor") && !m.ai.goals.has("OpenTaggedDoor"));
+    let mut g = BreakDoor::tagged("demo:doors".into());
+    {
+        let mut cx = ctx.cx(&w);
+        assert!(g.can_use(&mut m, &mut cx), "no difficulty needed");
+        g.start(&mut m, &mut cx);
+        for _ in 0..240 {
+            assert!(g.can_continue(&mut m, &mut cx));
+            g.tick(&mut m, &mut cx);
+        }
+    }
+    assert_eq!(count(&ctx.events, |e| matches!(e, MobEvent::BreakDoor { pos: [3, 2, 0], .. })), 1);
+    w.mob_griefing = false;
+    let mut cx = ctx.cx(&w);
+    assert!(!BreakDoor::tagged("demo:doors".into()).can_use(&mut m, &mut cx), "no griefing");
+    // Without `break` it is the opening goal: the default is off.
+    let plain = mob(&ai(r#"{"type":"open_door"}"#), at(0.5, 0.5));
+    assert!(plain.ai.goals.has("OpenTaggedDoor") && !plain.ai.goals.has("BreakDoor"));
+}
+
+fn eaten(events: &[MobEvent]) -> Vec<(&'static str, [i32; 3])> {
+    events
+        .iter()
+        .filter_map(|e| match e {
+            MobEvent::SetBlockName { name, pos, .. } => Some((*name, *pos)),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn eat_block_replaces_the_block_heals_raises_its_event_and_waits_for_its_cooldown() {
+    let fx = flat();
+    let w = fx.world();
+    let mut ctx = Ctx::new();
+    let row = r#"{"type":"eat_block","priority":4,"interval":1,"cooldown":100,"duration":20,
+        "blocks":{"minecraft:stone":"minecraft:dirt"},"effect":{"heal":4,"event":"ate"}}"#;
+    let mut m = mob(&ai(row), at(0.5, 0.5));
+    m.health = 10.0;
+    run(&mut m, &w, &mut ctx, 60);
+    assert_eq!(eaten(&ctx.events), [("minecraft:dirt", [0, 0, 0])], "one meal, the block below");
+    assert_eq!(m.health, 14.0);
+    assert_eq!(super::blocks::take_events(&mut m), ["ate"]);
+    assert!(super::blocks::take_events(&mut m).is_empty(), "taken once");
+    run(&mut m, &w, &mut ctx, 250);
+    assert!(eaten(&ctx.events).len() >= 2, "it eats again after the cooldown");
+    assert!(eaten(&ctx.events).len() <= 4, "not more often than the cooldown allows");
+}
+
+#[test]
+fn eat_block_changes_nothing_without_griefing_but_still_has_its_effect() {
+    let fx = flat();
+    let mut w = fx.world();
+    w.mob_griefing = false;
+    let mut ctx = Ctx::new();
+    // A list of blocks leaves air; a bare effect string is the event name.
+    let row = r#"{"type":"eat_block","priority":4,"interval":1,"duration":10,
+        "blocks":["minecraft:stone"],"effect":"burp"}"#;
+    let mut m = mob(&ai(row), at(0.5, 0.5));
+    run(&mut m, &w, &mut ctx, 40);
+    assert_eq!(count(&ctx.events, |e| matches!(e, MobEvent::BreakBlock { .. } | MobEvent::SetBlockName { .. })), 0);
+    assert_eq!(super::blocks::take_events(&mut m), ["burp"]);
+    let mut m = mob(&ai(row), at(0.5, 0.5));
+    let mut w = fx.world();
+    w.mob_griefing = true;
+    run(&mut m, &w, &mut ctx, 40);
+    assert!(any(&ctx.events, |e| matches!(e, MobEvent::BreakBlock { pos: [0, 0, 0], drop: false })));
+    // A block it does not list is not eaten: the mob stands on stone, the row names dirt.
+    let mut m = mob(&ai(r#"{"type":"eat_block","interval":1,"blocks":["minecraft:dirt"]}"#), at(0.5, 0.5));
+    let before = ctx.events.len();
+    run(&mut m, &w, &mut ctx, 60);
+    assert_eq!(ctx.events.len(), before);
+}
+
+// ---- the shared path budget ----------------------------------------------------------------
+
+use super::budget::{self, DEFAULT_PATH_BUDGET, PathBudget};
+
+#[test]
+fn the_budget_defaults_to_8192_nodes_a_tick_and_reads_the_server_setting() {
+    assert_eq!(DEFAULT_PATH_BUDGET, 8192);
+    assert_eq!(PathBudget::default().limit(), budget::limit());
+    assert_eq!(budget::limit_property(None), 8192);
+    assert_eq!(budget::limit_property(Some(" 4096 ")), 4096);
+    assert_eq!(budget::limit_property(Some("many")), 8192, "unreadable: the default");
+    assert_eq!(budget::limit_property(Some("0")), 1);
+    assert_eq!(budget::limit_property(Some("99999999")), budget::MAX_PATH_BUDGET);
+    assert_eq!(budget::PROPERTY, "horizon-custom-mob-path-budget");
+}
+
+#[test]
+fn a_search_that_does_not_fit_waits_for_the_next_tick() {
+    let mut b = PathBudget::new(1500);
+    assert!(b.request(1, 100, 1024));
+    b.charge(1024);
+    assert_eq!(b.remaining(), 476);
+    assert!(!b.request(2, 100, 1024), "476 left: mob 2 waits");
+    assert_eq!(b.stats().waited, 1);
+    assert_eq!(b.stats().granted, 1);
+    assert_eq!(b.stats().nodes, 1024);
+    // The next tick: a fresh allowance, and mob 2 first in line.
+    assert!(b.request(2, 101, 1024));
+    assert_eq!(b.waiting(), [] as [u32; 0]);
+    b.charge(300);
+    assert!(b.request(3, 101, 1024), "1200 left fits one more");
+    // A small search fits where a big one does not: the cost is its cap.
+    let mut b = PathBudget::new(1000);
+    assert!(b.request(1, 5, 256));
+    b.charge(256);
+    assert!(b.request(2, 5, 256) && b.request(3, 5, 256));
+    // The cap is cut to the allowance, so a search can always be made in a fresh tick.
+    let mut tiny = PathBudget::new(100);
+    assert!(tiny.request(1, 1, 1024));
+}
+
+#[test]
+fn mobs_take_turns_when_the_budget_cannot_serve_all_of_them() {
+    // Room for two full searches a tick, three mobs asking in the same order every tick.
+    let mut b = PathBudget::new(2048);
+    let mut served = [0u32; 4];
+    for tick in 1..=30i64 {
+        for id in [1u32, 2, 3] {
+            if b.request(id, tick, 1024) {
+                b.charge(1024);
+                served[id as usize] += 1;
+            }
+        }
+    }
+    let total = served[1] + served[2] + served[3];
+    assert!(total >= 54, "most of the budget is used: {served:?}");
+    for id in 1..=3 {
+        assert!((16..=24).contains(&served[id]), "mob {id} was served {} times of 30", served[id]);
+    }
+    assert!(b.stats().waited >= 28 && b.stats().ticks == 30);
+    assert!(b.stats().busiest_tick <= 2048);
+}
+
+#[test]
+fn a_waiting_mob_that_never_comes_back_does_not_block_the_others_for_long() {
+    let mut b = PathBudget::new(1024);
+    assert!(b.request(1, 1, 1024));
+    b.charge(1024);
+    assert!(!b.request(2, 1, 1024));
+    // Mob 2 is gone. Tick 2 keeps its place for mob 2, so mob 1 is refused; tick 3 forgets it.
+    assert!(!b.request(1, 2, 1024));
+    assert!(b.request(1, 3, 1024));
+}
+
+#[test]
+fn the_engines_path_search_of_a_custom_mob_is_metered_and_a_vanilla_mobs_is_not() {
+    budget::reset_for_thread(Some(100));
+    let fx = flat();
+    let w = fx.world();
+    let mut m = mob("{}", at(0.5, 0.5));
+    assert!(m.create_path_to(&w, [8, 1, 0], 0).is_some(), "a fresh tick: it fits");
+    let spent = budget::stats();
+    assert_eq!((spent.granted, spent.waited), (1, 0));
+    assert!(spent.nodes > 0, "the nodes it visited were counted");
+    budget::charge(1000);
+    assert!(m.create_path_to(&w, [8, 1, 0], 0).is_none(), "used up: it waits");
+    assert_eq!(budget::stats().waited, 1);
+    // A vanilla mob is not metered.
+    let mut cow = crate::mobs::Mob::new(2, crate::mobs::sensor_scan_tests::kind(), at(0.5, 0.5), 0.0);
+    cow.on_ground = true;
+    assert!(cow.create_path_to(&w, [8, 1, 0], 0).is_some());
+    assert_eq!(budget::stats().granted, 1);
+    // The next tick it is first in line.
+    let mut next = fx.world();
+    next.game_time += 1;
+    assert!(m.create_path_to(&next, [8, 1, 0], 0).is_some());
+    assert_eq!(budget::stats().granted, 2);
+    budget::reset_for_thread(None);
+}
+
+// ---- categories and Yoake attributes -------------------------------------------------------
+
+#[test]
+fn an_axolotls_mob_is_the_engines_axolotls_category() {
+    let m = mob_with("axolotls", "{}", "", at(0.5, 0.5));
+    assert_eq!(m.category(), "axolotls");
+    assert_eq!(
+        m.kind.custom.as_ref().unwrap().category,
+        crate::mobs::spawn_selection::Category::Axolotls
+    );
+}
+
+#[test]
+fn yoake_water_slowdown_sets_the_engines_water_slowdown() {
+    let json = r#"{"template":"yoake:mob","size":{"width":0.6,"height":1.0},
+        "attributes":{"yoake:water_slowdown":0.9},"ai":{}}"#;
+    let file = horizon_mods::custom_mob::CustomMobFile::parse("demo:swimmer", json.as_bytes()).unwrap();
+    let t = std::sync::Arc::new(super::super::CustomType::new(file, None).unwrap());
+    assert_eq!(super::super::build::mob_type(&t).water_slowdown, 0.9);
+    assert_eq!(mob("{}", at(0.5, 0.5)).kind.water_slowdown, 0.8, "the default is the neutral row's");
 }

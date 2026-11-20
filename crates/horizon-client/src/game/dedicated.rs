@@ -1077,6 +1077,15 @@ impl Game<'_> {
         if let Some(host) = self.lan.as_mut() {
             host.hub.entity_range_percent = props.entity_broadcast_range_percentage;
         }
+        // Horizon's own key: the nodes custom mobs may search in one tick (server.toml's
+        // `custom_mob_path_budget`; the default when the file has no such line).
+        horizon_client::mobs::custom::ai::budget::set_limit(
+            horizon_client::mobs::custom::ai::budget::limit_property(
+                props
+                    .raw
+                    .get(horizon_client::mobs::custom::ai::budget::PROPERTY),
+            ),
+        );
         // The dedicated server's open is complete before its first tick.
         self.native_lifecycle_world_ready();
         let mut state = ServerState {

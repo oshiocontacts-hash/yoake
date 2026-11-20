@@ -30,6 +30,7 @@ view_distance = 10           # chunks sent around each player
 simulation_distance = 10     # chunks around each player where mobs, crops and redstone tick
 max_view_distance = 0        # past view_distance, saved chunks only, up to this (never generated; 0: off)
 admin_feedback_to_ops = true # operators see each other's commands ([name: ...], vanilla); false: only the log
+custom_mob_path_budget = 8192 # nodes all mods' custom mobs together may search for paths each tick (they wait for the next)
 
 [world]
 name = "world"               # the world folder
@@ -95,7 +96,7 @@ enabled = true               # false pauses it and keeps the webhook
 "##;
 
 /// Each typed setting: its section, its name, and the vanilla key it writes.
-pub(crate) const TYPED: [(&str, &str, &str); 16] = [
+pub(crate) const TYPED: [(&str, &str, &str); 17] = [
     ("server", "motd", "motd"),
     ("server", "port", "server-port"),
     ("server", "bind", "server-ip"),
@@ -110,6 +111,11 @@ pub(crate) const TYPED: [(&str, &str, &str); 16] = [
         "server",
         "admin_feedback_to_ops",
         "horizon-admin-feedback-to-ops",
+    ),
+    (
+        "server",
+        "custom_mob_path_budget",
+        "horizon-custom-mob-path-budget",
     ),
     ("world", "name", "level-name"),
     ("world", "seed", "level-seed"),
@@ -174,6 +180,9 @@ pub struct Server {
     /// Whether operators get each other's command feedback (`[name: ...]`, vanilla's broadcastToAdmins);
     /// false leaves it to the console's log, so nobody in game sees an operator's commands.
     pub admin_feedback_to_ops: bool,
+    /// Horizon's path budget for mods' custom mobs: the nodes all of them together may visit in path
+    /// searches in one tick (1 to 1048576); a search that does not fit waits for the next tick.
+    pub custom_mob_path_budget: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -322,6 +331,7 @@ impl Default for Server {
             simulation_distance: 10,
             max_view_distance: 0,
             admin_feedback_to_ops: true,
+            custom_mob_path_budget: 8192,
         }
     }
 }
@@ -721,6 +731,8 @@ mod tests {
             if key.starts_with("horizon-") {
                 let vanilla_like = if key == "horizon-admin-feedback-to-ops" {
                     "true"
+                } else if key == "horizon-custom-mob-path-budget" {
+                    "8192"
                 } else {
                     "0"
                 };

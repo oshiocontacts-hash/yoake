@@ -25,6 +25,10 @@ use crate::mobs::{Mob, Species, species};
 use horizon_mods::custom_mob::{CustomMobFile, Goal as GoalDef};
 
 pub mod attacks;
+pub mod blocks;
+pub mod budget;
+pub mod expr;
+pub mod rest;
 pub mod goals;
 pub mod nav_select;
 pub mod targets;
@@ -48,18 +52,14 @@ pub fn support(kind: &str) -> Support {
         | "fly_wander" | "look_at_player" | "random_look" | "look_at_target" | "panic"
         | "tempt" | "flee" | "avoid" | "retreat_when_hurt" | "go_to_block" | "stay_near_home"
         | "patrol_around" | "leap_at_target" | "leap_attack" | "melee_attack"
-        | "ranged_attack" | "area_attack" => Goal,
+        | "ranged_attack" | "area_attack" | "climb" | "sleep_in_bed_like" | "open_door"
+        | "eat_block" => Goal,
         "target_player" | "hurt_by_target" | "hurt_by" | "call_for_help" | "nearest_target"
         | "nearest_attackable" => Target,
         "follow_owner" | "sit" | "owner_hurt_target" | "owner_hurt_by" | "owner_target" => {
             Deferred("F4M-4c: needs the tameable owner state")
         }
         "breed" | "follow_parent" => Deferred("F4M-4c: needs the breedable data and offspring"),
-        "eat_block" => Deferred("the engine's EatBlock goal is the sheep's; a data version needs a generic rewrite"),
-        "sleep_in_bed_like" | "climb" => {
-            Deferred("the schema row does not say what it does; needs a definition")
-        }
-        "open_door" => Deferred("the engine's door goals are private to raiders; needs a generic OpenDoorGoal"),
         "script" => Deferred("F4M-10: script goals"),
         _ => Deferred("unknown goal type"),
     }
@@ -84,7 +84,7 @@ pub fn unsupported(file: &CustomMobFile) -> Vec<(String, &'static str)> {
 pub fn attach(m: &mut Mob, t: &CustomType) {
     nav_select::apply(m, &t.file.ai.navigator);
     for g in t.file.ai.goals.iter().chain(&t.file.ai.targets) {
-        let _ = goals::add(m, g) || attacks::add(m, g) || targets::add(m, g);
+        let _ = goals::add(m, g) || attacks::add(m, g) || rest::add(m, t, g) || blocks::add(m, g) || targets::add(m, g);
     }
 }
 
@@ -162,6 +162,43 @@ pub fn species_list(ids: &[String]) -> (Vec<Species>, bool, Vec<String>) {
     (out, player, unknown)
 }
 
+
+/// A target or avoid list as the engine matches it: vanilla species, the player, and custom mob
+/// types by id (the `Seen` snapshot of a custom mob carries its type id).
+#[derive(Clone, Debug, Default)]
+pub struct TypeList {
+    pub species: Vec<Species>,
+    pub player: bool,
+    pub custom: Vec<std::sync::Arc<str>>,
+}
+impl TypeList {
+    pub fn is_empty(&self) -> bool {
+        self.species.is_empty() && self.custom.is_empty() && !self.player
+    }
+}
+
+/// `ids` as a [`TypeList`]. An id outside `minecraft:` is taken for a custom type (one that is not
+/// loaded now is kept with a warning, since content may load in any order); an unknown
+/// `minecraft:` id is left out with a warning. `what` names the goal for the warning.
+pub fn type_list(ids: &[String], what: &str) -> TypeList {
+    let (species, player, others) = species_list(ids);
+    let mut custom = Vec::new();
+    for id in others {
+        if id.starts_with("minecraft:") || !id.contains(':') {
+            log::warn!("Horizon: {what}: {id} is not a vanilla mob type or the player; left out");
+        } else {
+            if super::get(&id).is_none() {
+                log::warn!("Horizon: {what}: {id} is not a loaded custom mob type (kept: it may load later)");
+            }
+            custom.push(std::sync::Arc::from(id.as_str()));
+        }
+    }
+    TypeList {
+        species,
+        player,
+        custom,
+    }
+}
 #[cfg(test)]
 pub(crate) mod test_support;
 #[cfg(test)]

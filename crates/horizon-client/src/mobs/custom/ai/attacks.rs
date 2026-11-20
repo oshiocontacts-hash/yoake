@@ -77,7 +77,7 @@ impl AttackState {
     fn forget_frame(&mut self, name: &str) {
         self.frames.retain(|f| f != name);
     }
-    fn request_trigger(&mut self, name: &str) {
+    pub(super) fn request_trigger(&mut self, name: &str) {
         Self::push(&mut self.triggers, name);
     }
     /// The trigger animations requested since the last call, oldest first.

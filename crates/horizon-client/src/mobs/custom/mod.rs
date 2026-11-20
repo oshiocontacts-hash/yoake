@@ -269,6 +269,9 @@ pub struct CustomState {
     pub synced: Vec<SyncedValue>,
     /// What its attack goals wait for and ask of the animation side (F4M-4a).
     pub attack: ai::attacks::AttackState,
+    /// Custom events its goals raised (an `eat_block` effect) and nobody has taken yet; at most 8
+    /// are kept (see `ai::blocks::take_events`).
+    pub events: Vec<String>,
 }
 
 impl CustomState {
@@ -278,6 +281,7 @@ impl CustomState {
             attrs: AttrSet::new(&t.attributes).unwrap_or_default(),
             synced: t.synced.iter().map(|s| s.default.clone()).collect(),
             attack: Default::default(),
+            events: Vec::new(),
         }
     }
     pub fn synced_value(&self, t: &CustomType, name: &str) -> Option<&SyncedValue> {

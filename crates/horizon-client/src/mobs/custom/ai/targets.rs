@@ -15,10 +15,9 @@
 //! * `call_for_help`: `hurt_by` with `alert` on.
 //! * `owner_target` needs the tameable owner (F4M-4c) and is deferred.
 //!
-//! A custom mob type in `types` is not distinguishable by the engine's `Seen` snapshot (it has a
-//! species, not a type id), so it is left out with a warning; mob-versus-custom-mob targeting
-//! waits for a type id in the snapshot.
-use super::{Params, species_list};
+//! A custom mob type in `types` (any id outside `minecraft:`) matches by the type id the `Seen`
+//! snapshot of a custom mob carries; vanilla matching is by species as before.
+use super::{Params, species_list, type_list};
 use crate::mobs::{
     Mob,
     goals::{HurtByTarget, NearestTarget},
@@ -36,21 +35,23 @@ pub fn add(m: &mut Mob, g: &GoalDef) -> bool {
         }
         "nearest_target" | "nearest_attackable" => {
             let must_see = p.flag("must_see", true);
-            let (list, player, unknown) = species_list(&p.strings("types"));
-            for id in &unknown {
-                log::warn!(
-                    "Horizon: target selector {}: {id} is not a vanilla mob type or the player; left out",
-                    g.kind
-                );
-            }
+            let ids = p.strings("types");
+            let what = format!("target selector {}", g.kind);
+            let types = type_list(&ids, &what);
+            let (list, custom) = (types.species, types.custom);
             // No usable type at all: the player (the schema's default).
-            let player = player || (list.is_empty() && unknown.is_empty());
+            let player = types.player || ids.is_empty();
             if player {
                 let goal = finish(m, NearestTarget::player(must_see), p);
                 m.ai.targets.add(prio, goal);
             }
-            if !list.is_empty() {
-                let goal = finish(m, NearestTarget::species(&list, must_see), p);
+            if !list.is_empty() || !custom.is_empty() {
+                let goal = if custom.is_empty() {
+                    NearestTarget::species(&list, must_see)
+                } else {
+                    NearestTarget::types(&list, &custom, must_see)
+                };
+                let goal = finish(m, goal, p);
                 m.ai.targets.add(prio, goal);
             }
         }

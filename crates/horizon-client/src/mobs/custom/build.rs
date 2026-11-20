@@ -84,7 +84,7 @@ fn vanilla_sound(slot: &str, id: &str) -> &'static str {
 }
 
 /// Event names are `&'static str` in the mob types: each distinct name is kept once.
-fn intern(name: &str) -> &'static str {
+pub(super) fn intern(name: &str) -> &'static str {
     static POOL: Mutex<Option<HashSet<&'static str>>> = Mutex::new(None);
     let mut pool = POOL.lock().unwrap_or_else(|e| e.into_inner());
     let pool = pool.get_or_insert_with(HashSet::new);
@@ -101,6 +101,9 @@ fn intern(name: &str) -> &'static str {
 pub fn mob_type(t: &Arc<CustomType>) -> MobType {
     let def = species::def(Species::Custom);
     let f = &t.file;
+    let mut flags = def.flags(false);
+    // The `climb` goal: spider-style wall climbing (the engine's climber physics).
+    flags.climber = f.ai.goals.iter().chain(&f.ai.targets).any(|g| g.kind == "climb");
     let value = |name: &str, default: f64| t.builtin_value(name).unwrap_or(default);
     let mut attributes: HashMap<String, f64> = t
         .builtin
@@ -137,16 +140,19 @@ pub fn mob_type(t: &Arc<CustomType>) -> MobType {
         safe_fall_distance: value("safe_fall_distance", 3.0),
         fall_damage_multiplier: value("fall_damage_multiplier", 1.0),
         water_efficiency: 0.0,
+        // `yoake:water_slowdown` is a Yoake attribute (not a 26.3 one), kept as a custom attribute.
         water_slowdown: t
-            .builtin_value("water_slowdown")
-            .map_or_else(|| def.water_slowdown(), |v| v as f32),
+            .attributes
+            .iter()
+            .find(|a| a.id == "yoake:water_slowdown")
+            .map_or_else(|| def.water_slowdown(), |a| a.default as f32),
         air_speed: def.air_speed(),
         baby_scale: def.baby_scale(),
         head_rot_speed: def.head_rot_speed(),
         max_head_x_rot: def.max_head_x_rot(),
         max_head_y_rot: def.max_head_y_rot(),
         ambient_interval: def.ambient_interval(),
-        flags: def.flags(false),
+        flags,
         model: Arc::new(Part::parse("root", &serde_json::Value::Null)),
         layers: Default::default(),
         texture: f.model.textures.default.clone().unwrap_or_default(),

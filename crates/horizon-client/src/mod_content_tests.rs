@@ -4307,3 +4307,118 @@ fn a_symlink_file_is_copied_through() {
     assert_eq!(fs::read(&at).unwrap(), b"real");
     let _ = fs::remove_dir_all(&scratch);
 }
+
+/// What a mod ships, for the spawn egg tests.
+fn ships(files: &'static [&'static str]) -> impl Fn(&str) -> bool {
+    move |f| files.contains(&f)
+}
+
+fn json_of(art: &super::EggArt, file: &str) -> serde_json::Value {
+    let (_, bytes) = art
+        .files
+        .iter()
+        .find(|(name, _)| name == file)
+        .unwrap_or_else(|| panic!("{file} is not written: {:?}", art.files.iter().map(|f| &f.0).collect::<Vec<_>>()));
+    serde_json::from_slice(bytes).unwrap()
+}
+
+#[test]
+fn a_generated_egg_is_a_model_of_the_engines_two_layers_tinted_with_the_colours() {
+    let art = super::spawn_egg_files("demo", "fox", 0xD2691E, 0xFFF0A0, &ships(&[]));
+    assert!(art.uses_base);
+    assert_eq!(art.files.len(), 2);
+    let model = json_of(&art, "assets/demo/models/item/fox_spawn_egg.json");
+    assert_eq!(model["parent"], "minecraft:item/generated");
+    assert_eq!(model["textures"]["layer0"], "horizon:item/spawn_egg");
+    assert_eq!(model["textures"]["layer1"], "horizon:item/spawn_egg_overlay");
+    let item = json_of(&art, "assets/demo/items/fox_spawn_egg.json");
+    assert_eq!(item["model"]["type"], "minecraft:model");
+    assert_eq!(item["model"]["model"], "demo:item/fox_spawn_egg");
+    assert_ne!(item["model"]["model"], "minecraft:item/template_spawn_egg", "26.3 has no such model");
+    let tints = item["model"]["tints"].as_array().unwrap();
+    assert_eq!(tints.len(), 2);
+    // Opaque ARGB as a signed int: 0xFFD2691E and 0xFFFFF0A0.
+    assert_eq!(tints[0]["type"], "minecraft:constant");
+    assert_eq!(tints[0]["value"], i64::from(0xFFD2691E_u32 as i32));
+    assert_eq!(tints[1]["value"], i64::from(0xFFFFF0A0_u32 as i32));
+    assert!(tints[0]["value"].as_i64().unwrap() < 0, "the alpha makes it negative as a signed int");
+}
+
+#[test]
+fn a_mods_own_egg_art_is_used_instead() {
+    // Its own item definition: nothing is written.
+    let none = super::spawn_egg_files("demo", "fox", 1, 2, &ships(&["assets/demo/items/fox_spawn_egg.json"]));
+    assert_eq!(none, super::EggArt::default());
+    // Its own model: only the item definition, without tints.
+    let model = super::spawn_egg_files("demo", "fox", 1, 2, &ships(&["assets/demo/models/item/fox_spawn_egg.json"]));
+    assert!(!model.uses_base && model.files.len() == 1);
+    let item = json_of(&model, "assets/demo/items/fox_spawn_egg.json");
+    assert_eq!(item["model"]["model"], "demo:item/fox_spawn_egg");
+    assert!(item["model"].get("tints").is_none());
+    // Its own texture: a one-layer model of it, untinted.
+    let texture = super::spawn_egg_files("demo", "fox", 1, 2, &ships(&["assets/demo/textures/item/fox_spawn_egg.png"]));
+    assert!(!texture.uses_base && texture.files.len() == 2);
+    let model = json_of(&texture, "assets/demo/models/item/fox_spawn_egg.json");
+    assert_eq!(model["textures"]["layer0"], "demo:item/fox_spawn_egg");
+    assert!(json_of(&texture, "assets/demo/items/fox_spawn_egg.json")["model"].get("tints").is_none());
+}
+
+#[test]
+fn the_engines_egg_textures_are_16_by_16_pngs() {
+    for png in [super::EGG_BASE_PNG, super::EGG_OVERLAY_PNG] {
+        assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
+        assert_eq!(u32::from_be_bytes(png[16..20].try_into().unwrap()), 16, "width");
+        assert_eq!(u32::from_be_bytes(png[20..24].try_into().unwrap()), 16, "height");
+    }
+    assert_eq!(super::argb(0x123456), 0xFF123456_u32 as i32);
+    assert_eq!(super::argb(0xAA123456), 0xFF123456_u32 as i32, "alpha bits of the input are ignored");
+}
+
+#[test]
+fn a_custom_mobs_row_has_the_vanilla_default_attribute_set_then_its_own() {
+    let base = br#"{
+        "minecraft:pig": {"width":0.9,"height":0.9,"eye_height":0.8,"category":"creature","fire_immune":false,
+            "attributes":{"minecraft:max_health":10.0,"minecraft:movement_speed":0.25,"minecraft:follow_range":16.0,"minecraft:armor":0.0}},
+        "minecraft:cow": {"width":0.9,"height":1.4,"eye_height":1.3,"category":"creature","fire_immune":false,
+            "attributes":{"minecraft:max_health":10.0,"minecraft:movement_speed":0.2,"minecraft:follow_range":16.0,"minecraft:armor":0.0}},
+        "minecraft:zombie": {"width":0.6,"height":1.95,"eye_height":1.74,"category":"monster","fire_immune":false,
+            "attributes":{"minecraft:max_health":20.0,"minecraft:movement_speed":0.23,"minecraft:follow_range":35.0,"minecraft:armor":0.0,"minecraft:attack_damage":3.0}},
+        "minecraft:player": {"width":0.6,"height":1.8,"eye_height":1.62,"category":"misc","fire_immune":false,
+            "attributes":{"minecraft:max_health":20.0,"minecraft:movement_speed":0.1,"minecraft:luck":0.0}},
+        "minecraft:marker": {"width":0.0,"height":0.0,"eye_height":0.0,"category":"misc","fire_immune":false}
+    }"#;
+    let rows: BTreeMap<String, Box<serde_json::value::RawValue>> = serde_json::from_slice(base).unwrap();
+    let defaults = super::vanilla_mob_attributes(&rows);
+    // Only what every non-misc row with attributes has (no attack damage, no luck), the most
+    // common value (the smallest text when none is), as the base file spells it.
+    let keys: Vec<&str> = defaults.keys().map(String::as_str).collect();
+    assert_eq!(
+        keys,
+        ["minecraft:armor", "minecraft:follow_range", "minecraft:max_health", "minecraft:movement_speed"]
+    );
+    assert_eq!(defaults["minecraft:max_health"].get(), "10.0");
+    assert_eq!(defaults["minecraft:movement_speed"].get(), "0.2");
+    assert!(super::vanilla_mob_attributes(&BTreeMap::new()).is_empty(), "no base rows: no defaults");
+
+    let file = horizon_mods::custom_mob::CustomMobFile::parse(
+        "demo:thing",
+        br#"{"template":"yoake:mob","category":"axolotls","size":{"width":0.6,"height":1.0},
+            "attributes":{"max_health":30,"movement_speed":0.5,"yoake:water_slowdown":0.9,
+                          "demo:warmth":{"default":3}}}"#,
+    )
+    .unwrap();
+    let row: serde_json::Value = serde_json::from_slice(&super::custom_row(&file, &defaults).unwrap()).unwrap();
+    assert_eq!(row["category"], "axolotls");
+    let attrs = row["attributes"].as_object().unwrap();
+    assert_eq!(attrs["minecraft:max_health"], 30.0, "its own value wins");
+    assert_eq!(attrs["minecraft:movement_speed"], 0.5);
+    assert_eq!(attrs["minecraft:follow_range"], 16.0, "the rest is the default set");
+    assert_eq!(attrs["minecraft:armor"], 0.0);
+    assert_eq!(attrs["yoake:water_slowdown"], 0.9);
+    assert_eq!(attrs["demo:warmth"], 3.0);
+    assert!(!attrs.contains_key("minecraft:luck") && !attrs.contains_key("minecraft:attack_damage"));
+    // With no base to take defaults from, the row holds what the file sets, as before.
+    let bare: serde_json::Value =
+        serde_json::from_slice(&super::custom_row(&file, &BTreeMap::new()).unwrap()).unwrap();
+    assert_eq!(bare["attributes"].as_object().unwrap().len(), 4);
+}

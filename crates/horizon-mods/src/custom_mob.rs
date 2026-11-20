@@ -134,19 +134,20 @@ impl ModelInfo for LoadedModel {
 }
 
 /// The mob's categories (`MobCategory`).
-pub const CATEGORIES: [&str; 7] = [
+pub const CATEGORIES: [&str; 8] = [
     "monster",
     "creature",
     "ambient",
     "water_creature",
+    "axolotls",
     "water_ambient",
     "underground_water_creature",
     "misc",
 ];
 /// Navigators ([`Ai::navigator`]).
 pub const NAVIGATORS: [&str; 5] = ["ground", "climb", "swim", "fly", "amphibious"];
-/// The built-in attribute names (bare); a custom attribute is a namespaced id.
-pub const BUILTIN_ATTRIBUTES: [&str; 16] = [
+/// The built-in attribute names (bare, all 26.3 attributes); a custom attribute is a namespaced id.
+pub const BUILTIN_ATTRIBUTES: [&str; 15] = [
     "max_health",
     "movement_speed",
     "attack_damage",
@@ -160,10 +161,13 @@ pub const BUILTIN_ATTRIBUTES: [&str; 16] = [
     "gravity",
     "jump_strength",
     "safe_fall_distance",
-    "water_slowdown",
     "scale",
     "fall_damage_multiplier",
 ];
+/// Yoake-namespaced attributes a file sets as a plain number like a built-in one (they are not 26.3
+/// attributes): `yoake:water_slowdown` is how much of its speed a mob keeps each tick in water
+/// (the engine's `water_slowdown`, 0.8 by default).
+pub const YOAKE_ATTRIBUTES: [&str; 1] = ["yoake:water_slowdown"];
 /// Data goal types: the nine that exist (`Behaviour`) and the new ones (section 6.1), and
 /// `script` (a WASM goal id).
 pub const GOAL_TYPES: [&str; 41] = [
@@ -841,7 +845,7 @@ impl CustomMobFile {
             let builtin = BUILTIN_ATTRIBUTES.contains(&bare);
             match value {
                 Attribute::Value(v) => {
-                    if !builtin {
+                    if !builtin && !YOAKE_ATTRIBUTES.contains(&name.as_str()) {
                         return Err(format!(
                             "attribute {name:?} is not built in: declare a custom one as {{\"default\": ..}} under a namespaced id"
                         ));
@@ -1351,6 +1355,29 @@ mod tests {
         assert!(GOAL_TYPES.contains(&"leap_attack"));
     }
 
+
+    /// `water_slowdown` is not a 26.3 attribute: it is `yoake:water_slowdown` now (a plain number).
+    #[test]
+    fn water_slowdown_is_a_yoake_attribute_and_not_a_builtin_one() {
+        assert!(!BUILTIN_ATTRIBUTES.contains(&"water_slowdown"));
+        assert_eq!(BUILTIN_ATTRIBUTES.len(), 15);
+        let bare = r#"{"template":"yoake:mob","size":{"width":1,"height":1},"attributes":{"water_slowdown":0.9}}"#;
+        assert!(parse(bare).is_err(), "the old bare name is refused");
+        let yoake = r#"{"template":"yoake:mob","size":{"width":1,"height":1},"attributes":{"yoake:water_slowdown":0.9}}"#;
+        let file = parse(yoake).unwrap();
+        assert_eq!(file.attributes["yoake:water_slowdown"], Attribute::Value(0.9));
+        // Other namespaced plain numbers are still refused.
+        let other = r#"{"template":"yoake:mob","size":{"width":1,"height":1},"attributes":{"yoake:thing":0.9}}"#;
+        assert!(parse(other).is_err());
+    }
+
+    /// The vanilla `axolotls` category is offered too.
+    #[test]
+    fn the_axolotls_category_is_accepted() {
+        assert!(CATEGORIES.contains(&"axolotls"));
+        let file = with(|v| v["category"] = "axolotls".into()).unwrap();
+        assert_eq!(file.category, "axolotls");
+    }
     #[test]
     fn malformed_files_are_rejected_with_a_reason() {
         let cases: Vec<(&str, Box<dyn FnOnce(&mut serde_json::Value)>)> = vec![

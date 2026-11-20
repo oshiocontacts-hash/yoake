@@ -50,11 +50,13 @@ pub fn add(m: &mut Mob, g: &GoalDef) -> bool {
         }
         "flee" | "avoid" => {
             let from = p.strings("from");
-            let (list, player, _) = super::species_list(&from);
-            let what = if from.is_empty() || player {
+            let types = super::type_list(&from, &format!("avoid {}", g.kind));
+            let what = if from.is_empty() || types.player {
                 Avoid::Player
+            } else if types.custom.is_empty() {
+                Avoid::Species(types.species)
             } else {
-                Avoid::Species(list)
+                Avoid::Types(types.species, types.custom)
             };
             m.ai.goals.add(
                 prio,
@@ -99,6 +101,9 @@ pub fn add(m: &mut Mob, g: &GoalDef) -> bool {
                 Stroll::avoiding_water(p.speed(1.0)).interval(p.int("interval", 60).max(1)),
             );
         }
+        // Spider-style wall climbing: the type has the engine's climber physics (see
+        // `build::mob_type`); the navigator may route up a wall at `cost` extra per block.
+        "climb" => m.ai.nav.climb_cost = Some(p.num("cost", 0.5).clamp(0.0, 32.0) as f32),
         "leap_at_target" => m.ai.goals.add(
             prio,
             LeapAtTarget::new(p.num("yd", 0.4).clamp(0.0, 2.0) as f32),
