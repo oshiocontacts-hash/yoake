@@ -46,7 +46,7 @@ impl Game<'_> {
         let feet = DVec3::new(feet.x, feet.y, feet.z);
         let yaw = mob.previous_body_yaw
             + horizon_client::mobs::living::wrap(mob.body_yaw - mob.previous_body_yaw) * partial;
-        let roll = rs::death_roll_degrees(mob.death_time, partial);
+        let roll = rs::death_roll_for(ct, mob.death_time, partial);
         let scale = tr.scale * mob.model_scale();
         let lod = tr.lod_mode(distance as f32);
         let rel = (feet - camera).as_vec3();
@@ -171,7 +171,7 @@ impl Game<'_> {
             }
             let matrices = render.matrices_of(mob.id).unwrap_or(tr.rest_matrices.as_slice());
             let yaw = mob.body_yaw;
-            let roll = rs::death_roll_degrees(mob.death_time, 0.0);
+            let roll = rs::death_roll_for(ct, mob.death_time, 0.0);
             let mut sink = GameSink { game_audio: &mut self.audio, particles: &mut self.particles, mob: mob.id };
             rs::route_events(
                 ta,

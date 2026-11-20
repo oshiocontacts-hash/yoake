@@ -77,6 +77,10 @@ pub fn eyes_glowing(m: &Mob) -> bool {
 }
 /// Ticks of death animation before the mob is removed (`tickDeath`).
 pub fn death_limit(m: &Mob) -> i32 {
+    if let Some(ticks) = m.kind.custom.as_ref().and_then(|c| c.death_ticks()) {
+        // A custom mob with a `death` animation stays until it ends (at most 60 ticks).
+        return ticks;
+    }
     if heart_bound(m) && tearing_down(m) {
         TWITCH_TICKS + 1
     } else {

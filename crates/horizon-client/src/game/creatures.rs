@@ -1109,7 +1109,7 @@ impl Game<'_> {
                 }
                 horizon_client::mobs::take_mob_pushes(&mut events, from, &mut pushes);
                 // LivingEntity.tickDeath: after twenty ticks the body is removed.
-                if !kept && !m.removed && !m.alive() && m.death_time >= 20 {
+                if !kept && !m.removed && !m.alive() && m.death_time >= horizon_client::mobs::custom::removal_ticks(m) {
                     let (width, height) = (f64::from(m.width()), f64::from(m.height()));
                     gone.push((m.id, m.position, width, height));
                 }

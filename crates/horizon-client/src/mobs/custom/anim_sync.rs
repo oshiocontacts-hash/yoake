@@ -58,6 +58,10 @@ pub const TICK_SECONDS: f32 = 0.05;
 pub const ANCHOR_TOLERANCE: f64 = 0.02;
 /// Ticks added to an animation's length to make the safety deadline of a damage frame.
 const FRAME_SLACK_TICKS: i64 = 4;
+/// The animation a dying mob plays (`death`); a type without one keeps the engine's 20 ticks and tilt.
+pub const DEATH_ANIMATION: &str = "death";
+/// The most ticks a custom mob is kept for its death animation.
+pub const MAX_DEATH_TICKS: i32 = 60;
 
 /// One trigger of a type: the layer and its place in the layer's list.
 #[derive(Clone, Debug, PartialEq)]
@@ -87,6 +91,9 @@ pub struct TypeAnim {
     /// Every trigger of every layer, in file order: a trigger's wire id is its index here.
     pub triggers: Vec<TriggerDef>,
     pub frames: Vec<ServerFrame>,
+    /// The type's `death` animation (index into the library) and its length in seconds: a dying mob is
+    /// kept until it ends (F4M-6), and the client plays it instead of the engine's tilt.
+    pub death: Option<(usize, f32)>,
 }
 
 impl TypeAnim {
@@ -119,12 +126,23 @@ impl TypeAnim {
                 });
             }
         }
+        let death = rig
+            .find_animation(DEATH_ANIMATION)
+            .and_then(|i| rig.animation(i).map(|a| (i, a.length)))
+            .filter(|(_, length)| length.is_finite() && *length > 0.0);
         Some(Self {
             rig: rig.clone(),
             events: events.clone(),
             triggers,
             frames,
+            death,
         })
+    }
+
+    /// How many ticks a dying mob is kept: the `death` animation's length (at least 1, at most
+    /// [`MAX_DEATH_TICKS`]); `None` without that animation.
+    pub fn death_ticks(&self) -> Option<i32> {
+        self.death.map(|(_, length)| ((length / TICK_SECONDS - 1e-3).ceil() as i32).clamp(1, MAX_DEATH_TICKS))
     }
 
     /// The wire id of the first trigger named `name`.

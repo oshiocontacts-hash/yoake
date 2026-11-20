@@ -197,7 +197,19 @@ pub struct CustomType {
     pub ride: ai::riding::RideDef,
 }
 
+/// `LivingEntity.tickDeath` removes a body after 20 ticks; a custom mob whose type has a `death`
+/// animation stays until it ends (at most 60 ticks).
+pub fn removal_ticks(m: &crate::mobs::Mob) -> i32 {
+    m.kind.custom.as_ref().and_then(|c| c.death_ticks()).unwrap_or(20)
+}
+
 impl CustomType {
+    /// Ticks a dying mob of this type stays before it is removed: its `death` animation's length
+    /// (at most 60); `None` without that animation (the engine's 20 ticks and tilt then).
+    pub fn death_ticks(&self) -> Option<i32> {
+        self.anim.as_ref()?.death_ticks()
+    }
+
     /// Builds the type from its validated file. `model` is the loaded model (hitbox parts that
     /// follow a bone need it).
     pub fn new(file: CustomMobFile, model: Option<&LoadedModel>) -> Result<Self, String> {

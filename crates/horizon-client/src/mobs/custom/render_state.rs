@@ -37,7 +37,7 @@
 //! neither evaluated nor drawn. `static`: the rest pose. `hidden`: nothing is drawn.
 use super::{
     CustomType, SyncedValue,
-    anim_sync::TypeAnim,
+    anim_sync::{TICK_SECONDS, TypeAnim},
     remote::{RemoteCustomMob, RemoteCustomMobs},
 };
 use crate::mesher::Vertex;
@@ -711,6 +711,13 @@ impl MobRender {
         if let Some(st) = self.rig_state.as_ref() {
             rig.evaluate(st, &self.triggers, &mut self.inputs, &mut self.scratch, needed, &mut self.pose);
         }
+        // A dying mob plays its `death` animation alone, once, and holds its last pose (the engine's
+        // tilt is not used then, see `death_roll_for`).
+        if let Some(clock) = death_clock(ta, ctx.facts.death_time, ctx.partial)
+            && let Some((anim, _)) = ta.death
+        {
+            rig.sample_animation(anim, clock, &mut self.inputs, &mut self.pose);
+        }
     }
 }
 
@@ -891,6 +898,19 @@ pub fn death_roll_degrees(death_time: i32, partial: f32) -> f32 {
     }
     let f = ((death_time as f32 + partial - 1.0) / 20.0 * 1.6).sqrt().min(1.0);
     f * 90.0
+}
+
+/// The seconds into the `death` animation of a mob `death_time` ticks dead (held on the last pose), or
+/// `None` for a living mob or a type without that animation.
+pub fn death_clock(ta: &TypeAnim, death_time: f32, partial: f32) -> Option<f32> {
+    let (_, length) = ta.death?;
+    (death_time > 0.0).then(|| ((death_time - 1.0 + partial).max(0.0) * TICK_SECONDS).min((length - 1e-3).max(0.0)))
+}
+
+/// The roll of a dying mob of `ct`: none when its type plays its own `death` animation, the engine's
+/// tilt otherwise.
+pub fn death_roll_for(ct: &CustomType, death_time: i32, partial: f32) -> f32 {
+    if ct.death_ticks().is_some() { 0.0 } else { death_roll_degrees(death_time, partial) }
 }
 
 /// Model space (Blockbench: pixels, -Z north) to the mob's frame in blocks, without its position: the
@@ -1569,6 +1589,54 @@ mod tests {
         assert_eq!(full.len() - low.len(), (verts(t2) + verts(t3)) * 2);
         // The suffix still works beside the list: a bone named `*_lod_min` joins the union.
         assert!(!tr.bone_drawn(t3, LodMode::LowBones, &mr.visibility) && tr.bone_drawn(t3, LodMode::Full, &mr.visibility));
+    }
+
+    // ----- death ---------------------------------------------------------------------------------
+
+    fn dead_matrices(ct: &Arc<CustomType>, death_time: f32, partial: f32) -> Vec<Mat4> {
+        let tr = ct.render.as_ref().unwrap();
+        let mut mr = MobRender::new(tr);
+        let mut c = context(40, 0, LodMode::Full);
+        c.partial = partial;
+        c.facts.death_time = death_time;
+        c.facts.health = 0.0;
+        assert!(mr.update(ct, tr, None, &c));
+        mr.matrices.clone()
+    }
+
+    #[test]
+    fn a_death_animation_replaces_the_tilt_and_holds_its_last_pose() {
+        let ct = fox();
+        let ta = ct.anim.as_ref().unwrap();
+        // The fixture's death is 0.6 s: 12 ticks. Alive or without the animation there is no clock.
+        assert_eq!(ct.death_ticks(), Some(12));
+        assert_eq!(death_clock(ta, 0.0, 0.5), None);
+        assert_eq!(death_clock(ta, 1.0, 0.0), Some(0.0));
+        assert!((death_clock(ta, 7.0, 0.5).unwrap() - 6.5 * TICK_SECONDS).abs() < 1e-6);
+        let end = death_clock(ta, 40.0, 0.0).unwrap();
+        assert!(end < 0.6 && end > 0.59, "held on the last pose: {end}");
+        // The pose follows the clock, then stays.
+        let (a, b, c) = (dead_matrices(&ct, 3.0, 0.0), dead_matrices(&ct, 8.0, 0.0), dead_matrices(&ct, 13.0, 0.0));
+        let (d, e) = (dead_matrices(&ct, 20.0, 0.0), dead_matrices(&ct, 59.0, 0.5));
+        assert_ne!(a, b);
+        assert_ne!(b, c);
+        assert_eq!(c, d, "past the end it holds");
+        assert_eq!(d, e);
+        let rest = ct.render.as_ref().unwrap().rest_matrices.clone();
+        assert_ne!(c, rest, "the last pose is not the rest pose");
+        // No tilt for a type with the animation; the engine's tilt for one without.
+        assert_eq!(death_roll_for(&ct, 10, 0.0), 0.0);
+        let plain = fox_with(
+            true,
+            |_| {},
+            |a| drop(a["animations"].as_object_mut().unwrap().remove("animation.cinder_fox.death")),
+        )
+        .0;
+        assert_eq!(plain.death_ticks(), None);
+        assert_eq!(death_roll_for(&plain, 10, 0.25), death_roll_degrees(10, 0.25));
+        assert!(death_roll_for(&plain, 10, 0.25) > 0.0);
+        // A living mob of either type is not rolled and has no death clock.
+        assert_eq!(death_roll_for(&plain, 0, 0.0), 0.0);
     }
 
     // ----- cull box and shadow -----------------------------------------------------------------
