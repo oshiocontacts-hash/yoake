@@ -226,16 +226,14 @@ impl Game<'_> {
     fn script_session_open(&mut self, authority: NativeAuthority) {
         // A session left from an open that never closed (a failed retry) is let go first.
         self.native_lifecycle.script_session = None;
-        if !matches!(authority, NativeAuthority::IntegratedServer | NativeAuthority::DedicatedServer) {
+        let is_server = match authority {
+            NativeAuthority::IntegratedServer | NativeAuthority::DedicatedServer => true,
+            _ => false,
+        };
+        if !is_server {
             return;
         }
-        let Some(runtime) = crate::entry::wasm_mods::world_script_runtime() else { return };
-        match horizon_client::mobs::custom::script::open_session(runtime) {
-            Ok(session) => self.native_lifecycle.script_session = Some(session),
-            Err(_) => log::warn!(
-                "another server already holds the script runtime of custom mobs: this world's custom mobs run without scripts (one runtime per process)"
-            ),
-        }
+        self.native_lifecycle.script_session = crate::entry::wasm_mods::open_world_script_session();
     }
 
     /// F4M-10: the world is closed (or failed to open or close): the runtime, the queued commands and the
