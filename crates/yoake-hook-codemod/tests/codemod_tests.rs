@@ -1541,10 +1541,10 @@ fn private_types_flag_hooks_private_self_types_and_destructuring_params() {
             ("src/lib.rs", "pub(crate) mod m;\n"),
             (
                 "src/m.rs",
-                "pub trait Tr { fn work(&self) -> u32; }\n\
+                "pub trait Tr { fn work(&self, (a, b): (u32, u32), _: u8) -> u32; }\n\
                  struct Secret(u32);\n\
                  impl Secret {\n    pub fn hidden(&self, (a, b): (u32, u32), _: u8) -> u32 {\n        self.0 + a + b\n    }\n}\n\
-                 impl Tr for Secret {\n    fn work(&self) -> u32 {\n        self.0\n    }\n}\n",
+                 impl Tr for Secret {\n    fn work(&self, (a, b): (u32, u32), _: u8) -> u32 {\n        self.0 + a + b\n    }\n}\n",
             ),
         ],
     );
@@ -1570,4 +1570,11 @@ fn private_types_flag_hooks_private_self_types_and_destructuring_params() {
     let shard = read_shard(&root.join("hook-ledger"), "demo");
     assert!(entry_id(&shard, "demo::m::Secret::hidden").is_some(), "private type hooked; destructuring param no longer excludes it");
     assert!(entry_id(&shard, "demo::m::<Secret as Tr>::work").is_some(), "trait impl on a private type converted");
+    let converted = std::fs::read_to_string(root.join("src/m.rs")).unwrap();
+    assert!(converted.contains("__yoake_a0") && converted.contains("__yoake_a1"), "wrapper names its patterns: {converted}");
+    assert!(converted.contains("(a, b): (u32, u32)"), "the helper keeps the pattern: {converted}");
+    // idempotent: the converted wrapper is recognised on the next run
+    let out = run(args(&["--private-types"]));
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(std::fs::read_to_string(root.join("src/m.rs")).unwrap(), converted);
 }
