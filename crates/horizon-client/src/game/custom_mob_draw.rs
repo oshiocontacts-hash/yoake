@@ -144,6 +144,7 @@ impl Game<'_> {
         };
         let tick = self.world.game_time;
         let local = self.remote.is_none();
+        let viewer = self.level.player_uuid;
         let render = self.custom_mob_render.get_mut();
         let frame = render.frame();
         let mut buf = render.take_events();
@@ -155,7 +156,7 @@ impl Game<'_> {
                 continue;
             };
             let mob_state = if local {
-                render.mirror.sync(mob, tick, frame);
+                render.mirror.sync(mob, tick, frame, viewer);
                 render.mirror.get_mut(mob.id)
             } else {
                 self.remote.as_mut().and_then(|r| r.custom_mobs.get_mut(mob.id as i32))

@@ -742,10 +742,10 @@ impl LocalMirror {
         self.store.get_mut(id as i32)
     }
 
-    /// Brings the mirror of `m` up to date at game tick `now`: the first call is a snapshot (a late
+    /// Brings the mirror of `m` up to date at game tick `now` for the window of `viewer` (the host's player uuid): the first call is a snapshot (a late
     /// join), later ones send what the server's sync layer would: anchors that moved past the
     /// tolerance and the triggers that started. `stamp` marks the mob as alive (see [`retain`](Self::retain)).
-    pub fn sync(&mut self, m: &Mob, now: i64, stamp: u64) {
+    pub fn sync(&mut self, m: &Mob, now: i64, stamp: u64, viewer: Option<[i32; 4]>) {
         use horizon_protocol::mob_sync::{Delta, Frame, Message, TriggerStart};
         let (Some(t), Some(state)) = (m.kind.custom.as_ref(), m.extra.custom.as_ref()) else {
             return;
@@ -795,9 +795,15 @@ impl LocalMirror {
             }
             self.store.apply_at(&frame, now, &kind_of);
         }
-        // Every value, not only the announced ones: the animations of this process read them all.
+        // Every value, not only the announced ones (the animations of this process read them all),
+        // but as the host's window sees them: a `sync: owner` value of a mob the host's player does
+        // not own reads as its default, as for a remote client (`lan::mob_sync::value_visible_to`).
         if let Some(rm) = self.store.get_mut(id as i32) {
-            rm.values.clone_from(&state.synced);
+            rm.values.clear();
+            for (slot, value) in state.synced.iter().enumerate() {
+                let visible = crate::lan::mob_sync::value_visible_to(m, slot, viewer);
+                rm.values.push(if visible { value.clone() } else { t.synced[slot].default.clone() });
+            }
         }
     }
 
@@ -1836,7 +1842,7 @@ mod tests {
             if tick == 10 {
                 assert!(anim_sync::request_trigger(&mut mob, "pounce", 1.0));
             }
-            mirror.sync(&mob, tick, 1);
+            mirror.sync(&mob, tick, 1, None);
             if let Some(m) = mirror.get_mut(mob.id) {
                 buf.clear();
                 m.poll_events(tick, 0.0, &mut buf);
@@ -1852,6 +1858,35 @@ mod tests {
         assert_eq!(mirror.get(mob.id).unwrap().values, mob.extra.custom.as_ref().unwrap().synced);
         mirror.retain(2);
         assert!(mirror.is_empty(), "a mob that is gone is forgotten");
+    }
+
+    /// The integrated host reads synced values as a remote client would: a `sync: owner` value of a
+    /// mob the host's player does not own is its default, the owner's window sees it (F4M-4c).
+    #[test]
+    fn the_hosts_mirror_hides_owner_values_of_mobs_the_host_does_not_own() {
+        use crate::mobs::custom::{SyncedValue, ai::tame};
+        const HOST: [i32; 4] = [7, 8, 9, 10];
+        const OTHER: [i32; 4] = [1, 2, 3, 4];
+        let ct = fox_with(
+            true,
+            |v| v["synced"]["mood"] = serde_json::json!({"type": "i32", "min": 0, "max": 100, "default": 5, "sync": "owner"}),
+            |_| {},
+        )
+        .0;
+        let slot = ct.synced_slot("mood").unwrap();
+        let mut mob = anim_sync::tests::fox_mob(&ct, horizon_core::geometry::Vec3::new(0.5, 1.0, 0.5));
+        mob.extra.custom.as_mut().unwrap().synced[slot] = SyncedValue::I32(40);
+        let seen = |viewer: Option<[i32; 4]>, mob: &Mob| {
+            let mut mirror = LocalMirror::default();
+            mirror.sync(mob, 0, 1, viewer);
+            mirror.get(mob.id).unwrap().values[slot].clone()
+        };
+        assert_eq!(seen(Some(HOST), &mob), SyncedValue::I32(5), "unowned: the default");
+        tame::tame(&mut mob, OTHER);
+        assert_eq!(seen(Some(HOST), &mob), SyncedValue::I32(5), "owned by somebody else");
+        tame::tame(&mut mob, HOST);
+        assert_eq!(seen(Some(HOST), &mob), SyncedValue::I32(40), "owned by the host's player");
+        assert_eq!(seen(None, &mob), SyncedValue::I32(5), "no player uuid: nothing owned");
     }
 
     // ----- nothing without a custom mob --------------------------------------------------------
@@ -1875,7 +1910,7 @@ mod tests {
             0.0,
         );
         let mut mirror = LocalMirror::default();
-        mirror.sync(&vanilla, 5, 1);
+        mirror.sync(&vanilla, 5, 1, None);
         assert!(mirror.is_empty());
     }
 
