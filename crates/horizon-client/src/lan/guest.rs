@@ -314,6 +314,9 @@ pub struct Guest {
     pub death_time: u32,
     /// The join packets were sent (PlayerList.placeNewPlayer ran).
     pub placed: bool,
+    /// How many `minecraft:dimension_type` entries this client was sent when it joined: a level
+    /// created later whose type is past this is one it cannot show (F3-6).
+    pub known_types: usize,
     /// Root command names the mods took out of this player's command tree
     /// (`native_player_commands_sent`); their tree is sent without them.
     pub hidden_commands: Vec<String>,
@@ -483,6 +486,7 @@ impl Guest {
             dead: false,
             death_time: 0,
             placed: false,
+            known_types: usize::MAX,
             hidden_commands: Vec::new(),
             flying_speed: 0.05,
             dimension: "minecraft:overworld".into(),

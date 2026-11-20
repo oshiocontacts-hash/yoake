@@ -142,6 +142,7 @@ mod game_tests;
 #[cfg(test)]
 mod dim_tests;
 mod level_facts;
+mod level_manager;
 #[cfg(test)]
 mod level_registry_tests;
 mod gamemode_switcher;
@@ -1061,6 +1062,9 @@ struct GameLevel<'w> {
     dimension: LevelDimension,
     /// The rules of the level's dimension type (F3-4b).
     type_rules: horizon_world::level::LevelRules,
+    /// The id of the level (a pack's or mod's has its own; `dimension` is one of the three vanilla
+    /// values mods have always seen, the Overworld for a level past them).
+    level_id: &'static str,
     darken: i32,
     /// The environment of the level's dimension (`SUN_ANGLE`).
     environment: &'w Environment,
@@ -1884,6 +1888,9 @@ impl LevelAccess for GameLevel<'_> {
     }
     fn level_rules(&self) -> horizon_world::level::LevelRules {
         self.type_rules
+    }
+    fn level_id(&self) -> &str {
+        self.level_id
     }
     /// `Level.isUnobstructed`: the placed state's collision shape against the player.
     /// `Level.isUnobstructed(state, pos, CollisionContext.of(player))`: no
@@ -4905,6 +4912,7 @@ impl Game<'_> {
             events: &mut self.level_events,
             dimension,
             type_rules,
+            level_id: self.dim.id(),
             darken,
             environment: level_facts::environment_for(self.dim, &self.level_ctxs, &self.res),
             raining: rain > 0.2,
@@ -12737,6 +12745,14 @@ impl Game<'_> {
             .then(|| Dim::intern(&level.dimension))
             .unwrap_or(Dim::Overworld);
         self.level_registry = registry;
+        // The generators mods staged before the world opened, with the ones registered since.
+        for id in horizon_client::mod_generator::staged().1.ids().map(str::to_owned).collect::<Vec<_>>() {
+            if !self.mod_generators.contains(&id)
+                && let Some(factory) = horizon_client::mod_generator::staged().1.factory(&id)
+            {
+                let _ = self.mod_generators.register(&id, factory);
+            }
+        }
         self.level_shapes = shapes;
         self.world_root = save_root.clone();
         self.index_saved_attachment_usage(&level);

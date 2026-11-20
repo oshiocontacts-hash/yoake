@@ -290,10 +290,8 @@ impl Game<'_> {
     ) -> Result<bool, String> {
         self.native_physics_reserve(Operation::SetPlayerVelocity, true)?;
         let velocity = velocity_vector(velocity)?;
-        if !matches!(
-            dimension,
-            "minecraft:overworld" | "minecraft:the_nether" | "minecraft:the_end"
-        ) {
+        // Any level of the world (F3-6), not only the three vanilla ones.
+        if self.level_dim(dimension).is_none() {
             return Err("unknown native player dimension".into());
         }
         let mut host = self

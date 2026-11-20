@@ -111,6 +111,9 @@ impl ModGenerators {
         self.factories.insert(id.to_owned(), factory);
         Ok(())
     }
+    pub fn factory(&self, id: &str) -> Option<Arc<dyn ModGeneratorFactory>> {
+        self.factories.get(id).cloned()
+    }
     pub fn contains(&self, id: &str) -> bool {
         self.factories.contains_key(id)
     }
@@ -191,4 +194,77 @@ impl ChunkGenerator for ModTerrain {
     fn finish(&self, proto: Proto) -> Chunk {
         *proto.downcast::<Chunk>().expect("mod terrain proto")
     }
+}
+
+/// What mods registered before a world was read (F3-6): levels and generators the world's own
+/// loading takes in, so a player saved in a level of a mod reopens there. Process wide, because
+/// native mods start before any world opens and the integrated server reads worlds on its own
+/// thread; a world reads it when it opens and never drains it.
+#[derive(Default)]
+struct Staged {
+    levels: Vec<(String, Value)>,
+    generators: ModGenerators,
+}
+static STAGED: std::sync::Mutex<Option<Staged>> = std::sync::Mutex::new(None);
+fn staged_lock() -> std::sync::MutexGuard<'static, Option<Staged>> {
+    STAGED.lock().unwrap_or_else(|e| e.into_inner())
+}
+/// Registers a level stem (a level of `id`) for every world opened from now on. Refused when `id`
+/// is staged already or is not a usable level id.
+pub fn stage_level(id: &str, stem: Value) -> Result<(), String> {
+    crate::level_registry::check_level_id(id).map_err(|r| format!("level id `{id}`: {r}"))?;
+    let mut staged = staged_lock();
+    let staged = staged.get_or_insert_with(Staged::default);
+    if staged.levels.iter().any(|(l, _)| l == id) {
+        return Err(format!("level `{id}` is already staged"));
+    }
+    staged.levels.push((id.to_owned(), stem));
+    Ok(())
+}
+/// Registers a chunk generator for every world opened from now on.
+pub fn stage_generator(id: &str, factory: Arc<dyn ModGeneratorFactory>) -> Result<(), String> {
+    staged_lock()
+        .get_or_insert_with(Staged::default)
+        .generators
+        .register(id, factory)
+}
+/// The levels and generators staged so far.
+pub fn staged() -> (Vec<(String, Value)>, ModGenerators) {
+    staged_lock()
+        .as_ref()
+        .map_or_else(Default::default, |s| (s.levels.clone(), s.generators.clone()))
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct Nothing;
+    impl ModGeneratorFactory for Nothing {
+        fn create(&self, _: &ModGeneratorContext) -> Result<Arc<dyn ModColumnSource>, String> {
+            Err("not made in this test".into())
+        }
+    }
+
+    #[test]
+    fn staged_levels_and_generators_are_kept_for_every_world() {
+        clear_staged();
+        stage_level("a:one", serde_json::json!({})).unwrap();
+        assert!(stage_level("a:one", serde_json::json!({})).is_err(), "twice");
+        assert!(stage_level("../x:y", serde_json::json!({})).is_err(), "an unusable id");
+        stage_generator("a:gen", Arc::new(Nothing)).unwrap();
+        assert!(stage_generator("a:gen", Arc::new(Nothing)).is_err());
+        // A world reading them never drains them.
+        for _ in 0..2 {
+            let (levels, generators) = staged();
+            assert_eq!(levels.len(), 1);
+            assert!(generators.contains("a:gen"));
+        }
+        clear_staged();
+        assert!(staged().0.is_empty());
+    }
+}
+
+/// Forgets everything staged (tests).
+pub fn clear_staged() {
+    *staged_lock() = None;
 }

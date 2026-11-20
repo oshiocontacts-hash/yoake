@@ -65,6 +65,15 @@ fn with_world(
     write_pack: impl FnOnce(&std::path::Path),
     test: impl FnOnce(&mut Game<'_>, &std::path::Path),
 ) {
+    with_world_options(write_pack, |_| {}, test)
+}
+
+/// `with_world`, with the game's options changed first (`--dimension` and the like).
+fn with_world_options(
+    write_pack: impl FnOnce(&std::path::Path),
+    tweak: impl FnOnce(&mut Options),
+    test: impl FnOnce(&mut Game<'_>, &std::path::Path),
+) {
     let resources = PathBuf::from(
         std::env::var_os("HORIZON_TEST_RESOURCES").expect("set HORIZON_TEST_RESOURCES"),
     );
@@ -88,6 +97,7 @@ fn with_world(
     options.resources = resources.clone();
     options.execution_role = super::execution_role::ExecutionRole::IntegratedServer;
     options.dedicated = Some(Vec::new());
+    tweak(&mut options);
     let mut game = Game::new(
         &loaded.resources,
         loaded.pack,
@@ -484,5 +494,183 @@ fn a_mod_generator_makes_the_chunks_of_its_level() {
         // Vanilla levels are not touched by a mod's generator.
         game.enter_level(None, Dim::Overworld).unwrap();
         assert_eq!(game.level_facts(), super::level_facts::LevelFacts::OVERWORLD);
+    });
+}
+
+/// F3-6: a level created while the server runs gets its own folder and a place in
+/// `data/yoake_levels.json`, comes back when the world opens, is announced to the hub's joiners and
+/// goes away with its files when deleted; the vanilla levels and a pack's are not deletable.
+#[test]
+#[ignore = "needs HORIZON_TEST_RESOURCES"]
+fn a_level_created_at_run_time_has_its_own_folder_comes_back_and_can_be_deleted() {
+    use horizon_client::lan::hub::HubConfig;
+    use horizon_client::lan::{NetConfig, OnlineMode};
+    with_moon_game(|game, world| {
+        let shapes = game.level_shapes;
+        game.lan_host(
+            super::lan::LanSettings {
+                port: 0,
+                guest_commands: false,
+                force_game_mode: false,
+                loopback_only: false,
+                announce: false,
+                max_players: horizon_client::lan::MAX_PLAYERS,
+                game_mode: None,
+            },
+            NetConfig {
+                listen: false,
+                online: OnlineMode::lan(),
+                levels: shapes,
+                owner_profile: None,
+                announce: false,
+                ..NetConfig::lan(0, "f36".into(), 4)
+            },
+            HubConfig {
+                allow_flight: true,
+                default_game_mode: 0,
+                guest_commands: false,
+                force_game_mode: false,
+                hardcore: false,
+                view_distance: 4,
+                simulation_distance: 4,
+                dimension: game.dim.id().to_owned(),
+                seed: 0,
+                max_players: 4,
+                integrated: true,
+                levels: shapes,
+            },
+        )
+        .unwrap();
+        // The registry froze at the first tick in a real run; creation does not care.
+        game.level_registry.freeze();
+        let sync = game.lan.as_ref().unwrap().hub.sync.clone();
+        let types_before = sync.dimension_type_count();
+        let stem = |generator: serde_json::Value| {
+            serde_json::json!({
+                "type": {"min_y": 0, "height": 64, "logical_height": 64, "has_skylight": true,
+                         "has_ceiling": false, "ambient_light": 0.0, "skybox": "overworld"},
+                "generator": generator,
+            })
+        };
+        let flat = serde_json::json!({"type": "minecraft:flat", "settings": {"biome": "minecraft:plains",
+            "features": false, "lakes": false,
+            "layers": [{"block": "minecraft:bedrock", "height": 1}, {"block": "minecraft:stone", "height": 3}]}});
+        let made = game.create_level("made:arena", stem(flat.clone()), true).expect("created");
+        assert_eq!(game.level_dim("made:arena"), Some(made));
+        assert_eq!(game.create_level("made:arena", stem(flat.clone()), true).unwrap_err().to_string(), "level `made:arena` is already registered");
+        // Announced: new joiners are sent its type (an inline one) and key.
+        assert_eq!(sync.dimension_type_count(), types_before + 1);
+        assert_eq!(sync.level("made:arena").unwrap().shape, game.level_registry.shape("made:arena").unwrap());
+        // Persisted in the side file, with the type the stem carries.
+        let file = world.join("data").join("yoake_levels.json");
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert!(text.contains("made:arena"), "{text}");
+        // Its own folder: it opens, generates its flat floor, saves.
+        game.enter_level(None, made).unwrap();
+        assert_eq!(game.world.shape.height, 64);
+        let chunk = generated_chunk(game, 0, 0);
+        let (bedrock, stone) = (
+            game.pack.assets.registry.default_state("minecraft:bedrock").unwrap().0,
+            game.pack.assets.registry.default_state("minecraft:stone").unwrap().0,
+        );
+        assert_eq!((chunk.get(2, 0, 2), chunk.get(2, 1, 2), chunk.get(2, 3, 2), chunk.get(2, 4, 2)), (bedrock, stone, stone, 0));
+        game.level_set([1, 10, 1], horizon_world::registry::BlockStateId(stone)).unwrap();
+        game.save_level(true).unwrap();
+        let folder = world.join("dimensions").join("made").join("arena");
+        assert!(std::fs::read_dir(folder.join("region")).unwrap().count() > 0);
+        // Not deletable while in it; vanilla and pack levels never.
+        assert_eq!(game.delete_level("made:arena").unwrap_err(), super::level_manager::LevelManagerError::Occupied("made:arena".into()));
+        game.enter_level(None, Dim::Overworld).unwrap();
+        assert!(game.delete_level("minecraft:the_nether").unwrap_err().to_string().contains("vanilla"));
+        assert!(game.delete_level("mypack:moon").unwrap_err().to_string().contains("not from level creation"));
+        assert!(game.delete_level("made:nothing").unwrap_err().to_string().contains("not one of this world's levels"));
+        // A new session: the registry the world's loading builds has it again.
+        let again = super::world_loading::build_level_registry(
+            &game.res,
+            &game.pack,
+            &game.options,
+            world,
+            game.level_shapes,
+            &game.level.enabled_features,
+        );
+        assert!(again.problems().is_empty(), "{:?}", again.problems());
+        let back = again.get("made:arena").expect("restored");
+        assert_eq!(back.source, horizon_client::level_registry::LevelSource::Created);
+        assert_eq!(back.shape, game.level_registry.shape("made:arena").unwrap());
+        // An ephemeral level saves under yoake_temp and is not listed for the next session.
+        let temp = game.create_level("made:temp", stem(flat), false).unwrap();
+        game.enter_level(None, temp).unwrap();
+        let _ = generated_chunk(game, 0, 0);
+        game.level_set([1, 10, 1], horizon_world::registry::BlockStateId(stone)).unwrap();
+        game.save_level(true).unwrap();
+        game.enter_level(None, Dim::Overworld).unwrap();
+        assert!(world.join("yoake_temp").join("made").join("temp").join("region").exists());
+        assert!(!std::fs::read_to_string(&file).unwrap().contains("made:temp"));
+        let infos = game.list_levels();
+        assert_eq!(infos.len(), 7, "{infos:?}");
+        assert!(infos.iter().any(|i| i.id == "made:temp" && i.ephemeral && i.open));
+        // Deleting removes the folder, the registry entry and the file entry, and tells the hub.
+        game.delete_level("made:temp").unwrap();
+        assert!(!world.join("yoake_temp").join("made").join("temp").exists());
+        game.delete_level("made:arena").unwrap();
+        assert!(!folder.exists());
+        assert!(game.level_dim("made:arena").is_none());
+        assert!(!file.exists(), "the side file goes with the last persistent level");
+        assert!(sync.level("made:arena").is_none());
+        // The vanilla levels are the same as before all this.
+        assert_eq!(game.level_registry.ids().count(), 5);
+        assert_eq!(game.level_facts(), super::level_facts::LevelFacts::OVERWORLD);
+    });
+}
+
+/// F3-6: a generator and a level a mod staged before the world was read are in the registry when
+/// the player's saved level is looked up: a player saved in that level reopens there.
+#[test]
+#[ignore = "needs HORIZON_TEST_RESOURCES"]
+fn a_player_saved_in_a_mods_level_reopens_there() {
+    horizon_client::mod_generator::clear_staged();
+    horizon_client::mod_generator::stage_generator("testmod:staged", std::sync::Arc::new(FloorFactory)).unwrap();
+    horizon_client::mod_generator::stage_level(
+        "mypack:staged",
+        serde_json::json!({"type": "minecraft:overworld",
+            "generator": {"type": "yoake:mod", "id": "testmod:staged", "settings": {"depth": 2}}}),
+    )
+    .unwrap();
+    with_world_options(
+        write_moon_pack,
+        // `--dimension`: what the save's player level says.
+        |options| options.dimension = Some("mypack:staged".into()),
+        |game, _| {
+            let staged = game.level_dim("mypack:staged").expect("staged level registered at load");
+            assert_eq!(game.dim, staged, "the player's level is the mod's");
+            assert_eq!(game.level.dimension, "mypack:staged");
+            let chunk = generated_chunk(game, 0, 0);
+            let floor = game.world.shape.min_y;
+            let stone = game.pack.assets.registry.default_state("minecraft:stone").unwrap().0;
+            assert_eq!((chunk.get(4, floor, 4), chunk.get(4, floor + 1, 4), chunk.get(4, floor + 2, 4)), (stone, stone, 0));
+            // The vanilla levels beside it are unchanged.
+            assert_eq!(game.level_registry.ids().take(3).collect::<Vec<_>>(), ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"]);
+        },
+    );
+    horizon_client::mod_generator::clear_staged();
+}
+
+/// F3-6: coordinates scale between levels by their types' `coordinate_scale`.
+#[test]
+#[ignore = "needs HORIZON_TEST_RESOURCES"]
+fn travel_scales_by_the_coordinate_scale_of_the_types() {
+    with_moon_game(|game, _| {
+        let moon = game.level_dim("mypack:moon").unwrap();
+        let hell = game.level_dim("mypack:hell").unwrap();
+        // Vanilla: the Overworld to the Nether is 1/8, back 8, the End like the Overworld.
+        assert_eq!(game.travel_scale(Dim::Overworld, Dim::Nether), 0.125);
+        assert_eq!(game.travel_scale(Dim::Nether, Dim::Overworld), 8.0);
+        assert_eq!(game.travel_scale(Dim::End, Dim::Nether), 0.125);
+        assert_eq!(game.travel_scale(Dim::Overworld, Dim::End), 1.0);
+        // The pack's hell has scale 8 (a Nether's), the moon 1.
+        assert_eq!(game.travel_scale(moon, hell), 0.125);
+        assert_eq!(game.travel_scale(hell, Dim::Overworld), 8.0);
+        assert_eq!(game.travel_scale(hell, Dim::Nether), 1.0);
+        assert_eq!(game.travel_scale(moon, Dim::Overworld), 1.0);
     });
 }
