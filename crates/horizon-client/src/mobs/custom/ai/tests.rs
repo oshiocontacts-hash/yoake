@@ -992,6 +992,25 @@ fn a_mob_goes_home_at_night_sleeps_and_stays_put() {
     assert!(sleeping(&m) && m.position.distance_squared(rest) < 0.01, "it does not move");
 }
 
+/// A mob that comes with a saved home rests there, not where it was made.
+#[test]
+fn a_reloaded_mob_rests_at_its_saved_home() {
+    let fx = flat();
+    let mut night = fx.world();
+    night.daylight = false;
+    let mut ctx = Ctx::new();
+    let mut first = mob_with("creature", SLEEPER, SLEEP_VALUE, at(0.5, 0.5));
+    run(&mut first, &night, &mut ctx, 20);
+    assert_eq!(first.extra.custom.as_ref().unwrap().rest.home, Some([0, 1, 0]));
+    // The saved memory goes to a mob made elsewhere, as a reload does.
+    let mut m = mob_with("creature", SLEEPER, SLEEP_VALUE, at(6.5, 0.5));
+    m.extra.custom.as_mut().unwrap().rest.home = Some([0, 1, 0]);
+    m.ai.home = None;
+    run(&mut m, &night, &mut ctx, 200);
+    assert!(sleeping(&m));
+    assert!(m.position.x < 2.5, "it walked back to the saved home, not rested at {:?}", m.position);
+}
+
 #[test]
 fn a_mob_does_not_rest_by_day_and_wakes_when_day_comes() {
     let fx = flat();
