@@ -118,6 +118,20 @@ impl LoadedModel {
     }
 }
 
+impl LoadedModel {
+    /// The rest position of locator `name` in the model's space (pixels; same frame as
+    /// [`bone_rest_position`](Self::bone_rest_position)), with the rest rotations of its bone's
+    /// parents applied. A server seat that follows a locator sits here (F4M-4c).
+    pub fn locator_rest_position(&self, name: &str) -> Option<[f64; 3]> {
+        use horizon_mobmodel::{Pose, skeleton::bone_matrices};
+        let model = self.model.as_ref()?;
+        let l = model.locators.iter().find(|l| l.name == name)?;
+        let matrices = bone_matrices(&model.skeleton, &Pose::rest(&model.skeleton));
+        let p = matrices.get(l.bone.index())?.transform_point3(l.offset);
+        Some([f64::from(p.x), f64::from(p.y), f64::from(p.z)])
+    }
+}
+
 impl ModelInfo for LoadedModel {
     fn bone_count(&self) -> usize {
         self.model.as_ref().map_or(0, |m| m.skeleton.len())
@@ -677,6 +691,36 @@ pub struct Seat {
     pub yaw_lock: bool,
 }
 
+/// What an `interact` row does (F4M-4c data shortcuts of the `mob-interact` hook).
+pub const INTERACT_ACTIONS: [&str; 4] = ["feed", "tame", "ride", "give_item"];
+
+/// One `interact` row: what a right click with `item` does. `feed` (the item is the type's
+/// `breedable.food` unless the row names one), `tame` (`tameable.items`), `ride` (the seats) and
+/// `give_item` (the player gets `give`). The rows are tried in order, before the implicit ones that
+/// `tameable`, `breedable` and `seats` give.
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Interact {
+    /// One of [`INTERACT_ACTIONS`].
+    pub action: String,
+    /// An item id or `#tag`; none means any item (an empty hand too).
+    #[serde(default)]
+    pub item: Option<String>,
+    /// `give_item`: the item given.
+    #[serde(default)]
+    pub give: Option<String>,
+    /// `give_item`: how many (1 to 64, default 1).
+    #[serde(default)]
+    pub count: Option<u32>,
+    /// Whether one of the held item is used up (default: `give_item` and `feed` and `tame` do,
+    /// `ride` does not).
+    #[serde(default)]
+    pub consume: Option<bool>,
+    /// `true` only when sneaking, `false` only when not; unset, either.
+    #[serde(default)]
+    pub sneaking: Option<bool>,
+}
+
 /// A custom mob's file, as written.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -720,6 +764,15 @@ pub struct CustomMobFile {
     pub breedable: Option<Breedable>,
     #[serde(default)]
     pub seats: Vec<Seat>,
+    /// An item that must be put on the mob (a right click, one is used up) before it can be ridden.
+    #[serde(default)]
+    pub saddle_item: Option<String>,
+    /// A safe expression (the goal rows' `when`) that must be true for a rider to board.
+    #[serde(default)]
+    pub rideable_when: Option<String>,
+    /// Data shortcuts of `mob-interact`.
+    #[serde(default)]
+    pub interact: Vec<Interact>,
     /// The vanilla entity a stock client is shown instead (`minecraft:fox`).
     #[serde(default)]
     pub proxy: Option<String>,
@@ -1147,6 +1200,26 @@ impl CustomMobFile {
                 finite_in("breedable.baby_scale", s, 0.05, 1.0)?;
             }
         }
+        if let Some(i) = &self.saddle_item
+            && !is_id(i)
+        {
+            return Err(format!("saddle_item {i:?} is not an item id"));
+        }
+        too_many("interact", self.interact.len(), 16)?;
+        for row in &self.interact {
+            one_of("interact action", &row.action, &INTERACT_ACTIONS)?;
+            if row.action == "give_item" && row.give.as_deref().is_none_or(|g| !is_id(g)) {
+                return Err("an interact give_item row names the item it gives".into());
+            }
+            if let Some(n) = row.count
+                && !(1..=64).contains(&n)
+            {
+                return Err("interact count is 1 to 64".into());
+            }
+            if row.action == "ride" && self.seats.is_empty() {
+                return Err("an interact ride row needs seats".into());
+            }
+        }
         too_many("seats", self.seats.len(), limits::MAX_SEATS)?;
         for seat in &self.seats {
             if seat.offset.is_none() == seat.locator.is_none() {
@@ -1381,6 +1454,42 @@ mod tests {
                 "{candidates:?}"
             );
         }
+    }
+
+    /// F4M-4c: `saddle_item`, `rideable_when` and the `interact` rows are accepted and checked, and the
+    /// locator of a seat is found at its rest position in the loaded model.
+    #[test]
+    fn saddle_rideable_when_and_interact_rows_are_validated() {
+        use serde_json::json;
+        let file = with(|v| {
+            v["seats"] = json!([{"offset": [0, 1, 0], "controls": "player"}]);
+            v["saddle_item"] = json!("minecraft:saddle");
+            v["rideable_when"] = json!("query.health > 3");
+            v["interact"] = json!([
+                {"action": "give_item", "item": "minecraft:bowl", "give": "minecraft:mushroom_stew", "count": 2},
+                {"action": "ride", "sneaking": false},
+                {"action": "feed"}
+            ]);
+        })
+        .unwrap();
+        assert_eq!(file.saddle_item.as_deref(), Some("minecraft:saddle"));
+        assert_eq!(file.rideable_when.as_deref(), Some("query.health > 3"));
+        assert_eq!(file.interact.len(), 3);
+        assert_eq!(file.interact[0].count, Some(2));
+        // Plain files have none of it.
+        let plain = parse(FOX).unwrap();
+        assert!(plain.saddle_item.is_none() && plain.interact.is_empty());
+        for (what, edit) in [
+            ("a bad action", json!([{"action": "dance"}])),
+            ("give_item without an item to give", json!([{"action": "give_item", "item": "minecraft:bowl"}])),
+            ("a give id that is no id", json!([{"action": "give_item", "give": "stew"}])),
+            ("a count over 64", json!([{"action": "give_item", "give": "a:b", "count": 65}])),
+            ("ride without seats", json!([{"action": "ride"}])),
+            ("an unknown key", json!([{"action": "feed", "zzz": 1}])),
+        ] {
+            assert!(with(|v| v["interact"] = edit).is_err(), "{what}");
+        }
+        assert!(with(|v| v["saddle_item"] = json!("saddle")).is_err(), "a saddle that is no id");
     }
 
     #[test]
