@@ -193,7 +193,8 @@ impl Game<'_> {
             dim,
             shape,
             entry.stem_json.as_ref(),
-            self.level.seed,
+            // The level's own seed when its stem gives one (F3-7), else the world's as in vanilla.
+            self.level_registry.seed(dim.id(), self.level.seed),
             &self.level.enabled_features,
             &self.mod_generators,
             self.level_registry.save_dir(&self.world_root, dim.id()),
@@ -202,7 +203,10 @@ impl Game<'_> {
         if !matches!(dim, Dim::Overworld | Dim::Nether | Dim::End) {
             streaming.nether_shading = entry.dimension_type.cardinal_light == "nether";
         }
-        let mut world = World::new(self.res.facts().air, self.level.seed);
+        let mut world = World::new(
+            self.res.facts().air,
+            self.level_registry.seed(dim.id(), self.level.seed),
+        );
         world.attachments = save.load_attachments();
         world.shape = shape;
         world.fast_lava = super::world_loading::level_fast_lava(&self.level_registry, dim);

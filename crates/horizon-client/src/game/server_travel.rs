@@ -866,6 +866,22 @@ impl Game<'_> {
                     .finish(ticket, Some("native teleport player disconnected".into()));
                 continue;
             };
+            // A level created after this player joined, with a dimension type they were not sent,
+            // cannot be shown to them until they reconnect (F3-6/F3-7): they stay where they are
+            // and are told so.
+            if !host.hub.guest_knows_level(t.conn, t.dim.id()) {
+                let why = format!(
+                    "Level {} was created after you joined, with a dimension type your client does not have: reconnect to enter it.",
+                    t.dim.id()
+                );
+                self.native_player_ops.finish(ticket, Some(why.clone()));
+                let uuid = host.hub.guests[i].uuid;
+                host.hub.system_message_to_player(
+                    uuid,
+                    horizon_client::lan::data::component_nbt(&serde_json::json!({ "text": why })),
+                );
+                continue;
+            }
             let previous = self.dim;
             if ticket.is_some() {
                 // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.
