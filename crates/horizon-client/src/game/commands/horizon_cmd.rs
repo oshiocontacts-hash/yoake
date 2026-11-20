@@ -36,6 +36,30 @@ impl Game<'_> {
                 self.feedback_unbroadcast(Text::literal(lines.join("\n")));
                 Ok(mobs.values().sum::<u32>() as i32)
             }
+            "horizon.custommobs.trigger" => {
+                // Dev aid: fires an animation trigger of the targeted custom mobs as the server's own
+                // animation runtime would (`anim_sync::request_trigger`); it plays from the next tick.
+                let name = match ctx.get("name") {
+                    Some(Arg::Str(n)) => n.clone(),
+                    _ => return Err(CommandError::new(Text::literal("A trigger name is needed"))),
+                };
+                let targets = self.entities(ctx, "targets", false)?;
+                let mut fired = 0;
+                for target in targets {
+                    let super::Target::Mob(id) = target else { continue };
+                    let Some(mob) = self.mobs.iter_mut().find(|m| m.id == id) else { continue };
+                    if custom::anim_sync::request_trigger(mob, &name, 1.0) {
+                        fired += 1;
+                    }
+                }
+                if fired == 0 {
+                    return Err(CommandError::new(Text::literal(format!(
+                        "No targeted custom mob has the trigger {name}"
+                    ))));
+                }
+                self.feedback_unbroadcast(Text::literal(format!("Fired {name} on {fired} custom mob(s)")));
+                Ok(fired)
+            }
             _ => Err(CommandError::new(Text::literal("Unknown /horizon command"))),
         }
     }

@@ -654,6 +654,11 @@ fn horizon_commands(d: &mut Dispatcher, root: usize) {
     d.executes(stats, "horizon.custommobs.stats");
     let kind = d.argument(stats, "type", ArgType::ResKey(CUSTOM_MOB_REGISTRY));
     d.executes(kind, "horizon.custommobs.stats");
+    // horizon custommobs trigger <targets> <name>: fires an animation trigger of a custom mob (dev aid).
+    let trigger = d.literal(custommobs, "trigger");
+    let targets = d.argument(trigger, "targets", ENTITIES);
+    let trigger_name = d.argument(targets, "name", ArgType::Word);
+    d.executes(trigger_name, "horizon.custommobs.trigger");
     let pregen = d.literal(root, "pregen");
     d.requires(pregen, GAMEMASTERS);
     let start = d.literal(pregen, "start");

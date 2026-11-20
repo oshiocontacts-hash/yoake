@@ -169,6 +169,8 @@ impl Game<'_> {
             if buf.is_empty() {
                 continue;
             }
+            // One info line a tick that has events, for the end-to-end run (tools/custom_mob_render_e2e.py).
+            log::info!("Horizon custom-mob events: mob {} tick {tick} count {}", mob.id, buf.len());
             let matrices = render.matrices_of(mob.id).unwrap_or(tr.rest_matrices.as_slice());
             let yaw = mob.body_yaw;
             let roll = rs::death_roll_for(ct, mob.death_time, 0.0);
@@ -199,6 +201,7 @@ struct GameSink<'a> {
 
 impl EventSink for GameSink<'_> {
     fn sound(&mut self, id: &str, at: [f64; 3], volume: f32, pitch: f32) {
+        log::info!("Horizon custom-mob sound: mob {} {id} at {at:?}", self.mob);
         // A bare name is a vanilla sound event; a namespaced one (a mod's) plays as it is.
         if id.contains(':') {
             self.game_audio.play(id, Some(at), volume, pitch);
@@ -207,6 +210,7 @@ impl EventSink for GameSink<'_> {
         }
     }
     fn particle(&mut self, id: &str, at: [f64; 3]) {
+        log::info!("Horizon custom-mob particle: mob {} {id} at {at:?}", self.mob);
         use horizon_client::particles::{ParticleOptions, ParticleType};
         let full;
         let id = if id.contains(':') {
@@ -222,6 +226,6 @@ impl EventSink for GameSink<'_> {
     }
     fn custom(&mut self, name: &str, at: [f64; 3]) {
         // The client hook `mob-anim-event` (F4M-10) takes it; nothing is played for it here.
-        log::trace!("Horizon: custom mob {} event {name:?} at {at:?}", self.mob);
+        log::info!("Horizon custom-mob event: mob {} {name:?} at {at:?}", self.mob);
     }
 }

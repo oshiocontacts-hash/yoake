@@ -507,6 +507,7 @@ pub fn tick(m: &mut Mob, w: &MobWorld) {
         state.anim = Some(anim);
     }
     for name in frames {
+        log::info!("Horizon custom-mob server frame: mob {} {name:?} tick {}", m.id, w.game_time);
         attacks::deliver_frame(m, &name);
     }
 }

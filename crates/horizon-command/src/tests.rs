@@ -780,9 +780,24 @@ fn horizon_custommobs_stats_is_a_game_master_command_that_completes_custom_types
         d.suggestions(&parse, line.len(), &reg).1.into_iter().map(|s| s.text).collect()
     };
     assert_eq!(complete("horizon "), ["custommobs"]);
-    assert_eq!(complete("horizon custommobs "), ["stats"]);
+    assert_eq!(complete("horizon custommobs "), ["stats", "trigger"]);
     assert_eq!(complete("horizon custommobs stats "), ["demo:fox", "demo:owl"]);
     assert_eq!(complete("horizon custommobs stats demo:o"), ["demo:owl"]);
+}
+#[test]
+fn horizon_custommobs_trigger_takes_targets_and_a_name_for_game_masters() {
+    let d = vanilla::game_tree(false, true, false);
+    let parse = |permission: u8, line: &str| {
+        let reg = Registries { permission, ..reg() };
+        d.parse(line, &reg)
+    };
+    let ok = parse(2, "horizon custommobs trigger @e pounce");
+    let (ctx, id) = ok.executable().unwrap();
+    assert_eq!(id, "horizon.custommobs.trigger");
+    assert!(matches!(ctx.get("name"), Some(Arg::Str(n)) if n == "pounce"));
+    assert!(parse(2, "horizon custommobs trigger @e").executable().is_err(), "a name is needed");
+    let e = parse(0, "horizon custommobs trigger @e pounce").executable().unwrap_err();
+    assert_eq!(e.message.plain(), "command.unknown.command");
 }
 /// `run` on a dedicated server's tree.
 fn run_dedicated(input: &str) -> CmdResult<(String, Vec<String>)> {
