@@ -29,15 +29,17 @@ impl Game<'_> {
             if !mob_sync::reads_mob_sync(g) || g.dimension != level {
                 continue;
             }
-            let messages = mob_sync::for_viewer(
+            let viewer = Some(horizon_client::lan::playerdata::uuid_ints(g.uuid));
+            let messages = mob_sync::for_viewer_as(
+                viewer,
                 |entity| g.tracker.is_tracking(entity),
                 &starts,
                 &collected,
-                |entity| {
+                |entity, viewer| {
                     self.mobs
                         .iter()
                         .find(|m| m.id as i32 == entity)
-                        .and_then(mob_sync::snapshot)
+                        .and_then(|m| mob_sync::snapshot_for(m, viewer))
                 },
             );
             for packet in mob_sync::packets(now, messages) {

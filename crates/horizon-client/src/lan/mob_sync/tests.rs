@@ -310,6 +310,8 @@ fn a_player_gets_snapshots_for_new_mobs_and_deltas_for_those_in_range_only() {
             hitbox_mask: Some(mask),
             ..Default::default()
         }),
+        owner_delta: None,
+        owner: None,
     };
     let snap = |e: i32| {
         Some(Snapshot {
@@ -386,4 +388,81 @@ fn values_convert_to_the_wire_and_back_cut_to_their_type() {
         };
         assert_eq!(back, v);
     }
+}
+
+// ---- `sync: owner` (F4M-4c) -----------------------------------------------------------------------
+
+/// The slots of the values a viewer's messages carry (deltas and the snapshot).
+fn slots_sent(msgs: &[Message]) -> Vec<usize> {
+    let mut out = Vec::new();
+    for m in msgs {
+        let set = match m {
+            Message::Delta(d) => d.values.as_ref(),
+            Message::Snapshot(s) => Some(&s.values),
+            _ => None,
+        };
+        if let Some(set) = set {
+            out.extend(set.iter().map(|(s, _)| s));
+        }
+    }
+    out.sort_unstable();
+    out
+}
+
+fn snap_of(m: &Mob) -> impl Fn(i32, Option<[i32; 4]>) -> Option<wire::Snapshot> + '_ {
+    move |e, viewer| (e == 1).then(|| snapshot_for(m, viewer).unwrap())
+}
+
+#[test]
+fn an_owner_value_is_sent_to_the_owner_only_and_to_nobody_before_there_is_one() {
+    use crate::mobs::custom::ai::tame;
+    const OWNER: [i32; 4] = [7, 8, 9, 10];
+    const OTHER: [i32; 4] = [1, 2, 3, 4];
+    let mut w = World::new();
+    // The values in slot order: mood (owner only), state, warmth.
+    let mut m = fox(|v| {
+        v["synced"]["mood"] = json!({"type": "i32", "min": 0, "max": 100, "default": 5, "sync": "owner"});
+        v["tameable"]["sits_on_command"] = json!(false);
+    });
+    w.tick(&mut m, 100);
+    collect(&mut m, 100);
+    // Nobody owns it: the owner value goes to nobody, the public one to everybody.
+    set(&mut m, "mood", SyncedValue::I32(40));
+    set(&mut m, "warmth", SyncedValue::I32(3));
+    let c = collect(&mut m, 110).expect("the public value");
+    assert!(c.owner_delta.is_none() && c.owner.is_none());
+    assert_eq!(value_of(c.delta.as_ref().unwrap()), [(2, Value::I32(3))]);
+    assert!(collect(&mut m, 120).is_none(), "and the owner value waits quietly");
+    // Taming marks the owner's values: the owner is told what it holds.
+    tame::tame(&mut m, OWNER);
+    let c = collect(&mut m, 130).expect("the owner value");
+    assert_eq!(c.owner, Some(OWNER));
+    assert_eq!(value_of(c.owner_delta.as_ref().unwrap()), [(0, Value::I32(40))]);
+    assert!(c.delta.is_none(), "the public delta has none of it");
+    let all = [c];
+    let owner_msgs = for_viewer_as(Some(OWNER), |_| true, &[], &all, snap_of(&m));
+    let other_msgs = for_viewer_as(Some(OTHER), |_| true, &[], &all, snap_of(&m));
+    let nobody_msgs = for_viewer(|_| true, &[], &all, |e| snap_of(&m)(e, None));
+    assert_eq!(slots_sent(&owner_msgs), [0]);
+    assert!(other_msgs.is_empty() && nobody_msgs.is_empty(), "no one else is told");
+    // The distance gate holds for the owner too.
+    assert!(for_viewer_as(Some(OWNER), |_| false, &[], &all, snap_of(&m)).is_empty());
+    // A new snapshot: the owner's has the value (with the public ones), the others' only the public.
+    let starts = [1];
+    let for_owner = for_viewer_as(Some(OWNER), |_| true, &starts, &[], snap_of(&m));
+    let for_other = for_viewer_as(Some(OTHER), |_| true, &starts, &[], snap_of(&m));
+    let for_none = for_viewer(|_| true, &starts, &[], |e| snap_of(&m)(e, None));
+    assert_eq!(slots_sent(&for_owner), [0, 1, 2]);
+    assert_eq!(slots_sent(&for_other), [1, 2]);
+    assert_eq!(slots_sent(&for_none), [1, 2]);
+    // Later changes go straight to the owner.
+    set(&mut m, "mood", SyncedValue::I32(50));
+    let c = collect(&mut m, 140).unwrap();
+    assert_eq!(value_of(c.owner_delta.as_ref().unwrap()), [(0, Value::I32(50))]);
+    // A new owner is told everything again, the old one is not told any more.
+    tame::tame(&mut m, OTHER);
+    let c = collect(&mut m, 150).unwrap();
+    assert_eq!(c.owner, Some(OTHER));
+    assert!(for_viewer_as(Some(OWNER), |_| true, &[], &[c.clone()], snap_of(&m)).is_empty());
+    assert_eq!(slots_sent(&for_viewer_as(Some(OTHER), |_| true, &[], &[c], snap_of(&m))), [0]);
 }
