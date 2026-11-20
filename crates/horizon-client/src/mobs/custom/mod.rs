@@ -275,6 +275,9 @@ pub struct CustomState {
     pub events: Vec<String>,
     /// Where `sleep_in_bed_like` rests and what it counts as home; saved in the `yoake` compound.
     pub rest: RestMemory,
+    /// Bit `n` is set while tracked value `n` has changed since the sync layer last took the mask
+    /// ([`CustomState::take_dirty`]); only a real change sets it (F4M-5b).
+    pub synced_dirty: u32,
 }
 
 /// The places a rest goal remembers (block positions), kept with the mob across saves.
@@ -295,6 +298,7 @@ impl CustomState {
             attack: Default::default(),
             events: Vec::new(),
             rest: RestMemory::default(),
+            synced_dirty: 0,
         }
     }
     pub fn synced_value(&self, t: &CustomType, name: &str) -> Option<&SyncedValue> {
@@ -306,13 +310,25 @@ impl CustomState {
         let Some(slot) = t.synced_slot(name) else {
             return false;
         };
-        match t.synced[slot].coerce(value) {
-            Some(v) => {
-                self.synced[slot] = v;
-                true
-            }
-            None => false,
+        self.set_synced_slot(t, slot, value)
+    }
+    /// [`set_synced`](Self::set_synced) by slot. A value equal to the one held is not a change: it
+    /// marks nothing dirty. False for a slot the type has no value for or a value of another type.
+    pub fn set_synced_slot(&mut self, t: &CustomType, slot: usize, value: SyncedValue) -> bool {
+        let Some(v) = t.synced.get(slot).and_then(|def| def.coerce(value)) else {
+            return false;
+        };
+        if let Some(held) = self.synced.get_mut(slot)
+            && *held != v
+        {
+            *held = v;
+            self.synced_dirty |= 1 << slot;
         }
+        true
+    }
+    /// The slots changed since the last call (bit `n` = slot `n`), and forgets them.
+    pub fn take_dirty(&mut self) -> u32 {
+        std::mem::take(&mut self.synced_dirty)
     }
 }
 
@@ -416,6 +432,28 @@ pub(crate) mod tests {
         assert!(!s.set_synced(&t, "nothing", SyncedValue::Bool(true)));
         assert!(s.set_synced(&t, "state", SyncedValue::Enum(2)));
         assert!(!s.set_synced(&t, "state", SyncedValue::Enum(3)), "no such value");
+    }
+
+    /// Change detection: a real change sets its bit once, a repeat (or a value that is cut back to
+    /// the one held) sets none, and a refused value sets none.
+    #[test]
+    fn only_a_real_change_marks_a_value_dirty() {
+        let t = fox_type();
+        let mut s = CustomState::new(&t);
+        assert_eq!(s.take_dirty(), 0);
+        assert!(s.set_synced(&t, "warmth", SyncedValue::I32(3)));
+        assert!(s.set_synced(&t, "warmth", SyncedValue::I32(3)), "accepted, not a change");
+        assert_eq!(s.take_dirty(), 0b10, "warmth is slot 1");
+        assert_eq!(s.take_dirty(), 0, "taking forgets");
+        assert!(s.set_synced(&t, "warmth", SyncedValue::I32(99)));
+        assert_eq!(s.take_dirty(), 0b10);
+        assert!(s.set_synced(&t, "warmth", SyncedValue::I32(50)), "cut to 10 again");
+        assert_eq!(s.take_dirty(), 0);
+        assert!(!s.set_synced_slot(&t, 1, SyncedValue::Bool(true)));
+        assert!(!s.set_synced_slot(&t, 7, SyncedValue::Bool(true)));
+        assert!(s.set_synced_slot(&t, 0, SyncedValue::Enum(1)));
+        assert!(s.set_synced_slot(&t, 1, SyncedValue::I32(0)));
+        assert_eq!(s.take_dirty(), 0b11);
     }
 
     /// A custom mob of `category`, as the game makes one.
