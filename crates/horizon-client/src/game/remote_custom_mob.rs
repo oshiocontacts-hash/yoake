@@ -30,4 +30,27 @@ impl Game<'_> {
             Err(e) => log::debug!("Horizon: a bad mob sync payload: {e}"),
         }
     }
+
+    /// A server's custom vehicle seats its mob riders as the server says (`Seats` of `horizon:mob_sync`, F4M-4d):
+    /// the claims it sent replace the ones the client worked out, so both place a rider on the same seat.
+    pub(super) fn apply_remote_seat_claims(&mut self) {
+        let Some(remote) = self.remote.as_ref() else { return };
+        if remote.custom_mobs.is_empty() {
+            return;
+        }
+        for m in &mut self.mobs {
+            if m.kind.custom.is_none() {
+                continue;
+            }
+            let Some(store) = remote.custom_mobs.get(m.id as i32) else { continue };
+            let claims = store
+                .seats
+                .iter()
+                .filter_map(|&(rider, seat)| Some(horizon_client::mobs::custom::SeatClaim { rider: u32::try_from(rider).ok()?, seat }))
+                .collect();
+            if let Some(state) = m.extra.custom.as_mut() {
+                state.set_seat_claims(claims);
+            }
+        }
+    }
 }

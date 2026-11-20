@@ -114,6 +114,8 @@ pub struct MobView {
     pub baby: bool,
     pub age: i32,
     pub controlled: bool,
+    /// How many seats the type has (F4M-4d).
+    pub seats: u32,
     /// Where the attack target is, and whether the mob has a line of sight to it (known when the
     /// view is made with a world: inside a guest call of the mob's own goals and hooks).
     pub target_position: Option<[f64; 3]>,
@@ -162,6 +164,7 @@ impl MobView {
             baby: m.is_baby(),
             age: m.extra.age,
             controlled: state.script.claimed,
+            seats: t.ride.seats.len() as u32,
             target_position: w.and_then(|w| m.target_info(w)).map(|t| [t.position.x, t.position.y, t.position.z]),
             target_visible: sees_target,
             synced: t
@@ -227,6 +230,8 @@ pub enum Command {
     Despawn,
     Claim(bool),
     Impulse([f64; 3]),
+    /// Puts the mob `rider` (or nobody: the seat is freed) on seat `seat` of this vehicle (F4M-4d).
+    SeatSet { seat: u32, rider: Option<u32> },
 }
 
 /// A command for one mob.

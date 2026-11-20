@@ -344,6 +344,20 @@ pub struct CustomState {
     pub notices: Vec<Notice>,
     /// What WASM scripts keep on the mob (F4M-10).
     pub script: script::ScriptState,
+    /// Which seat each mob rider holds (F4M-4d), filled by `ai::riding::board` and kept complete by
+    /// `riders::sync_links`; the player's seat is `player_seat`.
+    pub seat_claims: Vec<SeatClaim>,
+    /// `seat_claims` changed since the sync layer last took it ([`CustomState::take_seat_claims`]).
+    pub seat_claims_dirty: bool,
+    /// The seat the player took when it got on (cleared when it is off).
+    pub player_seat: Option<u8>,
+}
+
+/// A mob rider's seat on a custom vehicle: the rider's entity id and the index of the type's seat.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SeatClaim {
+    pub rider: u32,
+    pub seat: u8,
 }
 
 /// A notification a script can take (`mob-tamed`, `mob-bred`); queued like [`CustomState::events`].
@@ -384,7 +398,22 @@ impl CustomState {
             sync_out: Default::default(),
             notices: Vec::new(),
             script: Default::default(),
+            seat_claims: Vec::new(),
+            seat_claims_dirty: false,
+            player_seat: None,
         }
+    }
+    /// Replaces the seat claims (sorted by seat); a different list marks them dirty.
+    pub fn set_seat_claims(&mut self, mut claims: Vec<SeatClaim>) {
+        claims.sort_by_key(|c| (c.seat, c.rider));
+        if claims != self.seat_claims {
+            self.seat_claims = claims;
+            self.seat_claims_dirty = true;
+        }
+    }
+    /// The seat claims when they changed since the last call.
+    pub fn take_seat_claims(&mut self) -> Option<Vec<SeatClaim>> {
+        std::mem::take(&mut self.seat_claims_dirty).then(|| self.seat_claims.clone())
     }
     /// Queues a notice for the scripts (the oldest is dropped past 8).
     pub fn notice(&mut self, n: Notice) {

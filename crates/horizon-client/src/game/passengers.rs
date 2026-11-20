@@ -3,7 +3,7 @@
 //! jockeys, strider jockeys, zombie horsemen) and the skeleton horse trap.
 //! Saving riders under `Passengers` lives in `persist.rs`.
 use super::Game;
-use horizon_client::mobs::{Species, riders};
+use horizon_client::mobs::{Species, custom::ai::riding, riders};
 use horizon_core::{geometry::Vec3, random::RandomSource};
 use std::collections::HashMap;
 
@@ -54,6 +54,12 @@ impl Game<'_> {
         if !self.native_mob_may_ride(rider, vehicle, true) {
             return false;
         }
+        // A custom vehicle with seats (F4M-4d) seats the rider on a free seat that allows it, and
+        // refuses one it has no seat for; every other vehicle is linked as before.
+        if self.mobs.iter().any(|m| m.id == vehicle && riding::has_seats(m)) {
+            let player = self.riding == Some(vehicle) || self.ridden_by_guest(vehicle);
+            return riding::board(&mut self.mobs, rider, vehicle, None, player, false).is_ok();
+        }
         riders::link(&mut self.mobs, rider, vehicle);
         true
     }
@@ -74,38 +80,12 @@ impl Game<'_> {
             .map(|t| t.id)
             .filter(|&id| id != 0)
             .collect();
-        let index: HashMap<u32, usize> = self
-            .mobs
-            .iter()
-            .enumerate()
-            .map(|(i, m)| (m.id, i))
-            .collect();
-        let mut riding: HashMap<u32, u32> = HashMap::new();
-        for i in 0..self.mobs.len() {
-            let Some(v) = self.mobs[i].extra.mount else {
-                continue;
-            };
-            // Not a text display: a server's display mounts come through
-            // `remote_set_passengers`, which seats them in `position_riders`.
-            let valid = self.mobs[i].alive()
-                && !self.mobs[i].removed
-                && (boats.contains(&v)
-                    || carts.contains(&v)
-                    || tnts.contains(&v)
-                    || index
-                        .get(&v)
-                        .is_some_and(|&j| self.mobs[j].alive() && !self.mobs[j].removed));
-            if valid {
-                riding.insert(v, self.mobs[i].id);
-            } else {
-                let m = &mut self.mobs[i];
-                m.extra.mount = None;
-                m.extra.passenger = false;
-            }
-        }
-        for m in &mut self.mobs {
-            m.extra.rider = riding.get(&m.id).copied();
-        }
+        // A server's custom vehicles are told who sits where by the server (`horizon:mob_sync`).
+        self.apply_remote_seat_claims();
+        // Not a text display: a server's display mounts come through
+        // `remote_set_passengers`, which seats them in `position_riders`.
+        let other: std::collections::HashSet<u32> = boats.union(&carts).chain(&tnts).copied().collect();
+        riders::sync_links(&mut self.mobs, &other);
         self.position_riders();
     }
     /// `Entity.positionRider` for every mob passenger: in its boat, then on
@@ -168,20 +148,19 @@ impl Game<'_> {
                         animal,
                     );
                 }
+                let mut locked = false;
                 if vehicle.kind.custom.is_some() {
-                    // A custom mob's seats (F4M-4c): the seat the rider's place among the riders
-                    // gives it, the player (if aboard) taking the first one that allows it.
+                    // A custom mob's seats (F4M-4c, 4d): the seat the rider claimed, or the first free
+                    // one that allows it; the player (if aboard) is counted.
                     let aboard: Vec<&horizon_client::mobs::Mob> = self
                         .mobs
                         .iter()
                         .filter(|k| k.extra.mount == Some(v))
                         .collect();
-                    attach = horizon_client::mobs::custom::ai::riding::mob_rider_attachment(
-                        vehicle,
-                        &self.mobs[i],
-                        &aboard,
-                        vehicle.rider.is_some(),
-                    );
+                    let player = vehicle.rider.is_some();
+                    attach = riding::mob_rider_attachment(vehicle, &self.mobs[i], &aboard, player);
+                    locked = riding::mob_rider_seat(vehicle, &self.mobs[i], &aboard, player)
+                        .is_some_and(|s| riding::seat_locks_yaw(vehicle, s));
                 }
                 let (pos, prev) = (vehicle.position, vehicle.previous);
                 let (yaw, prev_yaw) = (vehicle.yaw, vehicle.previous_yaw);
@@ -196,6 +175,12 @@ impl Game<'_> {
                 m.on_ground = false;
                 m.body_yaw = body;
                 m.previous_body_yaw = prev_body;
+                // A seat with `yaw_lock` turns its rider with the vehicle.
+                if locked {
+                    m.yaw = yaw;
+                    m.previous_yaw = prev_yaw;
+                    m.head_yaw = yaw;
+                }
                 m.extra.passenger = true;
                 // A rider never walks off on its own.
                 m.ai.nav.stop();

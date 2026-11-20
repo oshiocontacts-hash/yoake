@@ -30,7 +30,7 @@ impl Game<'_> {
                 continue;
             }
             let viewer = Some(horizon_client::lan::playerdata::uuid_ints(g.uuid));
-            let messages = mob_sync::for_viewer_as(
+            let mut messages = mob_sync::for_viewer_as(
                 viewer,
                 |entity| g.tracker.is_tracking(entity),
                 &starts,
@@ -42,6 +42,18 @@ impl Game<'_> {
                         .and_then(|m| mob_sync::snapshot_for(m, viewer))
                 },
             );
+            // Who sits where on a vehicle that starts being tracked, after its snapshot (F4M-4d).
+            for &entity in &starts {
+                if g.tracker.is_tracking(entity)
+                    && let Some(seats) = self
+                        .mobs
+                        .iter()
+                        .find(|m| m.id as i32 == entity)
+                        .and_then(mob_sync::seats_message)
+                {
+                    messages.push(seats);
+                }
+            }
             for packet in mob_sync::packets(now, messages) {
                 g.send(&packet);
             }

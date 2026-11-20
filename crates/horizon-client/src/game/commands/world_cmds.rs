@@ -1424,6 +1424,10 @@ impl Game<'_> {
         m.extra.boarding_cooldown = super::super::boat_passengers::BOARDING_COOLDOWN;
         m.position = at;
         m.previous = at;
+        // A custom vehicle with seats (F4M-4d) keeps its other riders: it gives up this one's seat.
+        if let Some(vi) = self.mobs.iter().position(|m| m.id == v) {
+            horizon_client::mobs::custom::ai::riding::settle(&mut self.mobs, vi);
+        }
     }
 
     // ---- /spreadplayers -----------------------------------------------------------------------

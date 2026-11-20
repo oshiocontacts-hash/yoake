@@ -466,3 +466,36 @@ fn a_late_trigger_then_a_re_anchor_fires_its_time_zero_event_once() {
     assert_eq!(roars, [3], "never again after the re-anchor");
     assert_eq!(c.get(ENTITY).unwrap().triggers.len(), 1, "one trigger run, not two");
 }
+
+/// F4M-4d: the seats of a vehicle's riders reach the client's store, and the newest frame wins.
+#[test]
+fn the_seats_of_a_vehicle_reach_the_client_and_the_newest_frame_wins() {
+    use crate::mobs::custom::SeatClaim;
+    use horizon_protocol::mob_sync::{SeatEntry, Seats};
+    let mut s = Server::new();
+    s.tick(0);
+    let mut c = RemoteCustomMobs::default();
+    c.apply_payload(&s.snapshot_payload(0), &kinds(&s)).unwrap();
+    assert!(c.seats(ENTITY).is_empty());
+    s.mob.extra.custom.as_mut().unwrap().set_seat_claims(vec![SeatClaim { rider: 9, seat: 1 }, SeatClaim { rider: 8, seat: 0 }]);
+    s.tick(10);
+    let payloads = s.payloads(10);
+    let seats: usize = payloads.iter().map(|p| c.apply_payload(p, &kinds(&s)).unwrap().seats).sum();
+    assert_eq!(seats, 1);
+    assert_eq!(c.seats(ENTITY), [(8, 0), (9, 1)]);
+    // An older frame that arrives late changes nothing; a newer one replaces, an empty one frees every seat.
+    let msg = |seats: Vec<SeatEntry>| Message::Seats(Seats { entity: ENTITY, seats });
+    let old = frames(5, [msg(vec![SeatEntry { rider: 3, seat: 2 }])]).remove(0);
+    c.apply_payload(&old, &kinds(&s)).unwrap();
+    assert_eq!(c.seats(ENTITY), [(8, 0), (9, 1)]);
+    let newer = frames(20, [msg(vec![SeatEntry { rider: 9, seat: 0 }])]).remove(0);
+    c.apply_payload(&newer, &kinds(&s)).unwrap();
+    assert_eq!(c.seats(ENTITY), [(9, 0)]);
+    let empty = frames(30, [msg(vec![])]).remove(0);
+    c.apply_payload(&empty, &kinds(&s)).unwrap();
+    assert!(c.seats(ENTITY).is_empty());
+    // A mob the client has no store for counts as dropped, and a mob of another type version is ignored.
+    let other = frames(40, [Message::Seats(Seats { entity: 99, seats: vec![] })]).remove(0);
+    let done = c.apply_payload(&other, &kinds(&s)).unwrap();
+    assert_eq!((done.seats, done.dropped), (0, 1));
+}

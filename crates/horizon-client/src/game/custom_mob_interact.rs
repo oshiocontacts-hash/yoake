@@ -9,7 +9,7 @@ use horizon_client::{
         custom::ai::{
             breed,
             interact::{self, Action, Context, Reply},
-            riding::{self, RiderKind},
+            riding,
         },
     },
 };
@@ -33,15 +33,9 @@ impl Game<'_> {
         let ride_seat = {
             let w = self.mob_world_base(&[]);
             let m = &self.mobs[index];
-            let aboard: Vec<RiderKind> = self
-                .mobs
-                .iter()
-                .filter(|k| k.extra.mount == Some(id))
-                .map(riding::kind_of)
-                .collect();
-            let player_aboard = m.rider.is_some() || self.ridden_by_guest(id);
+            // The mobs aboard hold their seats by claim (F4M-4d), so the free seat is read off those.
             riding::rideable(m, &w, Some(player))
-                .then(|| riding::free_seat(m, RiderKind::Player, player_aboard, &aboard))
+                .then(|| riding::free_seat_for_player(m))
                 .flatten()
         };
         let hand = if self.hand == Hand::Off { interact::ClickHand::Off } else { interact::ClickHand::Main };
@@ -75,6 +69,10 @@ impl Game<'_> {
                 }
                 Action::Ride { .. } => {
                     if self.native_may_board(id) {
+                        // The seat the click picked is the player's until it gets off.
+                        if let Some(state) = self.mobs[index].extra.custom.as_mut() {
+                            state.player_seat = ride_seat.and_then(|s| u8::try_from(s).ok());
+                        }
                         self.riding = Some(id);
                         self.trigger_player("minecraft:started_riding");
                     }

@@ -1747,6 +1747,13 @@ pub enum MobEvent {
         rider: u32,
         vehicle: u32,
     },
+    /// A script's `seat-set` (F4M-4d): `rider` (none: whoever sits there gets off) takes seat `seat` of
+    /// the custom vehicle `vehicle`.
+    SeatSet {
+        vehicle: u32,
+        seat: u32,
+        rider: Option<u32>,
+    },
     Projectile(crate::projectiles::Projectile),
     /// An arrow `mob` shot with `weapon` (`AbstractSkeleton.performRangedAttack`):
     /// the game asks for the ammunition (`getProjectile`) before it flies.
@@ -2576,6 +2583,10 @@ pub fn apply_brain_events(mobs: &mut [Mob], events: &mut Vec<MobEvent>, from: us
             }
             MobEvent::StartRiding { rider, vehicle } => {
                 riders::start_riding(mobs, rider, vehicle);
+                events.remove(i);
+            }
+            MobEvent::SeatSet { vehicle, seat, rider } => {
+                custom::ai::riding::seat_set(mobs, vehicle, seat as usize, rider);
                 events.remove(i);
             }
             MobEvent::StartFollowing { fish, leader } => {

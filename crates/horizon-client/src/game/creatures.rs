@@ -2946,6 +2946,8 @@ impl Game<'_> {
                 MobEvent::StartRiding { rider, vehicle } => {
                     horizon_client::mobs::riders::start_riding(&mut self.mobs, rider, vehicle);
                 }
+                // A script's `seat-set` is applied after the vehicle's tick (`apply_brain_events`).
+                MobEvent::SeatSet { .. } => {}
                 // Applied after the fish's tick (`apply_brain_events`).
                 MobEvent::StartFollowing { .. } | MobEvent::SchoolSize { .. } => {}
                 MobEvent::LeashBreak { mob, drop, sound } => self.break_leash(mob, drop, sound),

@@ -13,6 +13,8 @@
 //! kind 2 delta    := entity varint  flags u8 (1 values, 2 anchors, 4 hitbox)
 //!                    [values] [anchors] [hitbox_mask u32]       (each only when its flag is set)
 //! kind 3 trigger  := entity varint  trigger_id u16  start_tick i64  speed u8
+//! kind 4 seats    := entity varint  count u8 (<= 16)  (rider varint  seat u8)*count   (F4M-4d: which seat each
+//!                    mob rider of the vehicle `entity` holds; absolute, an empty list clears)
 //! values   := mask u32  value*popcount(mask)        (ascending slot order, at most 256 payload bytes, tags not counted)
 //! value    := tag u8 + payload: 0 bool u8 | 1 i32 | 2 f32 | 3 string (len u8 <= 64, UTF-8) | 4 vec3 3*f32 | 5 enum u8
 //! anchors  := count u8  (layer u8  state u8  tick i64  n u8  (time f32  speed f32)*n)*count
@@ -49,6 +51,8 @@ pub const MAX_FRAME: usize = 16 * 1024;
 pub const DEFAULT_SYNC_RATE: u32 = 10;
 /// Game ticks per second.
 pub const TICKS_PER_SECOND: u32 = 20;
+/// Seat claims in one `Seats` message at most.
+pub const MAX_SEATS: usize = 16;
 
 /// The trigger speed byte for a speed (real time is 16).
 pub fn speed_byte(speed: f32) -> u8 {
@@ -311,6 +315,22 @@ impl Delta {
     }
 }
 
+/// One mob rider's seat on a custom vehicle.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SeatEntry {
+    /// The rider's entity id.
+    pub rider: i32,
+    /// The index of the seat in the vehicle type's `seats`.
+    pub seat: u8,
+}
+
+/// Who sits where on the custom vehicle `entity` (F4M-4d); the whole list, so an empty one frees every seat.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Seats {
+    pub entity: i32,
+    pub seats: Vec<SeatEntry>,
+}
+
 /// A one-shot animation that started (sent at once, not merged).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TriggerStart {
@@ -323,6 +343,8 @@ pub enum Message {
     Snapshot(Snapshot),
     Delta(Delta),
     Trigger(TriggerStart),
+    /// The seats of a custom vehicle's mob riders (F4M-4d).
+    Seats(Seats),
 }
 
 impl Message {
@@ -331,6 +353,7 @@ impl Message {
             Message::Snapshot(m) => m.entity,
             Message::Delta(m) => m.entity,
             Message::Trigger(m) => m.entity,
+            Message::Seats(m) => m.entity,
         }
     }
 }
@@ -338,6 +361,7 @@ impl Message {
 const SNAPSHOT: u8 = 1;
 const DELTA: u8 = 2;
 const TRIGGER: u8 = 3;
+const SEATS: u8 = 4;
 const HAS_VALUES: u8 = 1;
 const HAS_ANCHORS: u8 = 2;
 const HAS_HITBOX: u8 = 4;
@@ -381,6 +405,18 @@ impl Message {
                 m.trigger.write(&mut body);
                 TRIGGER
             }
+            Message::Seats(m) => {
+                if m.seats.len() > MAX_SEATS {
+                    return Err(Error::new("mob sync: too many seats"));
+                }
+                body.varint(m.entity);
+                body.u8(m.seats.len() as u8);
+                for s in &m.seats {
+                    body.varint(s.rider);
+                    body.u8(s.seat);
+                }
+                SEATS
+            }
         };
         w.u8(kind);
         w.varint(body.data.len() as i32);
@@ -413,6 +449,17 @@ impl Message {
                 Message::Delta(Delta { entity, values, anchors, hitbox_mask })
             }
             TRIGGER => Message::Trigger(TriggerStart { entity: r.varint()?, trigger: Trigger::read(&mut r)? }),
+            SEATS => {
+                let entity = r.varint()?;
+                let n = usize::from(r.u8()?);
+                if n > MAX_SEATS {
+                    return Err(Error::new("mob sync: too many seats"));
+                }
+                let seats = (0..n)
+                    .map(|_| Ok(SeatEntry { rider: r.varint()?, seat: r.u8()? }))
+                    .collect::<Result<_>>()?;
+                Message::Seats(Seats { entity, seats })
+            }
             // A kind of a later version: skipped by its length.
             _ => return Ok(None),
         };
@@ -666,5 +713,42 @@ mod tests {
         assert_eq!(message_len(&delta).unwrap(), 25);
         let trigger = Message::Trigger(TriggerStart { entity: 200, trigger: trigger(0, 5) });
         assert_eq!(message_len(&trigger).unwrap(), 2 + 2 + 2 + 8 + 1);
+    }
+
+    /// F4M-4d: a `Seats` message round trips, has the documented bytes, may be empty, and is limited to
+    /// `MAX_SEATS` entries (a bad body is skipped, the frame survives).
+    #[test]
+    fn a_seats_message_round_trips_and_is_bounded() {
+        let seats = Seats {
+            entity: 300,
+            seats: vec![SeatEntry { rider: 7, seat: 0 }, SeatEntry { rider: 70_000, seat: 3 }],
+        };
+        let mut f = Frame::new(77);
+        f.messages = vec![Message::Seats(seats.clone()), Message::Seats(Seats { entity: 1, seats: vec![] })];
+        assert_eq!(round(&f), f);
+        assert_eq!(Message::Seats(seats.clone()).entity(), 300);
+        // kind 4, body = entity varint(300) = 2 bytes, count, (rider varint, seat) * 2.
+        let mut w = Writer::new();
+        Message::Seats(Seats { entity: 5, seats: vec![SeatEntry { rider: 9, seat: 2 }] }).write(&mut w).unwrap();
+        assert_eq!(w.data, [4, 4, 5, 1, 9, 2]);
+        // 16 fit, 17 do not.
+        let many = |n: usize| Seats { entity: 1, seats: (0..n).map(|i| SeatEntry { rider: i as i32, seat: i as u8 }).collect() };
+        f.messages = vec![Message::Seats(many(MAX_SEATS))];
+        assert_eq!(round(&f), f);
+        f.messages = vec![Message::Seats(many(MAX_SEATS + 1))];
+        assert!(encode(&f).is_err());
+        // A body that claims more seats than the limit, or has bytes left, is skipped like any bad body.
+        let mut w = Writer::new();
+        w.u8(VERSION);
+        w.i64(1);
+        w.varint(2);
+        w.u8(SEATS);
+        w.varint(3);
+        w.bytes(&[1, 99, 0]);
+        w.u8(SEATS);
+        w.varint(5);
+        w.bytes(&[1, 0, 1, 2, 3]);
+        let back = decode(&w.data).unwrap();
+        assert_eq!((back.messages.len(), back.skipped), (0, 2));
     }
 }
