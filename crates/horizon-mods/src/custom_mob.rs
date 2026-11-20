@@ -64,8 +64,9 @@ pub mod limits {
 }
 
 /// Hook ids and binding ids set aside for custom mobs, so that other lanes' additions do not take
-/// the numbers the F4M items will need. `hook-ledger/meta.json`'s `next_id` was moved from 710 to
-/// 1710: the ledger tool hands out ids from `next_id`, so ledger ids `HOOK_FIRST..=HOOK_LAST` stay
+/// the numbers the F4M items will need. `hook-ledger/meta.json`'s `next_id` was moved from 8475 to
+/// 9475 (first 710 to 1710; FR-F1 W2 then used ids 710..=8474 for the stamped hooks, so the range moved
+/// to follow it, MERGE4): the ledger tool hands out ids from `next_id`, so ledger ids `HOOK_FIRST..=HOOK_LAST` stay
 /// free for the custom mob hooks (they are assigned in that range by hand, one per new hook).
 /// `crates/yoake-bindgen/ids.lock.json` got an `unbound` sentinel at `BINDING_LAST`: the generator
 /// assigns `max id + 1`, so every later generated binding (the `custom_mobs` module included) is
@@ -73,8 +74,8 @@ pub mod limits {
 /// below keeps both in place; nothing existing was renumbered.
 pub mod reserved_ids {
     /// Ledger hook ids `FIRST..=LAST` belong to the custom mob hooks (FR-F4-MOB section 7).
-    pub const HOOK_FIRST: u32 = 710;
-    pub const HOOK_LAST: u32 = 1709;
+    pub const HOOK_FIRST: u32 = 8475;
+    pub const HOOK_LAST: u32 = 9474;
     /// Engine-call binding ids of the `custom_mobs` module (section 6.3).
     pub const BINDING_FIRST: u32 = 1515;
     pub const BINDING_LAST: u32 = 2514;
