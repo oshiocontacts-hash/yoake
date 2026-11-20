@@ -1319,7 +1319,7 @@ impl CustomMobFile {
             let path = file(id, ".animation.json");
             let text = String::from_utf8(read(&path)?).map_err(|e| format!("{path}: {e}"))?;
             let parsed =
-                anim::parse_animation_file(&text, &mut syms).map_err(|e| format!("{path}: {e}"))?;
+                anim::parse_animation_file(&path, &text, &mut syms).map_err(|e| e.to_string())?;
             animations += parsed.animations.len();
             for a in parsed.animations {
                 library.add(a).map_err(|e| format!("{path}: {e}"))?;
@@ -1328,8 +1328,7 @@ impl CustomMobFile {
         for id in &self.model.controllers {
             let path = file(id, ".json");
             let text = String::from_utf8(read(&path)?).map_err(|e| format!("{path}: {e}"))?;
-            let parsed = controller::parse_controllers(&text, &mut syms)
-                .map_err(|e| format!("{path}: {e}"))?;
+            let parsed = controller::parse_controllers(&path, &text, &mut syms).map_err(|e| e.to_string())?;
             layers.extend(parsed.controllers);
         }
         let mut loaded = LoadedModel {
