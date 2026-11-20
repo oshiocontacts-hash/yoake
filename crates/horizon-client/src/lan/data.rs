@@ -834,6 +834,7 @@ mod tests {
             id: "mypack:moon".into(),
             type_name: "mypack:moon_type".into(),
             shape,
+            sea_level: 63,
             type_json: serde_json::json!({ "min_y": 0, "height": 128, "logical_height": 128,
                 "has_skylight": true, "has_ceiling": false, "ambient_light": 0.3 }),
         }]);

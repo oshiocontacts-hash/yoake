@@ -548,6 +548,9 @@ pub enum GeneratorSpec {
     /// Superflat; the settings object is kept as written (flatgen reads it).
     Flat(Value),
     Debug,
+    /// `yoake:mod`: a generator a mod registers by id (F3-5), with the
+    /// settings object it reads (`{}` when the stem gives none).
+    Mod { id: String, settings: Value },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -606,6 +609,24 @@ impl LevelStem {
                 None => return Err(DimensionError::MissingField("settings")),
             },
             "minecraft:debug" => GeneratorSpec::Debug,
+            "yoake:mod" => {
+                let id = g
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .ok_or(DimensionError::MissingField("generator.id"))?;
+                if id.is_empty() || id.chars().any(char::is_whitespace) || !id.contains(':') {
+                    return Err(invalid("generator.id", "expected a namespaced generator id"));
+                }
+                let settings = match g.get("settings") {
+                    None | Some(Value::Null) => json!({}),
+                    Some(s @ Value::Object(_)) => s.clone(),
+                    Some(_) => return Err(invalid("settings", "expected an object")),
+                };
+                GeneratorSpec::Mod {
+                    id: id.to_owned(),
+                    settings,
+                }
+            }
             other => return Err(DimensionError::UnknownGeneratorType(other.to_owned())),
         };
         Ok(Self {
@@ -635,6 +656,9 @@ impl LevelStem {
             }
             GeneratorSpec::Flat(s) => json!({"type": "minecraft:flat", "settings": s}),
             GeneratorSpec::Debug => json!({"type": "minecraft:debug"}),
+            GeneratorSpec::Mod { id, settings } => {
+                json!({"type": "yoake:mod", "id": id, "settings": settings})
+            }
         };
         Ok(json!({"type": ty, "generator": generator}))
     }
