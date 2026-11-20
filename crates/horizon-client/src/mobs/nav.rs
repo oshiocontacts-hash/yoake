@@ -300,6 +300,8 @@ impl Mob {
             return None;
         }
         let finder = Finder::new(world, mob, self.ai.nav.evaluator());
+        // A custom mob's search is capped (the path budget of FR-F4-MOBS.md section 8).
+        let max_visited = super::custom::ai::nav_select::max_visited_nodes(self, max_visited);
         finder.find(targets, max_len, reach, max_visited)
     }
     pub(super) fn path_foot_position(&self, world: &MobWorld, path: &Path, index: usize) -> Vec3 {

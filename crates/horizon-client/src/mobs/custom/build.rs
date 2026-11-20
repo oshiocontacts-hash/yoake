@@ -7,15 +7,8 @@
 //! build the same types. A file the engine cannot build is skipped with a warning (as a bad row
 //! of `horizon-mod-mobs.json` is), never a crash.
 use super::{CustomState, CustomType, registry};
-use crate::mobs::{
-    Mob, MobType, Part, Species,
-    goals::{
-        Avoid, AvoidEntity, Float, HurtByTarget, LookAtPlayer, MeleeAttack, NearestTarget, Panic,
-        RandomLookAround, Stroll, Tempt,
-    },
-    species,
-};
-use horizon_mods::custom_mob::{CUSTOM_MOBS_FILE, CustomMobFile, Goal};
+use crate::mobs::{Mob, MobType, Part, Species, species};
+use horizon_mods::custom_mob::{CUSTOM_MOBS_FILE, CustomMobFile};
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
@@ -56,18 +49,8 @@ pub fn load_root(root: &Path) -> Vec<Arc<CustomType>> {
 fn build_one(root: &Path, id: &str, json: &str) -> Result<CustomType, String> {
     let file = CustomMobFile::parse(id, json.as_bytes())?;
     let model = file.load_model(&mut |path| std::fs::read(root.join(path)).map_err(|e| format!("{path}: {e}")))?;
-    let unrun: Vec<&str> = file
-        .ai
-        .goals
-        .iter()
-        .chain(&file.ai.targets)
-        .filter(|g| !is_basic_goal(g))
-        .map(|g| g.kind.as_str())
-        .collect();
-    if !unrun.is_empty() {
-        log::warn!(
-            "Horizon: custom mob {id}: the goals {unrun:?} are not run by this version yet; the others are"
-        );
+    for (kind, why) in super::ai::unsupported(&file) {
+        log::warn!("Horizon: custom mob {id}: the goal {kind:?} is not run by this version ({why})");
     }
     CustomType::new(file, Some(&model))
 }
@@ -178,110 +161,9 @@ pub fn mob_type(t: &Arc<CustomType>) -> MobType {
     }
 }
 
-/// The goals this version runs: the nine the data mobs had (`float`, `wander`, `look_at_player`,
-/// `random_look`, `panic`, `tempt`, `flee`, `melee_attack`, `target_player`, `hurt_by_target`)
-/// and their new names (`swim`, `stroll`, `avoid`, `hurt_by`, `nearest_target`/
-/// `nearest_attackable` at players). The rest of the schema's goals are F4M-4a's.
-pub fn is_basic_goal(g: &Goal) -> bool {
-    match g.kind.as_str() {
-        "float" | "swim" | "float_in_water" | "wander" | "stroll" | "look_at_player"
-        | "random_look" | "panic" | "tempt" | "flee" | "avoid" | "melee_attack"
-        | "target_player" | "hurt_by_target" | "hurt_by" => true,
-        "nearest_target" | "nearest_attackable" => targets_player(g),
-        _ => false,
-    }
-}
-
-fn targets_player(g: &Goal) -> bool {
-    g.params
-        .get("types")
-        .and_then(|t| t.as_array())
-        .is_some_and(|t| t.iter().any(|v| v.as_str() == Some("minecraft:player")))
-}
-
-fn num(g: &Goal, key: &str, default: f64) -> f64 {
-    g.params
-        .get(key)
-        .and_then(|v| v.as_f64())
-        .filter(|v| v.is_finite())
-        .unwrap_or(default)
-}
-fn strings(g: &Goal, key: &str) -> Vec<String> {
-    g.params
-        .get(key)
-        .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
-        .unwrap_or_default()
-}
-fn species_of(id: &str) -> Option<Species> {
-    let name = id.strip_prefix("minecraft:")?;
-    species::ALL.iter().find(|d| d.name == name).map(|d| d.species)
-}
-
-/// Gives the mob its goals and targets from the file: the ones [`is_basic_goal`] names, by
-/// the file's priorities (lower first). Speeds are the file's `speed`.
+/// Gives the mob its navigator, goals and targets from the file (see [`super::ai`]).
 pub fn attach_goals(m: &mut Mob, t: &CustomType) {
-    for g in &t.file.ai.goals {
-        let p = g.priority;
-        let speed = g.speed;
-        match g.kind.as_str() {
-            "float" | "swim" | "float_in_water" => m.ai.goals.add(p, Float),
-            "wander" | "stroll" => m
-                .ai
-                .goals
-                .add(p, Stroll::avoiding_water(speed.unwrap_or(1.0))),
-            "look_at_player" => m
-                .ai
-                .goals
-                .add(p, LookAtPlayer::new(num(g, "range", 8.0) as f32)),
-            "random_look" => m.ai.goals.add(p, RandomLookAround::default()),
-            "panic" => m.ai.goals.add(p, Panic::new(speed.unwrap_or(1.25))),
-            "tempt" => {
-                let items: Arc<[String]> = strings(g, "items").into();
-                m.ai
-                    .goals
-                    .add(p, Tempt::new(speed.unwrap_or(1.0), items, false));
-            }
-            "flee" | "avoid" => {
-                let from = strings(g, "from");
-                let player = from.is_empty() || from.iter().any(|f| f == "minecraft:player");
-                let what = if player {
-                    Avoid::Player
-                } else {
-                    Avoid::Species(from.iter().filter_map(|f| species_of(f)).collect())
-                };
-                m.ai.goals.add(
-                    p,
-                    AvoidEntity::new(
-                        what,
-                        num(g, "distance", 8.0) as f32,
-                        num(g, "walk_speed", 1.0),
-                        num(g, "sprint_speed", 1.2),
-                    ),
-                );
-            }
-            "melee_attack" => m
-                .ai
-                .goals
-                .add(p, MeleeAttack::new(speed.unwrap_or(1.0), false)),
-            _ => {}
-        }
-    }
-    for g in &t.file.ai.targets {
-        let p = g.priority;
-        match g.kind.as_str() {
-            "target_player" => m
-                .ai
-                .targets
-                .add(p, NearestTarget::player(g.params.get("must_see").and_then(|v| v.as_bool()).unwrap_or(true))),
-            "nearest_target" | "nearest_attackable" if targets_player(g) => m
-                .ai
-                .targets
-                .add(p, NearestTarget::player(g.params.get("must_see").and_then(|v| v.as_bool()).unwrap_or(true))),
-            "hurt_by_target" | "hurt_by" => m.ai.targets.add(p, HurtByTarget::new()),
-            _ => {}
-        }
-    }
+    super::ai::attach(m, t);
 }
 
 /// `mod_mob::register` for a custom mob: its per-mob state and its goals. False for any other.

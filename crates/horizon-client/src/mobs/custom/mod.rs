@@ -9,6 +9,7 @@
 //!
 //! New code for custom mobs lives under this directory (and `game/custom_mob_*.rs`) so that
 //! parallel work items do not collide in the shared mob files.
+pub mod ai;
 pub mod attrs;
 pub mod build;
 pub mod hitbox;
@@ -266,6 +267,8 @@ pub struct CustomState {
     pub attrs: AttrSet,
     /// Its tracked values, in the type's slot order.
     pub synced: Vec<SyncedValue>,
+    /// What its attack goals wait for and ask of the animation side (F4M-4a).
+    pub attack: ai::attacks::AttackState,
 }
 
 impl CustomState {
@@ -274,6 +277,7 @@ impl CustomState {
             // `CustomType::new` already built one from the same definitions.
             attrs: AttrSet::new(&t.attributes).unwrap_or_default(),
             synced: t.synced.iter().map(|s| s.default.clone()).collect(),
+            attack: Default::default(),
         }
     }
     pub fn synced_value(&self, t: &CustomType, name: &str) -> Option<&SyncedValue> {
@@ -299,6 +303,7 @@ impl CustomState {
 pub(crate) mod tests {
     use super::super::{Brain, Species, species};
     use super::*;
+    use std::sync::Arc;
 
     /// The neutral row of `Species::Custom`: no vanilla behaviour leaks into a custom mob through
     /// a table row or a wildcard arm, and the vanilla rows are found as before.
@@ -394,5 +399,50 @@ pub(crate) mod tests {
         assert!(!s.set_synced(&t, "nothing", SyncedValue::Bool(true)));
         assert!(s.set_synced(&t, "state", SyncedValue::Enum(2)));
         assert!(!s.set_synced(&t, "state", SyncedValue::Enum(3)), "no such value");
+    }
+
+    /// A custom mob of `category`, as the game makes one.
+    fn mob_of(category: &str) -> crate::mobs::Mob {
+        let json = format!(
+            r#"{{"template":"yoake:mob","category":"{category}","size":{{"width":1,"height":1}}}}"#
+        );
+        let file = CustomMobFile::parse("demo:thing", json.as_bytes()).unwrap();
+        let t = Arc::new(CustomType::new(file, None).unwrap());
+        let kind = Arc::new(build::mob_type(&t));
+        crate::mobs::Mob::new(1, kind, horizon_core::geometry::Vec3::new(0.5, 64.0, 0.5), 0.0)
+    }
+
+    fn vanilla(species: Species) -> crate::mobs::Mob {
+        let mut kind = crate::mobs::sensor_scan_tests::kind();
+        Arc::make_mut(&mut kind).species = species;
+        crate::mobs::Mob::new(1, kind, horizon_core::geometry::Vec3::new(0.5, 64.0, 0.5), 0.0)
+    }
+
+    /// `instanceof Monster` has no Java class for a custom mob: its category stands in. A vanilla
+    /// mob answers exactly as the species-based test does.
+    #[test]
+    fn a_custom_mob_is_a_monster_by_its_category() {
+        use crate::mobs::{ai, drops};
+        let monster = mob_of("monster");
+        let creature = mob_of("creature");
+        assert!(ai::mob_is_monster(&monster) && drops::mob_is_monster(&monster));
+        assert!(!ai::mob_is_monster(&creature) && !drops::mob_is_monster(&creature));
+        for s in [Species::Zombie, Species::Cow, Species::Hoglin, Species::Creaking, Species::Giant] {
+            let m = vanilla(s);
+            assert_eq!(ai::mob_is_monster(&m), ai::is_monster(s), "{s:?}");
+            assert_eq!(drops::mob_is_monster(&m), drops::is_monster(s), "{s:?}");
+        }
+        // The call sites follow: swim sound, experience and the loot rule.
+        let mut monster = mob_of("monster");
+        let mut creature = mob_of("creature");
+        assert_eq!(ai::swim_sound(&mut monster), "entity.hostile.swim");
+        assert_eq!(ai::swim_sound(&mut creature), "entity.generic.swim");
+        assert!(drops::drops_experience(&monster));
+        monster.extra.age = -24000;
+        creature.extra.age = -24000;
+        assert!(drops::drops_experience(&monster), "a baby monster still drops experience");
+        assert!(!drops::drops_experience(&creature), "a baby creature does not");
+        assert!(drops::death_loot_table(&monster, true).is_some());
+        assert!(drops::death_loot_table(&creature, true).is_none());
     }
 }

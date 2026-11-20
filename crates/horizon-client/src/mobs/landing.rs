@@ -129,7 +129,7 @@ impl BlockLandingWorld for MobLanding<'_, '_> {
     }
     // LivingEntity.getFallDamageSound: Monster.getFallSounds is the hostile pair.
     fn living_fall_sound(&mut self, big: bool) -> Result<Option<&'static str>, String> {
-        let monster = super::ai::is_monster(self.mob.species());
+        let monster = super::ai::mob_is_monster(&self.mob);
         Ok(Some(match (monster, big) {
             (true, true) => "entity.hostile.big_fall",
             (true, false) => "entity.hostile.small_fall",

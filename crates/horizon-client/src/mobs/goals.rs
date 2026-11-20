@@ -654,8 +654,10 @@ impl Mob {
     /// Mob.isWithinMeleeAttackRange: the box inflated by sqrt(2.04) - 0.6.
     pub fn within_melee_range(&self, t: &TargetInfo) -> bool {
         let reach = 2.04f32.sqrt() as f64 - 0.6;
-        let b = self.bounds().inflate(Vec3::new(reach, 0.0, reach));
-        b.intersects(t.bounds)
+        let by = Vec3::new(reach, 0.0, reach);
+        let b = self.bounds().inflate(by);
+        // A custom mob with hitbox parts also reaches with them (none for any other mob).
+        b.intersects(t.bounds) || super::custom::hitbox::part_touches(self, by, &t.bounds)
     }
     /// Whether the species is a `TamableAnimal` (not the horses and llamas,
     /// which are tamed another way).

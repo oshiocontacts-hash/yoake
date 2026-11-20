@@ -171,6 +171,46 @@ pub fn pick(m: &Mob, main: &Aabb, eye: [f64; 3], dir: [f64; 3], reach: f64) -> O
     best
 }
 
+/// The boxes that count for reach tests (a mob's blow, a player's click): the type's parts
+/// that are pick or hurt boxes. The collision box is not among them.
+fn reach_parts<'a>(m: &'a Mob, t: &'a CustomType) -> impl Iterator<Item = Aabb> + 'a {
+    let feet = [m.position.x, m.position.y, m.position.z];
+    t.hitboxes
+        .iter()
+        .filter(|p| p.pick || p.hurt)
+        .map(move |p| p.bounds(feet, m.yaw))
+}
+
+/// Whether a part of `m` (not its collision box) touches `other` when inflated by `by`: how a
+/// custom mob with parts reaches with a blow (`Mob.isWithinMeleeAttackRange`, whose box is the
+/// collision box for any mob without parts).
+pub fn part_touches(m: &Mob, by: Vec3, other: &Aabb) -> bool {
+    m.kind
+        .custom
+        .as_ref()
+        .is_some_and(|t| reach_parts(m, t).any(|b| b.inflate(by).intersects(*other)))
+}
+
+/// The squared distance from `eye` to the nearest of `m`'s boxes: its collision box and, for a
+/// custom mob, its parts. A part that sticks out of the box (a head on a long neck) can be
+/// reached from further away than the box.
+pub fn distance_sqr(m: &Mob, eye: [f64; 3]) -> f64 {
+    let to = |b: &Aabb| {
+        let (lo, hi) = (b.min_position(), b.max_position());
+        let (lo, hi) = ([lo.x, lo.y, lo.z], [hi.x, hi.y, hi.z]);
+        (0..3)
+            .map(|a| (eye[a] - eye[a].clamp(lo[a], hi[a])).powi(2))
+            .sum::<f64>()
+    };
+    let mut best = to(&m.bounds());
+    if let Some(t) = &m.kind.custom {
+        for b in reach_parts(m, t) {
+            best = best.min(to(&b));
+        }
+    }
+    best
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -190,6 +230,67 @@ mod tests {
     }
     fn near(a: f64, b: f64) -> bool {
         (a - b).abs() < 1e-9
+    }
+
+    /// A 1 by 1 custom mob at the origin, with a head part 1.5 blocks in front when `neck`.
+    fn long_neck(neck: bool) -> Mob {
+        let parts = if neck {
+            r#","hitboxes":[{"name":"head","size":[0.4,0.4],"offset":[0,0.2,1.5]}]"#
+        } else {
+            ""
+        };
+        let json = format!(r#"{{"template":"yoake:mob","size":{{"width":1,"height":1}}{parts}}}"#);
+        let file = horizon_mods::custom_mob::CustomMobFile::parse("demo:neck", json.as_bytes()).unwrap();
+        let t = std::sync::Arc::new(CustomType::new(file, None).unwrap());
+        let kind = std::sync::Arc::new(crate::mobs::custom::build::mob_type(&t));
+        Mob::new(1, kind, Vec3::new(0.0, 0.0, 0.0), 0.0)
+    }
+
+    fn target_at(z: f64) -> crate::mobs::TargetInfo {
+        let bounds = Aabb::new(Vec3::new(-0.3, 0.0, z - 0.3), Vec3::new(0.3, 1.8, z + 0.3));
+        crate::mobs::TargetInfo {
+            position: Vec3::new(0.0, 0.0, z),
+            eye_y: 1.6,
+            bounds,
+            alive: true,
+            can_be_seen_as_enemy: true,
+            is_player: false,
+            creative: false,
+            passenger: false,
+        }
+    }
+
+    /// A blow reaches with a part that sticks out of the collision box; a mob without parts
+    /// reaches as vanilla does (its box inflated by `sqrt(2.04) - 0.6`).
+    #[test]
+    fn a_blow_reaches_with_the_parts() {
+        let (plain, neck) = (long_neck(false), long_neck(true));
+        // The target's near face is at z = 1.7: past the box's reach (0.5 + 0.83), inside the head's.
+        let far = target_at(2.0);
+        assert!(!plain.within_melee_range(&far));
+        assert!(neck.within_melee_range(&far));
+        // A target in the box's own reach is hit by both.
+        let near_target = target_at(1.2);
+        assert!(plain.within_melee_range(&near_target) && neck.within_melee_range(&near_target));
+        // Behind the mob the head is of no use.
+        let behind = target_at(-2.0);
+        assert!(!neck.within_melee_range(&behind));
+        // The part turns with the body.
+        let mut turned = long_neck(true);
+        turned.yaw = 180.0;
+        assert!(!turned.within_melee_range(&far));
+        assert!(turned.within_melee_range(&behind));
+    }
+
+    /// A player's reach (`within_entity_range`) is the distance to the nearest box.
+    #[test]
+    fn a_click_reaches_the_parts_too() {
+        let (plain, neck) = (long_neck(false), long_neck(true));
+        let eye = [0.0, 0.5, 3.0];
+        assert!(near(distance_sqr(&plain, eye), 2.5 * 2.5));
+        assert!(near(distance_sqr(&neck, eye), 1.3 * 1.3), "{}", distance_sqr(&neck, eye));
+        // An eye inside the box is at distance 0 for both.
+        assert_eq!(distance_sqr(&neck, [0.0, 0.5, 0.0]), 0.0);
     }
 
     #[test]

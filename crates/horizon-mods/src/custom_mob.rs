@@ -166,7 +166,7 @@ pub const BUILTIN_ATTRIBUTES: [&str; 16] = [
 ];
 /// Data goal types: the nine that exist (`Behaviour`) and the new ones (section 6.1), and
 /// `script` (a WASM goal id).
-pub const GOAL_TYPES: [&str; 40] = [
+pub const GOAL_TYPES: [&str; 41] = [
     "float",
     "wander",
     "look_at_player",
@@ -181,6 +181,7 @@ pub const GOAL_TYPES: [&str; 40] = [
     "fly_wander",
     "climb",
     "leap_at_target",
+    "leap_attack",
     "ranged_attack",
     "area_attack",
     "follow_owner",
@@ -1334,6 +1335,20 @@ mod tests {
         assert_eq!(file.ai.navigator, "ground");
         assert_eq!(file.model.scale, 1.0);
         assert!(file.hitboxes.is_empty() && file.synced.is_empty());
+    }
+
+    /// Every goal type of the vocabulary (but the script one, which names a script goal) is
+    /// accepted with free parameters, `leap_attack` among them (F4M-4a).
+    #[test]
+    fn every_goal_type_is_accepted_with_its_own_parameters() {
+        for kind in GOAL_TYPES.iter().filter(|k| **k != "script") {
+            let row = serde_json::json!({
+                "type": kind, "priority": 3, "speed": 1.0,
+                "trigger": "a", "damage_frame": "hit", "damage_delay": 8, "range": 4
+            });
+            with(|v| v["ai"]["goals"].as_array_mut().unwrap().push(row)).expect(kind);
+        }
+        assert!(GOAL_TYPES.contains(&"leap_attack"));
     }
 
     #[test]
