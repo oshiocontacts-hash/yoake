@@ -142,6 +142,7 @@ mod game_tests;
 #[cfg(test)]
 mod dim_tests;
 #[cfg(test)]
+mod level_facts;
 mod level_registry_tests;
 mod gamemode_switcher;
 mod ghasts;
@@ -3216,6 +3217,8 @@ pub(crate) struct Game<'a> {
     /// The open world's levels: the three vanilla ones, the saved and data pack level
     /// stems and the mods' (F3-3); each level's type, generator stem and save folder.
     level_registry: horizon_client::level_registry::LevelRegistry,
+    /// The dimension types of the levels past the vanilla three (F3-4).
+    level_ctxs: std::collections::HashMap<Dim, level_facts::LevelCtx>,
     /// This game is that server thread's (game/integrated.rs).
     serving: Option<integrated::Serving>,
     /// The open world is shared behind an invite code (game/friends.rs).
@@ -4357,9 +4360,9 @@ impl Game<'_> {
         block_entity: Option<horizon_world::nbt::Tag>,
     ) -> horizon_world::loot::NativeLootPlace {
         let (rain, thunder) = self.world.weather.levels(1.0);
-        // Level.canHaveWeather: sky light, no ceiling and not the End.
-        let weather =
-            self.world.shape.sky_light && !self.world.shape.has_ceiling && self.dim != Dim::End;
+        // Level.canHaveWeather: sky light, no ceiling and not the End (a level
+        // past the vanilla three: its type's sky has weather).
+        let weather = self.level_facts().weather;
         horizon_world::loot::NativeLootPlace {
             origin: Some(origin),
             block_entity,
@@ -4891,11 +4894,7 @@ impl Game<'_> {
             events: &mut self.level_events,
             dimension,
             darken,
-            environment: match dimension {
-                LevelDimension::Overworld => self.res.environment(),
-                LevelDimension::Nether => self.res.nether_environment(),
-                LevelDimension::End => self.res.end_environment(),
-            },
+            environment: level_facts::environment_for(self.dim, &self.level_ctxs, &self.res),
             raining: rain > 0.2,
             thundering: thunder > 0.9,
             player_box,
@@ -11496,20 +11495,15 @@ impl Game<'_> {
         // A native shader pack's sun shadows already fall under the entities in the Overworld:
         // the round blob would be a second one. The Nether and the End have no sun to cast them.
         let pack_shadows = self.renderer.as_ref().is_some_and(|r| {
-            r.pack_entity_shadows() || (self.dim == Dim::Overworld && r.native_shadow())
+            r.pack_entity_shadows()
+                || (self.level_facts().sky == level_facts::SkyKind::Overworld && r.native_shadow())
         });
         let shadow_sprite = (self.settings.entity_shadows && !pack_shadows)
             .then(|| self.gui.atlas.sprites.get("misc/shadow").copied())
             .flatten();
         if let Some(sprite) = shadow_sprite {
             // DimensionType.ambientLight: the_nether 0.1, the_end 0.25.
-            let ambient = match self.dim {
-                Dim::Nether => 0.1,
-                Dim::End => 0.25,
-                Dim::Overworld => 0.0,
-                // F3-4: dimension-type query
-                _ => 0.0,
-            };
+            let ambient = self.level_facts().ambient;
             let darken = self.sky_darken();
             let a = alpha;
             let lerp = |p: Vec3, q: Vec3| {
@@ -11577,7 +11571,7 @@ impl Game<'_> {
                 emissive: &self.gui.atlas.emissive,
                 translucent_sprites: &self.gui.atlas.translucent,
                 atlas_revision: self.gui.atlas.revision,
-                nether: self.dim == Dim::Nether,
+                nether: self.level_facts().nether_light,
                 lid: &lid,
                 sign: &|p| match self.world.block_entities.get(&(p[0], p[1], p[2])) {
                     Some(BlockEntity::Sign(sign)) => Some(sign),
@@ -11989,6 +11983,21 @@ impl Game<'_> {
                 .end_environment()
                 .sample(self.world.day_time, None, None);
             return (15.0 - 15.0 * sky.sky_light_level).round() as i32;
+        }
+        if !matches!(self.dim, Dim::Overworld) {
+            // A level past the vanilla three: its own sky's light level, with
+            // the weather darkening it where the level has weather.
+            let (rain, thunder) = if self.level_facts().weather {
+                self.world.weather.levels(1.0)
+            } else {
+                (0.0, 0.0)
+            };
+            return horizon_client::environment::sky_darken(
+                self.dim_environment(),
+                self.world.day_time,
+                rain,
+                thunder,
+            );
         }
         let (rain, thunder) = self.world.weather.levels(1.0);
         // Sampled once per (time, weather): every mob asks each tick.
@@ -12825,6 +12834,8 @@ impl Game<'_> {
         book.recipes.retain(|r| index.contains(r));
         book.to_be_displayed.retain(|r| index.contains(r));
         self.dim = dim;
+        self.level_ctxs.clear();
+        self.ensure_level_ctx(None);
         self.audio.set_world(dim.id());
         // LevelStorageAccess.getIconFile: this save's icon.png is what the
         // Select World list shows.
@@ -12878,8 +12889,12 @@ impl Game<'_> {
             r.clear_sections(self.world.layout());
         }
         self.apply_settings();
-        self.streaming.sky_light = dim != Dim::Nether;
-        self.streaming.nether_shading = dim == Dim::Nether;
+        self.streaming.sky_light = if matches!(dim, Dim::Overworld | Dim::Nether | Dim::End) {
+            dim != Dim::Nether
+        } else {
+            self.world.shape.sky_light
+        };
+        self.streaming.nether_shading = self.level_facts().nether_light;
         self.load_world_state();
         // The level the world opens in, before any of its chunks.
         self.native_level_opened(dim);
@@ -16240,7 +16255,7 @@ impl Game<'_> {
         // visual/water_fog_color: no dimension sets it, its default is #050533.
         let water_fog = blend(|b| Some(b.water_fog), [0.0; 3]);
         let mut sky = environment.sample(self.world.day_time, Some(biome_sky), Some(biome_fog));
-        let (rain, thunder) = if self.dim == Dim::Overworld {
+        let (rain, thunder) = if self.level_facts().weather {
             self.world.weather.levels(alpha as f32)
         } else {
             (0.0, 0.0)
@@ -16483,13 +16498,13 @@ impl Game<'_> {
         }
         let (celestial, stars) = if title {
             (Vec::new(), None)
-        } else if self.dim == Dim::Overworld
+        } else if self.level_facts().sky == level_facts::SkyKind::Overworld
             && self.potions.effects.get("darkness").is_none()
             && self.potions.effects.get("blindness").is_none()
         {
             // Camera.doesMobEffectBlockSky: no sun, moon or stars.
             self.celestial_geometry(&sky, rain)
-        } else if self.dim == Dim::End && self.settings.horizon.sky {
+        } else if self.level_facts().sky == level_facts::SkyKind::End && self.settings.horizon.sky {
             (self.end_flash_geometry(), None)
         } else {
             (Vec::new(), None)
@@ -16523,7 +16538,7 @@ impl Game<'_> {
         if !title {
             self.end_geometry(camera, &mut entities);
         }
-        let weather = if !title && self.dim == Dim::Overworld && self.settings.horizon.weather {
+        let weather = if !title && self.level_facts().weather && self.settings.horizon.weather {
             horizon_client::spans::time("weather", || self.weather_geometry(camera, alpha))
         } else {
             Vec::new()
@@ -16571,7 +16586,7 @@ impl Game<'_> {
         let frame = Frame {
             weather: &weather,
             weather_time: horizon_client::weather::Time::new(self.world.game_time, alpha as f32),
-            nether_lighting: self.dim == Dim::Nether,
+            nether_lighting: self.level_facts().nether_light,
             camera,
             yaw,
             pitch,
@@ -16612,15 +16627,19 @@ impl Game<'_> {
                     ),
                     horizon_client::fog::FogType::Lava | horizon_client::fog::FogType::PowderSnow
                 ),
-            skybox: self.dim == Dim::Overworld && self.settings.horizon.sky,
-            end_sky: self.dim == Dim::End && self.settings.horizon.sky,
+            skybox: self.level_facts().sky == level_facts::SkyKind::Overworld
+                && self.settings.horizon.sky,
+            end_sky: self.level_facts().sky == level_facts::SkyKind::End && self.settings.horizon.sky,
             end_sky_sprite: self
                 .gui
                 .atlas
                 .sprites
                 .get("environment/end_sky")
                 .map(|r| [r.u0, r.v0, r.u1, r.v1]),
-            environment_fog: (self.dim == Dim::Nether).then_some((sky.fog_start, sky.fog_end)),
+            environment_fog: self
+                .level_facts()
+                .fog_distance
+                .then_some((sky.fog_start, sky.fog_end)),
             cave_culling,
             water_fog,
             fog: Some(self.frame_fog(camera, &sky, biome, water_fog)),
@@ -16635,7 +16654,7 @@ impl Game<'_> {
             glint_alpha: self.glint_frame.alpha,
             glint_ticks: self.glint_frame.scroll_ticks(),
             clouds: (!title
-                && self.dim == Dim::Overworld
+                && self.level_facts().sky == level_facts::SkyKind::Overworld
                 && horizon_client::clouds::visible(&self.settings.clouds, sky.cloud_color[3]))
             .then(|| self.gui.atlas.sprites.get("horizon/white"))
             .flatten()
@@ -19890,6 +19909,7 @@ impl<'a> Game<'a> {
             integrated: None,
             level_shapes: Default::default(),
             level_registry: Default::default(),
+            level_ctxs: Default::default(),
             serving: None,
             world_options: None,
             options_to_world_options: false,

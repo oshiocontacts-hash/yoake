@@ -150,14 +150,20 @@ impl Environment {
     }
     /// A dimension's base attributes, optionally driven by the day timeline.
     pub fn load_dimension(root: &Path, dimension: &str, day_cycle: bool) -> Result<Self> {
+        let dimension: Value = serde_json::from_slice(&fs::read(
+            root.join(format!("data/minecraft/dimension_type/{dimension}.json")),
+        )?)?;
+        Self::load_type(root, &dimension, day_cycle)
+    }
+    /// The attributes of a dimension type given as its JSON (a data pack's or
+    /// a mod's type, or one a server sent), optionally driven by the day
+    /// timeline of `root`'s data.
+    pub fn load_type(root: &Path, dimension: &Value, day_cycle: bool) -> Result<Self> {
         let timeline: Value = if day_cycle {
             serde_json::from_slice(&fs::read(root.join("data/minecraft/timeline/day.json"))?)?
         } else {
             serde_json::json!({"period_ticks": 24000, "tracks": {}})
         };
-        let dimension: Value = serde_json::from_slice(&fs::read(
-            root.join(format!("data/minecraft/dimension_type/{dimension}.json")),
-        )?)?;
         let mut tracks = HashMap::new();
         for (name, track) in timeline["tracks"].as_object().ok_or("invalid timeline")? {
             let easing = match &track["ease"] {

@@ -2711,6 +2711,10 @@ pub struct MobWorld<'a> {
     pub raining: bool,
     pub thundering: bool,
     pub nether: bool,
+    /// A level past the vanilla three: its type's monster spawn light rule
+    /// (`monster_spawn_block_light_limit`, the `monster_spawn_light_level`
+    /// range), when the level is none of the vanilla three.
+    pub spawn_light: Option<crate::mobs::spawn_rules::LightRule>,
     pub block_tags: &'a HashMap<String, std::collections::HashSet<String>>,
     /// Each block's `fallOn` rule (the player's landing registry).
     pub landing: &'a horizon_world::block_landing::BlockLandingRegistry,
@@ -5388,6 +5392,7 @@ pub mod mob_hook_bench {
                 raining: false,
                 thundering: false,
                 nether: false,
+                spawn_light: None,
                 block_tags: &self.block_tags,
                 landing: &self.landing,
                 biomes: &self.biomes,

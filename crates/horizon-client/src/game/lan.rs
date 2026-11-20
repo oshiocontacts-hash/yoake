@@ -1273,7 +1273,11 @@ impl Game<'_> {
         };
         // A world whose packs change biomes sends its own biome registry.
         let packed = self.world_biomes.clone().filter(|b| b.has_packs());
+        // F3-4: the levels past the vanilla three go to clients with their
+        // dimension types, which the shared resource preload does not hold.
+        let net_levels = self.level_registry.network_levels();
         if packed.is_some()
+            || !net_levels.is_empty()
             || sync.features.iter().any(|f| !features.contains(f))
             || features.iter().any(|f| !sync.features.contains(f))
         {
@@ -1286,6 +1290,7 @@ impl Game<'_> {
                 packed.as_deref(),
             )?;
             world_sync.features = features;
+            world_sync.add_levels(net_levels);
             sync = Arc::new(world_sync);
         }
         self.sync_dialog_ids(&sync);

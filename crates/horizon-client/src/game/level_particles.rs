@@ -273,7 +273,7 @@ impl Game<'_> {
         };
         let above = self.world.block(pos.x, root_y + 1, pos.z);
         let above_facts = self.res.facts().get(above);
-        let nether = self.dim == super::Dim::Nether;
+        let nether = self.level_facts().ultrawarm;
         let fluid = if &*above_facts.name == "minecraft:mud" && !nether {
             horizon_client::blocks::Fluid::Water
         } else {

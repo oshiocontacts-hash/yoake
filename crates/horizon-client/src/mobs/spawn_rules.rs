@@ -45,12 +45,27 @@ pub enum Dimension {
     Overworld,
     Nether,
     End,
+    /// A level past the vanilla three: its type's rule.
+    Level(LightRule),
+}
+/// A dimension type's monster spawn light rule (F3-4).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LightRule {
+    /// `monster_spawn_block_light_limit`.
+    pub block_limit: i32,
+    /// `monster_spawn_light_level`, a constant or uniform provider.
+    pub min: i32,
+    pub max: i32,
+    /// A constant provider draws nothing; a uniform one draws once even for
+    /// an empty range.
+    pub constant: bool,
 }
 impl Dimension {
     /// `monster_spawn_block_light_limit`.
     fn block_light_limit(self) -> i32 {
         match self {
             Self::Nether => 15,
+            Self::Level(rule) => rule.block_limit,
             _ => 0,
         }
     }
@@ -60,6 +75,11 @@ impl Dimension {
             Self::Overworld => random.next_int_bound(8).unwrap_or(0),
             Self::Nether => 7,
             Self::End => 15,
+            // IntProvider.sample: a constant draws nothing, a uniform one draw.
+            Self::Level(rule) if rule.constant => rule.min,
+            Self::Level(rule) => {
+                rule.min + random.next_int_bound(rule.max - rule.min + 1).unwrap_or(0)
+            }
         }
     }
 }
@@ -602,7 +622,9 @@ impl SpawnLevel for super::MobWorld<'_> {
         self.difficulty.effective == 0.0
     }
     fn dimension(&self) -> Dimension {
-        if self.nether {
+        if let Some(rule) = self.spawn_light {
+            Dimension::Level(rule)
+        } else if self.nether {
             Dimension::Nether
         } else if self.end {
             Dimension::End

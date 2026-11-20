@@ -12,9 +12,9 @@ fn write(root: &std::path::Path, path: &str, text: &str) {
     std::fs::write(p, text).unwrap();
 }
 
-#[test]
-#[ignore = "needs HORIZON_TEST_RESOURCES"]
-fn a_pack_level_opens_with_its_own_save_folder_and_unknown_levels_do_not() {
+/// The `mypack:moon` level: a data pack stem with a type of its own (128 high from y 0, a fixed
+/// ambient light, its own sky and fog colours).
+fn with_moon_game(test: impl FnOnce(&mut Game<'_>, &std::path::Path)) {
     let resources = PathBuf::from(
         std::env::var_os("HORIZON_TEST_RESOURCES").expect("set HORIZON_TEST_RESOURCES"),
     );
@@ -23,8 +23,16 @@ fn a_pack_level_opens_with_its_own_save_folder_and_unknown_levels_do_not() {
     write(&world, "datapacks/moon/pack.mcmeta", r#"{"pack":{"pack_format":1,"description":"x"}}"#);
     write(
         &world,
+        "datapacks/moon/data/mypack/dimension_type/moon_type.json",
+        r##"{"min_y":0,"height":128,"logical_height":128,"has_skylight":true,"has_ceiling":false,
+        "ambient_light":0.3,"coordinate_scale":1.0,"default_clock":"minecraft:overworld",
+        "skybox":"overworld","cardinal_light":"default",
+        "attributes":{"minecraft:visual/sky_color":"#336699","minecraft:visual/fog_color":"#223344"}}"##,
+    );
+    write(
+        &world,
         "datapacks/moon/data/mypack/dimension/moon.json",
-        r#"{"type":"minecraft:overworld","generator":{"type":"minecraft:noise",
+        r#"{"type":"mypack:moon_type","generator":{"type":"minecraft:noise",
         "settings":"minecraft:overworld","biome_source":{"type":"yoake:grid","cell_size":16,
         "width":2,"depth":1,"cells":["minecraft:plains","minecraft:desert"],
         "outside":"minecraft:plains"}}}"#,
@@ -65,28 +73,134 @@ fn a_pack_level_opens_with_its_own_save_folder_and_unknown_levels_do_not() {
         create: None,
     })
     .unwrap();
-    let ids: Vec<_> = game.level_registry.ids().map(str::to_owned).collect();
-    assert_eq!(
-        ids,
-        ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end", "mypack:moon"]
-    );
-    assert!(game.level_registry.problems().is_empty(), "{:?}", game.level_registry.problems());
-    // The vanilla visual attributes came from the prepared bundle.
-    assert!(
-        game.level_registry.get("minecraft:overworld").unwrap().dimension_type.attributes.keys().any(|k| k.contains("visual")),
-    );
-    let moon = game.level_dim("mypack:moon").expect("registered");
-    assert_ne!(moon, Dim::Overworld);
-    game.enter_level(None, moon).unwrap();
-    assert_eq!(game.dim, moon);
-    assert_eq!(game.world.shape, game.level_registry.shape("mypack:moon").unwrap());
-    game.save_level(true).unwrap();
-    assert_eq!(game.level_registry.save_dir(&world, "mypack:moon"), world.join("dimensions/mypack/moon"));
-    game.enter_level(None, Dim::Overworld).unwrap();
-    // A level the world does not have never opens, and is not another level's folder.
-    let stray = Dim::intern("f33test:stray");
-    assert_eq!(game.level_dim("f33test:stray"), None);
-    assert!(game.enter_level(None, stray).is_err());
-    assert_eq!(game.dim, Dim::Overworld);
+    test(&mut game, &world);
     let _ = std::fs::remove_dir_all(&world);
+}
+
+#[test]
+#[ignore = "needs HORIZON_TEST_RESOURCES"]
+fn a_pack_level_opens_with_its_own_save_folder_and_unknown_levels_do_not() {
+    with_moon_game(|game, world| {
+        let ids: Vec<_> = game.level_registry.ids().map(str::to_owned).collect();
+        assert_eq!(
+            ids,
+            ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end", "mypack:moon"]
+        );
+        assert!(game.level_registry.problems().is_empty(), "{:?}", game.level_registry.problems());
+        // The vanilla visual attributes came from the prepared bundle.
+        assert!(
+            game.level_registry.get("minecraft:overworld").unwrap().dimension_type.attributes.keys().any(|k| k.contains("visual")),
+        );
+        let moon = game.level_dim("mypack:moon").expect("registered");
+        assert_ne!(moon, Dim::Overworld);
+        game.enter_level(None, moon).unwrap();
+        assert_eq!(game.dim, moon);
+        assert_eq!(game.world.shape, game.level_registry.shape("mypack:moon").unwrap());
+        game.save_level(true).unwrap();
+        assert_eq!(game.level_registry.save_dir(world, "mypack:moon"), world.join("dimensions/mypack/moon"));
+        game.enter_level(None, Dim::Overworld).unwrap();
+        // A level the world does not have never opens, and is not another level's folder.
+        let stray = Dim::intern("f33test:stray");
+        assert_eq!(game.level_dim("f33test:stray"), None);
+        assert!(game.enter_level(None, stray).is_err());
+        assert_eq!(game.dim, Dim::Overworld);
+    });
+}
+
+/// F3-4: the sky, fog, light and weather of a pack level follow its dimension type, and a client
+/// told that type (the registry the hub sends) reads the same shape and the same facts.
+#[test]
+#[ignore = "needs HORIZON_TEST_RESOURCES"]
+fn a_pack_level_follows_its_type_and_a_client_reads_the_same_type() {
+    use super::level_facts::{LevelFacts, SkyKind};
+    use horizon_client::chunk::LevelShape;
+    use horizon_client::lan::hub::HubConfig;
+    use horizon_client::lan::{NetConfig, OnlineMode};
+    use horizon_protocol::registry::Dynamic;
+    with_moon_game(|game, _| {
+        let shapes = game.level_shapes;
+        game.lan_host(
+            super::lan::LanSettings {
+                port: 0,
+                guest_commands: false,
+                force_game_mode: false,
+                loopback_only: false,
+                announce: false,
+                max_players: horizon_client::lan::MAX_PLAYERS,
+                game_mode: None,
+            },
+            NetConfig {
+                listen: false,
+                online: OnlineMode::lan(),
+                levels: shapes,
+                owner_profile: None,
+                announce: false,
+                ..NetConfig::lan(0, "f34".into(), 4)
+            },
+            HubConfig {
+                allow_flight: true,
+                default_game_mode: 0,
+                guest_commands: false,
+                force_game_mode: false,
+                hardcore: false,
+                view_distance: 4,
+                simulation_distance: 4,
+                dimension: game.dim.id().to_owned(),
+                seed: 0,
+                max_players: 4,
+                integrated: true,
+                levels: shapes,
+            },
+        )
+        .unwrap();
+        let moon = game.level_dim("mypack:moon").expect("registered");
+
+        // The server side: the level in place is the moon, with its type's facts.
+        game.enter_level(None, moon).unwrap();
+        let facts = game.level_facts();
+        assert_eq!(facts.sky, SkyKind::Overworld);
+        assert!(facts.weather, "open sky under an overworld sky has weather");
+        assert!((facts.ambient - 0.3).abs() < 1e-6);
+        assert_eq!(facts.top, 127);
+        assert_ne!(facts, LevelFacts::OVERWORLD);
+        // Its sky colour is the pack's (#336699), not the Overworld's.
+        let sky = game.dim_environment().sample(6000, None, None);
+        for (got, want) in sky.sky_color.iter().zip([0.2, 0.4, 0.6]) {
+            assert!((got - want).abs() < 0.01, "{:?}", sky.sky_color);
+        }
+        // The vanilla levels keep their fixed rules.
+        game.enter_level(None, Dim::Nether).unwrap();
+        assert_eq!(game.level_facts(), LevelFacts::NETHER);
+        game.enter_level(None, Dim::Overworld).unwrap();
+        assert_eq!(game.level_facts(), LevelFacts::OVERWORLD);
+
+        // The wire: the registry the hub sends carries the pack's type after the vanilla ones.
+        let sync = game.lan.as_ref().unwrap().hub.sync.clone();
+        let mut client = Dynamic::default();
+        for packet in sync.registry_packets(true, &shapes) {
+            client.add(packet);
+        }
+        let type_id = sync.level_type_id("mypack:moon");
+        let level = super::remote::remote_level_type(&client, type_id);
+        assert_eq!(level.dimension.name, "mypack:moon_type");
+        assert_eq!(level.shape, game.level_registry.shape("mypack:moon").unwrap());
+        assert_eq!((level.shape.min_y, level.shape.height), (0, 128));
+        let (name, json) = level.sent;
+        assert_eq!(name, "mypack:moon_type");
+        let sent = horizon_world::dimension::DimensionType::from_value(&json.expect("sent with its data"))
+            .unwrap();
+        assert_eq!(LevelFacts::of_type(&sent), facts, "the client reads the facts the server has");
+        // The vanilla levels: known to every client, so no data, and the vanilla shapes.
+        for (id, shape) in [
+            ("minecraft:overworld", LevelShape::OVERWORLD),
+            ("minecraft:the_nether", LevelShape::NETHER),
+            ("minecraft:the_end", LevelShape::END),
+        ] {
+            let level = super::remote::remote_level_type(&client, sync.level_type_id(id));
+            assert_eq!(level.shape, shape, "{id}");
+            assert_eq!(level.sent.0, id);
+            assert!(level.sent.1.is_none(), "{id}");
+            assert_eq!(shapes.get(id), shape);
+        }
+    });
 }
