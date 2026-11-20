@@ -563,7 +563,7 @@ fn expand(
         quote! {
             #(#cfg_attrs)*
             #[doc(hidden)]
-            #[allow(dead_code, clippy::type_complexity)]
+            #[allow(dead_code, non_snake_case, clippy::type_complexity)]
             pub(crate) fn #register_ident #register_impl_generics (
                 callback: #callback_type,
                 order: ::yoake_hook_rt::Order,
@@ -604,7 +604,7 @@ fn expand(
             #alias
             #(#cfg_attrs)*
             #[doc(hidden)]
-            #[allow(dead_code, clippy::type_complexity)]
+            #[allow(dead_code, non_snake_case, clippy::type_complexity)]
             pub(crate) fn #register_ident #register_impl_generics (
                 callback: #callback_parameter,
                 order: ::yoake_hook_rt::Order,

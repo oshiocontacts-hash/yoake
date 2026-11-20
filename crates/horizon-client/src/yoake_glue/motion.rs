@@ -2,7 +2,7 @@
 // Regenerate: cargo run -p yoake-bindgen -- --config crates/yoake-bindgen/bindgen.json
 // Module `motion` of crate `horizon_client_lib`; ids come from crates/yoake-bindgen/ids.lock.json.
 // Included inside the module so private items are reachable. `#![forbid(unsafe_code)]` below.
-#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, clippy::all)]
+#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, private_interfaces, private_bounds, clippy::all)]
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]

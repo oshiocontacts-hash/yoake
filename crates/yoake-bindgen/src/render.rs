@@ -148,7 +148,7 @@ pub fn render(
     let _ = writeln!(out, "// Regenerate: cargo run -p yoake-bindgen -- --config crates/yoake-bindgen/bindgen.json");
     let _ = writeln!(out, "// Module `{module_label}` of crate `{crate_name}`; ids come from crates/yoake-bindgen/ids.lock.json.");
     let _ = writeln!(out, "// Included inside the module so private items are reachable. `#![forbid(unsafe_code)]` below.");
-    let _ = writeln!(out, "#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, clippy::all)]");
+    let _ = writeln!(out, "#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, private_interfaces, private_bounds, clippy::all)]");
     let _ = writeln!(out, "pub mod yoake_glue {{");
     let _ = writeln!(out, "    // The compiler, not a grep, guarantees the glue has no unsafe code.");
     let _ = writeln!(out, "    #![forbid(unsafe_code)]");
@@ -546,7 +546,7 @@ pub fn render_tables_only(an: &Analyzer<'_>, module_label: &str, crate_name: &st
     let _ = writeln!(out, "// Regenerate: cargo run -p yoake-bindgen -- --config crates/yoake-bindgen/bindgen.json --tables CRATE");
     let _ = writeln!(out, "// Module `{module_label}` of crate `{crate_name}`; getters of every scalar field, no setters, no bindings.");
     let _ = writeln!(out, "// Included inside the module (by the stamping overlay) so private fields are readable.");
-    let _ = writeln!(out, "#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, clippy::all)]");
+    let _ = writeln!(out, "#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, private_interfaces, private_bounds, clippy::all)]");
     let _ = writeln!(out, "pub mod yoake_glue_tables {{");
     let _ = writeln!(out, "    #![forbid(unsafe_code)]");
     let _ = writeln!(out, "    use yoake_slice::activation::{{FieldTable, RefFieldTable}};");

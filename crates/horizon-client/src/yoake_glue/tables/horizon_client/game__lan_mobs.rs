@@ -2,7 +2,7 @@
 // Regenerate: cargo run -p yoake-bindgen -- --config crates/yoake-bindgen/bindgen.json --tables CRATE
 // Module `game::lan_mobs` of crate `horizon_client`; getters of every scalar field, no setters, no bindings.
 // Included inside the module (by the stamping overlay) so private fields are readable.
-#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, clippy::all)]
+#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, private_interfaces, private_bounds, clippy::all)]
 pub mod yoake_glue_tables {
     #![forbid(unsafe_code)]
     use yoake_slice::activation::{FieldTable, RefFieldTable};
