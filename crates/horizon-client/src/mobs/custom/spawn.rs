@@ -188,12 +188,12 @@ impl Rule {
 
 /// What a position offers, read once: the pure rule checks work on it.
 #[derive(Clone, Debug)]
-pub struct Site {
+pub struct Site<'a> {
     pub y: i32,
     pub sky: i32,
     pub block: i32,
     pub sky_darken: i32,
-    pub dimension: &'static str,
+    pub dimension: &'a str,
     /// To the nearest player, squared (infinite when unknown).
     pub distance_sqr: f64,
 }
@@ -204,9 +204,22 @@ pub fn dimension_id(d: Dimension) -> &'static str {
         Dimension::Overworld => "minecraft:overworld",
         Dimension::Nether => "minecraft:the_nether",
         Dimension::End => "minecraft:the_end",
-        // A level added by a dimension type (F3-3/F3-4) has no id here (the trait does not carry it yet),
-        // so a rule's `dimensions` list never matches it.
+        // A level added by a dimension type: its id comes from `SpawnLevel::level_id` (`site_dimension`).
         Dimension::Level(_) => "",
+    }
+}
+
+/// The id a rule's `dimensions` list is matched against: the vanilla three by their ids, a level
+/// past them (a pack's or a runtime level, `mypack:moon`) by its own.
+pub fn site_dimension<L: SpawnLevel>(l: &L) -> &str {
+    dimension_key(l.dimension(), l.level_id())
+}
+
+/// [`site_dimension`] on its parts: `level_id` is the id of a level past the vanilla three.
+pub fn dimension_key(d: Dimension, level_id: &str) -> &str {
+    match d {
+        Dimension::Level(_) => level_id,
+        d => dimension_id(d),
     }
 }
 
@@ -216,7 +229,7 @@ impl Rule {
     /// structures; both are asked only when the rule needs them.
     pub fn allows(
         &self,
-        site: &Site,
+        site: &Site<'_>,
         dark: &mut dyn FnMut() -> bool,
         structures: &dyn Fn(&[String]) -> bool,
     ) -> bool {
@@ -328,7 +341,7 @@ pub fn rules_ok<L: NaturalLevel, R: RandomSource>(
         sky: l.sky_light(x, y, z),
         block: l.block_light(x, y, z),
         sky_darken: if l.thundering() { 10 } else { l.sky_darken() },
-        dimension: dimension_id(l.dimension()),
+        dimension: site_dimension(l),
         distance_sqr,
     };
     for rule in rules_for(c, entry) {
@@ -495,7 +508,7 @@ mod tests {
         let v: Value = serde_json::from_str(json).unwrap();
         serde_json::from_value(v).unwrap()
     }
-    fn site(y: i32, sky: i32, block: i32, darken: i32, distance: f64) -> Site {
+    fn site(y: i32, sky: i32, block: i32, darken: i32, distance: f64) -> Site<'static> {
         Site {
             y,
             sky,
@@ -505,7 +518,7 @@ mod tests {
             distance_sqr: distance * distance,
         }
     }
-    fn allows(rule: &Rule, s: &Site, dark: bool) -> bool {
+    fn allows(rule: &Rule, s: &Site<'_>, dark: bool) -> bool {
         rule.allows(s, &mut || dark, &|_| true)
     }
 
@@ -581,6 +594,25 @@ mod tests {
         r.structures = vec!["minecraft:village_plains".into()];
         assert!(!r.allows(&site(15, 0, 0, 0, 40.0), &mut || true, &|_| false));
         assert!(r.allows(&site(15, 0, 0, 0, 40.0), &mut || true, &|s| s == ["minecraft:village_plains"]));
+    }
+
+    #[test]
+    fn a_dimensions_list_matches_a_pack_level_by_its_own_id() {
+        use crate::mobs::spawn_rules::LightRule;
+        let light = LightRule { block_limit: 15, min: 0, max: 7, constant: true };
+        // Vanilla keeps its ids; a level past the three answers with the id it was given.
+        assert_eq!(dimension_key(Dimension::Overworld, ""), "minecraft:overworld");
+        assert_eq!(dimension_key(Dimension::Nether, "mypack:moon"), "minecraft:the_nether");
+        assert_eq!(dimension_key(Dimension::Level(light), "mypack:moon"), "mypack:moon");
+        let mut r = Rule::default_for(Category::Creature);
+        r.dimensions = vec!["mypack:moon".into()];
+        let at = |dimension: &'static str| Site { dimension, ..site(64, 15, 0, 0, 40.0) };
+        assert!(r.allows(&at(dimension_key(Dimension::Level(light), "mypack:moon")), &mut || true, &|_| true));
+        assert!(!r.allows(&at(dimension_key(Dimension::Level(light), "mypack:mars")), &mut || true, &|_| true));
+        assert!(!r.allows(&at(dimension_key(Dimension::Overworld, "")), &mut || true, &|_| true));
+        // A rule without a list still matches the level.
+        r.dimensions.clear();
+        assert!(r.allows(&at(dimension_key(Dimension::Level(light), "mypack:moon")), &mut || true, &|_| true));
     }
 
     #[test]

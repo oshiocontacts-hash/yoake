@@ -1,0 +1,10 @@
+# W5: the crates the build-time stamping overlay (W7) and `yoake-hook-codemod apply --stamp-config` cover.
+# <crate root> <crate name> <module or *> [exclude=top-level,modules] [min_stmts=N]
+# `min_stmts=N`: fns with at most N statements are not stamped unless listed in hook-ledger/stamp-allow.txt
+# (one fn key per line) or already live in the ledger. Hot-leaf modules go into exclude=.
+# `private_types=true`: also hook impls on types that have no crate-level path (W4).
+# `bridges=true`: the overlay also generates the hook bridges and includes the committed field tables (W9b).
+# The CI `check` job still reads modules.txt only; these lines do not make `check` require stamps.
+crates/horizon-client-lib horizon_client_lib * exclude=benchmark,inject_test_support,test_support min_stmts=3 private_types=true bridges=true
+crates/horizon-client horizon_client * exclude=test_support,inject_test_support min_stmts=3 private_types=true bridges=true
+crates/horizon-world horizon_world * exclude=test_support min_stmts=3 private_types=true bridges=true

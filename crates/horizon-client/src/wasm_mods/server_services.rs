@@ -299,6 +299,17 @@ impl ServerHost for GameServerHost {
         server_service(|host| host.levels_regenerate(&id, seed))
     }
 
+    fn current_level(&mut self, player: String) -> Result<String, String> {
+        let uuid = parse_uuid(&player)?;
+        read_service(|host| {
+            host.server_players()
+                .into_iter()
+                .find(|p| p.uuid == uuid)
+                .map(|p| p.dimension)
+                .ok_or_else(|| "the player is not here".to_owned())
+        })
+    }
+
     fn level_list(&mut self) -> Result<Vec<String>, String> {
         read_service(|host| Ok(host.levels_list()))
     }

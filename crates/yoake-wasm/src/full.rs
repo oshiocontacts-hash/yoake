@@ -437,6 +437,7 @@ server_services! {
     level_unload(id: String) -> Result<(), String> = unsupported();
     level_regenerate(id: String, seed: Option<i64>) -> Result<(), String> = unsupported();
     level_list() -> Result<Vec<String>, String> = unsupported();
+    current_level(player: String) -> Result<String, String> = unsupported();
     generator_register(id: String) -> Result<(), String> = unsupported();
     container_slots(dimension: String, position: st::BlockPos) -> Result<Vec<Option<st::ItemStack>>, String> = unsupported();
     container_set_slots(dimension: String, position: st::BlockPos, slots: Vec<Option<st::ItemStack>>) -> Result<(), String> = unsupported();

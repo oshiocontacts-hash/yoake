@@ -9199,6 +9199,156 @@
       "path": "mobs::CustomLevel.spawn_light#set",
       "sig": "set spawn_light: crate::mobs::spawn_rules::LightRule",
       "status": "ReadOnly"
+    },
+    {
+      "id": 2533,
+      "path": "mod_generator::<ModTerrain as ChunkGenerator>::worker",
+      "sig": "fn worker(&Self) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 2534,
+      "path": "mod_generator::ModGeneratorContext.generator#get",
+      "sig": "get generator: String",
+      "status": "bound"
+    },
+    {
+      "id": 2535,
+      "path": "mod_generator::ModGeneratorContext.generator#set",
+      "sig": "set generator: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2536,
+      "path": "mod_generator::ModGeneratorContext.level#get",
+      "sig": "get level: String",
+      "status": "bound"
+    },
+    {
+      "id": 2537,
+      "path": "mod_generator::ModGeneratorContext.level#set",
+      "sig": "set level: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2538,
+      "path": "mod_generator::ModGeneratorContext.seed#get",
+      "sig": "get seed: i64",
+      "status": "bound"
+    },
+    {
+      "id": 2539,
+      "path": "mod_generator::ModGeneratorContext.seed#set",
+      "sig": "set seed: i64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2540,
+      "path": "mod_generator::ModGeneratorContext::block",
+      "sig": "fn block(&Self, &str) -> Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 2541,
+      "path": "mod_generator::ModGenerators::contains",
+      "sig": "fn contains(&Self, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2542,
+      "path": "mod_generator::ModTerrain.level#get",
+      "sig": "get level: String",
+      "status": "bound"
+    },
+    {
+      "id": 2543,
+      "path": "mod_generator::ModTerrain.level#set",
+      "sig": "set level: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2544,
+      "path": "mod_generator::ModTerrain.plains#get",
+      "sig": "get plains: u16",
+      "status": "bound"
+    },
+    {
+      "id": 2545,
+      "path": "mod_generator::ModTerrain.plains#set",
+      "sig": "set plains: u16",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2546,
+      "path": "mod_generator::clear_staged",
+      "sig": "fn clear_staged() -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 2547,
+      "path": "mod_generator::ModChunk.chunk_x#get",
+      "sig": "get chunk_x: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2548,
+      "path": "mod_generator::ModChunk.chunk_x#set",
+      "sig": "set chunk_x: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2549,
+      "path": "mod_generator::ModChunk.chunk_z#get",
+      "sig": "get chunk_z: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2550,
+      "path": "mod_generator::ModChunk.chunk_z#set",
+      "sig": "set chunk_z: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2551,
+      "path": "mod_generator::ModChunk.failed#get",
+      "sig": "get failed: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2552,
+      "path": "mod_generator::ModChunk.failed#set",
+      "sig": "set failed: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2553,
+      "path": "mod_generator::ModChunk::block",
+      "sig": "fn block(&Self, i32, i32, i32) -> u32",
+      "status": "bound"
+    },
+    {
+      "id": 2554,
+      "path": "mod_generator::ModChunk::fill_layer",
+      "sig": "fn fill_layer(&mut Self, i32, u32) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 2555,
+      "path": "mod_generator::ModChunk::mark_failed",
+      "sig": "fn mark_failed(&mut Self) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 2556,
+      "path": "mod_generator::ModChunk::set_biome",
+      "sig": "fn set_biome(&mut Self, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2557,
+      "path": "mod_generator::ModChunk::set_block",
+      "sig": "fn set_block(&mut Self, i32, i32, i32, u32) -> ()",
+      "status": "bound"
     }
   ]
 }

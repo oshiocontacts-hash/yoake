@@ -6,7 +6,7 @@
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]
-    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, RefFieldTable, Status};
+    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, PathRootRef, RefFieldTable, Status};
     use yoake_slice::codec::{self, CallError, Decode, Decoder, Encode};
 
     fn enc_crate__merchant__ItemCost(v: &crate::merchant::ItemCost, out: &mut Vec<u8>) {
@@ -2816,94 +2816,94 @@ pub mod yoake_glue {
     }
 
     /// `mobs::<Aim as Clone>::clone`
-    fn call_464(recv: &mut crate::mobs::Aim, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_464(recv: &crate::mobs::Aim, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Aim as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::Aim as core::clone::Clone>::clone(recv);
         enc_crate__mobs__Aim(&r, out);
         Ok(())
     }
 
     /// `mobs::<Aim as PartialEq>::eq`
-    fn call_465(recv: &mut crate::mobs::Aim, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_465(recv: &crate::mobs::Aim, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__mobs__Aim(d)?;
         d.finish()?;
-        let r = <crate::mobs::Aim as core::cmp::PartialEq>::eq(&*recv, &a0);
+        let r = <crate::mobs::Aim as core::cmp::PartialEq>::eq(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::<Attrs as Clone>::clone`
-    fn call_466(recv: &mut crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_466(recv: &crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Attrs as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::Attrs as core::clone::Clone>::clone(recv);
         enc_crate__mobs__Attrs(&r, out);
         Ok(())
     }
 
     /// `mobs::<Brain as Clone>::clone`
-    fn call_467(recv: &mut crate::mobs::Brain, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_467(recv: &crate::mobs::Brain, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Brain as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::Brain as core::clone::Clone>::clone(recv);
         enc_crate__mobs__Brain(&r, out);
         Ok(())
     }
 
     /// `mobs::<Brain as PartialEq>::eq`
-    fn call_468(recv: &mut crate::mobs::Brain, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_468(recv: &crate::mobs::Brain, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__mobs__Brain(d)?;
         d.finish()?;
-        let r = <crate::mobs::Brain as core::cmp::PartialEq>::eq(&*recv, &a0);
+        let r = <crate::mobs::Brain as core::cmp::PartialEq>::eq(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::<Damage as Clone>::clone`
-    fn call_469(recv: &mut crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_469(recv: &crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Damage as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::Damage as core::clone::Clone>::clone(recv);
         enc_crate__mobs__Damage(&r, out);
         Ok(())
     }
 
     /// `mobs::<DamageKind as Clone>::clone`
-    fn call_470(recv: &mut crate::mobs::DamageKind, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_470(recv: &crate::mobs::DamageKind, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::DamageKind as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::DamageKind as core::clone::Clone>::clone(recv);
         enc_crate__mobs__DamageKind(&r, out);
         Ok(())
     }
 
     /// `mobs::<DamageKind as PartialEq>::eq`
-    fn call_471(recv: &mut crate::mobs::DamageKind, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_471(recv: &crate::mobs::DamageKind, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__mobs__DamageKind(d)?;
         d.finish()?;
-        let r = <crate::mobs::DamageKind as core::cmp::PartialEq>::eq(&*recv, &a0);
+        let r = <crate::mobs::DamageKind as core::cmp::PartialEq>::eq(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::<ElytraAnimation as Clone>::clone`
-    fn call_472(recv: &mut crate::mobs::ElytraAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_472(recv: &crate::mobs::ElytraAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::ElytraAnimation as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::ElytraAnimation as core::clone::Clone>::clone(recv);
         enc_crate__mobs__ElytraAnimation(&r, out);
         Ok(())
     }
@@ -2919,11 +2919,11 @@ pub mod yoake_glue {
     }
 
     /// `mobs::<Flags as Clone>::clone`
-    fn call_474(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_474(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Flags as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::Flags as core::clone::Clone>::clone(recv);
         enc_crate__mobs__Flags(&r, out);
         Ok(())
     }
@@ -2939,11 +2939,11 @@ pub mod yoake_glue {
     }
 
     /// `mobs::<MannequinDescription as Clone>::clone`
-    fn call_476(recv: &mut crate::mobs::MannequinDescription, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_476(recv: &crate::mobs::MannequinDescription, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::MannequinDescription as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::MannequinDescription as core::clone::Clone>::clone(recv);
         enc_crate__mobs__MannequinDescription(&r, out);
         Ok(())
     }
@@ -2959,22 +2959,22 @@ pub mod yoake_glue {
     }
 
     /// `mobs::<MannequinDescription as PartialEq>::eq`
-    fn call_478(recv: &mut crate::mobs::MannequinDescription, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_478(recv: &crate::mobs::MannequinDescription, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__mobs__MannequinDescription(d)?;
         d.finish()?;
-        let r = <crate::mobs::MannequinDescription as core::cmp::PartialEq>::eq(&*recv, &a0);
+        let r = <crate::mobs::MannequinDescription as core::cmp::PartialEq>::eq(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::<Mob as EntityRules>::is_no_gravity`
-    fn call_479(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_479(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob as crate::entity_rules::EntityRules>::is_no_gravity(&*recv);
+        let r = <crate::mobs::Mob as crate::entity_rules::EntityRules>::is_no_gravity(recv);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -2990,11 +2990,11 @@ pub mod yoake_glue {
     }
 
     /// `mobs::<Part as Clone>::clone`
-    fn call_481(recv: &mut crate::mobs::Part, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_481(recv: &crate::mobs::Part, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Part as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::Part as core::clone::Clone>::clone(recv);
         enc_crate__mobs__Part(&r, out);
         Ok(())
     }
@@ -3010,21 +3010,21 @@ pub mod yoake_glue {
     }
 
     /// `mobs::<Polygon as Clone>::clone`
-    fn call_483(recv: &mut crate::mobs::Polygon, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_483(recv: &crate::mobs::Polygon, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Polygon as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::Polygon as core::clone::Clone>::clone(recv);
         enc_crate__mobs__Polygon(&r, out);
         Ok(())
     }
 
     /// `mobs::<SpawnSetup as Clone>::clone`
-    fn call_484(recv: &mut crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_484(recv: &crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::SpawnSetup as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::SpawnSetup as core::clone::Clone>::clone(recv);
         enc_crate__mobs__SpawnSetup(&r, out);
         Ok(())
     }
@@ -3040,11 +3040,11 @@ pub mod yoake_glue {
     }
 
     /// `mobs::<SwimAnimation as Clone>::clone`
-    fn call_486(recv: &mut crate::mobs::SwimAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_486(recv: &crate::mobs::SwimAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::SwimAnimation as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::SwimAnimation as core::clone::Clone>::clone(recv);
         enc_crate__mobs__SwimAnimation(&r, out);
         Ok(())
     }
@@ -3060,7 +3060,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Aim.eye#get`
-    fn call_488(recv: &mut crate::mobs::Aim, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_488(recv: &crate::mobs::Aim, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.eye).iter() {
             Encode::encode(e0, out);
@@ -3072,7 +3072,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Aim.feet#get`
-    fn call_490(recv: &mut crate::mobs::Aim, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_490(recv: &crate::mobs::Aim, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.feet).iter() {
             Encode::encode(e0, out);
@@ -3084,7 +3084,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Aim.look#get`
-    fn call_492(recv: &mut crate::mobs::Aim, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_492(recv: &crate::mobs::Aim, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.look).iter() {
             Encode::encode(e0, out);
@@ -3096,7 +3096,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Attrs.attack_damage#get`
-    fn call_494(recv: &mut crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_494(recv: &crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.attack_damage, out);
         Ok(())
@@ -3106,7 +3106,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Attrs.attack_knockback#get`
-    fn call_496(recv: &mut crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_496(recv: &crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.attack_knockback, out);
         Ok(())
@@ -3116,7 +3116,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Attrs.follow_range#get`
-    fn call_498(recv: &mut crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_498(recv: &crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.follow_range, out);
         Ok(())
@@ -3126,7 +3126,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Attrs.jump_strength#get`
-    fn call_500(recv: &mut crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_500(recv: &crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.jump_strength, out);
         Ok(())
@@ -3136,7 +3136,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Attrs.knockback_resistance#get`
-    fn call_502(recv: &mut crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_502(recv: &crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.knockback_resistance, out);
         Ok(())
@@ -3146,7 +3146,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Attrs.max_health#get`
-    fn call_504(recv: &mut crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_504(recv: &crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.max_health, out);
         Ok(())
@@ -3156,7 +3156,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Attrs.spawn_reinforcements#get`
-    fn call_506(recv: &mut crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_506(recv: &crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.spawn_reinforcements, out);
         Ok(())
@@ -3166,7 +3166,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Attrs.speed#get`
-    fn call_508(recv: &mut crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_508(recv: &crate::mobs::Attrs, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.speed, out);
         Ok(())
@@ -3176,7 +3176,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Damage.attacker#get`
-    fn call_510(recv: &mut crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_510(recv: &crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.attacker {
             None => out.push(0),
@@ -3192,7 +3192,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Damage.from#get`
-    fn call_512(recv: &mut crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_512(recv: &crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.from {
             None => out.push(0),
@@ -3210,7 +3210,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Damage.kind#get`
-    fn call_514(recv: &mut crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_514(recv: &crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__DamageKind(&recv.kind, out);
         Ok(())
@@ -3220,21 +3220,21 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Damage::bypasses_armor`
-    fn call_516(recv: &mut crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_516(recv: &crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Damage>::bypasses_armor(&*recv);
+        let r = <crate::mobs::Damage>::bypasses_armor(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Damage::causes_panic`
-    fn call_517(recv: &mut crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_517(recv: &crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Damage>::causes_panic(&*recv);
+        let r = <crate::mobs::Damage>::causes_panic(recv);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -3300,21 +3300,21 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Damage::is_fire`
-    fn call_521(recv: &mut crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_521(recv: &crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Damage>::is_fire(&*recv);
+        let r = <crate::mobs::Damage>::is_fire(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Damage::is_projectile`
-    fn call_522(recv: &mut crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_522(recv: &crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Damage>::is_projectile(&*recv);
+        let r = <crate::mobs::Damage>::is_projectile(recv);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -3361,11 +3361,11 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Damage::no_knockback`
-    fn call_525(recv: &mut crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_525(recv: &crate::mobs::Damage, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Damage>::no_knockback(&*recv);
+        let r = <crate::mobs::Damage>::no_knockback(recv);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -3455,7 +3455,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::ElytraAnimation.angles#get`
-    fn call_532(recv: &mut crate::mobs::ElytraAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_532(recv: &crate::mobs::ElytraAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.angles).iter() {
             Encode::encode(e0, out);
@@ -3467,7 +3467,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::ElytraAnimation.old#get`
-    fn call_534(recv: &mut crate::mobs::ElytraAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_534(recv: &crate::mobs::ElytraAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.old).iter() {
             Encode::encode(e0, out);
@@ -3479,12 +3479,12 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::ElytraAnimation::angles`
-    fn call_536(recv: &mut crate::mobs::ElytraAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_536(recv: &crate::mobs::ElytraAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <f32 as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::mobs::ElytraAnimation>::angles(&*recv, a0);
+        let r = <crate::mobs::ElytraAnimation>::angles(recv, a0);
         for e0 in (&r).iter() {
             Encode::encode(e0, out);
         }
@@ -3504,12 +3504,12 @@ pub mod yoake_glue {
     }
 
     /// `mobs::EntityModelDocument::model`
-    fn call_538(recv: &mut crate::mobs::EntityModelDocument, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_538(recv: &crate::mobs::EntityModelDocument, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::mobs::EntityModelDocument>::model(&*recv, &a0);
+        let r = <crate::mobs::EntityModelDocument>::model(recv, &a0);
         match &r {
             None => out.push(0),
             Some(v0) => {
@@ -3521,7 +3521,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Extra.age#get`
-    fn call_539(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_539(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.age, out);
         Ok(())
@@ -3531,7 +3531,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.age_lock_particle_timer#get`
-    fn call_541(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_541(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.age_lock_particle_timer, out);
         Ok(())
@@ -3541,7 +3541,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.age_locked#get`
-    fn call_543(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_543(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.age_locked, out);
         Ok(())
@@ -3551,7 +3551,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.anger#get`
-    fn call_545(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_545(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.anger, out);
         Ok(())
@@ -3561,7 +3561,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.anger_end#get`
-    fn call_547(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_547(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.anger_end, out);
         Ok(())
@@ -3571,7 +3571,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.angry_at#get`
-    fn call_549(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_549(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.angry_at {
             None => out.push(0),
@@ -3587,7 +3587,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.anim_ticks#get`
-    fn call_551(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_551(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.anim_ticks, out);
         Ok(())
@@ -3597,7 +3597,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.armor#get`
-    fn call_553(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_553(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.armor).iter() {
             match e0 {
@@ -3615,7 +3615,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.arrow_count#get`
-    fn call_555(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_555(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.arrow_count, out);
         Ok(())
@@ -3625,7 +3625,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.auto_spin_attack#get`
-    fn call_557(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_557(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.auto_spin_attack, out);
         Ok(())
@@ -3635,7 +3635,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.avatar_pose#get`
-    fn call_559(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_559(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__pose__Pose(&recv.avatar_pose, out);
         Ok(())
@@ -3645,7 +3645,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.bed#get`
-    fn call_561(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_561(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.bed {
             None => out.push(0),
@@ -3663,7 +3663,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.bee#get`
-    fn call_563(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_563(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.bee {
             None => out.push(0),
@@ -3679,7 +3679,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.blocking#get`
-    fn call_565(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_565(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.blocking, out);
         Ok(())
@@ -3689,7 +3689,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.boarding_cooldown#get`
-    fn call_567(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_567(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.boarding_cooldown, out);
         Ok(())
@@ -3699,7 +3699,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.body#get`
-    fn call_569(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_569(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.body {
             None => out.push(0),
@@ -3715,7 +3715,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.body_damage#get`
-    fn call_571(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_571(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.body_damage, out);
         Ok(())
@@ -3725,7 +3725,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.bred#get`
-    fn call_573(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_573(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.bred, out);
         Ok(())
@@ -3735,7 +3735,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.camel_sitting#get`
-    fn call_575(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_575(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.camel_sitting, out);
         Ok(())
@@ -3745,7 +3745,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.can_break_doors#get`
-    fn call_577(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_577(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.can_break_doors, out);
         Ok(())
@@ -3755,7 +3755,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.carried#get`
-    fn call_579(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_579(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.carried {
             None => out.push(0),
@@ -3771,7 +3771,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.charged#get`
-    fn call_581(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_581(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.charged, out);
         Ok(())
@@ -3781,7 +3781,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.chest#get`
-    fn call_583(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_583(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.chest {
             None => out.push(0),
@@ -3797,7 +3797,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.chested#get`
-    fn call_585(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_585(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chested, out);
         Ok(())
@@ -3807,7 +3807,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.color#get`
-    fn call_587(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_587(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.color, out);
         Ok(())
@@ -3817,7 +3817,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.counter#get`
-    fn call_589(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_589(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.counter, out);
         Ok(())
@@ -3827,7 +3827,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.counter2#get`
-    fn call_591(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_591(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.counter2, out);
         Ok(())
@@ -3837,7 +3837,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.crouching#get`
-    fn call_593(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_593(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.crouching, out);
         Ok(())
@@ -3847,7 +3847,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.death_loot_seed#get`
-    fn call_595(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_595(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.death_loot_seed, out);
         Ok(())
@@ -3857,7 +3857,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.death_loot_table#get`
-    fn call_597(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_597(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.death_loot_table {
             None => out.push(0),
@@ -3873,7 +3873,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.description#get`
-    fn call_599(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_599(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__MannequinDescription(&recv.description, out);
         Ok(())
@@ -3883,7 +3883,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.drop_chances#get`
-    fn call_601(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_601(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.drop_chances {
             None => out.push(0),
@@ -3901,7 +3901,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.effect_ambient#get`
-    fn call_603(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_603(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.effect_ambient, out);
         Ok(())
@@ -3911,7 +3911,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.egg_time#get`
-    fn call_605(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_605(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.egg_time, out);
         Ok(())
@@ -3921,7 +3921,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.elytra#get`
-    fn call_607(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_607(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__ElytraAnimation(&recv.elytra, out);
         Ok(())
@@ -3931,7 +3931,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.equipment_heard#get`
-    fn call_609(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_609(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.equipment_heard {
             None => out.push(0),
@@ -3955,7 +3955,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.fall_fly_ticks#get`
-    fn call_611(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_611(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fall_fly_ticks, out);
         Ok(())
@@ -3965,7 +3965,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.fall_flying#get`
-    fn call_613(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_613(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fall_flying, out);
         Ok(())
@@ -3975,7 +3975,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.feet#get`
-    fn call_615(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_615(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.feet {
             None => out.push(0),
@@ -3991,7 +3991,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.flag#get`
-    fn call_617(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_617(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.flag, out);
         Ok(())
@@ -4001,7 +4001,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.flag2#get`
-    fn call_619(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_619(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.flag2, out);
         Ok(())
@@ -4011,7 +4011,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.followers#get`
-    fn call_621(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_621(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.followers, out);
         Ok(())
@@ -4021,7 +4021,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.forced_age#get`
-    fn call_623(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_623(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.forced_age, out);
         Ok(())
@@ -4031,7 +4031,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.forced_age_timer#get`
-    fn call_625(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_625(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.forced_age_timer, out);
         Ok(())
@@ -4041,7 +4041,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.from_bucket#get`
-    fn call_627(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_627(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.from_bucket, out);
         Ok(())
@@ -4051,7 +4051,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.gear#get`
-    fn call_629(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_629(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.gear {
             None => out.push(0),
@@ -4067,7 +4067,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.head#get`
-    fn call_631(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_631(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.head {
             None => out.push(0),
@@ -4083,7 +4083,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.hidden_model_parts#get`
-    fn call_633(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_633(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.hidden_model_parts, out);
         Ok(())
@@ -4093,7 +4093,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.home#get`
-    fn call_635(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_635(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.home {
             None => out.push(0),
@@ -4111,7 +4111,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.illusions#get`
-    fn call_637(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_637(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.illusions {
             None => out.push(0),
@@ -4127,7 +4127,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.immovable#get`
-    fn call_639(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_639(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.immovable, out);
         Ok(())
@@ -4137,7 +4137,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.in_love#get`
-    fn call_641(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_641(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.in_love, out);
         Ok(())
@@ -4147,7 +4147,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.ints#get`
-    fn call_643(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_643(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.ints).iter() {
             Encode::encode(e0, out);
@@ -4159,7 +4159,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.inventory#get`
-    fn call_645(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_645(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.inventory;
@@ -4175,7 +4175,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.items#get`
-    fn call_647(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_647(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.items;
@@ -4197,7 +4197,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.jockey#get`
-    fn call_649(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_649(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.jockey, out);
         Ok(())
@@ -4207,7 +4207,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.leader#get`
-    fn call_651(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_651(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.leader {
             None => out.push(0),
@@ -4223,7 +4223,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.leash#get`
-    fn call_653(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_653(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.leash {
             None => out.push(0),
@@ -4239,7 +4239,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.leash_pending#get`
-    fn call_655(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_655(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.leash_pending {
             None => out.push(0),
@@ -4255,7 +4255,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.leash_player#get`
-    fn call_657(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_657(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.leash_player {
             None => out.push(0),
@@ -4273,7 +4273,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.leash_spin#get`
-    fn call_659(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_659(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.leash_spin, out);
         Ok(())
@@ -4283,7 +4283,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.left_handed#get`
-    fn call_661(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_661(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.left_handed, out);
         Ok(())
@@ -4293,7 +4293,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.legs#get`
-    fn call_663(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_663(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.legs {
             None => out.push(0),
@@ -4309,7 +4309,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.lone#get`
-    fn call_665(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_665(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.lone, out);
         Ok(())
@@ -4319,7 +4319,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.lost_horns#get`
-    fn call_667(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_667(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.lost_horns).iter() {
             Encode::encode(e0, out);
@@ -4331,7 +4331,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.love_cause#get`
-    fn call_669(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_669(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.love_cause {
             None => out.push(0),
@@ -4349,7 +4349,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.love_player#get`
-    fn call_671(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_671(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.love_player, out);
         Ok(())
@@ -4359,7 +4359,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.main_hand#get`
-    fn call_673(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_673(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.main_hand {
             None => out.push(0),
@@ -4375,7 +4375,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.main_hand_left#get`
-    fn call_675(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_675(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.main_hand_left, out);
         Ok(())
@@ -4385,7 +4385,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.main_hand_stack#get`
-    fn call_677(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_677(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.main_hand_stack {
             None => out.push(0),
@@ -4401,7 +4401,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.meeting#get`
-    fn call_679(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_679(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.meeting {
             None => out.push(0),
@@ -4419,7 +4419,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.model_scale#get`
-    fn call_681(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_681(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.model_scale, out);
         Ok(())
@@ -4429,7 +4429,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.more_carrot_ticks#get`
-    fn call_683(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_683(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.more_carrot_ticks, out);
         Ok(())
@@ -4439,7 +4439,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.mount#get`
-    fn call_685(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_685(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.mount {
             None => out.push(0),
@@ -4455,7 +4455,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.off_hand#get`
-    fn call_687(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_687(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.off_hand {
             None => out.push(0),
@@ -4471,7 +4471,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.on_sleeper#get`
-    fn call_689(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_689(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.on_sleeper, out);
         Ok(())
@@ -4481,7 +4481,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.opened_chest#get`
-    fn call_691(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_691(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.opened_chest {
             None => out.push(0),
@@ -4499,7 +4499,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.owner#get`
-    fn call_693(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_693(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.owner {
             None => out.push(0),
@@ -4517,7 +4517,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.party_jukebox#get`
-    fn call_695(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_695(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.party_jukebox {
             None => out.push(0),
@@ -4535,7 +4535,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.passenger#get`
-    fn call_697(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_697(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.passenger, out);
         Ok(())
@@ -4545,7 +4545,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.pick_up_loot#get`
-    fn call_699(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_699(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.pick_up_loot, out);
         Ok(())
@@ -4555,7 +4555,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.player_created#get`
-    fn call_701(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_701(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.player_created, out);
         Ok(())
@@ -4565,7 +4565,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.point#get`
-    fn call_703(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_703(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.point {
             None => out.push(0),
@@ -4583,7 +4583,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.pose#get`
-    fn call_705(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_705(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.pose, out);
         Ok(())
@@ -4593,7 +4593,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.pose_change_tick#get`
-    fn call_707(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_707(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.pose_change_tick, out);
         Ok(())
@@ -4603,7 +4603,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.positions#get`
-    fn call_709(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_709(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.positions;
@@ -4621,7 +4621,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.previous_velocity#get`
-    fn call_711(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_711(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.previous_velocity, out);
         Ok(())
@@ -4631,7 +4631,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.raider#get`
-    fn call_713(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_713(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.raider {
             None => out.push(0),
@@ -4647,7 +4647,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.relax_one#get`
-    fn call_715(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_715(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.relax_one, out);
         Ok(())
@@ -4657,7 +4657,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.repellent#get`
-    fn call_717(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_717(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.repellent {
             None => out.push(0),
@@ -4675,7 +4675,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.rider#get`
-    fn call_719(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_719(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.rider {
             None => out.push(0),
@@ -4691,7 +4691,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.saddle_stack#get`
-    fn call_721(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_721(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.saddle_stack {
             None => out.push(0),
@@ -4707,7 +4707,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.saddled#get`
-    fn call_723(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_723(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.saddled, out);
         Ok(())
@@ -4717,7 +4717,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.scratch#get`
-    fn call_725(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_725(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.scratch).iter() {
             Encode::encode(e0, out);
@@ -4729,7 +4729,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.screaming#get`
-    fn call_727(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_727(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.screaming, out);
         Ok(())
@@ -4739,7 +4739,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.section#get`
-    fn call_729(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_729(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.section).iter() {
             Encode::encode(e0, out);
@@ -4751,7 +4751,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.section_seq#get`
-    fn call_731(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_731(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.section_seq, out);
         Ok(())
@@ -4761,7 +4761,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.sheared#get`
-    fn call_733(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_733(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sheared, out);
         Ok(())
@@ -4771,7 +4771,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.shoulder_parrots#get`
-    fn call_735(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_735(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.shoulder_parrots).iter() {
             match e0 {
@@ -4789,7 +4789,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.sitting#get`
-    fn call_737(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_737(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sitting, out);
         Ok(())
@@ -4799,7 +4799,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.size#get`
-    fn call_739(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_739(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.size, out);
         Ok(())
@@ -4809,7 +4809,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.sound_variant#get`
-    fn call_741(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_741(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.sound_variant {
             None => out.push(0),
@@ -4825,7 +4825,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.spectator#get`
-    fn call_743(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_743(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.spectator, out);
         Ok(())
@@ -4835,7 +4835,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.sprinting#get`
-    fn call_745(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_745(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sprinting, out);
         Ok(())
@@ -4845,7 +4845,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.stabbed#get`
-    fn call_747(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_747(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.stabbed {
             None => out.push(0),
@@ -4871,7 +4871,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.stand_sliding#get`
-    fn call_749(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_749(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.stand_sliding, out);
         Ok(())
@@ -4881,7 +4881,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.stew_effects#get`
-    fn call_751(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_751(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.stew_effects {
             None => out.push(0),
@@ -4907,7 +4907,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.stinger_count#get`
-    fn call_753(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_753(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.stinger_count, out);
         Ok(())
@@ -4917,7 +4917,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.swim#get`
-    fn call_755(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_755(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__SwimAnimation(&recv.swim, out);
         Ok(())
@@ -4927,7 +4927,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.swing_right_arm#get`
-    fn call_757(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_757(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.swing_right_arm {
             None => out.push(0),
@@ -4943,7 +4943,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.swing_stab#get`
-    fn call_759(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_759(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.swing_stab, out);
         Ok(())
@@ -4953,7 +4953,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.synced_pose#get`
-    fn call_761(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_761(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.synced_pose, out);
         Ok(())
@@ -4963,7 +4963,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.tame#get`
-    fn call_763(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_763(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.tame, out);
         Ok(())
@@ -4973,7 +4973,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.trade#get`
-    fn call_765(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_765(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.trade {
             None => out.push(0),
@@ -4989,7 +4989,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.trap#get`
-    fn call_767(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_767(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.trap, out);
         Ok(())
@@ -4999,7 +4999,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.trap_time#get`
-    fn call_769(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_769(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.trap_time, out);
         Ok(())
@@ -5009,7 +5009,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.trusted#get`
-    fn call_771(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_771(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.trusted).iter() {
             match e0 {
@@ -5029,7 +5029,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.trusting#get`
-    fn call_773(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_773(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.trusting, out);
         Ok(())
@@ -5039,7 +5039,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.using_item#get`
-    fn call_775(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_775(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.using_item, out);
         Ok(())
@@ -5049,7 +5049,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.using_off_hand#get`
-    fn call_777(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_777(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.using_off_hand, out);
         Ok(())
@@ -5059,7 +5059,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.variant#get`
-    fn call_779(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_779(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.variant, out);
         Ok(())
@@ -5069,7 +5069,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.variant2#get`
-    fn call_781(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_781(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.variant2, out);
         Ok(())
@@ -5079,7 +5079,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.variant3#get`
-    fn call_783(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_783(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.variant3, out);
         Ok(())
@@ -5089,7 +5089,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Extra.vector#get`
-    fn call_785(recv: &mut crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_785(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.vector).iter() {
             Encode::encode(e0, out);
@@ -5145,7 +5145,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Flags.animal#get`
-    fn call_790(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_790(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.animal, out);
         Ok(())
@@ -5155,7 +5155,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Flags.aquatic_swimmer#get`
-    fn call_792(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_792(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.aquatic_swimmer, out);
         Ok(())
@@ -5165,7 +5165,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Flags.breathes_water#get`
-    fn call_794(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_794(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.breathes_water, out);
         Ok(())
@@ -5175,7 +5175,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Flags.burns_in_day#get`
-    fn call_796(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_796(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.burns_in_day, out);
         Ok(())
@@ -5185,7 +5185,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Flags.climber#get`
-    fn call_798(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_798(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.climber, out);
         Ok(())
@@ -5195,7 +5195,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Flags.fall_immune#get`
-    fn call_800(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_800(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fall_immune, out);
         Ok(())
@@ -5205,7 +5205,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Flags.fire_immune#get`
-    fn call_802(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_802(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fire_immune, out);
         Ok(())
@@ -5215,7 +5215,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Flags.flying#get`
-    fn call_804(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_804(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.flying, out);
         Ok(())
@@ -5225,7 +5225,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Flags.lava_walker#get`
-    fn call_806(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_806(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.lava_walker, out);
         Ok(())
@@ -5235,7 +5235,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Flags.needs_water#get`
-    fn call_808(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_808(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.needs_water, out);
         Ok(())
@@ -5245,7 +5245,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Flags.omnidirectional#get`
-    fn call_810(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_810(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.omnidirectional, out);
         Ok(())
@@ -5255,7 +5255,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Flags.undead#get`
-    fn call_812(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_812(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.undead, out);
         Ok(())
@@ -5265,7 +5265,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Flags.water_sensitive#get`
-    fn call_814(recv: &mut crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_814(recv: &crate::mobs::Flags, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.water_sensitive, out);
         Ok(())
@@ -5275,11 +5275,11 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MannequinDescription::component`
-    fn call_816(recv: &mut crate::mobs::MannequinDescription, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_816(recv: &crate::mobs::MannequinDescription, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::MannequinDescription>::component(&*recv);
+        let r = <crate::mobs::MannequinDescription>::component(recv);
         match &r {
             None => out.push(0),
             Some(v0) => {
@@ -5306,7 +5306,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.absorption#get`
-    fn call_818(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_818(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.absorption, out);
         Ok(())
@@ -5323,7 +5323,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.age#get`
-    fn call_820(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_820(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.age, out);
         Ok(())
@@ -5333,7 +5333,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.air#get`
-    fn call_822(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_822(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.air, out);
         Ok(())
@@ -5350,7 +5350,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.ambient_timer#get`
-    fn call_824(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_824(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.ambient_timer, out);
         Ok(())
@@ -5360,7 +5360,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.anim#get`
-    fn call_826(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_826(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__anim__AnimState(&recv.anim, out);
         Ok(())
@@ -5370,7 +5370,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.attacker_aim#get`
-    fn call_828(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_828(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.attacker_aim {
             None => out.push(0),
@@ -5386,7 +5386,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.attrs#get`
-    fn call_830(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_830(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__Attrs(&recv.attrs, out);
         Ok(())
@@ -5396,7 +5396,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.body_yaw#get`
-    fn call_832(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_832(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.body_yaw, out);
         Ok(())
@@ -5413,7 +5413,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.cape#get`
-    fn call_834(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_834(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.cape {
             None => out.push(0),
@@ -5429,7 +5429,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.climbing#get`
-    fn call_836(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_836(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.climbing, out);
         Ok(())
@@ -5439,7 +5439,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.custom_name#get`
-    fn call_838(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_838(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.custom_name {
             None => out.push(0),
@@ -5455,7 +5455,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.death_time#get`
-    fn call_840(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_840(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.death_time, out);
         Ok(())
@@ -5465,7 +5465,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.fall_distance#get`
-    fn call_842(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_842(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fall_distance, out);
         Ok(())
@@ -5482,7 +5482,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.fire_ticks#get`
-    fn call_844(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_844(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fire_ticks, out);
         Ok(())
@@ -5499,7 +5499,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.first_tick#get`
-    fn call_846(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_846(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.first_tick, out);
         Ok(())
@@ -5509,7 +5509,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.fluids#get`
-    fn call_848(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_848(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__living__Fluids(&recv.fluids, out);
         Ok(())
@@ -5519,7 +5519,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.gear_knockback_resistance#get`
-    fn call_850(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_850(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.gear_knockback_resistance {
             None => out.push(0),
@@ -5535,7 +5535,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.glowing#get`
-    fn call_852(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_852(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.glowing, out);
         Ok(())
@@ -5552,7 +5552,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.head_pitch#get`
-    fn call_854(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_854(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.head_pitch, out);
         Ok(())
@@ -5569,7 +5569,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.head_yaw#get`
-    fn call_856(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_856(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.head_yaw, out);
         Ok(())
@@ -5586,7 +5586,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.health#get`
-    fn call_858(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_858(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.health, out);
         Ok(())
@@ -5603,7 +5603,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.horizontal_collision#get`
-    fn call_860(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_860(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.horizontal_collision, out);
         Ok(())
@@ -5613,7 +5613,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.hurt_time#get`
-    fn call_862(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_862(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.hurt_time, out);
         Ok(())
@@ -5623,7 +5623,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.id#get`
-    fn call_864(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_864(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.id, out);
         Ok(())
@@ -5633,7 +5633,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.invisible#get`
-    fn call_866(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_866(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.invisible, out);
         Ok(())
@@ -5650,7 +5650,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.invulnerable#get`
-    fn call_868(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_868(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.invulnerable, out);
         Ok(())
@@ -5660,7 +5660,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.invulnerable_flag#get`
-    fn call_870(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_870(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.invulnerable_flag, out);
         Ok(())
@@ -5670,7 +5670,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.last_damage#get`
-    fn call_872(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_872(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.last_damage {
             None => out.push(0),
@@ -5690,7 +5690,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.last_hurt#get`
-    fn call_874(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_874(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.last_hurt, out);
         Ok(())
@@ -5700,7 +5700,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.limb_position#get`
-    fn call_876(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_876(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.limb_position, out);
         Ok(())
@@ -5710,7 +5710,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.limb_speed#get`
-    fn call_878(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_878(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.limb_speed, out);
         Ok(())
@@ -5720,7 +5720,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.max_swell#get`
-    fn call_880(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_880(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.max_swell, out);
         Ok(())
@@ -5730,7 +5730,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.name_visible#get`
-    fn call_882(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_882(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.name_visible, out);
         Ok(())
@@ -5747,7 +5747,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.native_control#get`
-    fn call_884(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_884(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.native_control {
             None => out.push(0),
@@ -5763,7 +5763,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.native_damage_immune#get`
-    fn call_886(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_886(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.native_damage_immune, out);
         Ok(())
@@ -5773,7 +5773,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.native_last_player_attacker#get`
-    fn call_888(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_888(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.native_last_player_attacker, out);
         Ok(())
@@ -5783,7 +5783,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.needs_sync#get`
-    fn call_890(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_890(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.needs_sync, out);
         Ok(())
@@ -5793,7 +5793,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.no_ai#get`
-    fn call_892(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_892(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.no_ai, out);
         Ok(())
@@ -5810,7 +5810,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.no_gravity#get`
-    fn call_894(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_894(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.no_gravity, out);
         Ok(())
@@ -5827,7 +5827,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.on_ground#get`
-    fn call_896(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_896(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.on_ground, out);
         Ok(())
@@ -5844,7 +5844,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.persistent#get`
-    fn call_898(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_898(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.persistent, out);
         Ok(())
@@ -5861,7 +5861,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.piston#get`
-    fn call_900(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_900(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_world__piston_movement__PistonMovement(&recv.piston, out);
         Ok(())
@@ -5871,7 +5871,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.position#get`
-    fn call_902(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_902(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.position, out);
         Ok(())
@@ -5888,7 +5888,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.previous#get`
-    fn call_904(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_904(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.previous, out);
         Ok(())
@@ -5905,7 +5905,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.previous_body_yaw#get`
-    fn call_906(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_906(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.previous_body_yaw, out);
         Ok(())
@@ -5915,7 +5915,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.previous_head_pitch#get`
-    fn call_908(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_908(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.previous_head_pitch, out);
         Ok(())
@@ -5925,7 +5925,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.previous_head_yaw#get`
-    fn call_910(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_910(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.previous_head_yaw, out);
         Ok(())
@@ -5935,7 +5935,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.previous_limb_speed#get`
-    fn call_912(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_912(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.previous_limb_speed, out);
         Ok(())
@@ -5945,7 +5945,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.previous_swell#get`
-    fn call_914(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_914(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.previous_swell, out);
         Ok(())
@@ -5955,7 +5955,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.previous_yaw#get`
-    fn call_916(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_916(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.previous_yaw, out);
         Ok(())
@@ -5972,7 +5972,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.projectile_motion#get`
-    fn call_918(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_918(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.projectile_motion {
             None => out.push(0),
@@ -5990,7 +5990,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.removed#get`
-    fn call_920(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_920(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.removed, out);
         Ok(())
@@ -6000,7 +6000,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.rider#get`
-    fn call_922(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_922(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.rider {
             None => out.push(0),
@@ -6016,7 +6016,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.silent#get`
-    fn call_924(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_924(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.silent, out);
         Ok(())
@@ -6033,7 +6033,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.skin#get`
-    fn call_926(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_926(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.skin {
             None => out.push(0),
@@ -6049,7 +6049,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.slim#get`
-    fn call_928(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_928(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.slim, out);
         Ok(())
@@ -6059,7 +6059,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.standing_on#get`
-    fn call_930(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_930(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.standing_on {
             None => out.push(0),
@@ -6075,7 +6075,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.stuck_multiplier#get`
-    fn call_932(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_932(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.stuck_multiplier, out);
         Ok(())
@@ -6085,7 +6085,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.supporting#get`
-    fn call_934(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_934(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.supporting {
             None => out.push(0),
@@ -6103,7 +6103,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.swell#get`
-    fn call_936(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_936(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.swell, out);
         Ok(())
@@ -6113,7 +6113,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.ticks_frozen#get`
-    fn call_938(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_938(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.ticks_frozen, out);
         Ok(())
@@ -6130,7 +6130,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.velocity#get`
-    fn call_940(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_940(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.velocity, out);
         Ok(())
@@ -6147,7 +6147,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob.vertical_collision_below#get`
-    fn call_942(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_942(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.vertical_collision_below, out);
         Ok(())
@@ -6157,7 +6157,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.was_eye_in_water#get`
-    fn call_944(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_944(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.was_eye_in_water, out);
         Ok(())
@@ -6167,7 +6167,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Mob.yaw#get`
-    fn call_946(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_946(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.yaw, out);
         Ok(())
@@ -6184,21 +6184,21 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob::alive`
-    fn call_948(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_948(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::alive(&*recv);
+        let r = <crate::mobs::Mob>::alive(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::ambient_interval`
-    fn call_949(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_949(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::ambient_interval(&*recv);
+        let r = <crate::mobs::Mob>::ambient_interval(recv);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -6217,41 +6217,41 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob::burning_time`
-    fn call_951(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_951(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::burning_time(&*recv);
+        let r = <crate::mobs::Mob>::burning_time(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::can_pick_up_loot`
-    fn call_952(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_952(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::can_pick_up_loot(&*recv);
+        let r = <crate::mobs::Mob>::can_pick_up_loot(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::category`
-    fn call_953(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_953(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::category(&*recv);
+        let r = <crate::mobs::Mob>::category(recv);
         Encode::encode(r, out);
         Ok(())
     }
 
     /// `mobs::Mob::center`
-    fn call_954(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_954(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::center(&*recv);
+        let r = <crate::mobs::Mob>::center(recv);
         for e0 in (&r).iter() {
             Encode::encode(e0, out);
         }
@@ -6315,18 +6315,18 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob::distance_sqr`
-    fn call_958(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_958(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_horizon_core__geometry__Vec3(d)?;
         d.finish()?;
-        let r = <crate::mobs::Mob>::distance_sqr(&*recv, a0);
+        let r = <crate::mobs::Mob>::distance_sqr(recv, a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::distance_to`
-    fn call_959(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_959(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = {
@@ -6340,17 +6340,17 @@ pub mod yoake_glue {
             }
         };
         d.finish()?;
-        let r = <crate::mobs::Mob>::distance_to(&*recv, a0);
+        let r = <crate::mobs::Mob>::distance_to(recv, a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::equipment_stacks`
-    fn call_960(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_960(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::equipment_stacks(&*recv);
+        let r = <crate::mobs::Mob>::equipment_stacks(recv);
         for e0 in (&r).iter() {
             match e0 {
                 None => out.push(0),
@@ -6373,12 +6373,12 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob::has_effect`
-    fn call_962(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_962(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::mobs::Mob>::has_effect(&*recv, &a0);
+        let r = <crate::mobs::Mob>::has_effect(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -6394,11 +6394,11 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob::hostile`
-    fn call_964(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_964(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::hostile(&*recv);
+        let r = <crate::mobs::Mob>::hostile(recv);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -6424,41 +6424,41 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob::is_currently_glowing`
-    fn call_967(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_967(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::is_currently_glowing(&*recv);
+        let r = <crate::mobs::Mob>::is_currently_glowing(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::is_fully_frozen`
-    fn call_968(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_968(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::is_fully_frozen(&*recv);
+        let r = <crate::mobs::Mob>::is_fully_frozen(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::is_invisible`
-    fn call_969(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_969(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::is_invisible(&*recv);
+        let r = <crate::mobs::Mob>::is_invisible(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::is_on_fire`
-    fn call_970(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_970(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::is_on_fire(&*recv);
+        let r = <crate::mobs::Mob>::is_on_fire(recv);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -6509,42 +6509,42 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob::knockback_resistance`
-    fn call_974(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_974(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::knockback_resistance(&*recv);
+        let r = <crate::mobs::Mob>::knockback_resistance(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::main_arm_left`
-    fn call_975(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_975(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::main_arm_left(&*recv);
+        let r = <crate::mobs::Mob>::main_arm_left(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::movement_speed`
-    fn call_976(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_976(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::movement_speed(&*recv);
+        let r = <crate::mobs::Mob>::movement_speed(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::potion_harm`
-    fn call_977(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_977(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <f32 as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::mobs::Mob>::potion_harm(&*recv, a0);
+        let r = <crate::mobs::Mob>::potion_harm(recv, a0);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -6561,22 +6561,22 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob::refuses_damage`
-    fn call_979(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_979(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__mobs__Damage(d)?;
         d.finish()?;
-        let r = <crate::mobs::Mob>::refuses_damage(&*recv, &a0);
+        let r = <crate::mobs::Mob>::refuses_damage(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::saddle_item`
-    fn call_980(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_980(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::saddle_item(&*recv);
+        let r = <crate::mobs::Mob>::saddle_item(recv);
         match &r {
             None => out.push(0),
             Some(v0) => {
@@ -6613,21 +6613,21 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob::species`
-    fn call_983(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_983(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::species(&*recv);
+        let r = <crate::mobs::Mob>::species(recv);
         enc_crate__mobs__species__Species(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::speed_bonus`
-    fn call_984(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_984(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::speed_bonus(&*recv);
+        let r = <crate::mobs::Mob>::speed_bonus(recv);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -6673,22 +6673,22 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob::wolf_armor_absorbs`
-    fn call_989(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_989(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__mobs__Damage(d)?;
         d.finish()?;
-        let r = <crate::mobs::Mob>::wolf_armor_absorbs(&*recv, &a0);
+        let r = <crate::mobs::Mob>::wolf_armor_absorbs(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::worn_armor`
-    fn call_990(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_990(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::worn_armor(&*recv);
+        let r = <crate::mobs::Mob>::worn_armor(recv);
         {
             let t0 = &r;
             Encode::encode(&t0.0, out);
@@ -6698,117 +6698,117 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Mob::yoake_state_absorption`
-    fn call_991(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_991(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::yoake_state_absorption(&*recv);
+        let r = <crate::mobs::Mob>::yoake_state_absorption(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::yoake_state_air`
-    fn call_992(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_992(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::yoake_state_air(&*recv);
+        let r = <crate::mobs::Mob>::yoake_state_air(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::yoake_state_fire_ticks`
-    fn call_993(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_993(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::yoake_state_fire_ticks(&*recv);
+        let r = <crate::mobs::Mob>::yoake_state_fire_ticks(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::yoake_state_glowing`
-    fn call_994(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_994(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::yoake_state_glowing(&*recv);
+        let r = <crate::mobs::Mob>::yoake_state_glowing(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::yoake_state_health`
-    fn call_995(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_995(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::yoake_state_health(&*recv);
+        let r = <crate::mobs::Mob>::yoake_state_health(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::yoake_state_invulnerable_flag`
-    fn call_996(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_996(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::yoake_state_invulnerable_flag(&*recv);
+        let r = <crate::mobs::Mob>::yoake_state_invulnerable_flag(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::yoake_state_no_ai`
-    fn call_997(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_997(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::yoake_state_no_ai(&*recv);
+        let r = <crate::mobs::Mob>::yoake_state_no_ai(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::yoake_state_no_gravity`
-    fn call_998(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_998(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::yoake_state_no_gravity(&*recv);
+        let r = <crate::mobs::Mob>::yoake_state_no_gravity(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::yoake_state_removed`
-    fn call_999(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_999(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::yoake_state_removed(&*recv);
+        let r = <crate::mobs::Mob>::yoake_state_removed(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::yoake_state_silent`
-    fn call_1000(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1000(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::yoake_state_silent(&*recv);
+        let r = <crate::mobs::Mob>::yoake_state_silent(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Mob::yoake_state_ticks_frozen`
-    fn call_1001(recv: &mut crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1001(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::Mob>::yoake_state_ticks_frozen(&*recv);
+        let r = <crate::mobs::Mob>::yoake_state_ticks_frozen(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::MobType.air_speed#get`
-    fn call_1002(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1002(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.air_speed, out);
         Ok(())
@@ -6818,7 +6818,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.ambient_interval#get`
-    fn call_1004(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1004(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.ambient_interval, out);
         Ok(())
@@ -6828,7 +6828,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.anim#get`
-    fn call_1006(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1006(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__anim__Anim(&recv.anim, out);
         Ok(())
@@ -6838,7 +6838,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.armor#get`
-    fn call_1008(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1008(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.armor, out);
         Ok(())
@@ -6848,7 +6848,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.armor_toughness#get`
-    fn call_1010(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1010(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.armor_toughness, out);
         Ok(())
@@ -6858,7 +6858,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.attack_damage#get`
-    fn call_1012(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1012(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.attack_damage, out);
         Ok(())
@@ -6868,7 +6868,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.attack_knockback#get`
-    fn call_1014(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1014(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.attack_knockback, out);
         Ok(())
@@ -6878,7 +6878,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.attributes#get`
-    fn call_1016(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1016(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s1 = &**(&recv.attributes);
@@ -6895,7 +6895,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.baby_scale#get`
-    fn call_1018(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1018(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.baby_scale, out);
         Ok(())
@@ -6905,7 +6905,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.brain#get`
-    fn call_1020(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1020(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__Brain(&recv.brain, out);
         Ok(())
@@ -6915,7 +6915,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.category#get`
-    fn call_1022(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1022(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.category, out);
         Ok(())
@@ -6925,7 +6925,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.eye_height#get`
-    fn call_1024(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1024(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.eye_height, out);
         Ok(())
@@ -6935,7 +6935,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.fall_damage_multiplier#get`
-    fn call_1026(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1026(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fall_damage_multiplier, out);
         Ok(())
@@ -6945,7 +6945,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.flags#get`
-    fn call_1028(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1028(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__Flags(&recv.flags, out);
         Ok(())
@@ -6955,7 +6955,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.flying_speed#get`
-    fn call_1030(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1030(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.flying_speed, out);
         Ok(())
@@ -6965,7 +6965,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.follow_range#get`
-    fn call_1032(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1032(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.follow_range, out);
         Ok(())
@@ -6975,7 +6975,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.food#get`
-    fn call_1034(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1034(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s1 = &**(&recv.food);
@@ -6991,7 +6991,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.gravity#get`
-    fn call_1036(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1036(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.gravity, out);
         Ok(())
@@ -7001,7 +7001,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.head_rot_speed#get`
-    fn call_1038(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1038(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.head_rot_speed, out);
         Ok(())
@@ -7011,7 +7011,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.height#get`
-    fn call_1040(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1040(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.height, out);
         Ok(())
@@ -7021,7 +7021,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.id#get`
-    fn call_1042(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1042(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.id, out);
         Ok(())
@@ -7031,7 +7031,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.jump_strength#get`
-    fn call_1044(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1044(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.jump_strength, out);
         Ok(())
@@ -7041,7 +7041,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.knockback_resistance#get`
-    fn call_1046(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1046(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.knockback_resistance, out);
         Ok(())
@@ -7051,7 +7051,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.layers#get`
-    fn call_1048(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1048(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.layers;
@@ -7068,7 +7068,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.max_head_x_rot#get`
-    fn call_1050(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1050(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.max_head_x_rot, out);
         Ok(())
@@ -7078,7 +7078,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.max_head_y_rot#get`
-    fn call_1052(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1052(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.max_head_y_rot, out);
         Ok(())
@@ -7088,7 +7088,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.max_health#get`
-    fn call_1054(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1054(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.max_health, out);
         Ok(())
@@ -7098,7 +7098,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.model#get`
-    fn call_1056(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1056(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__Part(&**(&recv.model), out);
         Ok(())
@@ -7108,7 +7108,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.safe_fall_distance#get`
-    fn call_1058(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1058(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.safe_fall_distance, out);
         Ok(())
@@ -7118,7 +7118,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.species#get`
-    fn call_1060(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1060(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__species__Species(&recv.species, out);
         Ok(())
@@ -7128,7 +7128,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.speed#get`
-    fn call_1062(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1062(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.speed, out);
         Ok(())
@@ -7138,7 +7138,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.step_height#get`
-    fn call_1064(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1064(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.step_height, out);
         Ok(())
@@ -7148,7 +7148,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.tempt#get`
-    fn call_1066(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1066(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s1 = &**(&recv.tempt);
@@ -7164,7 +7164,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.texture#get`
-    fn call_1068(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1068(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.texture, out);
         Ok(())
@@ -7174,7 +7174,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.water_efficiency#get`
-    fn call_1070(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1070(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.water_efficiency, out);
         Ok(())
@@ -7184,7 +7184,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.water_slowdown#get`
-    fn call_1072(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1072(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.water_slowdown, out);
         Ok(())
@@ -7194,7 +7194,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::MobType.width#get`
-    fn call_1074(recv: &mut crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1074(recv: &crate::mobs::MobType, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.width, out);
         Ok(())
@@ -7204,7 +7204,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::ModelNormals.trusted#get`
-    fn call_1076(recv: &mut crate::mobs::ModelNormals, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1076(recv: &crate::mobs::ModelNormals, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.trusted, out);
         Ok(())
@@ -7214,7 +7214,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Part.children#get`
-    fn call_1078(recv: &mut crate::mobs::Part, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1078(recv: &crate::mobs::Part, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.children;
@@ -7230,7 +7230,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Part.name#get`
-    fn call_1080(recv: &mut crate::mobs::Part, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1080(recv: &crate::mobs::Part, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.name, out);
         Ok(())
@@ -7240,7 +7240,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Part.polygons#get`
-    fn call_1082(recv: &mut crate::mobs::Part, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1082(recv: &crate::mobs::Part, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.polygons;
@@ -7256,7 +7256,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Part.pose#get`
-    fn call_1084(recv: &mut crate::mobs::Part, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1084(recv: &crate::mobs::Part, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.pose).iter() {
             Encode::encode(e0, out);
@@ -7277,7 +7277,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::PendingPushes.by_mob#get`
-    fn call_1087(recv: &mut crate::mobs::PendingPushes, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1087(recv: &crate::mobs::PendingPushes, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.by_mob;
@@ -7300,7 +7300,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PendingPushes.list#get`
-    fn call_1089(recv: &mut crate::mobs::PendingPushes, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1089(recv: &crate::mobs::PendingPushes, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.list;
@@ -7331,7 +7331,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::PlayerView.alive#get`
-    fn call_1092(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1092(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.alive, out);
         Ok(())
@@ -7341,7 +7341,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.allies#get`
-    fn call_1094(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1094(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s1 = &**(&recv.allies);
@@ -7357,7 +7357,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.armor_cover#get`
-    fn call_1096(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1096(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.armor_cover, out);
         Ok(())
@@ -7367,7 +7367,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.creative#get`
-    fn call_1098(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1098(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.creative, out);
         Ok(())
@@ -7377,7 +7377,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.eye#get`
-    fn call_1100(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1100(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.eye).iter() {
             Encode::encode(e0, out);
@@ -7389,7 +7389,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.gold_armor#get`
-    fn call_1102(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1102(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.gold_armor, out);
         Ok(())
@@ -7399,7 +7399,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.head#get`
-    fn call_1104(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1104(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.head {
             None => out.push(0),
@@ -7415,7 +7415,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.hero#get`
-    fn call_1106(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1106(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.hero, out);
         Ok(())
@@ -7425,7 +7425,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.hurt_by#get`
-    fn call_1108(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1108(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.hurt_by {
             None => out.push(0),
@@ -7445,7 +7445,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.invisible#get`
-    fn call_1110(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1110(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.invisible, out);
         Ok(())
@@ -7455,7 +7455,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.last_hurt#get`
-    fn call_1112(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1112(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.last_hurt {
             None => out.push(0),
@@ -7475,7 +7475,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.look#get`
-    fn call_1114(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1114(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.look).iter() {
             Encode::encode(e0, out);
@@ -7487,7 +7487,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.main_hand#get`
-    fn call_1116(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1116(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.main_hand {
             None => out.push(0),
@@ -7503,7 +7503,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.off_hand#get`
-    fn call_1118(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1118(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.off_hand {
             None => out.push(0),
@@ -7519,7 +7519,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.passenger#get`
-    fn call_1120(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1120(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.passenger, out);
         Ok(())
@@ -7529,7 +7529,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.position#get`
-    fn call_1122(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1122(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.position, out);
         Ok(())
@@ -7539,7 +7539,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.remote#get`
-    fn call_1124(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1124(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.remote, out);
         Ok(())
@@ -7549,7 +7549,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.riding#get`
-    fn call_1126(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1126(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.riding, out);
         Ok(())
@@ -7559,7 +7559,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.sleep_timer#get`
-    fn call_1128(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1128(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sleep_timer, out);
         Ok(())
@@ -7569,7 +7569,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.sleeping#get`
-    fn call_1130(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1130(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sleeping, out);
         Ok(())
@@ -7579,7 +7579,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.sneaking#get`
-    fn call_1132(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1132(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sneaking, out);
         Ok(())
@@ -7589,7 +7589,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.spectator#get`
-    fn call_1134(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1134(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.spectator, out);
         Ok(())
@@ -7599,7 +7599,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.sprinting#get`
-    fn call_1136(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1136(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sprinting, out);
         Ok(())
@@ -7609,7 +7609,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.swimming#get`
-    fn call_1138(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1138(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.swimming, out);
         Ok(())
@@ -7619,7 +7619,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.uuid#get`
-    fn call_1140(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1140(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.uuid).iter() {
             Encode::encode(e0, out);
@@ -7631,7 +7631,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.velocity#get`
-    fn call_1142(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1142(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.velocity, out);
         Ok(())
@@ -7641,7 +7641,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView.yaw#get`
-    fn call_1144(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1144(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.yaw, out);
         Ok(())
@@ -7651,28 +7651,28 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::PlayerView::has_effect`
-    fn call_1146(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1146(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::mobs::PlayerView>::has_effect(&*recv, &a0);
+        let r = <crate::mobs::PlayerView>::has_effect(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::PlayerView::visibility_percent`
-    fn call_1147(recv: &mut crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1147(recv: &crate::mobs::PlayerView, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::PlayerView>::visibility_percent(&*recv);
+        let r = <crate::mobs::PlayerView>::visibility_percent(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::Polygon.cull_back#get`
-    fn call_1148(recv: &mut crate::mobs::Polygon, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1148(recv: &crate::mobs::Polygon, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.cull_back, out);
         Ok(())
@@ -7682,7 +7682,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Polygon.normal#get`
-    fn call_1150(recv: &mut crate::mobs::Polygon, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1150(recv: &crate::mobs::Polygon, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.normal).iter() {
             Encode::encode(e0, out);
@@ -7694,7 +7694,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Polygon.vertices#get`
-    fn call_1152(recv: &mut crate::mobs::Polygon, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1152(recv: &crate::mobs::Polygon, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.vertices).iter() {
             for e1 in (e0).iter() {
@@ -7708,7 +7708,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.active_raid#get`
-    fn call_1154(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1154(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.active_raid, out);
         Ok(())
@@ -7718,7 +7718,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.alive#get`
-    fn call_1156(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1156(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.alive, out);
         Ok(())
@@ -7728,7 +7728,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.baby#get`
-    fn call_1158(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1158(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.baby, out);
         Ok(())
@@ -7738,7 +7738,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.bed#get`
-    fn call_1160(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1160(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.bed {
             None => out.push(0),
@@ -7756,7 +7756,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.bred#get`
-    fn call_1162(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1162(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.bred, out);
         Ok(())
@@ -7766,7 +7766,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.caravan#get`
-    fn call_1164(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1164(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.caravan, out);
         Ok(())
@@ -7776,7 +7776,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.cold_strider#get`
-    fn call_1166(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1166(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.cold_strider, out);
         Ok(())
@@ -7786,7 +7786,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.color#get`
-    fn call_1168(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1168(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.color, out);
         Ok(())
@@ -7796,7 +7796,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.delay#get`
-    fn call_1170(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1170(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.delay, out);
         Ok(())
@@ -7806,7 +7806,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.eye_y#get`
-    fn call_1172(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1172(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.eye_y, out);
         Ok(())
@@ -7816,7 +7816,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.health#get`
-    fn call_1174(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1174(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.health, out);
         Ok(())
@@ -7826,7 +7826,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.hostile#get`
-    fn call_1176(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1176(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.hostile, out);
         Ok(())
@@ -7836,7 +7836,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.hunted_recently#get`
-    fn call_1178(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1178(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.hunted_recently, out);
         Ok(())
@@ -7846,7 +7846,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.hurt_by#get`
-    fn call_1180(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1180(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.hurt_by {
             None => out.push(0),
@@ -7866,7 +7866,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.hurt_recently#get`
-    fn call_1182(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1182(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.hurt_recently, out);
         Ok(())
@@ -7876,7 +7876,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.id#get`
-    fn call_1184(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1184(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.id, out);
         Ok(())
@@ -7886,7 +7886,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.in_love#get`
-    fn call_1186(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1186(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.in_love, out);
         Ok(())
@@ -7896,7 +7896,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.in_water#get`
-    fn call_1188(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1188(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.in_water, out);
         Ok(())
@@ -7906,7 +7906,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.is_vehicle#get`
-    fn call_1190(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1190(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.is_vehicle, out);
         Ok(())
@@ -7916,7 +7916,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.job#get`
-    fn call_1192(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1192(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.job {
             None => out.push(0),
@@ -7934,7 +7934,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.knockback_resistance#get`
-    fn call_1194(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1194(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.knockback_resistance, out);
         Ok(())
@@ -7944,7 +7944,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.known_speed#get`
-    fn call_1196(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1196(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.known_speed, out);
         Ok(())
@@ -7954,7 +7954,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.last_damage#get`
-    fn call_1198(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1198(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.last_damage {
             None => out.push(0),
@@ -7970,7 +7970,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.leash#get`
-    fn call_1200(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1200(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.leash {
             None => out.push(0),
@@ -7986,7 +7986,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.lying#get`
-    fn call_1202(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1202(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.lying, out);
         Ok(())
@@ -7996,7 +7996,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.meeting#get`
-    fn call_1204(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1204(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.meeting {
             None => out.push(0),
@@ -8014,7 +8014,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.opened_chest#get`
-    fn call_1206(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1206(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.opened_chest {
             None => out.push(0),
@@ -8032,7 +8032,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.owner#get`
-    fn call_1208(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1208(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.owner {
             None => out.push(0),
@@ -8050,7 +8050,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.passenger#get`
-    fn call_1210(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1210(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.passenger, out);
         Ok(())
@@ -8060,7 +8060,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.player_rep#get`
-    fn call_1212(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1212(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.player_rep, out);
         Ok(())
@@ -8070,7 +8070,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.playing_dead#get`
-    fn call_1214(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1214(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.playing_dead, out);
         Ok(())
@@ -8080,7 +8080,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.position#get`
-    fn call_1216(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1216(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.position, out);
         Ok(())
@@ -8090,7 +8090,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.potential_job#get`
-    fn call_1218(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1218(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.potential_job {
             None => out.push(0),
@@ -8108,7 +8108,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.profession#get`
-    fn call_1220(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1220(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.profession, out);
         Ok(())
@@ -8118,7 +8118,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.pushable#get`
-    fn call_1222(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1222(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.pushable, out);
         Ok(())
@@ -8128,7 +8128,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.ridden#get`
-    fn call_1224(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1224(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.ridden, out);
         Ok(())
@@ -8138,7 +8138,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.school#get`
-    fn call_1226(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1226(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let t0 = &recv.school;
@@ -8158,7 +8158,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.section#get`
-    fn call_1228(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1228(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let t0 = &recv.section;
@@ -8174,7 +8174,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.silent#get`
-    fn call_1230(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1230(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.silent, out);
         Ok(())
@@ -8184,7 +8184,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.sitting#get`
-    fn call_1232(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1232(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sitting, out);
         Ok(())
@@ -8194,7 +8194,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.size#get`
-    fn call_1234(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1234(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.size, out);
         Ok(())
@@ -8204,7 +8204,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.species#get`
-    fn call_1236(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1236(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__species__Species(&recv.species, out);
         Ok(())
@@ -8214,7 +8214,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.stats#get`
-    fn call_1238(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1238(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.stats).iter() {
             Encode::encode(e0, out);
@@ -8226,7 +8226,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.tame#get`
-    fn call_1240(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1240(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.tame, out);
         Ok(())
@@ -8236,7 +8236,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.target#get`
-    fn call_1242(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1242(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.target {
             None => out.push(0),
@@ -8252,7 +8252,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.variant#get`
-    fn call_1244(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1244(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.variant, out);
         Ok(())
@@ -8262,7 +8262,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.vehicle#get`
-    fn call_1246(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1246(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.vehicle {
             None => out.push(0),
@@ -8278,7 +8278,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.velocity#get`
-    fn call_1248(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1248(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.velocity, out);
         Ok(())
@@ -8288,7 +8288,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.xp#get`
-    fn call_1250(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1250(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.xp, out);
         Ok(())
@@ -8298,7 +8298,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen.yaw#get`
-    fn call_1252(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1252(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.yaw, out);
         Ok(())
@@ -8308,18 +8308,18 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Seen::has_effect`
-    fn call_1254(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1254(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::mobs::Seen>::has_effect(&*recv, &a0);
+        let r = <crate::mobs::Seen>::has_effect(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::SpawnSetup.baby#get`
-    fn call_1255(recv: &mut crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1255(recv: &crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.baby, out);
         Ok(())
@@ -8329,7 +8329,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SpawnSetup.health#get`
-    fn call_1257(recv: &mut crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1257(recv: &crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.health {
             None => out.push(0),
@@ -8345,7 +8345,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SpawnSetup.home#get`
-    fn call_1259(recv: &mut crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1259(recv: &crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.home {
             None => out.push(0),
@@ -8363,7 +8363,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SpawnSetup.life#get`
-    fn call_1261(recv: &mut crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1261(recv: &crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.life {
             None => out.push(0),
@@ -8379,7 +8379,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SpawnSetup.nausea#get`
-    fn call_1263(recv: &mut crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1263(recv: &crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.nausea, out);
         Ok(())
@@ -8389,7 +8389,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SpawnSetup.owner_mob#get`
-    fn call_1265(recv: &mut crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1265(recv: &crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.owner_mob {
             None => out.push(0),
@@ -8405,7 +8405,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SpawnSetup.persistent#get`
-    fn call_1267(recv: &mut crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1267(recv: &crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.persistent, out);
         Ok(())
@@ -8415,7 +8415,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SpawnSetup.size#get`
-    fn call_1269(recv: &mut crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1269(recv: &crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.size, out);
         Ok(())
@@ -8425,7 +8425,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SpawnSetup.variant#get`
-    fn call_1271(recv: &mut crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1271(recv: &crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.variant {
             None => out.push(0),
@@ -8441,7 +8441,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SpawnSetup.velocity#get`
-    fn call_1273(recv: &mut crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1273(recv: &crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.velocity).iter() {
             Encode::encode(e0, out);
@@ -8453,7 +8453,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SpawnSetup.yaw#get`
-    fn call_1275(recv: &mut crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1275(recv: &crate::mobs::SpawnSetup, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.yaw, out);
         Ok(())
@@ -8463,7 +8463,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SwimAnimation.amount#get`
-    fn call_1277(recv: &mut crate::mobs::SwimAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1277(recv: &crate::mobs::SwimAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.amount, out);
         Ok(())
@@ -8473,7 +8473,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SwimAnimation.in_water#get`
-    fn call_1279(recv: &mut crate::mobs::SwimAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1279(recv: &crate::mobs::SwimAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.in_water, out);
         Ok(())
@@ -8483,7 +8483,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SwimAnimation.old#get`
-    fn call_1281(recv: &mut crate::mobs::SwimAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1281(recv: &crate::mobs::SwimAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.old, out);
         Ok(())
@@ -8493,7 +8493,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SwimAnimation.visually#get`
-    fn call_1283(recv: &mut crate::mobs::SwimAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1283(recv: &crate::mobs::SwimAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.visually, out);
         Ok(())
@@ -8503,12 +8503,12 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::SwimAnimation::amount`
-    fn call_1285(recv: &mut crate::mobs::SwimAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1285(recv: &crate::mobs::SwimAnimation, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <f32 as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::mobs::SwimAnimation>::amount(&*recv, a0);
+        let r = <crate::mobs::SwimAnimation>::amount(recv, a0);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -8525,7 +8525,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Vehicle.nautilus#get`
-    fn call_1287(recv: &mut crate::mobs::Vehicle, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1287(recv: &crate::mobs::Vehicle, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.nautilus, out);
         Ok(())
@@ -8535,7 +8535,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::Vehicle.velocity#get`
-    fn call_1289(recv: &mut crate::mobs::Vehicle, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1289(recv: &crate::mobs::Vehicle, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.velocity, out);
         Ok(())
@@ -8600,7 +8600,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Seen.custom#get`
-    fn call_2515(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2515(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.custom {
             None => out.push(0),
@@ -8616,28 +8616,28 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::<CustomLevel as Clone>::clone`
-    fn call_2517(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2517(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::CustomLevel as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::CustomLevel as core::clone::Clone>::clone(recv);
         enc_crate__mobs__CustomLevel(&r, out);
         Ok(())
     }
 
     /// `mobs::<CustomLevel as PartialEq>::eq`
-    fn call_2518(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2518(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__mobs__CustomLevel(d)?;
         d.finish()?;
-        let r = <crate::mobs::CustomLevel as core::cmp::PartialEq>::eq(&*recv, &a0);
+        let r = <crate::mobs::CustomLevel as core::cmp::PartialEq>::eq(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::CustomLevel.ambient#get`
-    fn call_2519(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2519(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.ambient, out);
         Ok(())
@@ -8647,7 +8647,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::CustomLevel.day_cycle#get`
-    fn call_2521(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2521(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.day_cycle, out);
         Ok(())
@@ -8657,7 +8657,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::CustomLevel.fast_lava#get`
-    fn call_2523(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2523(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fast_lava, out);
         Ok(())
@@ -8667,7 +8667,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::CustomLevel.has_skylight#get`
-    fn call_2525(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2525(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.has_skylight, out);
         Ok(())
@@ -8677,7 +8677,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::CustomLevel.piglins_zombify#get`
-    fn call_2527(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2527(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.piglins_zombify, out);
         Ok(())
@@ -8687,7 +8687,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::CustomLevel.snow_golem_melts#get`
-    fn call_2529(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2529(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.snow_golem_melts, out);
         Ok(())
@@ -8697,7 +8697,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::CustomLevel.spawn_light#get`
-    fn call_2531(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2531(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__spawn_rules__LightRule(&recv.spawn_light, out);
         Ok(())
@@ -10316,853 +10316,853 @@ pub mod yoake_glue {
     pub fn call(handle: u64, id: u32, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let start = out.len();
         let result = match id {
-            464 => activation::with_arg::<crate::mobs::Aim, _>(handle, |recv| call_464(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            465 => activation::with_arg::<crate::mobs::Aim, _>(handle, |recv| call_465(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            466 => activation::with_arg::<crate::mobs::Attrs, _>(handle, |recv| call_466(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            467 => activation::with_arg::<crate::mobs::Brain, _>(handle, |recv| call_467(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            468 => activation::with_arg::<crate::mobs::Brain, _>(handle, |recv| call_468(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            469 => activation::with_arg::<crate::mobs::Damage, _>(handle, |recv| call_469(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            470 => activation::with_arg::<crate::mobs::DamageKind, _>(handle, |recv| call_470(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            471 => activation::with_arg::<crate::mobs::DamageKind, _>(handle, |recv| call_471(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            472 => activation::with_arg::<crate::mobs::ElytraAnimation, _>(handle, |recv| call_472(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            464 => activation::with_arg_shared::<crate::mobs::Aim, _>(handle, |recv| call_464(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            465 => activation::with_arg_shared::<crate::mobs::Aim, _>(handle, |recv| call_465(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            466 => activation::with_arg_shared::<crate::mobs::Attrs, _>(handle, |recv| call_466(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            467 => activation::with_arg_shared::<crate::mobs::Brain, _>(handle, |recv| call_467(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            468 => activation::with_arg_shared::<crate::mobs::Brain, _>(handle, |recv| call_468(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            469 => activation::with_arg_shared::<crate::mobs::Damage, _>(handle, |recv| call_469(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            470 => activation::with_arg_shared::<crate::mobs::DamageKind, _>(handle, |recv| call_470(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            471 => activation::with_arg_shared::<crate::mobs::DamageKind, _>(handle, |recv| call_471(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            472 => activation::with_arg_shared::<crate::mobs::ElytraAnimation, _>(handle, |recv| call_472(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             473 => call_473(args, out),
-            474 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_474(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            474 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_474(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             475 => call_475(args, out),
-            476 => activation::with_arg::<crate::mobs::MannequinDescription, _>(handle, |recv| call_476(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            476 => activation::with_arg_shared::<crate::mobs::MannequinDescription, _>(handle, |recv| call_476(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             477 => call_477(args, out),
-            478 => activation::with_arg::<crate::mobs::MannequinDescription, _>(handle, |recv| call_478(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            479 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_479(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            478 => activation::with_arg_shared::<crate::mobs::MannequinDescription, _>(handle, |recv| call_478(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            479 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_479(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             480 => call_480(args, out),
-            481 => activation::with_arg::<crate::mobs::Part, _>(handle, |recv| call_481(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            481 => activation::with_arg_shared::<crate::mobs::Part, _>(handle, |recv| call_481(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             482 => call_482(args, out),
-            483 => activation::with_arg::<crate::mobs::Polygon, _>(handle, |recv| call_483(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            484 => activation::with_arg::<crate::mobs::SpawnSetup, _>(handle, |recv| call_484(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            483 => activation::with_arg_shared::<crate::mobs::Polygon, _>(handle, |recv| call_483(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            484 => activation::with_arg_shared::<crate::mobs::SpawnSetup, _>(handle, |recv| call_484(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             485 => call_485(args, out),
-            486 => activation::with_arg::<crate::mobs::SwimAnimation, _>(handle, |recv| call_486(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            486 => activation::with_arg_shared::<crate::mobs::SwimAnimation, _>(handle, |recv| call_486(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             487 => call_487(args, out),
-            488 => activation::with_arg::<crate::mobs::Aim, _>(handle, |recv| call_488(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            488 => activation::with_arg_shared::<crate::mobs::Aim, _>(handle, |recv| call_488(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             489 => Err(CallError::ReadOnly(id)),
-            490 => activation::with_arg::<crate::mobs::Aim, _>(handle, |recv| call_490(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            490 => activation::with_arg_shared::<crate::mobs::Aim, _>(handle, |recv| call_490(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             491 => Err(CallError::ReadOnly(id)),
-            492 => activation::with_arg::<crate::mobs::Aim, _>(handle, |recv| call_492(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            492 => activation::with_arg_shared::<crate::mobs::Aim, _>(handle, |recv| call_492(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             493 => Err(CallError::ReadOnly(id)),
-            494 => activation::with_arg::<crate::mobs::Attrs, _>(handle, |recv| call_494(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            494 => activation::with_arg_shared::<crate::mobs::Attrs, _>(handle, |recv| call_494(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             495 => Err(CallError::ReadOnly(id)),
-            496 => activation::with_arg::<crate::mobs::Attrs, _>(handle, |recv| call_496(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            496 => activation::with_arg_shared::<crate::mobs::Attrs, _>(handle, |recv| call_496(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             497 => Err(CallError::ReadOnly(id)),
-            498 => activation::with_arg::<crate::mobs::Attrs, _>(handle, |recv| call_498(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            498 => activation::with_arg_shared::<crate::mobs::Attrs, _>(handle, |recv| call_498(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             499 => Err(CallError::ReadOnly(id)),
-            500 => activation::with_arg::<crate::mobs::Attrs, _>(handle, |recv| call_500(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            500 => activation::with_arg_shared::<crate::mobs::Attrs, _>(handle, |recv| call_500(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             501 => Err(CallError::ReadOnly(id)),
-            502 => activation::with_arg::<crate::mobs::Attrs, _>(handle, |recv| call_502(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            502 => activation::with_arg_shared::<crate::mobs::Attrs, _>(handle, |recv| call_502(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             503 => Err(CallError::ReadOnly(id)),
-            504 => activation::with_arg::<crate::mobs::Attrs, _>(handle, |recv| call_504(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            504 => activation::with_arg_shared::<crate::mobs::Attrs, _>(handle, |recv| call_504(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             505 => Err(CallError::ReadOnly(id)),
-            506 => activation::with_arg::<crate::mobs::Attrs, _>(handle, |recv| call_506(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            506 => activation::with_arg_shared::<crate::mobs::Attrs, _>(handle, |recv| call_506(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             507 => Err(CallError::ReadOnly(id)),
-            508 => activation::with_arg::<crate::mobs::Attrs, _>(handle, |recv| call_508(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            508 => activation::with_arg_shared::<crate::mobs::Attrs, _>(handle, |recv| call_508(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             509 => Err(CallError::ReadOnly(id)),
-            510 => activation::with_arg::<crate::mobs::Damage, _>(handle, |recv| call_510(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            510 => activation::with_arg_shared::<crate::mobs::Damage, _>(handle, |recv| call_510(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             511 => Err(CallError::ReadOnly(id)),
-            512 => activation::with_arg::<crate::mobs::Damage, _>(handle, |recv| call_512(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            512 => activation::with_arg_shared::<crate::mobs::Damage, _>(handle, |recv| call_512(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             513 => Err(CallError::ReadOnly(id)),
-            514 => activation::with_arg::<crate::mobs::Damage, _>(handle, |recv| call_514(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            514 => activation::with_arg_shared::<crate::mobs::Damage, _>(handle, |recv| call_514(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             515 => Err(CallError::ReadOnly(id)),
-            516 => activation::with_arg::<crate::mobs::Damage, _>(handle, |recv| call_516(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            517 => activation::with_arg::<crate::mobs::Damage, _>(handle, |recv| call_517(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            516 => activation::with_arg_shared::<crate::mobs::Damage, _>(handle, |recv| call_516(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            517 => activation::with_arg_shared::<crate::mobs::Damage, _>(handle, |recv| call_517(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             518 => call_518(args, out),
             519 => call_519(args, out),
             520 => call_520(args, out),
-            521 => activation::with_arg::<crate::mobs::Damage, _>(handle, |recv| call_521(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            522 => activation::with_arg::<crate::mobs::Damage, _>(handle, |recv| call_522(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            521 => activation::with_arg_shared::<crate::mobs::Damage, _>(handle, |recv| call_521(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            522 => activation::with_arg_shared::<crate::mobs::Damage, _>(handle, |recv| call_522(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             523 => call_523(args, out),
             524 => call_524(args, out),
-            525 => activation::with_arg::<crate::mobs::Damage, _>(handle, |recv| call_525(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            525 => activation::with_arg_shared::<crate::mobs::Damage, _>(handle, |recv| call_525(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             526 => call_526(args, out),
             527 => call_527(args, out),
             528 => call_528(args, out),
             529 => call_529(args, out),
             530 => call_530(args, out),
             531 => call_531(args, out),
-            532 => activation::with_arg::<crate::mobs::ElytraAnimation, _>(handle, |recv| call_532(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            532 => activation::with_arg_shared::<crate::mobs::ElytraAnimation, _>(handle, |recv| call_532(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             533 => Err(CallError::ReadOnly(id)),
-            534 => activation::with_arg::<crate::mobs::ElytraAnimation, _>(handle, |recv| call_534(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            534 => activation::with_arg_shared::<crate::mobs::ElytraAnimation, _>(handle, |recv| call_534(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             535 => Err(CallError::ReadOnly(id)),
-            536 => activation::with_arg::<crate::mobs::ElytraAnimation, _>(handle, |recv| call_536(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            536 => activation::with_arg_shared::<crate::mobs::ElytraAnimation, _>(handle, |recv| call_536(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             537 => activation::with_arg::<crate::mobs::ElytraAnimation, _>(handle, |recv| call_537(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            538 => activation::with_arg::<crate::mobs::EntityModelDocument, _>(handle, |recv| call_538(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            539 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_539(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            538 => activation::with_arg_shared::<crate::mobs::EntityModelDocument, _>(handle, |recv| call_538(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            539 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_539(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             540 => Err(CallError::ReadOnly(id)),
-            541 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_541(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            541 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_541(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             542 => Err(CallError::ReadOnly(id)),
-            543 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_543(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            543 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_543(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             544 => Err(CallError::ReadOnly(id)),
-            545 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_545(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            545 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_545(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             546 => Err(CallError::ReadOnly(id)),
-            547 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_547(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            547 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_547(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             548 => Err(CallError::ReadOnly(id)),
-            549 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_549(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            549 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_549(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             550 => Err(CallError::ReadOnly(id)),
-            551 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_551(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            551 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_551(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             552 => Err(CallError::ReadOnly(id)),
-            553 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_553(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            553 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_553(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             554 => Err(CallError::ReadOnly(id)),
-            555 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_555(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            555 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_555(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             556 => Err(CallError::ReadOnly(id)),
-            557 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_557(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            557 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_557(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             558 => Err(CallError::ReadOnly(id)),
-            559 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_559(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            559 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_559(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             560 => Err(CallError::ReadOnly(id)),
-            561 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_561(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            561 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_561(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             562 => Err(CallError::ReadOnly(id)),
-            563 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_563(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            563 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_563(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             564 => Err(CallError::ReadOnly(id)),
-            565 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_565(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            565 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_565(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             566 => Err(CallError::ReadOnly(id)),
-            567 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_567(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            567 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_567(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             568 => Err(CallError::ReadOnly(id)),
-            569 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_569(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            569 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_569(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             570 => Err(CallError::ReadOnly(id)),
-            571 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_571(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            571 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_571(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             572 => Err(CallError::ReadOnly(id)),
-            573 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_573(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            573 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_573(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             574 => Err(CallError::ReadOnly(id)),
-            575 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_575(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            575 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_575(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             576 => Err(CallError::ReadOnly(id)),
-            577 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_577(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            577 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_577(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             578 => Err(CallError::ReadOnly(id)),
-            579 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_579(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            579 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_579(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             580 => Err(CallError::ReadOnly(id)),
-            581 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_581(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            581 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_581(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             582 => Err(CallError::ReadOnly(id)),
-            583 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_583(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            583 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_583(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             584 => Err(CallError::ReadOnly(id)),
-            585 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_585(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            585 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_585(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             586 => Err(CallError::ReadOnly(id)),
-            587 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_587(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            587 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_587(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             588 => Err(CallError::ReadOnly(id)),
-            589 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_589(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            589 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_589(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             590 => Err(CallError::ReadOnly(id)),
-            591 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_591(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            591 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_591(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             592 => Err(CallError::ReadOnly(id)),
-            593 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_593(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            593 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_593(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             594 => Err(CallError::ReadOnly(id)),
-            595 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_595(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            595 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_595(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             596 => Err(CallError::ReadOnly(id)),
-            597 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_597(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            597 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_597(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             598 => Err(CallError::ReadOnly(id)),
-            599 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_599(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            599 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_599(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             600 => Err(CallError::ReadOnly(id)),
-            601 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_601(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            601 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_601(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             602 => Err(CallError::ReadOnly(id)),
-            603 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_603(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            603 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_603(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             604 => Err(CallError::ReadOnly(id)),
-            605 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_605(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            605 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_605(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             606 => Err(CallError::ReadOnly(id)),
-            607 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_607(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            607 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_607(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             608 => Err(CallError::ReadOnly(id)),
-            609 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_609(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            609 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_609(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             610 => Err(CallError::ReadOnly(id)),
-            611 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_611(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            611 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_611(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             612 => Err(CallError::ReadOnly(id)),
-            613 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_613(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            613 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_613(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             614 => Err(CallError::ReadOnly(id)),
-            615 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_615(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            615 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_615(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             616 => Err(CallError::ReadOnly(id)),
-            617 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_617(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            617 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_617(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             618 => Err(CallError::ReadOnly(id)),
-            619 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_619(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            619 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_619(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             620 => Err(CallError::ReadOnly(id)),
-            621 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_621(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            621 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_621(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             622 => Err(CallError::ReadOnly(id)),
-            623 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_623(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            623 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_623(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             624 => Err(CallError::ReadOnly(id)),
-            625 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_625(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            625 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_625(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             626 => Err(CallError::ReadOnly(id)),
-            627 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_627(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            627 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_627(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             628 => Err(CallError::ReadOnly(id)),
-            629 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_629(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            629 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_629(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             630 => Err(CallError::ReadOnly(id)),
-            631 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_631(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            631 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_631(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             632 => Err(CallError::ReadOnly(id)),
-            633 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_633(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            633 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_633(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             634 => Err(CallError::ReadOnly(id)),
-            635 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_635(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            635 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_635(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             636 => Err(CallError::ReadOnly(id)),
-            637 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_637(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            637 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_637(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             638 => Err(CallError::ReadOnly(id)),
-            639 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_639(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            639 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_639(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             640 => Err(CallError::ReadOnly(id)),
-            641 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_641(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            641 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_641(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             642 => Err(CallError::ReadOnly(id)),
-            643 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_643(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            643 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_643(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             644 => Err(CallError::ReadOnly(id)),
-            645 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_645(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            645 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_645(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             646 => Err(CallError::ReadOnly(id)),
-            647 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_647(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            647 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_647(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             648 => Err(CallError::ReadOnly(id)),
-            649 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_649(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            649 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_649(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             650 => Err(CallError::ReadOnly(id)),
-            651 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_651(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            651 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_651(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             652 => Err(CallError::ReadOnly(id)),
-            653 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_653(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            653 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_653(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             654 => Err(CallError::ReadOnly(id)),
-            655 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_655(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            655 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_655(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             656 => Err(CallError::ReadOnly(id)),
-            657 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_657(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            657 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_657(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             658 => Err(CallError::ReadOnly(id)),
-            659 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_659(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            659 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_659(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             660 => Err(CallError::ReadOnly(id)),
-            661 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_661(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            661 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_661(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             662 => Err(CallError::ReadOnly(id)),
-            663 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_663(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            663 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_663(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             664 => Err(CallError::ReadOnly(id)),
-            665 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_665(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            665 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_665(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             666 => Err(CallError::ReadOnly(id)),
-            667 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_667(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            667 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_667(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             668 => Err(CallError::ReadOnly(id)),
-            669 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_669(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            669 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_669(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             670 => Err(CallError::ReadOnly(id)),
-            671 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_671(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            671 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_671(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             672 => Err(CallError::ReadOnly(id)),
-            673 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_673(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            673 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_673(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             674 => Err(CallError::ReadOnly(id)),
-            675 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_675(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            675 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_675(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             676 => Err(CallError::ReadOnly(id)),
-            677 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_677(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            677 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_677(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             678 => Err(CallError::ReadOnly(id)),
-            679 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_679(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            679 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_679(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             680 => Err(CallError::ReadOnly(id)),
-            681 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_681(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            681 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_681(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             682 => Err(CallError::ReadOnly(id)),
-            683 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_683(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            683 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_683(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             684 => Err(CallError::ReadOnly(id)),
-            685 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_685(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            685 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_685(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             686 => Err(CallError::ReadOnly(id)),
-            687 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_687(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            687 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_687(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             688 => Err(CallError::ReadOnly(id)),
-            689 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_689(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            689 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_689(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             690 => Err(CallError::ReadOnly(id)),
-            691 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_691(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            691 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_691(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             692 => Err(CallError::ReadOnly(id)),
-            693 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_693(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            693 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_693(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             694 => Err(CallError::ReadOnly(id)),
-            695 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_695(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            695 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_695(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             696 => Err(CallError::ReadOnly(id)),
-            697 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_697(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            697 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_697(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             698 => Err(CallError::ReadOnly(id)),
-            699 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_699(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            699 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_699(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             700 => Err(CallError::ReadOnly(id)),
-            701 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_701(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            701 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_701(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             702 => Err(CallError::ReadOnly(id)),
-            703 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_703(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            703 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_703(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             704 => Err(CallError::ReadOnly(id)),
-            705 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_705(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            705 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_705(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             706 => Err(CallError::ReadOnly(id)),
-            707 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_707(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            707 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_707(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             708 => Err(CallError::ReadOnly(id)),
-            709 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_709(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            709 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_709(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             710 => Err(CallError::ReadOnly(id)),
-            711 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_711(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            711 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_711(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             712 => Err(CallError::ReadOnly(id)),
-            713 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_713(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            713 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_713(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             714 => Err(CallError::ReadOnly(id)),
-            715 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_715(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            715 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_715(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             716 => Err(CallError::ReadOnly(id)),
-            717 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_717(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            717 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_717(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             718 => Err(CallError::ReadOnly(id)),
-            719 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_719(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            719 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_719(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             720 => Err(CallError::ReadOnly(id)),
-            721 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_721(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            721 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_721(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             722 => Err(CallError::ReadOnly(id)),
-            723 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_723(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            723 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_723(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             724 => Err(CallError::ReadOnly(id)),
-            725 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_725(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            725 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_725(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             726 => Err(CallError::ReadOnly(id)),
-            727 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_727(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            727 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_727(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             728 => Err(CallError::ReadOnly(id)),
-            729 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_729(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            729 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_729(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             730 => Err(CallError::ReadOnly(id)),
-            731 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_731(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            731 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_731(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             732 => Err(CallError::ReadOnly(id)),
-            733 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_733(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            733 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_733(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             734 => Err(CallError::ReadOnly(id)),
-            735 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_735(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            735 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_735(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             736 => Err(CallError::ReadOnly(id)),
-            737 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_737(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            737 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_737(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             738 => Err(CallError::ReadOnly(id)),
-            739 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_739(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            739 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_739(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             740 => Err(CallError::ReadOnly(id)),
-            741 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_741(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            741 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_741(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             742 => Err(CallError::ReadOnly(id)),
-            743 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_743(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            743 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_743(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             744 => Err(CallError::ReadOnly(id)),
-            745 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_745(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            745 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_745(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             746 => Err(CallError::ReadOnly(id)),
-            747 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_747(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            747 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_747(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             748 => Err(CallError::ReadOnly(id)),
-            749 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_749(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            749 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_749(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             750 => Err(CallError::ReadOnly(id)),
-            751 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_751(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            751 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_751(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             752 => Err(CallError::ReadOnly(id)),
-            753 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_753(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            753 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_753(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             754 => Err(CallError::ReadOnly(id)),
-            755 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_755(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            755 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_755(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             756 => Err(CallError::ReadOnly(id)),
-            757 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_757(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            757 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_757(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             758 => Err(CallError::ReadOnly(id)),
-            759 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_759(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            759 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_759(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             760 => Err(CallError::ReadOnly(id)),
-            761 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_761(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            761 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_761(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             762 => Err(CallError::ReadOnly(id)),
-            763 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_763(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            763 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_763(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             764 => Err(CallError::ReadOnly(id)),
-            765 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_765(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            765 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_765(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             766 => Err(CallError::ReadOnly(id)),
-            767 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_767(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            767 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_767(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             768 => Err(CallError::ReadOnly(id)),
-            769 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_769(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            769 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_769(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             770 => Err(CallError::ReadOnly(id)),
-            771 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_771(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            771 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_771(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             772 => Err(CallError::ReadOnly(id)),
-            773 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_773(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            773 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_773(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             774 => Err(CallError::ReadOnly(id)),
-            775 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_775(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            775 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_775(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             776 => Err(CallError::ReadOnly(id)),
-            777 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_777(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            777 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_777(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             778 => Err(CallError::ReadOnly(id)),
-            779 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_779(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            779 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_779(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             780 => Err(CallError::ReadOnly(id)),
-            781 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_781(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            781 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_781(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             782 => Err(CallError::ReadOnly(id)),
-            783 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_783(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            783 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_783(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             784 => Err(CallError::ReadOnly(id)),
-            785 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_785(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            785 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_785(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             786 => Err(CallError::ReadOnly(id)),
             787 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_787(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             788 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_788(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             789 => activation::with_arg::<crate::mobs::Extra, _>(handle, |recv| call_789(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            790 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_790(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            790 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_790(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             791 => Err(CallError::ReadOnly(id)),
-            792 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_792(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            792 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_792(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             793 => Err(CallError::ReadOnly(id)),
-            794 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_794(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            794 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_794(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             795 => Err(CallError::ReadOnly(id)),
-            796 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_796(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            796 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_796(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             797 => Err(CallError::ReadOnly(id)),
-            798 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_798(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            798 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_798(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             799 => Err(CallError::ReadOnly(id)),
-            800 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_800(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            800 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_800(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             801 => Err(CallError::ReadOnly(id)),
-            802 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_802(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            802 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_802(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             803 => Err(CallError::ReadOnly(id)),
-            804 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_804(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            804 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_804(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             805 => Err(CallError::ReadOnly(id)),
-            806 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_806(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            806 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_806(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             807 => Err(CallError::ReadOnly(id)),
-            808 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_808(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            808 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_808(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             809 => Err(CallError::ReadOnly(id)),
-            810 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_810(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            810 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_810(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             811 => Err(CallError::ReadOnly(id)),
-            812 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_812(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            812 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_812(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             813 => Err(CallError::ReadOnly(id)),
-            814 => activation::with_arg::<crate::mobs::Flags, _>(handle, |recv| call_814(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            814 => activation::with_arg_shared::<crate::mobs::Flags, _>(handle, |recv| call_814(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             815 => Err(CallError::ReadOnly(id)),
-            816 => activation::with_arg::<crate::mobs::MannequinDescription, _>(handle, |recv| call_816(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            816 => activation::with_arg_shared::<crate::mobs::MannequinDescription, _>(handle, |recv| call_816(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             817 => call_817(args, out),
-            818 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_818(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            818 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_818(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             819 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_819(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            820 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_820(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            820 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_820(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             821 => Err(CallError::ReadOnly(id)),
-            822 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_822(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            822 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_822(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             823 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_823(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            824 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_824(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            824 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_824(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             825 => Err(CallError::ReadOnly(id)),
-            826 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_826(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            826 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_826(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             827 => Err(CallError::ReadOnly(id)),
-            828 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_828(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            828 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_828(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             829 => Err(CallError::ReadOnly(id)),
-            830 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_830(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            830 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_830(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             831 => Err(CallError::ReadOnly(id)),
-            832 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_832(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            832 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_832(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             833 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_833(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            834 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_834(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            834 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_834(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             835 => Err(CallError::ReadOnly(id)),
-            836 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_836(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            836 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_836(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             837 => Err(CallError::ReadOnly(id)),
-            838 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_838(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            838 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_838(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             839 => Err(CallError::ReadOnly(id)),
-            840 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_840(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            840 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_840(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             841 => Err(CallError::ReadOnly(id)),
-            842 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_842(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            842 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_842(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             843 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_843(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            844 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_844(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            844 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_844(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             845 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_845(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            846 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_846(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            846 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_846(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             847 => Err(CallError::ReadOnly(id)),
-            848 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_848(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            848 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_848(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             849 => Err(CallError::ReadOnly(id)),
-            850 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_850(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            850 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_850(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             851 => Err(CallError::ReadOnly(id)),
-            852 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_852(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            852 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_852(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             853 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_853(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            854 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_854(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            854 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_854(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             855 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_855(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            856 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_856(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            856 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_856(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             857 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_857(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            858 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_858(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            858 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_858(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             859 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_859(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            860 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_860(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            860 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_860(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             861 => Err(CallError::ReadOnly(id)),
-            862 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_862(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            862 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_862(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             863 => Err(CallError::ReadOnly(id)),
-            864 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_864(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            864 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_864(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             865 => Err(CallError::ReadOnly(id)),
-            866 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_866(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            866 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_866(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             867 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_867(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            868 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_868(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            868 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_868(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             869 => Err(CallError::ReadOnly(id)),
-            870 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_870(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            870 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_870(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             871 => Err(CallError::ReadOnly(id)),
-            872 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_872(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            872 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_872(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             873 => Err(CallError::ReadOnly(id)),
-            874 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_874(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            874 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_874(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             875 => Err(CallError::ReadOnly(id)),
-            876 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_876(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            876 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_876(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             877 => Err(CallError::ReadOnly(id)),
-            878 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_878(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            878 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_878(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             879 => Err(CallError::ReadOnly(id)),
-            880 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_880(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            880 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_880(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             881 => Err(CallError::ReadOnly(id)),
-            882 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_882(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            882 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_882(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             883 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_883(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            884 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_884(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            884 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_884(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             885 => Err(CallError::ReadOnly(id)),
-            886 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_886(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            886 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_886(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             887 => Err(CallError::ReadOnly(id)),
-            888 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_888(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            888 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_888(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             889 => Err(CallError::ReadOnly(id)),
-            890 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_890(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            890 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_890(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             891 => Err(CallError::ReadOnly(id)),
-            892 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_892(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            892 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_892(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             893 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_893(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            894 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_894(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            894 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_894(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             895 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_895(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            896 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_896(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            896 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_896(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             897 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_897(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            898 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_898(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            898 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_898(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             899 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_899(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            900 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_900(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            900 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_900(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             901 => Err(CallError::ReadOnly(id)),
-            902 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_902(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            902 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_902(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             903 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_903(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            904 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_904(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            904 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_904(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             905 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_905(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            906 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_906(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            906 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_906(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             907 => Err(CallError::ReadOnly(id)),
-            908 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_908(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            908 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_908(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             909 => Err(CallError::ReadOnly(id)),
-            910 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_910(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            910 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_910(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             911 => Err(CallError::ReadOnly(id)),
-            912 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_912(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            912 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_912(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             913 => Err(CallError::ReadOnly(id)),
-            914 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_914(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            914 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_914(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             915 => Err(CallError::ReadOnly(id)),
-            916 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_916(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            916 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_916(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             917 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_917(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            918 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_918(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            918 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_918(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             919 => Err(CallError::ReadOnly(id)),
-            920 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_920(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            920 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_920(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             921 => Err(CallError::ReadOnly(id)),
-            922 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_922(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            922 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_922(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             923 => Err(CallError::ReadOnly(id)),
-            924 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_924(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            924 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_924(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             925 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_925(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            926 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_926(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            926 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_926(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             927 => Err(CallError::ReadOnly(id)),
-            928 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_928(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            928 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_928(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             929 => Err(CallError::ReadOnly(id)),
-            930 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_930(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            930 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_930(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             931 => Err(CallError::ReadOnly(id)),
-            932 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_932(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            932 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_932(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             933 => Err(CallError::ReadOnly(id)),
-            934 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_934(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            934 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_934(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             935 => Err(CallError::ReadOnly(id)),
-            936 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_936(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            936 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_936(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             937 => Err(CallError::ReadOnly(id)),
-            938 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_938(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            938 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_938(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             939 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_939(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            940 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_940(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            940 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_940(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             941 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_941(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            942 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_942(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            942 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_942(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             943 => Err(CallError::ReadOnly(id)),
-            944 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_944(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            944 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_944(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             945 => Err(CallError::ReadOnly(id)),
-            946 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_946(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            946 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_946(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             947 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_947(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            948 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_948(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            949 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_949(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            948 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_948(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            949 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_949(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             950 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_950(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            951 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_951(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            952 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_952(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            953 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_953(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            954 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_954(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            951 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_951(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            952 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_952(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            953 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_953(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            954 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_954(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             955 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_955(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             956 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_956(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             957 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_957(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            958 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_958(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            959 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_959(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            960 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_960(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            958 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_958(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            959 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_959(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            960 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_960(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             961 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_961(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            962 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_962(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            962 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_962(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             963 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_963(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            964 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_964(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            964 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_964(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             965 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_965(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             966 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_966(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            967 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_967(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            968 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_968(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            969 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_969(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            970 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_970(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            967 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_967(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            968 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_968(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            969 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_969(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            970 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_970(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             971 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_971(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             972 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_972(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             973 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_973(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            974 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_974(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            975 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_975(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            976 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_976(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            977 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_977(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            974 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_974(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            975 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_975(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            976 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_976(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            977 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_977(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             978 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_978(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            979 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_979(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            980 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_980(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            979 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_979(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            980 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_980(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             981 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_981(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             982 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_982(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            983 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_983(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            984 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_984(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            983 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_983(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            984 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_984(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             985 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_985(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             986 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_986(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             987 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_987(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             988 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_988(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            989 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_989(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            990 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_990(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            991 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_991(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            992 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_992(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            993 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_993(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            994 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_994(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            995 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_995(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            996 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_996(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            997 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_997(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            998 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_998(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            999 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_999(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1000 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_1000(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1001 => activation::with_arg::<crate::mobs::Mob, _>(handle, |recv| call_1001(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1002 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1002(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            989 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_989(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            990 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_990(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            991 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_991(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            992 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_992(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            993 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_993(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            994 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_994(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            995 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_995(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            996 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_996(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            997 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_997(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            998 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_998(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            999 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_999(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1000 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_1000(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1001 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_1001(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1002 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1002(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1003 => Err(CallError::ReadOnly(id)),
-            1004 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1004(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1004 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1004(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1005 => Err(CallError::ReadOnly(id)),
-            1006 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1006(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1006 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1006(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1007 => Err(CallError::ReadOnly(id)),
-            1008 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1008(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1008 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1008(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1009 => Err(CallError::ReadOnly(id)),
-            1010 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1010(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1010 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1010(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1011 => Err(CallError::ReadOnly(id)),
-            1012 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1012(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1012 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1012(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1013 => Err(CallError::ReadOnly(id)),
-            1014 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1014(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1014 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1014(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1015 => Err(CallError::ReadOnly(id)),
-            1016 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1016(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1016 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1016(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1017 => Err(CallError::ReadOnly(id)),
-            1018 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1018(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1018 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1018(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1019 => Err(CallError::ReadOnly(id)),
-            1020 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1020(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1020 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1020(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1021 => Err(CallError::ReadOnly(id)),
-            1022 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1022(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1022 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1022(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1023 => Err(CallError::ReadOnly(id)),
-            1024 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1024(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1024 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1024(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1025 => Err(CallError::ReadOnly(id)),
-            1026 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1026(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1026 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1026(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1027 => Err(CallError::ReadOnly(id)),
-            1028 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1028(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1028 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1028(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1029 => Err(CallError::ReadOnly(id)),
-            1030 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1030(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1030 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1030(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1031 => Err(CallError::ReadOnly(id)),
-            1032 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1032(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1032 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1032(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1033 => Err(CallError::ReadOnly(id)),
-            1034 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1034(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1034 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1034(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1035 => Err(CallError::ReadOnly(id)),
-            1036 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1036(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1036 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1036(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1037 => Err(CallError::ReadOnly(id)),
-            1038 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1038(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1038 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1038(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1039 => Err(CallError::ReadOnly(id)),
-            1040 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1040(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1040 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1040(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1041 => Err(CallError::ReadOnly(id)),
-            1042 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1042(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1042 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1042(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1043 => Err(CallError::ReadOnly(id)),
-            1044 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1044(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1044 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1044(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1045 => Err(CallError::ReadOnly(id)),
-            1046 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1046(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1046 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1046(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1047 => Err(CallError::ReadOnly(id)),
-            1048 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1048(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1048 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1048(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1049 => Err(CallError::ReadOnly(id)),
-            1050 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1050(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1050 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1050(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1051 => Err(CallError::ReadOnly(id)),
-            1052 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1052(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1052 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1052(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1053 => Err(CallError::ReadOnly(id)),
-            1054 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1054(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1054 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1054(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1055 => Err(CallError::ReadOnly(id)),
-            1056 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1056(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1056 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1056(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1057 => Err(CallError::ReadOnly(id)),
-            1058 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1058(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1058 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1058(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1059 => Err(CallError::ReadOnly(id)),
-            1060 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1060(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1060 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1060(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1061 => Err(CallError::ReadOnly(id)),
-            1062 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1062(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1062 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1062(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1063 => Err(CallError::ReadOnly(id)),
-            1064 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1064(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1064 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1064(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1065 => Err(CallError::ReadOnly(id)),
-            1066 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1066(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1066 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1066(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1067 => Err(CallError::ReadOnly(id)),
-            1068 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1068(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1068 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1068(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1069 => Err(CallError::ReadOnly(id)),
-            1070 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1070(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1070 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1070(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1071 => Err(CallError::ReadOnly(id)),
-            1072 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1072(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1072 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1072(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1073 => Err(CallError::ReadOnly(id)),
-            1074 => activation::with_arg::<crate::mobs::MobType, _>(handle, |recv| call_1074(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1074 => activation::with_arg_shared::<crate::mobs::MobType, _>(handle, |recv| call_1074(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1075 => Err(CallError::ReadOnly(id)),
-            1076 => activation::with_arg::<crate::mobs::ModelNormals, _>(handle, |recv| call_1076(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1076 => activation::with_arg_shared::<crate::mobs::ModelNormals, _>(handle, |recv| call_1076(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1077 => Err(CallError::ReadOnly(id)),
-            1078 => activation::with_arg::<crate::mobs::Part, _>(handle, |recv| call_1078(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1078 => activation::with_arg_shared::<crate::mobs::Part, _>(handle, |recv| call_1078(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1079 => Err(CallError::ReadOnly(id)),
-            1080 => activation::with_arg::<crate::mobs::Part, _>(handle, |recv| call_1080(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1080 => activation::with_arg_shared::<crate::mobs::Part, _>(handle, |recv| call_1080(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1081 => Err(CallError::ReadOnly(id)),
-            1082 => activation::with_arg::<crate::mobs::Part, _>(handle, |recv| call_1082(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1082 => activation::with_arg_shared::<crate::mobs::Part, _>(handle, |recv| call_1082(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1083 => Err(CallError::ReadOnly(id)),
-            1084 => activation::with_arg::<crate::mobs::Part, _>(handle, |recv| call_1084(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1084 => activation::with_arg_shared::<crate::mobs::Part, _>(handle, |recv| call_1084(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1085 => Err(CallError::ReadOnly(id)),
             1086 => activation::with_arg::<crate::mobs::Part, _>(handle, |recv| call_1086(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1087 => activation::with_arg::<crate::mobs::PendingPushes, _>(handle, |recv| call_1087(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1087 => activation::with_arg_shared::<crate::mobs::PendingPushes, _>(handle, |recv| call_1087(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1088 => Err(CallError::ReadOnly(id)),
-            1089 => activation::with_arg::<crate::mobs::PendingPushes, _>(handle, |recv| call_1089(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1089 => activation::with_arg_shared::<crate::mobs::PendingPushes, _>(handle, |recv| call_1089(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1090 => Err(CallError::ReadOnly(id)),
             1091 => activation::with_arg::<crate::mobs::PendingPushes, _>(handle, |recv| call_1091(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1092 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1092(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1092 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1092(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1093 => Err(CallError::ReadOnly(id)),
-            1094 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1094(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1094 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1094(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1095 => Err(CallError::ReadOnly(id)),
-            1096 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1096(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1096 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1096(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1097 => Err(CallError::ReadOnly(id)),
-            1098 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1098(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1098 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1098(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1099 => Err(CallError::ReadOnly(id)),
-            1100 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1100(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1100 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1100(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1101 => Err(CallError::ReadOnly(id)),
-            1102 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1102(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1102 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1102(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1103 => Err(CallError::ReadOnly(id)),
-            1104 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1104(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1104 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1104(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1105 => Err(CallError::ReadOnly(id)),
-            1106 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1106(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1106 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1106(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1107 => Err(CallError::ReadOnly(id)),
-            1108 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1108(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1108 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1108(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1109 => Err(CallError::ReadOnly(id)),
-            1110 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1110(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1110 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1110(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1111 => Err(CallError::ReadOnly(id)),
-            1112 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1112(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1112 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1112(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1113 => Err(CallError::ReadOnly(id)),
-            1114 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1114(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1114 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1114(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1115 => Err(CallError::ReadOnly(id)),
-            1116 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1116(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1116 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1116(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1117 => Err(CallError::ReadOnly(id)),
-            1118 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1118(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1118 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1118(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1119 => Err(CallError::ReadOnly(id)),
-            1120 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1120(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1120 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1120(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1121 => Err(CallError::ReadOnly(id)),
-            1122 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1122(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1122 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1122(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1123 => Err(CallError::ReadOnly(id)),
-            1124 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1124(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1124 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1124(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1125 => Err(CallError::ReadOnly(id)),
-            1126 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1126(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1126 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1126(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1127 => Err(CallError::ReadOnly(id)),
-            1128 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1128(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1128 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1128(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1129 => Err(CallError::ReadOnly(id)),
-            1130 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1130(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1130 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1130(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1131 => Err(CallError::ReadOnly(id)),
-            1132 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1132(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1132 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1132(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1133 => Err(CallError::ReadOnly(id)),
-            1134 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1134(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1134 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1134(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1135 => Err(CallError::ReadOnly(id)),
-            1136 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1136(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1136 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1136(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1137 => Err(CallError::ReadOnly(id)),
-            1138 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1138(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1138 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1138(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1139 => Err(CallError::ReadOnly(id)),
-            1140 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1140(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1140 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1140(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1141 => Err(CallError::ReadOnly(id)),
-            1142 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1142(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1142 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1142(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1143 => Err(CallError::ReadOnly(id)),
-            1144 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1144(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1144 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1144(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1145 => Err(CallError::ReadOnly(id)),
-            1146 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1146(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1147 => activation::with_arg::<crate::mobs::PlayerView, _>(handle, |recv| call_1147(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1148 => activation::with_arg::<crate::mobs::Polygon, _>(handle, |recv| call_1148(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1146 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1146(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1147 => activation::with_arg_shared::<crate::mobs::PlayerView, _>(handle, |recv| call_1147(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1148 => activation::with_arg_shared::<crate::mobs::Polygon, _>(handle, |recv| call_1148(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1149 => Err(CallError::ReadOnly(id)),
-            1150 => activation::with_arg::<crate::mobs::Polygon, _>(handle, |recv| call_1150(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1150 => activation::with_arg_shared::<crate::mobs::Polygon, _>(handle, |recv| call_1150(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1151 => Err(CallError::ReadOnly(id)),
-            1152 => activation::with_arg::<crate::mobs::Polygon, _>(handle, |recv| call_1152(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1152 => activation::with_arg_shared::<crate::mobs::Polygon, _>(handle, |recv| call_1152(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1153 => Err(CallError::ReadOnly(id)),
-            1154 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1154(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1154 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1154(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1155 => Err(CallError::ReadOnly(id)),
-            1156 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1156(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1156 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1156(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1157 => Err(CallError::ReadOnly(id)),
-            1158 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1158(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1158 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1158(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1159 => Err(CallError::ReadOnly(id)),
-            1160 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1160(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1160 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1160(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1161 => Err(CallError::ReadOnly(id)),
-            1162 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1162(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1162 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1162(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1163 => Err(CallError::ReadOnly(id)),
-            1164 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1164(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1164 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1164(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1165 => Err(CallError::ReadOnly(id)),
-            1166 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1166(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1166 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1166(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1167 => Err(CallError::ReadOnly(id)),
-            1168 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1168(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1168 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1168(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1169 => Err(CallError::ReadOnly(id)),
-            1170 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1170(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1170 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1170(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1171 => Err(CallError::ReadOnly(id)),
-            1172 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1172(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1172 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1172(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1173 => Err(CallError::ReadOnly(id)),
-            1174 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1174(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1174 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1174(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1175 => Err(CallError::ReadOnly(id)),
-            1176 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1176(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1176 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1176(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1177 => Err(CallError::ReadOnly(id)),
-            1178 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1178(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1178 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1178(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1179 => Err(CallError::ReadOnly(id)),
-            1180 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1180(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1180 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1180(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1181 => Err(CallError::ReadOnly(id)),
-            1182 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1182(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1182 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1182(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1183 => Err(CallError::ReadOnly(id)),
-            1184 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1184(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1184 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1184(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1185 => Err(CallError::ReadOnly(id)),
-            1186 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1186(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1186 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1186(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1187 => Err(CallError::ReadOnly(id)),
-            1188 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1188(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1188 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1188(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1189 => Err(CallError::ReadOnly(id)),
-            1190 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1190(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1190 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1190(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1191 => Err(CallError::ReadOnly(id)),
-            1192 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1192(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1192 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1192(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1193 => Err(CallError::ReadOnly(id)),
-            1194 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1194(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1194 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1194(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1195 => Err(CallError::ReadOnly(id)),
-            1196 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1196(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1196 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1196(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1197 => Err(CallError::ReadOnly(id)),
-            1198 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1198(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1198 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1198(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1199 => Err(CallError::ReadOnly(id)),
-            1200 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1200(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1200 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1200(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1201 => Err(CallError::ReadOnly(id)),
-            1202 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1202(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1202 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1202(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1203 => Err(CallError::ReadOnly(id)),
-            1204 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1204(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1204 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1204(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1205 => Err(CallError::ReadOnly(id)),
-            1206 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1206(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1206 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1206(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1207 => Err(CallError::ReadOnly(id)),
-            1208 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1208(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1208 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1208(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1209 => Err(CallError::ReadOnly(id)),
-            1210 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1210(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1210 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1210(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1211 => Err(CallError::ReadOnly(id)),
-            1212 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1212(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1212 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1212(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1213 => Err(CallError::ReadOnly(id)),
-            1214 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1214(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1214 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1214(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1215 => Err(CallError::ReadOnly(id)),
-            1216 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1216(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1216 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1216(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1217 => Err(CallError::ReadOnly(id)),
-            1218 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1218(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1218 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1218(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1219 => Err(CallError::ReadOnly(id)),
-            1220 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1220(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1220 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1220(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1221 => Err(CallError::ReadOnly(id)),
-            1222 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1222(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1222 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1222(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1223 => Err(CallError::ReadOnly(id)),
-            1224 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1224(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1224 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1224(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1225 => Err(CallError::ReadOnly(id)),
-            1226 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1226(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1226 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1226(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1227 => Err(CallError::ReadOnly(id)),
-            1228 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1228(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1228 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1228(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1229 => Err(CallError::ReadOnly(id)),
-            1230 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1230(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1230 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1230(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1231 => Err(CallError::ReadOnly(id)),
-            1232 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1232(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1232 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1232(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1233 => Err(CallError::ReadOnly(id)),
-            1234 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1234(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1234 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1234(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1235 => Err(CallError::ReadOnly(id)),
-            1236 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1236(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1236 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1236(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1237 => Err(CallError::ReadOnly(id)),
-            1238 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1238(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1238 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1238(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1239 => Err(CallError::ReadOnly(id)),
-            1240 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1240(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1240 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1240(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1241 => Err(CallError::ReadOnly(id)),
-            1242 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1242(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1242 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1242(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1243 => Err(CallError::ReadOnly(id)),
-            1244 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1244(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1244 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1244(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1245 => Err(CallError::ReadOnly(id)),
-            1246 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1246(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1246 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1246(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1247 => Err(CallError::ReadOnly(id)),
-            1248 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1248(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1248 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1248(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1249 => Err(CallError::ReadOnly(id)),
-            1250 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1250(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1250 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1250(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1251 => Err(CallError::ReadOnly(id)),
-            1252 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1252(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1252 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1252(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1253 => Err(CallError::ReadOnly(id)),
-            1254 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_1254(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1255 => activation::with_arg::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1255(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1254 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_1254(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1255 => activation::with_arg_shared::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1255(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1256 => Err(CallError::ReadOnly(id)),
-            1257 => activation::with_arg::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1257(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1257 => activation::with_arg_shared::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1257(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1258 => Err(CallError::ReadOnly(id)),
-            1259 => activation::with_arg::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1259(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1259 => activation::with_arg_shared::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1259(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1260 => Err(CallError::ReadOnly(id)),
-            1261 => activation::with_arg::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1261(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1261 => activation::with_arg_shared::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1261(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1262 => Err(CallError::ReadOnly(id)),
-            1263 => activation::with_arg::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1263(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1263 => activation::with_arg_shared::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1263(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1264 => Err(CallError::ReadOnly(id)),
-            1265 => activation::with_arg::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1265(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1265 => activation::with_arg_shared::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1265(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1266 => Err(CallError::ReadOnly(id)),
-            1267 => activation::with_arg::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1267(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1267 => activation::with_arg_shared::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1267(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1268 => Err(CallError::ReadOnly(id)),
-            1269 => activation::with_arg::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1269(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1269 => activation::with_arg_shared::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1269(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1270 => Err(CallError::ReadOnly(id)),
-            1271 => activation::with_arg::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1271(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1271 => activation::with_arg_shared::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1271(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1272 => Err(CallError::ReadOnly(id)),
-            1273 => activation::with_arg::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1273(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1273 => activation::with_arg_shared::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1273(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1274 => Err(CallError::ReadOnly(id)),
-            1275 => activation::with_arg::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1275(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1275 => activation::with_arg_shared::<crate::mobs::SpawnSetup, _>(handle, |recv| call_1275(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1276 => Err(CallError::ReadOnly(id)),
-            1277 => activation::with_arg::<crate::mobs::SwimAnimation, _>(handle, |recv| call_1277(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1277 => activation::with_arg_shared::<crate::mobs::SwimAnimation, _>(handle, |recv| call_1277(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1278 => Err(CallError::ReadOnly(id)),
-            1279 => activation::with_arg::<crate::mobs::SwimAnimation, _>(handle, |recv| call_1279(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1279 => activation::with_arg_shared::<crate::mobs::SwimAnimation, _>(handle, |recv| call_1279(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1280 => Err(CallError::ReadOnly(id)),
-            1281 => activation::with_arg::<crate::mobs::SwimAnimation, _>(handle, |recv| call_1281(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1281 => activation::with_arg_shared::<crate::mobs::SwimAnimation, _>(handle, |recv| call_1281(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1282 => Err(CallError::ReadOnly(id)),
-            1283 => activation::with_arg::<crate::mobs::SwimAnimation, _>(handle, |recv| call_1283(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1283 => activation::with_arg_shared::<crate::mobs::SwimAnimation, _>(handle, |recv| call_1283(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1284 => Err(CallError::ReadOnly(id)),
-            1285 => activation::with_arg::<crate::mobs::SwimAnimation, _>(handle, |recv| call_1285(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1285 => activation::with_arg_shared::<crate::mobs::SwimAnimation, _>(handle, |recv| call_1285(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1286 => activation::with_arg::<crate::mobs::SwimAnimation, _>(handle, |recv| call_1286(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1287 => activation::with_arg::<crate::mobs::Vehicle, _>(handle, |recv| call_1287(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1287 => activation::with_arg_shared::<crate::mobs::Vehicle, _>(handle, |recv| call_1287(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1288 => Err(CallError::ReadOnly(id)),
-            1289 => activation::with_arg::<crate::mobs::Vehicle, _>(handle, |recv| call_1289(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1289 => activation::with_arg_shared::<crate::mobs::Vehicle, _>(handle, |recv| call_1289(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             1290 => Err(CallError::ReadOnly(id)),
             1291 => call_1291(args, out),
             1292 => call_1292(args, out),
             1293 => call_1293(args, out),
-            2515 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_2515(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2515 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_2515(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2516 => Err(CallError::ReadOnly(id)),
-            2517 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2517(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2518 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2518(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2519 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2519(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2517 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2517(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2518 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2518(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2519 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2519(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2520 => Err(CallError::ReadOnly(id)),
-            2521 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2521(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2521 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2521(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2522 => Err(CallError::ReadOnly(id)),
-            2523 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2523(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2523 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2523(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2524 => Err(CallError::ReadOnly(id)),
-            2525 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2525(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2525 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2525(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2526 => Err(CallError::ReadOnly(id)),
-            2527 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2527(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2527 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2527(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2528 => Err(CallError::ReadOnly(id)),
-            2529 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2529(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2529 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2529(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2530 => Err(CallError::ReadOnly(id)),
-            2531 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2531(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2531 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2531(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2532 => Err(CallError::ReadOnly(id)),
             _ => Err(CallError::UnknownBinding(id)),
         };

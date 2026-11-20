@@ -256,6 +256,7 @@ pub fn generate_inject_catalog(root: &Path) -> Result<String, String> {
         "motion.rs",
         "mobs/animal_brain.rs",
         "lan/prediction.rs",
+        "mod_generator.rs",
     ]
     .into_iter()
     .map(|file| root.join("crates/horizon-client/src").join(file))
@@ -419,7 +420,7 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let generated = generate_inject_catalog(&root).unwrap();
         let sites: Vec<CatalogSite> = serde_json::from_str(&generated).unwrap();
-        assert_eq!(sites.len(), 56);
+        assert_eq!(sites.len(), 60);
         let mut block_state_slots = 0;
         let mut sensitive = Vec::new();
         for site in sites {

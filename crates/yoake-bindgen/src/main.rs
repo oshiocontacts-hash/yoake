@@ -27,6 +27,8 @@ fn run() -> Result<ExitCode, Box<dyn std::error::Error>> {
     let mut check = false;
     let mut survey_crate: Option<String> = None;
     let mut lock_base: Option<PathBuf> = None;
+    let mut tables_crate: Option<String> = None;
+    let mut tables_dir: Option<PathBuf> = None;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -34,6 +36,8 @@ fn run() -> Result<ExitCode, Box<dyn std::error::Error>> {
             "--root" => root = PathBuf::from(args.next().ok_or("--root needs a directory")?),
             "--check" => check = true,
             "--lock-base" => lock_base = Some(PathBuf::from(args.next().ok_or("--lock-base needs a file")?)),
+            "--tables" => tables_crate = Some(args.next().ok_or("--tables needs a crate name")?),
+            "--tables-dir" => tables_dir = Some(PathBuf::from(args.next().ok_or("--tables-dir needs a directory")?)),
             "--survey" => survey_crate = Some(args.next().ok_or("--survey needs a crate name")?),
             other => return Err(format!("unknown argument `{other}`").into()),
         }
@@ -43,6 +47,19 @@ fn run() -> Result<ExitCode, Box<dyn std::error::Error>> {
     yoake_bindgen::toolchain::check_rustc(&root)?;
     let config: Config = serde_json::from_str(&std::fs::read_to_string(&config_path)?)?;
     let uni = load_universe(&config, &root)?;
+    if let Some(krate) = tables_crate {
+        // W9b: one small glue file per module with scalar fields, in `<tables-dir>/<module path with __>.rs`
+        let dir = root.join(tables_dir.ok_or("--tables needs --tables-dir")?);
+        std::fs::create_dir_all(&dir)?;
+        let all = yoake_bindgen::tables(&uni, &krate, &config.frozen_files)?;
+        let mut bytes = 0usize;
+        for (label, _file, text) in &all {
+            bytes += text.len();
+            std::fs::write(dir.join(format!("{}.rs", label.replace("::", "__"))), text)?;
+        }
+        println!("{krate}: {} module table files, {} bytes into {}", all.len(), bytes, dir.display());
+        return Ok(ExitCode::SUCCESS);
+    }
     if let Some(krate) = survey_crate {
         return survey(&config, &uni, &krate, &root);
     }

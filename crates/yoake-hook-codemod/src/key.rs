@@ -162,9 +162,26 @@ pub fn to_snake_case(name: &str) -> String {
     out
 }
 
+/// F1 spike: `impl From<A> for T` and `impl From<B> for T` must not share one helper name.
+fn generic_args_suffix(trait_path: &Path) -> String {
+    use quote::ToTokens;
+    match trait_path.segments.last().map(|s| &s.arguments) {
+        Some(syn::PathArguments::AngleBracketed(args)) if !args.args.is_empty() => {
+            let text = args.to_token_stream().to_string();
+            let mut h: u64 = 0xcbf29ce484222325;
+            for b in text.bytes() {
+                h ^= u64::from(b);
+                h = h.wrapping_mul(0x100000001b3);
+            }
+            format!("_g{:08x}", h as u32)
+        }
+        _ => String::new(),
+    }
+}
+
 pub fn trait_helper_name(trait_path: &Path, method_ident: &Ident) -> String {
     let trait_snake = to_snake_case(&trait_last_segment_name(trait_path));
-    format!("__yoake_trait_{trait_snake}_{method_ident}")
+    format!("__yoake_trait_{trait_snake}{}_{method_ident}", generic_args_suffix(trait_path))
 }
 
 pub fn trait_helper_name_full(trait_path: &Path, method_ident: &Ident) -> String {
@@ -173,7 +190,7 @@ pub fn trait_helper_name_full(trait_path: &Path, method_ident: &Ident) -> String
         .iter()
         .map(|s| to_snake_case(&s.ident.to_string()))
         .collect();
-    format!("__yoake_trait_{}_{method_ident}", parts.join("_"))
+    format!("__yoake_trait_{}{}_{method_ident}", parts.join("_"), generic_args_suffix(trait_path))
 }
 
 #[derive(Default)]
@@ -402,6 +419,26 @@ pub fn assign_field_path(left: &Expr) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn trait_helper_names_differ_for_different_generic_trait_arguments() {
+        let a: syn::Path = syn::parse_str("PartialEq").unwrap();
+        let b: syn::Path = syn::parse_str("PartialEq<BTreeMap<String, String>>").unwrap();
+        let c: syn::Path = syn::parse_str("PartialEq<Vec<u8>>").unwrap();
+        let eq: syn::Ident = syn::parse_str("eq").unwrap();
+        let (na, nb, nc) = (
+            super::trait_helper_name(&a, &eq),
+            super::trait_helper_name(&b, &eq),
+            super::trait_helper_name(&c, &eq),
+        );
+        assert_eq!(na, "__yoake_trait_partial_eq_eq", "plain traits keep their old names");
+        assert!(nb.starts_with("__yoake_trait_partial_eq_g") && nb.ends_with("_eq"));
+        assert_ne!(nb, nc);
+        assert_ne!(na, nb);
+        let (fa, fb) = (super::trait_helper_name_full(&b, &eq), super::trait_helper_name_full(&c, &eq));
+        assert_ne!(fa, fb);
+        assert_eq!(nb, super::trait_helper_name(&b, &eq), "stable between runs");
+    }
+
     use super::*;
 
     #[test]

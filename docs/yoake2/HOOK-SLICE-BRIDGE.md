@@ -260,3 +260,24 @@ unchanged to `original`.
 - Several mods on one hook: answered. One dispatcher per id; the runtime's chain orders the guests (see above).
 - Arguments 1.. as guest-visible handles need `dispatch2` (exists for two args) or an n-ary dispatch; the generator
   can pick `dispatch2` when the second parameter also has a field table.
+
+## The n-ary form (W8/W9, `bridge --nary`)
+
+With `yoake-hook-codemod bridge --nary` (and `--module '*'` for every top-level module) a hook that has **other than one
+argument** is bridged through `yoake_slice::runtime::dispatch_n_id`: every argument is registered in an `ArgSet` and the guest
+gets a handle per argument (handle of argument 0 with the low byte set to the index, `Handle::arg(i)` in the SDK). One-argument
+hooks keep the forms above. Hooks that the arg0 forms cannot take at all (no field table, `&Game`, by-value first
+argument, no arguments, non-static lifetimes) fall back to the n-ary form too. Kinds:
+
+| argument | registered as | guest can |
+|---|---|---|
+| `&mut T` / `&self`-style, `T` has a `FieldTable`, no non-static lifetime | `mut_ref` | `get`/`set` fields, bindings, `arg_swap` |
+| `&T` with a `RefFieldTable` | `shared` | `get`, `arg_replace` |
+| `bool`, integers, `f32`, `f64` by value | `value` (bits, as the result encoding) | `arg_get`, `arg_set` |
+| anything else by value, `&mut T` without a table | held in an `Option` the bridge owns (`opaque_mut`) | pass on, nothing else; the first `original` takes it back, a later one returns 0 |
+| `&T` without a table, `&str`, `&[T]`, `&dyn`, `&Game` | the reference is copied and held (`opaque_shared`) | pass on |
+
+`original` receives the arguments as the guest left them (replaced values, swapped objects); an out-of-range replacement
+value keeps the original argument. A hook is left in `UNBRIDGED` when a type it names is private to another module than the
+one the bridge file is included into (`type ... is private to another module`), when the return type has a non-static
+lifetime, or when it has more than 8 arguments.

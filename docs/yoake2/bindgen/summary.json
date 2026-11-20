@@ -34,7 +34,7 @@
     "excluded": 14,
     "derived": 57,
     "derived_bound": 24,
-    "fields_total": 452,
+    "fields_total": 453,
     "fields_bound": 367,
     "handle_types": 22
   },
@@ -75,6 +75,19 @@
     "derived_bound": 6,
     "fields_total": 43,
     "fields_bound": 14,
+    "handle_types": 4
+  },
+  {
+    "label": "mod_generator",
+    "total": 25,
+    "bound_a": 8,
+    "bound_mech": 1,
+    "handle_required": 8,
+    "excluded": 8,
+    "derived": 3,
+    "derived_bound": 0,
+    "fields_total": 21,
+    "fields_bound": 8,
     "handle_types": 4
   }
 ]

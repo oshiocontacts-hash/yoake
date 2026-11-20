@@ -247,6 +247,11 @@ pub mod server {
             services::level_list()
         }
 
+        /// The id of the level a player is in (any level, not only the three vanilla ones). (Service 235.)
+        pub fn current_level(player: &str) -> Result<String, String> {
+            services::current_level(player)
+        }
+
         pub fn vec3(x: f64, y: f64, z: f64) -> types::Vec3 {
             types::Vec3 { x, y, z }
         }

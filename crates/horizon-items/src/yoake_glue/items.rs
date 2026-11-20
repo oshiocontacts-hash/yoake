@@ -6,7 +6,7 @@
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]
-    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, RefFieldTable, Status};
+    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, PathRootRef, RefFieldTable, Status};
     use yoake_slice::codec::{self, CallError, Decode, Decoder, Encode};
 
     fn enc_crate__cooldowns__UseCooldown(v: &crate::cooldowns::UseCooldown, out: &mut Vec<u8>) {
@@ -476,7 +476,7 @@ pub mod yoake_glue {
     }
 
     /// `items::BlockReduction.base#get`
-    fn call_169(recv: &mut crate::items::BlockReduction, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_169(recv: &crate::items::BlockReduction, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.base, out);
         Ok(())
@@ -486,7 +486,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::BlockReduction.factor#get`
-    fn call_171(recv: &mut crate::items::BlockReduction, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_171(recv: &crate::items::BlockReduction, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.factor, out);
         Ok(())
@@ -496,7 +496,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::BlockReduction.horizontal_angle#get`
-    fn call_173(recv: &mut crate::items::BlockReduction, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_173(recv: &crate::items::BlockReduction, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.horizontal_angle, out);
         Ok(())
@@ -506,7 +506,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::BlockReduction.types#get`
-    fn call_175(recv: &mut crate::items::BlockReduction, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_175(recv: &crate::items::BlockReduction, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.types {
             None => out.push(0),
@@ -528,7 +528,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::BlocksAttacks.block_sound#get`
-    fn call_177(recv: &mut crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_177(recv: &crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.block_sound {
             None => out.push(0),
@@ -544,7 +544,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::BlocksAttacks.bypassed_by#get`
-    fn call_179(recv: &mut crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_179(recv: &crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.bypassed_by {
             None => out.push(0),
@@ -560,7 +560,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::BlocksAttacks.delay_seconds#get`
-    fn call_181(recv: &mut crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_181(recv: &crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.delay_seconds, out);
         Ok(())
@@ -570,7 +570,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::BlocksAttacks.disable_scale#get`
-    fn call_183(recv: &mut crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_183(recv: &crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.disable_scale, out);
         Ok(())
@@ -580,7 +580,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::BlocksAttacks.disabled_sound#get`
-    fn call_185(recv: &mut crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_185(recv: &crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.disabled_sound {
             None => out.push(0),
@@ -596,7 +596,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::BlocksAttacks.item_damage#get`
-    fn call_187(recv: &mut crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_187(recv: &crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let t0 = &recv.item_damage;
@@ -611,7 +611,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::BlocksAttacks.reductions#get`
-    fn call_189(recv: &mut crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_189(recv: &crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.reductions;
@@ -627,7 +627,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ConsumeEffectSpec.amplifier#get`
-    fn call_191(recv: &mut crate::items::ConsumeEffectSpec, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_191(recv: &crate::items::ConsumeEffectSpec, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.amplifier, out);
         Ok(())
@@ -637,7 +637,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ConsumeEffectSpec.duration#get`
-    fn call_193(recv: &mut crate::items::ConsumeEffectSpec, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_193(recv: &crate::items::ConsumeEffectSpec, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.duration, out);
         Ok(())
@@ -647,7 +647,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ConsumeEffectSpec.id#get`
-    fn call_195(recv: &mut crate::items::ConsumeEffectSpec, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_195(recv: &crate::items::ConsumeEffectSpec, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.id, out);
         Ok(())
@@ -657,7 +657,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::Instrument.range#get`
-    fn call_197(recv: &mut crate::items::Instrument, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_197(recv: &crate::items::Instrument, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.range, out);
         Ok(())
@@ -667,7 +667,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::Instrument.sound#get`
-    fn call_199(recv: &mut crate::items::Instrument, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_199(recv: &crate::items::Instrument, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sound, out);
         Ok(())
@@ -677,7 +677,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::Instrument.use_duration#get`
-    fn call_201(recv: &mut crate::items::Instrument, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_201(recv: &crate::items::Instrument, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.use_duration, out);
         Ok(())
@@ -687,7 +687,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.attack_damage#get`
-    fn call_203(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_203(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.attack_damage, out);
         Ok(())
@@ -697,7 +697,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.attack_speed#get`
-    fn call_205(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_205(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.attack_speed, out);
         Ok(())
@@ -707,7 +707,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.block#get`
-    fn call_207(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_207(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.block {
             None => out.push(0),
@@ -723,7 +723,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.block_transformer#get`
-    fn call_209(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_209(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.block_transformer {
             None => out.push(0),
@@ -739,7 +739,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.blocks_attacks#get`
-    fn call_211(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_211(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.blocks_attacks {
             None => out.push(0),
@@ -755,7 +755,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.bundle#get`
-    fn call_213(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_213(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.bundle, out);
         Ok(())
@@ -765,7 +765,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.can_always_eat#get`
-    fn call_215(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_215(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.can_always_eat, out);
         Ok(())
@@ -775,7 +775,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.can_destroy_blocks_in_creative#get`
-    fn call_217(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_217(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.can_destroy_blocks_in_creative, out);
         Ok(())
@@ -785,7 +785,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.can_sprint#get`
-    fn call_219(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_219(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.can_sprint, out);
         Ok(())
@@ -795,7 +795,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.components#get`
-    fn call_221(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_221(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.components;
@@ -811,7 +811,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.crafting_remainder#get`
-    fn call_223(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_223(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.crafting_remainder {
             None => out.push(0),
@@ -827,7 +827,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.cushion_color#get`
-    fn call_225(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_225(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.cushion_color {
             None => out.push(0),
@@ -843,7 +843,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.disable_blocking_seconds#get`
-    fn call_227(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_227(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.disable_blocking_seconds, out);
         Ok(())
@@ -853,7 +853,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.dye#get`
-    fn call_229(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_229(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.dye {
             None => out.push(0),
@@ -869,7 +869,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.equip_asset#get`
-    fn call_231(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_231(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.equip_asset {
             None => out.push(0),
@@ -885,7 +885,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.equip_damage_on_hurt#get`
-    fn call_233(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_233(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.equip_damage_on_hurt, out);
         Ok(())
@@ -895,7 +895,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.equip_dispensable#get`
-    fn call_235(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_235(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.equip_dispensable, out);
         Ok(())
@@ -905,7 +905,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.equip_slot#get`
-    fn call_237(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_237(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.equip_slot {
             None => out.push(0),
@@ -921,7 +921,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.equip_sound#get`
-    fn call_239(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_239(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.equip_sound {
             None => out.push(0),
@@ -937,7 +937,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.fire_resistant#get`
-    fn call_241(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_241(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fire_resistant, out);
         Ok(())
@@ -947,7 +947,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.food#get`
-    fn call_243(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_243(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.food {
             None => out.push(0),
@@ -967,7 +967,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.glider#get`
-    fn call_245(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_245(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.glider, out);
         Ok(())
@@ -977,7 +977,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.interact_vibrations#get`
-    fn call_247(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_247(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.interact_vibrations, out);
         Ok(())
@@ -987,7 +987,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.jukebox_song#get`
-    fn call_249(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_249(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.jukebox_song {
             None => out.push(0),
@@ -1003,7 +1003,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.max_damage#get`
-    fn call_251(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_251(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.max_damage, out);
         Ok(())
@@ -1013,7 +1013,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.max_stack#get`
-    fn call_253(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_253(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.max_stack, out);
         Ok(())
@@ -1023,7 +1023,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.model#get`
-    fn call_255(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_255(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.model, out);
         Ok(())
@@ -1033,7 +1033,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.modifiers#get`
-    fn call_257(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_257(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.modifiers;
@@ -1056,7 +1056,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.remainder#get`
-    fn call_259(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_259(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.remainder {
             None => out.push(0),
@@ -1072,7 +1072,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.swappable#get`
-    fn call_261(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_261(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.swappable, out);
         Ok(())
@@ -1082,7 +1082,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.tool#get`
-    fn call_263(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_263(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.tool;
@@ -1098,7 +1098,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.tool_damage_per_block#get`
-    fn call_265(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_265(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.tool_damage_per_block {
             None => out.push(0),
@@ -1114,7 +1114,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.tool_default_speed#get`
-    fn call_267(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_267(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.tool_default_speed, out);
         Ok(())
@@ -1124,7 +1124,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.use_remainder#get`
-    fn call_269(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_269(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.use_remainder {
             None => out.push(0),
@@ -1140,7 +1140,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.use_speed#get`
-    fn call_271(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_271(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.use_speed, out);
         Ok(())
@@ -1150,7 +1150,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.villager_food#get`
-    fn call_273(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_273(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.villager_food {
             None => out.push(0),
@@ -1166,7 +1166,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.weapon_damage#get`
-    fn call_275(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_275(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.weapon_damage {
             None => out.push(0),
@@ -1182,7 +1182,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemStack.count#get`
-    fn call_277(recv: &mut crate::items::ItemStack, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_277(recv: &crate::items::ItemStack, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.count, out);
         Ok(())
@@ -1199,7 +1199,7 @@ pub mod yoake_glue {
     }
 
     /// `items::ItemStack.damage#get`
-    fn call_279(recv: &mut crate::items::ItemStack, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_279(recv: &crate::items::ItemStack, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.damage, out);
         Ok(())
@@ -1216,7 +1216,7 @@ pub mod yoake_glue {
     }
 
     /// `items::Song.comparator#get`
-    fn call_281(recv: &mut crate::items::Song, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_281(recv: &crate::items::Song, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.comparator, out);
         Ok(())
@@ -1226,7 +1226,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::Song.length_ticks#get`
-    fn call_283(recv: &mut crate::items::Song, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_283(recv: &crate::items::Song, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.length_ticks, out);
         Ok(())
@@ -1236,7 +1236,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::Song.sound#get`
-    fn call_285(recv: &mut crate::items::Song, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_285(recv: &crate::items::Song, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sound, out);
         Ok(())
@@ -1246,7 +1246,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ToolRule.blocks#get`
-    fn call_287(recv: &mut crate::items::ToolRule, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_287(recv: &crate::items::ToolRule, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.blocks;
@@ -1262,7 +1262,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ToolRule.correct#get`
-    fn call_289(recv: &mut crate::items::ToolRule, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_289(recv: &crate::items::ToolRule, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.correct {
             None => out.push(0),
@@ -1278,7 +1278,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ToolRule.speed#get`
-    fn call_291(recv: &mut crate::items::ToolRule, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_291(recv: &crate::items::ToolRule, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.speed {
             None => out.push(0),
@@ -1354,130 +1354,130 @@ pub mod yoake_glue {
     }
 
     /// `items::<BlockReduction as Clone>::clone`
-    fn call_354(recv: &mut crate::items::BlockReduction, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_354(recv: &crate::items::BlockReduction, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::items::BlockReduction as core::clone::Clone>::clone(&*recv);
+        let r = <crate::items::BlockReduction as core::clone::Clone>::clone(recv);
         enc_crate__items__BlockReduction(&r, out);
         Ok(())
     }
 
     /// `items::<BlocksAttacks as Clone>::clone`
-    fn call_355(recv: &mut crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_355(recv: &crate::items::BlocksAttacks, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::items::BlocksAttacks as core::clone::Clone>::clone(&*recv);
+        let r = <crate::items::BlocksAttacks as core::clone::Clone>::clone(recv);
         enc_crate__items__BlocksAttacks(&r, out);
         Ok(())
     }
 
     /// `items::<ConsumeEffectSpec as Clone>::clone`
-    fn call_356(recv: &mut crate::items::ConsumeEffectSpec, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_356(recv: &crate::items::ConsumeEffectSpec, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::items::ConsumeEffectSpec as core::clone::Clone>::clone(&*recv);
+        let r = <crate::items::ConsumeEffectSpec as core::clone::Clone>::clone(recv);
         enc_crate__items__ConsumeEffectSpec(&r, out);
         Ok(())
     }
 
     /// `items::<ConsumeEffectSpec as PartialEq>::eq`
-    fn call_357(recv: &mut crate::items::ConsumeEffectSpec, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_357(recv: &crate::items::ConsumeEffectSpec, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__items__ConsumeEffectSpec(d)?;
         d.finish()?;
-        let r = <crate::items::ConsumeEffectSpec as core::cmp::PartialEq>::eq(&*recv, &a0);
+        let r = <crate::items::ConsumeEffectSpec as core::cmp::PartialEq>::eq(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `items::<Instrument as Clone>::clone`
-    fn call_358(recv: &mut crate::items::Instrument, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_358(recv: &crate::items::Instrument, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::items::Instrument as core::clone::Clone>::clone(&*recv);
+        let r = <crate::items::Instrument as core::clone::Clone>::clone(recv);
         enc_crate__items__Instrument(&r, out);
         Ok(())
     }
 
     /// `items::<ToolRule as Clone>::clone`
-    fn call_359(recv: &mut crate::items::ToolRule, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_359(recv: &crate::items::ToolRule, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::items::ToolRule as core::clone::Clone>::clone(&*recv);
+        let r = <crate::items::ToolRule as core::clone::Clone>::clone(recv);
         enc_crate__items__ToolRule(&r, out);
         Ok(())
     }
 
     /// `items::Instrument::use_ticks`
-    fn call_360(recv: &mut crate::items::Instrument, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_360(recv: &crate::items::Instrument, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::items::Instrument>::use_ticks(&*recv);
+        let r = <crate::items::Instrument>::use_ticks(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `items::Items::block_in_tag`
-    fn call_361(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_361(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
         let mut a1 = <String as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::items::Items>::block_in_tag(&*recv, &a0, &a1);
+        let r = <crate::items::Items>::block_in_tag(recv, &a0, &a1);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `items::Items::block_matches`
-    fn call_362(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_362(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
         let mut a1 = <String as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::items::Items>::block_matches(&*recv, &a0, &a1);
+        let r = <crate::items::Items>::block_matches(recv, &a0, &a1);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `items::Items::has_loot_table`
-    fn call_363(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_363(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::items::Items>::has_loot_table(&*recv, &a0);
+        let r = <crate::items::Items>::has_loot_table(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `items::Items::item_in_tag`
-    fn call_364(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_364(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
         let mut a1 = <String as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::items::Items>::item_in_tag(&*recv, &a0, &a1);
+        let r = <crate::items::Items>::item_in_tag(recv, &a0, &a1);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `items::Items::loot_sequence`
-    fn call_365(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_365(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::items::Items>::loot_sequence(&*recv, &a0);
+        let r = <crate::items::Items>::loot_sequence(recv, &a0);
         match &r {
             None => out.push(0),
             Some(v0) => {
@@ -1489,39 +1489,39 @@ pub mod yoake_glue {
     }
 
     /// `items::Song::finished`
-    fn call_366(recv: &mut crate::items::Song, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_366(recv: &crate::items::Song, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <i64 as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::items::Song>::finished(&*recv, a0);
+        let r = <crate::items::Song>::finished(recv, a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `items::<ItemStack as Clone>::clone`
-    fn call_370(recv: &mut crate::items::ItemStack, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_370(recv: &crate::items::ItemStack, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::items::ItemStack as core::clone::Clone>::clone(&*recv);
+        let r = <crate::items::ItemStack as core::clone::Clone>::clone(recv);
         enc_crate__items__ItemStack(&r, out);
         Ok(())
     }
 
     /// `items::<ItemStack as PartialEq>::eq`
-    fn call_371(recv: &mut crate::items::ItemStack, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_371(recv: &crate::items::ItemStack, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__items__ItemStack(d)?;
         d.finish()?;
-        let r = <crate::items::ItemStack as core::cmp::PartialEq>::eq(&*recv, &a0);
+        let r = <crate::items::ItemStack as core::cmp::PartialEq>::eq(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `items::ItemInfo.custom_components#get`
-    fn call_372(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_372(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.custom_components;
@@ -1538,7 +1538,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.equip_allowed#get`
-    fn call_374(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_374(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.equip_allowed {
             None => out.push(0),
@@ -1560,7 +1560,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.id#get`
-    fn call_376(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_376(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&**(&recv.id), out);
         Ok(())
@@ -1570,7 +1570,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemInfo.use_cooldown#get`
-    fn call_378(recv: &mut crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_378(recv: &crate::items::ItemInfo, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.use_cooldown {
             None => out.push(0),
@@ -1586,7 +1586,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::ItemStack.item#get`
-    fn call_380(recv: &mut crate::items::ItemStack, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_380(recv: &crate::items::ItemStack, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&**(&recv.item), out);
         Ok(())
@@ -1596,7 +1596,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::Items.block_tags#get`
-    fn call_382(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_382(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.block_tags;
@@ -1619,7 +1619,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::Items.instruments#get`
-    fn call_384(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_384(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.instruments;
@@ -1636,7 +1636,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::Items.item_tag_order#get`
-    fn call_386(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_386(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.item_tag_order;
@@ -1659,7 +1659,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::Items.item_tags#get`
-    fn call_388(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_388(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.item_tags;
@@ -1682,7 +1682,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::Items.order#get`
-    fn call_390(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_390(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.order;
@@ -1698,7 +1698,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::Items.registry_order#get`
-    fn call_392(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_392(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.registry_order;
@@ -1714,12 +1714,12 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `items::Items::instrument`
-    fn call_394(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_394(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__items__ItemStack(d)?;
         d.finish()?;
-        let r = <crate::items::Items>::instrument(&*recv, &a0);
+        let r = <crate::items::Items>::instrument(recv, &a0);
         match &r {
             None => out.push(0),
             Some(v0) => {
@@ -1731,24 +1731,24 @@ pub mod yoake_glue {
     }
 
     /// `items::Items::resists_cactus`
-    fn call_395(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_395(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__items__ItemStack(d)?;
         d.finish()?;
-        let r = <crate::items::Items>::resists_cactus(&*recv, &a0);
+        let r = <crate::items::Items>::resists_cactus(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `items::Items::resists_fire`
-    fn call_396(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_396(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__items__ItemStack(d)?;
         let mut a1 = <String as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::items::Items>::resists_fire(&*recv, &a0, &a1);
+        let r = <crate::items::Items>::resists_fire(recv, &a0, &a1);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -1835,7 +1835,7 @@ pub mod yoake_glue {
     }
 
     /// `items::Items::can_destroy_block`
-    fn call_450(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_450(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = match d.tag()? {
@@ -1845,13 +1845,13 @@ pub mod yoake_glue {
         };
         let mut a1 = <bool as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::items::Items>::can_destroy_block(&*recv, a0.as_ref(), a1);
+        let r = <crate::items::Items>::can_destroy_block(recv, a0.as_ref(), a1);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `items::Items::correct_for_drops`
-    fn call_451(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_451(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = match d.tag()? {
@@ -1861,13 +1861,13 @@ pub mod yoake_glue {
         };
         let mut a1 = <String as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::items::Items>::correct_for_drops(&*recv, a0.as_ref(), &a1);
+        let r = <crate::items::Items>::correct_for_drops(recv, a0.as_ref(), &a1);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `items::Items::mining_speed`
-    fn call_452(recv: &mut crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_452(recv: &crate::items::Items, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = match d.tag()? {
@@ -1877,7 +1877,7 @@ pub mod yoake_glue {
         };
         let mut a1 = <String as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::items::Items>::mining_speed(&*recv, a0.as_ref(), &a1);
+        let r = <crate::items::Items>::mining_speed(recv, a0.as_ref(), &a1);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -2252,180 +2252,180 @@ pub mod yoake_glue {
     pub fn call(handle: u64, id: u32, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let start = out.len();
         let result = match id {
-            169 => activation::with_arg::<crate::items::BlockReduction, _>(handle, |recv| call_169(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            169 => activation::with_arg_shared::<crate::items::BlockReduction, _>(handle, |recv| call_169(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             170 => Err(CallError::ReadOnly(id)),
-            171 => activation::with_arg::<crate::items::BlockReduction, _>(handle, |recv| call_171(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            171 => activation::with_arg_shared::<crate::items::BlockReduction, _>(handle, |recv| call_171(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             172 => Err(CallError::ReadOnly(id)),
-            173 => activation::with_arg::<crate::items::BlockReduction, _>(handle, |recv| call_173(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            173 => activation::with_arg_shared::<crate::items::BlockReduction, _>(handle, |recv| call_173(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             174 => Err(CallError::ReadOnly(id)),
-            175 => activation::with_arg::<crate::items::BlockReduction, _>(handle, |recv| call_175(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            175 => activation::with_arg_shared::<crate::items::BlockReduction, _>(handle, |recv| call_175(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             176 => Err(CallError::ReadOnly(id)),
-            177 => activation::with_arg::<crate::items::BlocksAttacks, _>(handle, |recv| call_177(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            177 => activation::with_arg_shared::<crate::items::BlocksAttacks, _>(handle, |recv| call_177(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             178 => Err(CallError::ReadOnly(id)),
-            179 => activation::with_arg::<crate::items::BlocksAttacks, _>(handle, |recv| call_179(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            179 => activation::with_arg_shared::<crate::items::BlocksAttacks, _>(handle, |recv| call_179(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             180 => Err(CallError::ReadOnly(id)),
-            181 => activation::with_arg::<crate::items::BlocksAttacks, _>(handle, |recv| call_181(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            181 => activation::with_arg_shared::<crate::items::BlocksAttacks, _>(handle, |recv| call_181(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             182 => Err(CallError::ReadOnly(id)),
-            183 => activation::with_arg::<crate::items::BlocksAttacks, _>(handle, |recv| call_183(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            183 => activation::with_arg_shared::<crate::items::BlocksAttacks, _>(handle, |recv| call_183(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             184 => Err(CallError::ReadOnly(id)),
-            185 => activation::with_arg::<crate::items::BlocksAttacks, _>(handle, |recv| call_185(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            185 => activation::with_arg_shared::<crate::items::BlocksAttacks, _>(handle, |recv| call_185(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             186 => Err(CallError::ReadOnly(id)),
-            187 => activation::with_arg::<crate::items::BlocksAttacks, _>(handle, |recv| call_187(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            187 => activation::with_arg_shared::<crate::items::BlocksAttacks, _>(handle, |recv| call_187(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             188 => Err(CallError::ReadOnly(id)),
-            189 => activation::with_arg::<crate::items::BlocksAttacks, _>(handle, |recv| call_189(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            189 => activation::with_arg_shared::<crate::items::BlocksAttacks, _>(handle, |recv| call_189(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             190 => Err(CallError::ReadOnly(id)),
-            191 => activation::with_arg::<crate::items::ConsumeEffectSpec, _>(handle, |recv| call_191(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            191 => activation::with_arg_shared::<crate::items::ConsumeEffectSpec, _>(handle, |recv| call_191(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             192 => Err(CallError::ReadOnly(id)),
-            193 => activation::with_arg::<crate::items::ConsumeEffectSpec, _>(handle, |recv| call_193(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            193 => activation::with_arg_shared::<crate::items::ConsumeEffectSpec, _>(handle, |recv| call_193(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             194 => Err(CallError::ReadOnly(id)),
-            195 => activation::with_arg::<crate::items::ConsumeEffectSpec, _>(handle, |recv| call_195(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            195 => activation::with_arg_shared::<crate::items::ConsumeEffectSpec, _>(handle, |recv| call_195(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             196 => Err(CallError::ReadOnly(id)),
-            197 => activation::with_arg::<crate::items::Instrument, _>(handle, |recv| call_197(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            197 => activation::with_arg_shared::<crate::items::Instrument, _>(handle, |recv| call_197(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             198 => Err(CallError::ReadOnly(id)),
-            199 => activation::with_arg::<crate::items::Instrument, _>(handle, |recv| call_199(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            199 => activation::with_arg_shared::<crate::items::Instrument, _>(handle, |recv| call_199(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             200 => Err(CallError::ReadOnly(id)),
-            201 => activation::with_arg::<crate::items::Instrument, _>(handle, |recv| call_201(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            201 => activation::with_arg_shared::<crate::items::Instrument, _>(handle, |recv| call_201(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             202 => Err(CallError::ReadOnly(id)),
-            203 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_203(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            203 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_203(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             204 => Err(CallError::ReadOnly(id)),
-            205 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_205(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            205 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_205(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             206 => Err(CallError::ReadOnly(id)),
-            207 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_207(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            207 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_207(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             208 => Err(CallError::ReadOnly(id)),
-            209 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_209(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            209 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_209(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             210 => Err(CallError::ReadOnly(id)),
-            211 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_211(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            211 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_211(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             212 => Err(CallError::ReadOnly(id)),
-            213 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_213(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            213 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_213(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             214 => Err(CallError::ReadOnly(id)),
-            215 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_215(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            215 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_215(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             216 => Err(CallError::ReadOnly(id)),
-            217 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_217(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            217 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_217(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             218 => Err(CallError::ReadOnly(id)),
-            219 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_219(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            219 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_219(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             220 => Err(CallError::ReadOnly(id)),
-            221 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_221(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            221 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_221(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             222 => Err(CallError::ReadOnly(id)),
-            223 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_223(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            223 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_223(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             224 => Err(CallError::ReadOnly(id)),
-            225 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_225(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            225 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_225(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             226 => Err(CallError::ReadOnly(id)),
-            227 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_227(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            227 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_227(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             228 => Err(CallError::ReadOnly(id)),
-            229 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_229(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            229 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_229(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             230 => Err(CallError::ReadOnly(id)),
-            231 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_231(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            231 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_231(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             232 => Err(CallError::ReadOnly(id)),
-            233 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_233(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            233 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_233(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             234 => Err(CallError::ReadOnly(id)),
-            235 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_235(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            235 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_235(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             236 => Err(CallError::ReadOnly(id)),
-            237 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_237(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            237 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_237(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             238 => Err(CallError::ReadOnly(id)),
-            239 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_239(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            239 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_239(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             240 => Err(CallError::ReadOnly(id)),
-            241 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_241(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            241 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_241(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             242 => Err(CallError::ReadOnly(id)),
-            243 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_243(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            243 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_243(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             244 => Err(CallError::ReadOnly(id)),
-            245 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_245(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            245 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_245(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             246 => Err(CallError::ReadOnly(id)),
-            247 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_247(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            247 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_247(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             248 => Err(CallError::ReadOnly(id)),
-            249 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_249(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            249 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_249(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             250 => Err(CallError::ReadOnly(id)),
-            251 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_251(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            251 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_251(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             252 => Err(CallError::ReadOnly(id)),
-            253 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_253(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            253 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_253(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             254 => Err(CallError::ReadOnly(id)),
-            255 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_255(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            255 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_255(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             256 => Err(CallError::ReadOnly(id)),
-            257 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_257(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            257 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_257(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             258 => Err(CallError::ReadOnly(id)),
-            259 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_259(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            259 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_259(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             260 => Err(CallError::ReadOnly(id)),
-            261 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_261(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            261 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_261(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             262 => Err(CallError::ReadOnly(id)),
-            263 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_263(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            263 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_263(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             264 => Err(CallError::ReadOnly(id)),
-            265 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_265(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            265 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_265(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             266 => Err(CallError::ReadOnly(id)),
-            267 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_267(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            267 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_267(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             268 => Err(CallError::ReadOnly(id)),
-            269 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_269(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            269 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_269(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             270 => Err(CallError::ReadOnly(id)),
-            271 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_271(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            271 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_271(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             272 => Err(CallError::ReadOnly(id)),
-            273 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_273(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            273 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_273(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             274 => Err(CallError::ReadOnly(id)),
-            275 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_275(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            275 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_275(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             276 => Err(CallError::ReadOnly(id)),
-            277 => activation::with_arg::<crate::items::ItemStack, _>(handle, |recv| call_277(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            277 => activation::with_arg_shared::<crate::items::ItemStack, _>(handle, |recv| call_277(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             278 => activation::with_arg::<crate::items::ItemStack, _>(handle, |recv| call_278(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            279 => activation::with_arg::<crate::items::ItemStack, _>(handle, |recv| call_279(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            279 => activation::with_arg_shared::<crate::items::ItemStack, _>(handle, |recv| call_279(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             280 => activation::with_arg::<crate::items::ItemStack, _>(handle, |recv| call_280(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            281 => activation::with_arg::<crate::items::Song, _>(handle, |recv| call_281(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            281 => activation::with_arg_shared::<crate::items::Song, _>(handle, |recv| call_281(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             282 => Err(CallError::ReadOnly(id)),
-            283 => activation::with_arg::<crate::items::Song, _>(handle, |recv| call_283(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            283 => activation::with_arg_shared::<crate::items::Song, _>(handle, |recv| call_283(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             284 => Err(CallError::ReadOnly(id)),
-            285 => activation::with_arg::<crate::items::Song, _>(handle, |recv| call_285(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            285 => activation::with_arg_shared::<crate::items::Song, _>(handle, |recv| call_285(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             286 => Err(CallError::ReadOnly(id)),
-            287 => activation::with_arg::<crate::items::ToolRule, _>(handle, |recv| call_287(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            287 => activation::with_arg_shared::<crate::items::ToolRule, _>(handle, |recv| call_287(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             288 => Err(CallError::ReadOnly(id)),
-            289 => activation::with_arg::<crate::items::ToolRule, _>(handle, |recv| call_289(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            289 => activation::with_arg_shared::<crate::items::ToolRule, _>(handle, |recv| call_289(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             290 => Err(CallError::ReadOnly(id)),
-            291 => activation::with_arg::<crate::items::ToolRule, _>(handle, |recv| call_291(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            291 => activation::with_arg_shared::<crate::items::ToolRule, _>(handle, |recv| call_291(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             292 => Err(CallError::ReadOnly(id)),
             293 => call_293(args, out),
             294 => call_294(args, out),
             295 => call_295(args, out),
             296 => call_296(args, out),
-            354 => activation::with_arg::<crate::items::BlockReduction, _>(handle, |recv| call_354(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            355 => activation::with_arg::<crate::items::BlocksAttacks, _>(handle, |recv| call_355(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            356 => activation::with_arg::<crate::items::ConsumeEffectSpec, _>(handle, |recv| call_356(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            357 => activation::with_arg::<crate::items::ConsumeEffectSpec, _>(handle, |recv| call_357(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            358 => activation::with_arg::<crate::items::Instrument, _>(handle, |recv| call_358(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            359 => activation::with_arg::<crate::items::ToolRule, _>(handle, |recv| call_359(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            360 => activation::with_arg::<crate::items::Instrument, _>(handle, |recv| call_360(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            361 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_361(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            362 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_362(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            363 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_363(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            364 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_364(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            365 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_365(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            366 => activation::with_arg::<crate::items::Song, _>(handle, |recv| call_366(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            370 => activation::with_arg::<crate::items::ItemStack, _>(handle, |recv| call_370(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            371 => activation::with_arg::<crate::items::ItemStack, _>(handle, |recv| call_371(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            372 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_372(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            354 => activation::with_arg_shared::<crate::items::BlockReduction, _>(handle, |recv| call_354(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            355 => activation::with_arg_shared::<crate::items::BlocksAttacks, _>(handle, |recv| call_355(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            356 => activation::with_arg_shared::<crate::items::ConsumeEffectSpec, _>(handle, |recv| call_356(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            357 => activation::with_arg_shared::<crate::items::ConsumeEffectSpec, _>(handle, |recv| call_357(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            358 => activation::with_arg_shared::<crate::items::Instrument, _>(handle, |recv| call_358(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            359 => activation::with_arg_shared::<crate::items::ToolRule, _>(handle, |recv| call_359(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            360 => activation::with_arg_shared::<crate::items::Instrument, _>(handle, |recv| call_360(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            361 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_361(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            362 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_362(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            363 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_363(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            364 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_364(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            365 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_365(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            366 => activation::with_arg_shared::<crate::items::Song, _>(handle, |recv| call_366(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            370 => activation::with_arg_shared::<crate::items::ItemStack, _>(handle, |recv| call_370(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            371 => activation::with_arg_shared::<crate::items::ItemStack, _>(handle, |recv| call_371(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            372 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_372(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             373 => Err(CallError::ReadOnly(id)),
-            374 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_374(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            374 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_374(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             375 => Err(CallError::ReadOnly(id)),
-            376 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_376(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            376 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_376(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             377 => Err(CallError::ReadOnly(id)),
-            378 => activation::with_arg::<crate::items::ItemInfo, _>(handle, |recv| call_378(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            378 => activation::with_arg_shared::<crate::items::ItemInfo, _>(handle, |recv| call_378(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             379 => Err(CallError::ReadOnly(id)),
-            380 => activation::with_arg::<crate::items::ItemStack, _>(handle, |recv| call_380(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            380 => activation::with_arg_shared::<crate::items::ItemStack, _>(handle, |recv| call_380(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             381 => Err(CallError::ReadOnly(id)),
-            382 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_382(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            382 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_382(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             383 => Err(CallError::ReadOnly(id)),
-            384 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_384(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            384 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_384(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             385 => Err(CallError::ReadOnly(id)),
-            386 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_386(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            386 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_386(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             387 => Err(CallError::ReadOnly(id)),
-            388 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_388(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            388 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_388(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             389 => Err(CallError::ReadOnly(id)),
-            390 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_390(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            390 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_390(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             391 => Err(CallError::ReadOnly(id)),
-            392 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_392(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            392 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_392(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             393 => Err(CallError::ReadOnly(id)),
-            394 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_394(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            395 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_395(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            396 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_396(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            394 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_394(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            395 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_395(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            396 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_396(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             397 => call_397(args, out),
             398 => call_398(args, out),
             399 => call_399(args, out),
-            450 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_450(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            451 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_451(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            452 => activation::with_arg::<crate::items::Items, _>(handle, |recv| call_452(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            450 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_450(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            451 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_451(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            452 => activation::with_arg_shared::<crate::items::Items, _>(handle, |recv| call_452(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {

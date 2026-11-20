@@ -42,6 +42,9 @@ pub const KEYS: &[(&str, &str)] = &[
     ("game::try_sleep", "f16a185525735bc55ac1bcaf5d932a202f5f4db381ac0d4a11457845dadb322a"),
     ("items::enchant::enchantment_cost", "1b4f10a33cd7d201c2bdf989710857c0a8071491ca5adb526eb5f4013e196253"),
     ("lan::prediction::excused", "895abb5ec4b04f60dad553e5912c9adc4ed4fb6551f2779c28670ea2b6fb7ee8"),
+    ("level::after_open", "2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62"),
+    ("level::before_close", "2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62"),
+    ("level::before_open", "2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62"),
     ("mobs::animal_brain::targetable", "6a280e20f4f62541857d28da6fdcebf69483ea0cfbb9670d696ffca8efc7ada1"),
     ("motion::set_sprinting", "3f7fc74e6c415236ce9e86a6a011ef3bf5ec6893fde7f8861375c0c28c607f0d"),
     ("world::food::add_exhaustion", "ca3064943a7660df0f8bb96751c0c58f9df0074453c066cff57d287963b4ef4e"),
@@ -57,9 +60,10 @@ pub const KEYS: &[(&str, &str)] = &[
     ("world::living_fall::cause_living_fall_damage", "40abf719eadc611c3b8f1173d44e1a693ec8bf8272f230f5f2af30b66ef64eaa"),
     ("world::living_motion::jump_from_ground", "49e2162006d6305be832360344cecf87f36422ed6eca7fe24c598d1fd965dc2a"),
     ("world::living_motion::jump_power", "a887a93bbf10f3908aa90913b32c0a6c6f5307dccc4a8d25ae9a4ac456432c1f"),
+    ("worldgen::generate_chunk", "232b5757bf1536b813a6c568ab9c3fb043bb1b620d840f6edae8265b2eb2420a"),
 ];
 
-pub static SITES: [Site; 56] = [
+pub static SITES: [Site; 60] = [
     Site::new("crafting::crafting_result_count", "5e147b2cfbddd26373813d8c72c8f539918d9fd10de46b9fd3af0f2859f3376e", Side::Both, &[ValueType::Handle], ValueType::U32, 7),
     Site::new("furnace::smelting_result_count", "5e147b2cfbddd26373813d8c72c8f539918d9fd10de46b9fd3af0f2859f3376e", Side::Server, &[ValueType::Handle], ValueType::U32, 7),
     Site::new("game::apply_use_cooldown", "82aa94f717b88f2311b42287713ef26f00afdf2fc95b3118e269930f05420206", Side::Server, &[ValueType::Handle, ValueType::Handle], ValueType::Unit, 7),
@@ -101,6 +105,9 @@ pub static SITES: [Site; 56] = [
     Site::new("game::try_sleep", "f16a185525735bc55ac1bcaf5d932a202f5f4db381ac0d4a11457845dadb322a", Side::Server, &[ValueType::Handle, ValueType::BlockPos], ValueType::Unit, 7),
     Site::new("items::enchant::enchantment_cost", "1b4f10a33cd7d201c2bdf989710857c0a8071491ca5adb526eb5f4013e196253", Side::Server, &[ValueType::Handle, ValueType::Handle, ValueType::Usize, ValueType::S32, ValueType::String], ValueType::S32, 7),
     Site::new("lan::prediction::excused", "895abb5ec4b04f60dad553e5912c9adc4ed4fb6551f2779c28670ea2b6fb7ee8", Side::Server, &[ValueType::Handle], ValueType::Bool, 7),
+    Site::new("level::after_open", "2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62", Side::Server, &[ValueType::Handle, ValueType::String], ValueType::Unit, 7),
+    Site::new("level::before_close", "2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62", Side::Server, &[ValueType::Handle, ValueType::String], ValueType::Unit, 7),
+    Site::new("level::before_open", "2d6b616020cec7006f8b8c6aeb2d8f9faf0caa7a8dbeb7f38b5a4d839b0d2e62", Side::Server, &[ValueType::Handle, ValueType::String], ValueType::Unit, 7),
     Site::new("mobs::animal_brain::targetable", "6a280e20f4f62541857d28da6fdcebf69483ea0cfbb9670d696ffca8efc7ada1", Side::Server, &[ValueType::Handle, ValueType::Handle, ValueType::Handle], ValueType::Bool, 7),
     Site::new("motion::set_sprinting", "3f7fc74e6c415236ce9e86a6a011ef3bf5ec6893fde7f8861375c0c28c607f0d", Side::Both, &[ValueType::Handle, ValueType::Bool], ValueType::Unit, 7),
     Site::new("world::food::add_exhaustion", "ca3064943a7660df0f8bb96751c0c58f9df0074453c066cff57d287963b4ef4e", Side::Server, &[ValueType::Handle, ValueType::F32], ValueType::Unit, 7),
@@ -116,4 +123,5 @@ pub static SITES: [Site; 56] = [
     Site::new("world::living_fall::cause_living_fall_damage", "40abf719eadc611c3b8f1173d44e1a693ec8bf8272f230f5f2af30b66ef64eaa", Side::Server, &[ValueType::Handle, ValueType::F64, ValueType::F32], ValueType::Bool, 7),
     Site::new("world::living_motion::jump_from_ground", "49e2162006d6305be832360344cecf87f36422ed6eca7fe24c598d1fd965dc2a", Side::Server, &[ValueType::Handle], ValueType::Unit, 7),
     Site::new("world::living_motion::jump_power", "a887a93bbf10f3908aa90913b32c0a6c6f5307dccc4a8d25ae9a4ac456432c1f", Side::Server, &[ValueType::Handle, ValueType::F32], ValueType::F32, 7),
+    Site::new("worldgen::generate_chunk", "232b5757bf1536b813a6c568ab9c3fb043bb1b620d840f6edae8265b2eb2420a", Side::Server, &[ValueType::String, ValueType::S32, ValueType::S32, ValueType::Handle], ValueType::Unit, 7),
 ];

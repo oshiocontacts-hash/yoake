@@ -372,3 +372,96 @@ fn borrowed_impl_self_type_uses_a_static_callback_pointer() {
     }
     assert_eq!(value, 13);
 }
+
+// F1 W2: a constructor of `impl<'r> Reg<'r>` whose argument and result (`io::Result<Self>`) share `'r`.
+struct Reg<'r> {
+    source: &'r u32,
+}
+
+impl<'r> Reg<'r> {
+    #[yoake_hook(method, test_id = 40, self_ty = Reg<'r>)]
+    fn new(source: &'r u32) -> std::io::Result<Self> {
+        Ok(Self { source })
+    }
+
+    #[yoake_hook(method, test_id = 41, self_ty = Reg<'r>)]
+    fn pick(first: &'r u32, second: &'r u32, take_first: bool) -> Option<Self> {
+        Some(Self { source: if take_first { first } else { second } })
+    }
+}
+
+#[test]
+fn constructor_with_a_named_impl_lifetime_in_argument_and_result_is_hookable() {
+    let value = 5u32;
+    assert_eq!(*Reg::new(&value).unwrap().source, 5);
+    Reg::__yoake_register_new(|original, source| original(source), Order::default()).unwrap();
+    assert_eq!(*Reg::new(&value).unwrap().source, 5);
+    let (a, b) = (1u32, 2u32);
+    Reg::__yoake_register_pick(
+        |original, first, second, _take_first| original(first, second, false),
+        Order::default(),
+    )
+    .unwrap();
+    assert_eq!(*Reg::pick(&a, &b, true).unwrap().source, 2, "the hook replaced an argument");
+}
+
+// F1 W2: `-> &'static dyn Trait` (horizon-world `worldgen::blending::shift_noise`) and `&dyn Trait` arguments.
+trait Shape {
+    fn sides(&self) -> u32;
+}
+struct Tri;
+impl Shape for Tri {
+    fn sides(&self) -> u32 {
+        3
+    }
+}
+
+#[yoake_hook(test_id = 42)]
+fn static_shape() -> &'static dyn Shape {
+    static TRI: Tri = Tri;
+    &TRI
+}
+
+#[yoake_hook(test_id = 43)]
+fn sides_of(shape: &dyn Shape, extra: u32) -> u32 {
+    shape.sides() + extra
+}
+
+#[test]
+fn dyn_trait_objects_in_results_and_arguments_are_hookable() {
+    assert_eq!(static_shape().sides(), 3);
+    assert_eq!(sides_of(&Tri, 1), 4);
+    __yoake_register_static_shape(|original| original(), Order::default()).unwrap();
+    __yoake_register_sides_of(|original, shape, extra| original(shape, extra + 10), Order::default()).unwrap();
+    assert_eq!(static_shape().sides(), 3);
+    assert_eq!(sides_of(&Tri, 1), 14);
+}
+
+// F1 W4: destructuring, `_` and `ref` parameters are hookable (the outer fn names them, the original keeps them).
+#[yoake_hook(test_id = 44)]
+fn destructured((first, second): (u32, u32), _unused: u8, Wrapper { inner }: Wrapper) -> u32 {
+    first * 100 + second * 10 + inner
+}
+
+#[yoake_hook(test_id = 45)]
+fn wildcard(_: u32, kept: u32) -> u32 {
+    kept
+}
+
+struct Wrapper {
+    inner: u32,
+}
+
+#[test]
+fn destructuring_and_wildcard_parameters_are_hookable() {
+    assert_eq!(destructured((1, 2), 0, Wrapper { inner: 3 }), 123);
+    assert_eq!(wildcard(9, 4), 4);
+    __yoake_register_destructured(
+        |original, pair, byte, wrapper| original((pair.1, pair.0), byte, wrapper),
+        Order::default(),
+    )
+    .unwrap();
+    __yoake_register_wildcard(|original, first, second| original(first, second + 1), Order::default()).unwrap();
+    assert_eq!(destructured((1, 2), 0, Wrapper { inner: 3 }), 213, "the hook swapped the tuple");
+    assert_eq!(wildcard(9, 4), 5);
+}

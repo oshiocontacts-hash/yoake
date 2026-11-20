@@ -404,7 +404,7 @@ impl horizon_client::mod_generator::ModGeneratorFactory for FloorFactory {
     }
 }
 impl horizon_client::mod_generator::ModColumnSource for Floor {
-    fn generate(&self, chunk: &mut horizon_client::mod_generator::ModChunk<'_>) {
+    fn generate(&self, chunk: &mut horizon_client::mod_generator::ModChunk) {
         let floor = chunk.shape.min_y;
         for y in floor..floor + self.depth {
             chunk.fill_layer(y, self.stone);

@@ -6,8 +6,8 @@ writing a retry loop: **there is no retry**.
 ## ABI version
 
 Every full-access guest declares its ABI in a WASM custom section named `yoake_abi`. Its payload is exactly four bytes:
-the major version as a little-endian `u16`, then the minor version as a little-endian `u16`. The current engine and Rust
-SDK version is **1.0**, encoded as `01 00 00 00`; this includes the hook modes and read-only arguments described below.
+the major version as a little-endian `u16`, then the minor version as a little-endian `u16`. The current engine version is **1.1** (the Rust
+SDK still declares 1.0, `01 00 00 00`, and loads: an older minor is fine); this includes the hook modes and read-only arguments described below.
 A WAT guest writes `(@custom "yoake_abi" "\01\00\00\00")`, and the Rust SDK's `export_guest!` emits the section.
 
 The loader reads this section directly from the module bytes, without running guest code, and checks it before
@@ -384,3 +384,26 @@ existing file (an update removes the old one with `remove_package` first).
 A `.yak` dropped into the mods folder by hand has no record and stays not-full-access.
 
 `chain_for` returns at once when no mod is loaded (no lookup, no allocation).
+
+## Level and chunk hook points (F3-8b, additive)
+
+Four new injected sites join the catalog (56 to 60): `level::before_open`, `level::after_open`, `level::before_close` and `worldgen::generate_chunk` (see MOD-GUIDE section 16). They add no engine-call ids and change no existing site, so the frozen 1.0 baseline holds. `worldgen::generate_chunk` takes a `&mut ModChunk` as a scoped handle, valid only during the call; its `ModChunk` calls are bound by `yoake-bindgen` when the bindings are regenerated with `crates/yoake-bindgen/regen.sh`.
+
+## Every argument of a hook (ABI 1.1, W8)
+
+A hook on a fn with several arguments gives each one a handle: argument `i` is the handle `yoake_hook` receives with its
+low byte set to `i` (`Handle::arg(i)` in the Rust SDK). An argument is an object (a `&mut T` / `&T`, with a field table,
+or *opaque* when the type has none: it can be held, passed on, swapped, and used as the receiver of bindings, but `get`
+returns `BadField`) or a by-value scalar. New imports (all return the usual handle status in an `i32`):
+
+| import | meaning |
+|---|---|
+| `arg_get(handle, out) -> i32` | the bits of a by-value argument (`WrongKind` for an object) |
+| `arg_set(handle, bits) -> i32` | replaces a by-value argument; the next `original` (and the next mod of the chain) receives it |
+| `arg_swap(a, b) -> i32` | exchanges two object arguments of one type and kind (both `&mut` or both `&`); creates no aliasing |
+| `arg_replace(dst, src) -> i32` | a shared argument takes the object of another shared argument of the same type; for a `&mut` it is `Overlap` (use `arg_swap`) |
+
+New statuses: `Overlap = 8` (the change would alias a `&mut`), `WrongKind = 9` (object call on a value or the reverse).
+`original` receives the arguments as the guest left them. The engine hands out `&mut` access to each argument at most once
+per `original` call (a borrow table), so two `&mut` to one object can not exist; at most 8 arguments per hook
+(more: the hook is not entered).

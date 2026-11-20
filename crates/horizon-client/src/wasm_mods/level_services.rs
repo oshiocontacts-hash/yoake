@@ -25,7 +25,7 @@
 //! Sections not mentioned stay air. The whole answer is checked before anything is written: a bad version,
 //! a section out of range or given twice, an unknown block, a palette index past the palette or bytes left
 //! over fail the chunk. A failed call, an answer that does not check or a guest that ran out of its limits
-//! leaves the chunk empty (air) and is logged once for the level; the guest is then disabled when it
+//! is tried once more a tick later, then leaves the chunk empty (air), marked not generated so it is not saved and generates again on its next load, and is logged once for the level; the guest is then disabled when it
 //! trapped or ran out of its limits, as for any hook. The guest's own limits are the budget of a
 //! `handle-call`; the generating thread waits up to two seconds for the module when a hook holds it.
 use super::*;
@@ -39,6 +39,8 @@ pub(crate) const METHOD: &str = "yoake:generate-chunk";
 const CALLER: &str = "yoake:engine";
 /// How long a generating thread waits for a module a hook is running.
 const LOCK_WAIT: Duration = Duration::from_secs(2);
+/// How long to wait (a server tick) before the one retry of a chunk whose call failed.
+const RETRY_AFTER: Duration = Duration::from_millis(50);
 /// A call slower than this is logged (it still counts: the guest's limits cut it off).
 const SLOW: Duration = Duration::from_millis(100);
 
@@ -130,14 +132,22 @@ impl WasmColumnSource {
 }
 
 impl ModColumnSource for WasmColumnSource {
-    fn generate(&self, chunk: &mut ModChunk<'_>) {
+    fn generate(&self, chunk: &mut ModChunk) {
         let (x, z) = (chunk.chunk_x, chunk.chunk_z);
-        let result = self
-            .call(&self.request(x, z))
-            .and_then(|bytes| Fill::decode(&bytes, self.height, &*self.block));
+        let request = self.request(x, z);
+        let mut answer = self.call(&request);
+        if answer.as_ref().is_err_and(|e| !e.contains("no running server module")) {
+            // A call that did not run (the module was busy, or it ran over its limit): try once more a
+            // tick later before the chunk is left empty.
+            std::thread::sleep(RETRY_AFTER);
+            answer = self.call(&request);
+        }
+        let result = answer.and_then(|bytes| Fill::decode(&bytes, self.height, &*self.block));
         match result {
             Ok(fill) => fill.apply(self.min_y, chunk),
             Err(why) => {
+                // Not saved empty: the chunk generates again when it next loads.
+                chunk.mark_failed();
                 if !self.warned.swap(true, Ordering::Relaxed) {
                     log::error!(
                         "wasm generator {} of level {}: chunk {x} {z} is left empty: {why} (further chunks of this level are logged at debug level)",
@@ -243,7 +253,7 @@ impl Fill {
         Ok(Self { biome, sections })
     }
 
-    fn apply(&self, min_y: i32, chunk: &mut ModChunk<'_>) {
+    fn apply(&self, min_y: i32, chunk: &mut ModChunk) {
         if let Some(biome) = &self.biome
             && !chunk.set_biome(biome)
         {
@@ -311,6 +321,7 @@ mod service_tests {
             assert!(answer.unwrap_err().contains("unsupported"), "not inside a server hook");
         }
         assert!(host.level_list().unwrap_err().contains("unsupported"));
+        assert!(host.current_level("00000000-0000-0000-0000-000000000001".into()).unwrap_err().contains("unsupported"));
         assert!(horizon_client::mod_generator::staged().0.is_empty());
     }
 }

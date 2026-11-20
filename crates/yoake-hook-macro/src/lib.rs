@@ -303,18 +303,21 @@ fn expand(
                 outer_arg_names.push(quote!(self));
             }
             FnArg::Typed(argument) => {
-                let Pat::Ident(pattern) = &mut *argument.pat else {
-                    return Err(syn::Error::new_spanned(
-                        &argument.pat,
-                        "S2 requires identifier arguments; destructuring needs skip",
-                    ));
-                };
-                if pattern.by_ref.is_some() || pattern.subpat.is_some() {
-                    return Err(syn::Error::new_spanned(
-                        pattern,
-                        "S2 does not support ref/subpatterns",
-                    ));
+                // F1 W4: the outer fn only forwards its arguments, so a destructuring, `_`, `ref` or `@` pattern
+                // gets a synthetic name there; the original body (with its pattern) lives in `__yoake_orig_*`,
+                // whose signature was cloned before this loop.
+                let plain = matches!(&*argument.pat, Pat::Ident(p) if p.by_ref.is_none() && p.subpat.is_none());
+                if !plain {
+                    let synthetic = format_ident!("__yoake_pat_{}", outer_arg_names.len());
+                    *argument.pat = Pat::Ident(syn::PatIdent {
+                        attrs: Vec::new(),
+                        by_ref: None,
+                        mutability: None,
+                        ident: synthetic,
+                        subpat: None,
+                    });
                 }
+                let Pat::Ident(pattern) = &mut *argument.pat else { unreachable!() };
                 pattern.mutability = None;
                 let name = pattern.ident.clone();
                 let argument_type = *argument.ty.clone();
@@ -344,10 +347,19 @@ fn expand(
         let mut lifetimes = NormalizeSelfLifetimes::default();
         lifetimes.visit_type_mut(replacement);
         self_ty_has_lifetimes = lifetimes.count != 0;
+        // F1 W2: a named impl lifetime (`impl<'r> Reg<'r> { fn new(src: &'r X) -> io::Result<Self> }`) that
+        // appears in `self_ty` and in an argument must be the SAME lifetime in both places once `Self` is
+        // replaced; otherwise the result's copy is constrained by no input (E0581/E0582).
+        let named = lifetimes.named.clone();
         let mut replace = ReplaceSelf { replacement };
         replace.visit_type_mut(&mut result_type);
         for input_type in &mut raw_input_types {
             replace.visit_type_mut(input_type);
+        }
+        let mut rename = RenameNamedLifetimes { map: &named };
+        rename.visit_type_mut(&mut result_type);
+        for input_type in &mut raw_input_types {
+            rename.visit_type_mut(input_type);
         }
     }
     // A named lifetime is "shared" when it appears twice among the inputs, or in an input and
@@ -373,6 +385,7 @@ fn expand(
         call_lifetimes,
         call_arg_types,
         call_result_type,
+        call_self_ty,
     ) = if has_shared_named {
         let mut dyn_lt = CallbackLifetimes::with_prefix("'__yoake_dyn_");
         let mut dyn_types = Vec::new();
@@ -390,6 +403,12 @@ fn expand(
         dyn_lt.visit_type_mut(&mut dyn_result);
         let mut call_result = result_type.clone();
         fn_lt.visit_type_mut(&mut call_result);
+        // The impl's own self type spelled with the call fn's lifetimes (same names as the arguments).
+        let call_self = self_ty.as_ref().map(|ty| {
+            let mut ty = ty.clone();
+            fn_lt.visit_type_mut(&mut ty);
+            ty
+        });
         (
             dyn_lt.bound,
             dyn_types,
@@ -397,6 +416,7 @@ fn expand(
             fn_lt.bound,
             fn_types,
             call_result,
+            call_self,
         )
     } else {
         let mut elider = ElideNamedLifetimes;
@@ -415,9 +435,13 @@ fn expand(
             Vec::new(),
             types,
             elided_result,
+            None,
         )
     };
 
+    // F1 W2: `dyn FnMut() -> &'static dyn Shape + 'orig` does not parse (ambiguous `+`): parenthesize
+    // results that end in a trait object.
+    let dyn_result_type = parenthesize_trailing_dyn(dyn_result_type);
     let dyn_trait_bound = if dyn_lifetimes.is_empty() {
         quote!(FnMut(#(#dyn_arg_types),*) -> #dyn_result_type)
     } else {
@@ -524,6 +548,10 @@ fn expand(
             }
             self_type => quote!(<#self_type>::),
         }
+    } else if let (true, Some(call_self)) = (self_ty_has_lifetimes, &call_self_ty) {
+        // F1 W2: an associated fn without receiver in `impl<'r> Reg<'r>`: the original must be called at the
+        // call fn's lifetimes, not at the impl's fixed `'r`.
+        quote!(<#call_self>::)
     } else {
         prefix.clone()
     };
@@ -617,7 +645,8 @@ fn expand(
             dead_code,
             clippy::too_many_arguments,
             clippy::type_complexity,
-            clippy::needless_lifetimes
+            clippy::needless_lifetimes,
+            non_snake_case
         )]
         #orig_sig #original_body
 
@@ -630,7 +659,8 @@ fn expand(
             dead_code,
             clippy::too_many_arguments,
             clippy::type_complexity,
-            clippy::needless_lifetimes
+            clippy::needless_lifetimes,
+            non_snake_case
         )]
         fn #call_ident #call_impl_generics (
             __yoake_chain: ::yoake_hook_rt::Snapshot
@@ -657,7 +687,8 @@ fn expand(
             dead_code,
             clippy::too_many_arguments,
             clippy::type_complexity,
-            clippy::needless_lifetimes
+            clippy::needless_lifetimes,
+            non_snake_case
         )]
         fn #dispatch_ident #dispatch_impl_generics (
             __yoake_cb: #callback_type,
@@ -669,6 +700,21 @@ fn expand(
 
         #function
     })
+}
+
+fn parenthesize_trailing_dyn(ty: Type) -> Type {
+    fn ends_in_dyn(ty: &Type) -> bool {
+        match ty {
+            Type::TraitObject(_) => true,
+            Type::Reference(reference) => ends_in_dyn(&reference.elem),
+            _ => false,
+        }
+    }
+    if ends_in_dyn(&ty) {
+        Type::Paren(syn::TypeParen { paren_token: Default::default(), elem: Box::new(ty) })
+    } else {
+        ty
+    }
 }
 
 fn token_stream_uses_ident(tokens: &proc_macro2::TokenStream, ident: &Ident) -> bool {
@@ -899,6 +945,19 @@ impl VisitMut for NormalizeSelfLifetimes {
             fresh
         };
         *lifetime = replacement;
+    }
+}
+
+/// Maps the named lifetimes of the impl's self type (`'r`) to the fresh ones used for `Self`.
+struct RenameNamedLifetimes<'a> {
+    map: &'a BTreeMap<String, Lifetime>,
+}
+
+impl VisitMut for RenameNamedLifetimes<'_> {
+    fn visit_lifetime_mut(&mut self, lifetime: &mut Lifetime) {
+        if let Some(fresh) = self.map.get(&lifetime.ident.to_string()) {
+            *lifetime = fresh.clone();
+        }
     }
 }
 
@@ -1228,13 +1287,21 @@ mod tests {
     }
 
     #[test]
-    fn destructured_arguments_require_an_explicit_exclusion() {
-        rejected(
+    fn destructured_arguments_get_a_synthetic_name_on_the_outer_fn() {
+        let expanded = expand(
+            quote!(id = 1, key = "test::pair"),
             quote!(
-                fn pair((first, second): (u32, u32)) {}
+                fn pair((first, second): (u32, u32), _: u8, ref r: u16) -> u32 {
+                    first + second + u32::from(*r)
+                }
             ),
-            "destructuring needs skip",
-        );
+        )
+        .expect("destructuring is accepted")
+        .to_string();
+        assert!(expanded.contains("__yoake_pat_0"), "{expanded}");
+        assert!(expanded.contains("__yoake_pat_1") && expanded.contains("__yoake_pat_2"), "{expanded}");
+        // the original keeps its patterns
+        assert!(expanded.contains("(first , second) : (u32 , u32)"), "{expanded}");
     }
 
     #[test]
