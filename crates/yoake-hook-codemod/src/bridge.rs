@@ -13,7 +13,7 @@ use yoake_hook_ledger::{Kind, LedgerSet};
 
 use crate::attr;
 use crate::edit::LineIndex;
-use crate::types::CrateIndex;
+use crate::types::{CrateIndex, SelfTyStatus};
 use crate::{eligible, key, ledger_io, modules, run};
 
 static NARY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -884,6 +884,29 @@ struct BridgedHook {
     nary: Vec<NaryKind>,
 }
 
+/// Finds a local type that has no crate-level path and is not declared in the module the bridge is included into.
+struct TypeNameCheck<'a> {
+    crate_index: &'a CrateIndex,
+    from_mod: &'a [String],
+    target_mod: &'a [String],
+    bad: Option<String>,
+}
+
+impl<'ast> Visit<'ast> for TypeNameCheck<'_> {
+    fn visit_type_path(&mut self, path: &'ast syn::TypePath) {
+        if self.bad.is_none() && path.qself.is_none() {
+            let ty = Type::Path(path.clone());
+            if let SelfTyStatus::Local { crate_level_visible: false, .. } = self.crate_index.check_self_ty(self.from_mod, &ty) {
+                // declared in the hook's own module: nameable only if the bridge lives there
+                if self.from_mod != self.target_mod {
+                    self.bad = Some(format_type_tokens(&ty));
+                }
+            }
+        }
+        syn::visit::visit_type_path(self, path);
+    }
+}
+
 struct ReplaceSelf<'a>(&'a Type);
 
 impl VisitMut for ReplaceSelf<'_> {
@@ -1301,6 +1324,18 @@ fn finish_hook(
                 "return type `{}` has non-static lifetime",
                 format_type_tokens(rt)
             ));
+        }
+    }
+
+    // W9: the bridge file is `include!`d into the target module, so a type private to ANOTHER module (a child's
+    // private struct) cannot be written there: not bridgeable from this file.
+    {
+        let mut names = TypeNameCheck { crate_index, from_mod: &hook.mod_path, target_mod, bad: None };
+        for ty in raw_param_types.iter().chain(replaced_ret_type.iter()) {
+            names.visit_type(ty);
+        }
+        if let Some(bad) = names.bad {
+            return Err(format!("type `{bad}` is private to another module"));
         }
     }
 
