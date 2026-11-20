@@ -23,6 +23,7 @@ mod full_hook_names;
 mod gpu_services;
 mod hook_names;
 mod host;
+mod media_services;
 pub mod host_services;
 pub mod inject;
 pub mod package_services;
@@ -45,6 +46,7 @@ pub use full::{ClientFullMod, SERVER_SERVICES, ServerFullMod, ServerHost, server
 pub use full_hook_names::{FULL_HOOKS as FULL_HOOK_LIST, HookSide};
 pub use gpu_services::{GpuServices, gpu_types};
 pub use host::{ClientContext, ClientHost};
+pub use media_services::{BROWSER_PERMISSION, MediaServices, media_types};
 pub use subscriptions::FullWorld;
 
 pub use subscriptions::Subscriptions;

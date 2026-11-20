@@ -20,6 +20,8 @@ mod dev_shaders;
 mod full;
 #[path = "wasm_mods/gpu_services.rs"]
 mod gpu_services;
+#[path = "wasm_mods/media_services.rs"]
+mod media_services;
 #[path = "wasm_mods/package.rs"]
 pub(crate) mod package;
 #[path = "wasm_mods/package_ui.rs"]
@@ -471,6 +473,11 @@ pub(super) fn extend(
                 }
             }
         } else if source.full {
+            // FR-MEDIA1: the browser services answer only packages that asked for them.
+            media_services::grant(
+                &source.id,
+                source.permissions.iter().any(|permission| permission == "service.browser"),
+            );
             let reload = source.watch.as_ref().map(|path| {
                 Arc::new(Reload {
                     shaders: source
@@ -1295,6 +1302,8 @@ struct GameHost {
     gpu_recording_fault: Option<fn(&wgpu::Device)>,
     dev_shaders: Option<Arc<Mutex<dev_shaders::DevShaders>>>,
     resources: resources::Registration,
+    /// FR-MEDIA1: the package's browsers, made when it opens the first one.
+    browsers: Option<media_services::Browsers>,
 }
 
 impl GameHost {
@@ -1314,6 +1323,7 @@ impl GameHost {
             gpu_recording_fault: None,
             dev_shaders: None,
             resources: resources::Registration::new(native_id, native_index),
+            browsers: None,
         }
     }
 
@@ -1363,6 +1373,9 @@ impl ClientHost for GameHost {
         package::services(&self.id, horizon_mods::yak::ConfigRuntimeSide::Client)
     }
     fn release_resources(&mut self) {
+        if let Some(mut browsers) = self.browsers.take() {
+            browsers.close_all();
+        }
         for texture in self.textures.keys() {
             client_services::unregister_named_texture(&client_services::named_texture_id(&self.id, *texture));
         }
@@ -1378,6 +1391,10 @@ impl ClientHost for GameHost {
 
     fn gpu_services(&mut self) -> Option<&mut dyn yoake_wasm::GpuServices> {
         if self.gpu_enabled { Some(self) } else { None }
+    }
+
+    fn media_services(&mut self) -> Option<&mut dyn yoake_wasm::MediaServices> {
+        if media_services::granted(&self.id) { Some(self) } else { None }
     }
     fn log(&mut self, target: &str, message: &str) -> Result<(), w::HostError> {
         let clean = |text: &str| -> String {

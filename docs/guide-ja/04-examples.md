@@ -158,6 +158,8 @@ MOD が特別な機能（設定の読み書き、ストレージ保存、権限�
 - `"service.commands"`: サーバーモジュールからの `run_command` の呼び出し（`wasm.server` が必須。`inject-mod` はサーバーモジュールが無くてもよい）。Mixin でコマンド・チャットのサイトに割り込むときにも必要です（[8 章](./08-mixin.md)）
 - `"service.config"`: `config_get` / `config_set` / `config_dir` の呼び出しと、同期設定の受信
 - `"service.gpu"`: クライアントモジュールの `gpu` モジュールの呼び出し（`client-full` ワールドだけ。`server-full` と `client-mod` では使えません）
+- `"service.browser"`: `media-services`（`full::client::browser`）でブラウザを開く。入っている Edge か Chrome を、パッケージ専用のプロファイルで開きます。開けるのはウェブのページだけ（http・https・data・blob・about:blank）。絵は `GuiTexture` に、タブの音は PCM で受け取ります。`world = "client-full"` の `wasm.client` だけ。詳しくは `docs/yoake2/reports/FR-MEDIA1.md`。
+- `"service.screen-share"`: 画面共有用に取ってあります（サービス番号 255〜259、まだつないでいません）。決まりは `service.browser` と同じです。
 - `"service.http"`: `[http] hosts`（HTTPS のホストの一覧）と対になる `service.http` サービス権限の宣言です。`service.http` を宣言するなら `[http] hosts` が必要で、逆に `[http]` を書くなら `service.http` が必要です。HTTP 通信自体は（未実装）です[^dev-doc]
 - `"service.permissions"`: サーバーモジュールからの `has_permission` の呼び出し（`wasm.server` が必須）
 - `"service.storage"`: `storage_*` および `world_storage_*` / `config_read` / `config_write` の呼び出し

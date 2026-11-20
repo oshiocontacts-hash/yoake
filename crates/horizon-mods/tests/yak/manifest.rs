@@ -448,6 +448,29 @@ client = "bin/wasm/a.wasm"
     }
 }
 
+/// FR-MEDIA1: the browser and screen-share permissions belong to a client-full client module.
+#[test]
+fn media_permissions_need_a_client_full_module() {
+    let parse = |modules: &str, world: &str, permission: &str| {
+        Manifest::parse(&with_wasm(&format!(
+            "
+[wasm]
+interface = \"1.0\"
+{modules}
+{world}
+permissions = [\"{permission}\"]
+"
+        )))
+    };
+    let (client, server) = ("client = \"bin/wasm/c.wasm\"", "server = \"bin/wasm/s.wasm\"");
+    let full = "world = \"client-full\"";
+    for permission in ["service.browser", "service.screen-share"] {
+        assert!(parse(client, full, permission).is_ok(), "{permission}");
+        assert!(parse(client, "", permission).unwrap_err().contains("client-full"), "{permission}: client-mod");
+        assert!(parse(server, "", permission).is_err(), "{permission}: server only");
+    }
+}
+
 /// MX3CL1: a full-access mod's modules say where it runs: `wasm.server` on the server thread, `wasm.client` on the
 /// client thread, and [side] must agree.
 #[test]

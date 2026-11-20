@@ -182,13 +182,15 @@ pub struct Wasm {
 }
 
 /// The `[wasm] permissions` this build knows.
-pub const WASM_PERMISSIONS: [&str; 7] = [
+pub const WASM_PERMISSIONS: [&str; 9] = [
+    "service.browser",
     "service.chat",
     "service.commands",
     "service.config",
     "service.gpu",
     "service.http",
     "service.permissions",
+    "service.screen-share",
     "service.storage",
 ];
 
@@ -315,6 +317,12 @@ impl Wasm {
         }
         if self.has_permission("service.chat") && self.client.is_none() {
             return Err("wasm permission service.chat requires wasm.client".into());
+        }
+        // FR-MEDIA1: the browser and screen-share services live in the client-full world's media-services.
+        for media in ["service.browser", "service.screen-share"] {
+            if self.has_permission(media) && (self.client.is_none() || !self.client_full()) {
+                return Err(format!("wasm permission {media} requires wasm.client with world = \"client-full\""));
+            }
         }
         if self.worker.is_some() && self.client.is_none() && self.server.is_none() {
             return Err("wasm.worker needs a wasm.client or wasm.server module that talks to it".into());
