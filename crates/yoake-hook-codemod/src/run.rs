@@ -81,6 +81,8 @@ struct ScanCtx<'a> {
     private_types: bool,
     /// W5: keys stamped regardless of the size rule (`hook-ledger/stamp-allow.txt`).
     allow_small: &'a BTreeSet<String>,
+    /// F1 W12: the types this crate derives `Copy` for (a by-value `self` of one is an ordinary argument).
+    copy_types: &'a BTreeSet<String>,
 }
 
 /// W7: with a frozen ledger only keys that already have a live id are stamped.
@@ -467,8 +469,12 @@ impl VisitMut for FileVisitor<'_, '_> {
                 &method.sig,
             );
             let gate = size_gate(self.ctx, &fn_key, &method.block);
+            let fn_context = eligible::FnContext {
+                self_copy: matches!(&cur.self_ty, Type::Path(p) if p.qself.is_none()
+                    && p.path.segments.last().is_some_and(|seg| self.ctx.copy_types.contains(&seg.ident.to_string()))),
+            };
             let eligibility = impl_check
-                .and_then(|()| eligible::check_fn(&method.attrs, &method.sig))
+                .and_then(|()| eligible::check_fn_in(&method.attrs, &method.sig, fn_context))
                 .and_then(|()| gate);
             match eligibility {
                 Ok(()) => {
@@ -833,6 +839,7 @@ pub fn execute(config: &Config) -> Result<bool, String> {
         &scanned_files,
     );
 
+    let copy_types = crate::bridge::collect_copy_types(&scanned_files);
     let mut tombstones: BTreeSet<String> = config.tombstones.iter().cloned().collect();
     let mut seen_locations = BTreeMap::new();
     let mut seen_keys = BTreeSet::new();
@@ -859,6 +866,7 @@ pub fn execute(config: &Config) -> Result<bool, String> {
             frozen: config.frozen_ledger,
             private_types: config.private_types,
             allow_small: &allow_small,
+            copy_types: &copy_types,
         };
 
         let mut visitor = FileVisitor {
@@ -1559,6 +1567,7 @@ impl Stand {
             frozen: false,
             private_types: false,
             allow_small: &BTreeSet::new(),
+            copy_types: &BTreeSet::new(),
         };
         let mut visitor = FileVisitor {
             file_path: &file.path,

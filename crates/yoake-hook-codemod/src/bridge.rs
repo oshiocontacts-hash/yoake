@@ -805,7 +805,7 @@ thread_local! {
 }
 
 /// The types the scanned files derive `Copy` for (structs and enums, inline modules included).
-fn collect_copy_types(files: &[modules::ScannedFile]) -> BTreeSet<String> {
+pub(crate) fn collect_copy_types(files: &[modules::ScannedFile]) -> BTreeSet<String> {
     fn visit(items: &[syn::Item], out: &mut BTreeSet<String>) {
         for item in items {
             let (attrs, ident) = match item {
