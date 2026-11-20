@@ -482,6 +482,8 @@ pub fn bad(x: u32) -> u32 {
             verify_dir: dir.clone(),
             verify_rounds: 4,
             verify_max_withdraw: 300,
+            frozen_ledger: false,
+            overlay: false,
         };
         let options = VerifyOptions { cargo_args: vec![], dir: dir.clone(), rounds: 4, max_withdraw_per_round: 300 };
         let alpha = dir.join("src/alpha.rs");
@@ -547,6 +549,8 @@ pub fn bad(x: u32) -> u32 {
             verify_dir: c.verify_dir.clone(),
             verify_rounds: 1,
             verify_max_withdraw: 300,
+            frozen_ledger: false,
+            overlay: false,
         }
     }
 
@@ -615,6 +619,8 @@ pub fn b(x: u32) -> u32 {
             verify_dir: dir.to_path_buf(),
             verify_rounds: 4,
             verify_max_withdraw: 300,
+            frozen_ledger: false,
+            overlay: false,
         }
     }
 }

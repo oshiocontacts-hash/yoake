@@ -75,12 +75,23 @@ struct ScanCtx<'a> {
     stats: &'a mut SummaryStats,
     /// W5: functions with at most this many statements are not stamped (0 = no rule).
     min_stmts: usize,
+    /// W7: the ledger is read-only: no new ids, no ledger writes, nothing fails because of ledger state.
+    frozen: bool,
     /// W5: keys stamped regardless of the size rule (`hook-ledger/stamp-allow.txt`).
     allow_small: &'a BTreeSet<String>,
 }
 
+/// W7: with a frozen ledger only keys that already have a live id are stamped.
+fn frozen_gate(ctx: &mut ScanCtx<'_>, fn_key: &str) -> Result<(), &'static str> {
+    if ctx.frozen && ctx.ledger_set.shard_mut(ctx.crate_ident).live_id(fn_key).is_none() {
+        return Err("no ledger id (frozen ledger)");
+    }
+    Ok(())
+}
+
 /// W5 size rule: a small body is excluded unless it is allow-listed or already live in the ledger.
 fn size_gate(ctx: &mut ScanCtx<'_>, fn_key: &str, block: &Block) -> Result<(), &'static str> {
+    frozen_gate(ctx, fn_key)?;
     if ctx.min_stmts == 0
         || block.stmts.len() > ctx.min_stmts
         || ctx.allow_small.contains(fn_key)
@@ -566,6 +577,7 @@ impl VisitMut for FileVisitor<'_, '_> {
                 .expect("trait impl has trait_meta");
             let eligibility = self_ty_check
                 .and_then(|()| check_trait_eligibility(trait_meta, &method.attrs, &method.sig, &helper.block));
+            let eligibility = eligibility.and_then(|()| frozen_gate(self.ctx, &fn_key));
             match eligibility {
                 Ok(()) => {
                     let id = match assign_hook(self.ctx, &fn_key, &sig) {
@@ -633,6 +645,7 @@ impl VisitMut for FileVisitor<'_, '_> {
             .expect("trait impl has trait_meta");
         let eligibility = self_ty_check
             .and_then(|()| check_trait_eligibility(trait_meta, &method.attrs, &method.sig, &method.block));
+        let eligibility = eligibility.and_then(|()| frozen_gate(self.ctx, &fn_key));
         match eligibility {
             Ok(()) => {
                 let id = match assign_hook(self.ctx, &fn_key, &sig) {
@@ -835,6 +848,7 @@ pub fn execute(config: &Config) -> Result<bool, String> {
             seen_keys: &mut seen_keys,
             stats: &mut stats,
             min_stmts: config.min_stmts,
+            frozen: config.frozen_ledger,
             allow_small: &allow_small,
         };
 
@@ -867,6 +881,16 @@ pub fn execute(config: &Config) -> Result<bool, String> {
                 updated: new_source,
             });
         }
+    }
+
+    if config.frozen_ledger {
+        // W7: sources only; the ledger is never read back or written.
+        print_summary(&stats);
+        for update in &file_updates {
+            std::fs::write(&update.path, &update.updated)
+                .map_err(|e| format!("failed to write {}: {e}", update.path.display()))?;
+        }
+        return Ok(true);
     }
 
     reconcile_missing_keys(
@@ -1351,6 +1375,9 @@ fn tombstone_live_if_requested(
     fn_key: &str,
     reason: &str,
 ) -> Result<(), String> {
+    if ctx.frozen {
+        return Ok(());
+    }
     let shard = ctx.ledger_set.shard_mut(ctx.crate_ident);
     if shard.live_id(fn_key).is_some() {
         if ctx.tombstones.remove(fn_key) {
@@ -1416,7 +1443,17 @@ fn exclude_manual_hook(
     Ok(())
 }
 
+static QUIET: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Wrapper mode keeps the codemod's summary off stdout (cargo parses rustc's stdout).
+pub fn set_quiet(quiet: bool) {
+    QUIET.store(quiet, std::sync::atomic::Ordering::Relaxed);
+}
+
 fn print_summary(stats: &SummaryStats) {
+    if QUIET.load(std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
     let excluded_total: usize = stats.excluded_by_reason.values().sum();
     println!(
         "summary: hooked={}, newly_assigned={}, excluded={}, trait_methods_converted={}, sig_changes={}, tombstoned={}",
@@ -1506,6 +1543,7 @@ impl Stand {
             seen_keys: &mut seen_keys,
             stats: &mut stats,
             min_stmts: 0,
+            frozen: false,
             allow_small: &BTreeSet::new(),
         };
         let mut visitor = FileVisitor {
