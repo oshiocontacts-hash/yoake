@@ -1455,6 +1455,10 @@ fn exclude_manual_hook(
 static QUIET: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Wrapper mode keeps the codemod's summary off stdout (cargo parses rustc's stdout).
+pub fn is_quiet() -> bool {
+    QUIET.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 pub fn set_quiet(quiet: bool) {
     QUIET.store(quiet, std::sync::atomic::Ordering::Relaxed);
 }

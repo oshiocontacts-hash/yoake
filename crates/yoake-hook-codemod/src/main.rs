@@ -7,6 +7,7 @@ mod key;
 mod ledger_io;
 mod modules;
 mod overlay;
+mod overlay_bridge;
 mod run;
 mod track_caller;
 mod types;
@@ -201,6 +202,7 @@ fn parse_args() -> Result<Option<Command>, String> {
     let mut verify_max_withdraw: usize = 300;
     let mut frozen_ledger = false;
     let mut private_types = false;
+    let mut bridges_unused = false;
     let mut overlay = false;
     let mut stamp_config: Option<PathBuf> = None;
 
@@ -298,7 +300,7 @@ fn parse_args() -> Result<Option<Command>, String> {
     let crate_name = crate_name.ok_or_else(|| format!("missing --crate-name\n{}", usage()))?;
     let ledger = ledger.ok_or_else(|| format!("missing --ledger\n{}", usage()))?;
     if let Some(path) = &stamp_config {
-        apply_stamp_config(path, &crate_name, &mut modules, &mut exclude_modules, &mut min_stmts, &mut private_types)?;
+        apply_stamp_config(path, &crate_name, &mut modules, &mut exclude_modules, &mut min_stmts, &mut private_types, &mut bridges_unused)?;
     }
     if modules.is_empty() {
         return Err(format!("at least one --module is required\n{}", usage()));
@@ -375,6 +377,7 @@ pub(crate) fn apply_stamp_config(
     exclude: &mut Vec<String>,
     min_stmts: &mut usize,
     private_types: &mut bool,
+    bridges: &mut bool,
 ) -> Result<(), String> {
     let text = std::fs::read_to_string(path)
         .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
@@ -391,6 +394,8 @@ pub(crate) fn apply_stamp_config(
         for flag in &parts[3..] {
             if let Some(list) = flag.strip_prefix("exclude=") {
                 exclude.extend(list.split(',').filter(|s| !s.is_empty()).map(str::to_string));
+            } else if *flag == "bridges=true" {
+                *bridges = true;
             } else if *flag == "private_types=true" {
                 *private_types = true;
             } else if let Some(n) = flag.strip_prefix("min_stmts=") {

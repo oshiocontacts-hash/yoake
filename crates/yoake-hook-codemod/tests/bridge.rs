@@ -987,5 +987,6 @@ pub fn by_value(first: Vec<u32>, scale: i64) -> u64 {
     assert!(entities.contains("dispatch_n_id(14, "), "{entities}");
     assert!(entities.contains("dispatch_n_id(15, "), "{entities}");
     let game = fs::read_to_string(root.join("src/yoake_glue/hook_bridge_game__item_use.rs")).unwrap();
-    assert!(game.contains("dispatch_n_id(16, "), "&Game (peek) is bridged held: {game}");
+    assert!(game.contains("dispatch_n_id(16, "), "&Game (peek) is bridged: {game}");
+    assert!(game.contains(".root_shared(p0)"), "as a shared path root: {game}");
 }

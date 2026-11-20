@@ -144,6 +144,18 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
         state.push_str(&stat_line(f));
         state.push('\n');
     }
+    // the committed field-table glue the bridges are built from
+    let tables_dir = root_file.parent().map(|p| p.join("yoake_glue").join("tables").join(&ident));
+    if let Some(dir) = &tables_dir
+        && let Ok(entries) = std::fs::read_dir(dir)
+    {
+        let mut names: Vec<PathBuf> = entries.flatten().map(|e| e.path()).collect();
+        names.sort();
+        for p in names {
+            state.push_str(&stat_line(&p));
+            state.push(char::from(10));
+        }
+    }
     for extra in [
         args.ledger.join(format!("{ident}.json")),
         args.ledger.join("meta.json"),
@@ -173,7 +185,8 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
     let mut exclude = Vec::new();
     let mut min_stmts = 0usize;
     let mut private_types = false;
-    crate::apply_stamp_config(&args.stamp_config, &args.crate_name, &mut modules, &mut exclude, &mut min_stmts, &mut private_types)?;
+    let mut bridges = false;
+    crate::apply_stamp_config(&args.stamp_config, &args.crate_name, &mut modules, &mut exclude, &mut min_stmts, &mut private_types, &mut bridges)?;
     let config = Config {
         mode: Mode::Apply,
         crate_root: args.overlay_root.join(&crate_rel),
@@ -191,7 +204,7 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
         engine_crates: None,
         retire_ineligible: false,
         rustfmt: false,
-        exclude_modules: exclude,
+        exclude_modules: exclude.clone(),
         min_stmts,
         verify: false,
         verify_args: vec![],
@@ -203,6 +216,10 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
         overlay: false,
     };
     crate::run::execute(&config)?;
+    if bridges {
+        let workspace_src = root_file.parent().ok_or("crate root has no parent")?.to_path_buf();
+        crate::overlay_bridge::add_bridges(&args.overlay_root.join(&crate_rel), &args.crate_name, &args.ledger, &workspace_src, &exclude)?;
+    }
 
     std::fs::create_dir_all(&state_dir).map_err(|e| format!("cannot create {}: {e}", state_dir.display()))?;
     if args.frozen {
@@ -292,38 +309,67 @@ fn find_workspace(start: &Path) -> Option<PathBuf> {
     None
 }
 
+/// `@file` arguments replaced by the lines of the file (cargo's argfiles: one argument per line).
+pub fn expand_argfiles(args: &[String]) -> Vec<String> {
+    args.iter()
+        .flat_map(|a| match a.strip_prefix('@') {
+            Some(file) => match std::fs::read_to_string(file) {
+                Ok(text) => text.lines().map(|l| l.trim_end_matches(char::from(13)).to_string()).collect::<Vec<_>>(),
+                Err(_) => vec![a.clone()],
+            },
+            None => vec![a.clone()],
+        })
+        .collect()
+}
+
 /// `<exe> <rustc> <args...>`: see the module comment.
 pub fn run_wrapper(args: Vec<String>) -> ExitCode {
     crate::run::set_quiet(true);
+    let debug = std::env::var("YOAKE_STAMP_DEBUG").as_deref() == Ok("1");
+    if debug {
+        eprintln!("yoake-stamp: wrapper args: {}", args[2..].join(" "));
+    }
     let rustc = args[1].clone();
-    let rest: Vec<String> = args[2..].to_vec();
+    let original_rest: Vec<String> = args[2..].to_vec();
+    // cargo passes long command lines (Windows: the libraries with hundreds of `--extern`/`-L`) as `@argfile`, one
+    // argument per line; the crate name and the input file are inside it
+    let rest: Vec<String> = expand_argfiles(&original_rest);
     if std::env::var("YOAKE_STAMP").as_deref() != Ok("1") {
-        return passthrough(&rustc, &rest);
+        return passthrough(&rustc, &original_rest);
     }
-    let Some(crate_name) = arg_value(&rest, "--crate-name") else { return passthrough(&rustc, &rest) };
+    let Some(crate_name) = arg_value(&rest, "--crate-name") else { return passthrough(&rustc, &original_rest) };
     if crate_name.starts_with("build_script_") {
-        return passthrough(&rustc, &rest);
+        return passthrough(&rustc, &original_rest);
     }
-    let Some(input_idx) = find_input(&rest) else { return passthrough(&rustc, &rest) };
-    let Ok(cwd) = std::env::current_dir() else { return passthrough(&rustc, &rest) };
+    let Some(input_idx) = find_input(&rest) else {
+        if debug { eprintln!("yoake-stamp: no input file"); }
+        return passthrough(&rustc, &original_rest);
+    };
+    let Ok(cwd) = std::env::current_dir() else { return passthrough(&rustc, &original_rest) };
     let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").map(PathBuf::from).unwrap_or_else(|| cwd.clone());
-    let Some(workspace) = find_workspace(&manifest_dir) else { return passthrough(&rustc, &rest) };
+    let Some(workspace) = find_workspace(&manifest_dir) else {
+        if debug { eprintln!("yoake-stamp: no workspace from {}", manifest_dir.display()); }
+        return passthrough(&rustc, &original_rest);
+    };
     let config_path = workspace.join("hook-ledger").join("stamp-config.txt");
-    let Ok(config_text) = std::fs::read_to_string(&config_path) else { return passthrough(&rustc, &rest) };
+    let Ok(config_text) = std::fs::read_to_string(&config_path) else { return passthrough(&rustc, &original_rest) };
     let wanted = crate::key::normalize_crate_name(&crate_name);
     let Some(crate_dir) = config_text.lines().find_map(|raw| {
         let line = raw.split('#').next().unwrap_or("").trim();
         let parts: Vec<&str> = line.split_whitespace().collect();
         (parts.len() >= 3 && crate::key::normalize_crate_name(parts[1]) == wanted).then(|| workspace.join(parts[0]))
     }) else {
-        return passthrough(&rustc, &rest);
+        return passthrough(&rustc, &original_rest);
     };
     // only the crate's library root is stamped (bins, examples and tests of the crate keep their own roots)
     let input = cwd.join(&rest[input_idx]);
-    let Ok(root_file) = crate::modules::find_crate_root_file(&crate_dir, &crate_name) else { return passthrough(&rustc, &rest) };
+    let Ok(root_file) = crate::modules::find_crate_root_file(&crate_dir, &crate_name) else { return passthrough(&rustc, &original_rest) };
     match (canon(&input), canon(&root_file)) {
         (Ok(a), Ok(b)) if a == b => {}
-        _ => return passthrough(&rustc, &rest),
+        (a, b) => {
+            if debug { eprintln!("yoake-stamp: {crate_name}: input {a:?} is not the library root {b:?}"); }
+            return passthrough(&rustc, &original_rest);
+        }
     }
 
     let stamp_dir = std::env::var_os("YOAKE_STAMP_DIR")
@@ -346,7 +392,7 @@ pub fn run_wrapper(args: Vec<String>) -> ExitCode {
         Ok(r) => r,
         Err(e) => {
             eprintln!("yoake-stamp: {crate_name} is built UNSTAMPED: {e}");
-            return passthrough(&rustc, &rest);
+            return passthrough(&rustc, &original_rest);
         }
     };
 
@@ -356,11 +402,26 @@ pub fn run_wrapper(args: Vec<String>) -> ExitCode {
     // remap target of "." a leading `.\`).
     let cwd_c = canon(&cwd).unwrap_or(cwd.clone());
     let mut new_args = rest.clone();
+    new_args.push("--cfg".into());
+    new_args.push("yoake_stamped".into());
     new_args[input_idx] = result.root_file.to_string_lossy().into_owned();
     new_args.push("--remap-path-prefix".into());
     new_args.push(format!("{}=", overlay_root.display()));
 
-    let status = Command::new(&rustc).args(&new_args).status();
+    let total: usize = new_args.iter().map(|a| a.len() + 1).sum();
+    let status = if total > 16000 {
+        // too long for a Windows command line: hand rustc an argfile of its own
+        let argfile = stamp_dir.join(format!(".args-{wanted}-{}.txt", std::process::id()));
+        if let Err(e) = std::fs::write(&argfile, new_args.join(&char::from(10).to_string())) {
+            eprintln!("yoake-stamp: cannot write {}: {e}", argfile.display());
+            return passthrough(&rustc, &original_rest);
+        }
+        let status = Command::new(&rustc).arg(format!("@{}", argfile.display())).status();
+        let _ = std::fs::remove_file(&argfile);
+        status
+    } else {
+        Command::new(&rustc).args(&new_args).status()
+    };
     let code = match status {
         Ok(s) => s.code().unwrap_or(1),
         Err(e) => {

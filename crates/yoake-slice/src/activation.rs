@@ -113,6 +113,14 @@ pub trait PathRoot {
 
 type ResolveFn = unsafe fn(*mut (), &[Accessor], &mut dyn FnMut(&mut dyn Any)) -> Result<(), Status>;
 
+/// W9b: the read-only side of a root (`&Game`): finds the object at a path and lends it as `&dyn Any`. Generated
+/// next to [`PathRoot`] with `iter()` where that has `iter_mut()`.
+pub trait PathRootRef {
+    fn resolve_ref(&self, path: &[Accessor], f: &mut dyn FnMut(&dyn Any)) -> Result<(), Status>;
+}
+
+type ResolveRefFn = unsafe fn(*const (), &[Accessor], &mut dyn FnMut(&dyn Any)) -> Result<(), Status>;
+
 /// Marks the argument slot of a path root; no user type can be this.
 struct RootMarker;
 
@@ -149,6 +157,8 @@ struct ArgSlot {
     set: unsafe fn(*mut (), *const (), u32, i64) -> bool,
     /// Present for a path root (`scope_root`).
     resolve: Option<ResolveFn>,
+    /// W9b: present for a shared path root (`ArgSet::root_shared`).
+    resolve_ref: Option<ResolveRefFn>,
     /// W8: `type_name::<T>()`, so two arguments of one type can be swapped even when `T` has a lifetime.
     type_name: &'static str,
     /// W8: registered without a table (any type): no field access, typed access by name only.
@@ -165,6 +175,7 @@ impl ArgSlot {
             get: get_impl::<T>,
             set: set_impl::<T>,
             resolve: None,
+            resolve_ref: None,
             type_name: std::any::type_name::<T>(),
             opaque: false,
             size: std::mem::size_of::<T>(),
@@ -180,6 +191,7 @@ impl ArgSlot {
             // never called (`set` refuses a shared slot first); not `set_impl`: `table` is a `RefFieldTable`
             set: |_, _, _, _| false,
             resolve: None,
+            resolve_ref: None,
             type_name: std::any::type_name::<T>(),
             opaque: false,
             size: std::mem::size_of::<T>(),
@@ -195,9 +207,26 @@ impl ArgSlot {
             get: |_, _, _| None,
             set: |_, _, _, _| false,
             resolve: None,
+            resolve_ref: None,
             type_name: std::any::type_name::<T>(),
             opaque: true,
             size: std::mem::size_of::<T>(),
+        }
+    }
+
+    /// W9b: a shared path root.
+    fn new_root_shared<G: PathRootRef>(ptr: *const G) -> Self {
+        Self {
+            type_id: TypeId::of::<RootMarker>(),
+            ptr: ArgPtr::Shared(ptr.cast(), |_, _, _| None),
+            table: std::ptr::null(),
+            get: |_, _, _| None,
+            set: |_, _, _, _| false,
+            resolve: None,
+            resolve_ref: Some(resolve_ref_impl::<G>),
+            type_name: std::any::type_name::<G>(),
+            opaque: false,
+            size: 0,
         }
     }
 
@@ -209,6 +238,7 @@ impl ArgSlot {
             get: |_, _, _| None,
             set: |_, _, _, _| false,
             resolve: None,
+            resolve_ref: None,
             type_name: "value",
             opaque: true,
             size: 0,
@@ -225,11 +255,20 @@ impl ArgSlot {
             get: |_, _, _| None,
             set: |_, _, _, _| false,
             resolve: Some(resolve_impl::<G>),
+            resolve_ref: None,
             type_name: "root",
             opaque: false,
             size: 0,
         }
     }
+}
+
+/// # Safety
+/// `ptr` is a live `*const G` (the shared scope holds the borrow).
+unsafe fn resolve_ref_impl<G: PathRootRef>(ptr: *const (), path: &[Accessor], f: &mut dyn FnMut(&dyn Any)) -> Result<(), Status> {
+    // SAFETY: caller contract.
+    let root = unsafe { &*(ptr as *const G) };
+    root.resolve_ref(path, f)
 }
 
 /// # Safety
@@ -670,12 +709,17 @@ pub fn open_path(root_handle: u64, path: Vec<Accessor>) -> Result<u64, Status> {
     let Root::HookArg { activation, .. } = Root::from_handle(root_handle);
     {
         let (slot, _unlend) = lend_arg(root_handle)?;
-        let ArgPtr::Mut(ptr) = slot.ptr else { return Err(not_mut(slot.ptr)) };
-        let resolve = slot.resolve.ok_or(Status::WrongType)?;
         let mut found = false;
-        // SAFETY: `slot` was registered by an open `scope_root` whose borrow is held for the whole
-        // call, `lend_arg` just found its record and locked the activation until `_unlend` drops.
-        unsafe { resolve(ptr, &path, &mut |_| found = true) }?;
+        if let (ArgPtr::Shared(ptr, _), Some(resolve_ref)) = (slot.ptr, slot.resolve_ref) {
+            // SAFETY: a shared root registered by an open scope that holds its borrow; the activation is locked.
+            unsafe { resolve_ref(ptr, &path, &mut |_| found = true) }?;
+        } else {
+            let ArgPtr::Mut(ptr) = slot.ptr else { return Err(not_mut(slot.ptr)) };
+            let resolve = slot.resolve.ok_or(Status::WrongType)?;
+            // SAFETY: `slot` was registered by an open `scope_root` whose borrow is held for the whole
+            // call, `lend_arg` just found its record and locked the activation until `_unlend` drops.
+            unsafe { resolve(ptr, &path, &mut |_| found = true) }?;
+        }
         if !found {
             return Err(Status::Stale);
         }
@@ -724,6 +768,60 @@ fn with_path<T: 'static, R>(handle: u64, f: impl FnOnce(&mut T) -> R) -> Result<
             }
         })
     }?;
+    result.ok_or(Status::WrongType)
+}
+
+/// W9b: [`with_arg`] for read-only use: works on `&mut` and `&` arguments and on path handles of mutable **and**
+/// shared roots, and gives `f` a `&T`. Generated getters and `&self` bindings use it, so the same binding serves a
+/// read-only hook (`&Game`) and a normal one.
+pub fn with_arg_shared<T: 'static, R>(handle: u64, f: impl FnOnce(&T) -> R) -> Result<R, Status> {
+    if handle & PATH_BIT != 0 {
+        return with_path_shared(handle, f);
+    }
+    let (slot, _unlend) = lend_arg(handle)?;
+    if slot.type_id != TypeId::of::<T>() || slot.opaque {
+        return Err(if matches!(slot.ptr, ArgPtr::Value(_)) { Status::WrongKind } else { Status::WrongType });
+    }
+    let ptr = match slot.ptr {
+        ArgPtr::Mut(ptr) => ptr.cast_const(),
+        ArgPtr::Shared(ptr, _) => ptr,
+        ArgPtr::Value(_) => return Err(Status::WrongKind),
+    };
+    // SAFETY: registered from a live `&T`/`&mut T` held by the scope; the activation stays locked until `_unlend`
+    // drops, so nothing mutates the object while `f` reads it.
+    Ok(f(unsafe { &*ptr.cast::<T>() }))
+}
+
+fn with_path_shared<T: 'static, R>(handle: u64, f: impl FnOnce(&T) -> R) -> Result<R, Status> {
+    let (activation, path) = PATHS.with(|p| p.borrow().lookup(handle)).ok_or(Status::Stale)?;
+    let root_handle = Root::HookArg { activation, arg: 0 }.to_handle();
+    let (slot, _unlend) = lend_arg(root_handle)?;
+    let mut f = Some(f);
+    let mut result: Option<R> = None;
+    match (slot.ptr, slot.resolve, slot.resolve_ref) {
+        (ArgPtr::Mut(ptr), Some(resolve), _) => {
+            // SAFETY: as `with_path`.
+            unsafe {
+                resolve(ptr, &path, &mut |any| {
+                    let any: &dyn Any = &*any;
+                    if let (Some(t), Some(f)) = (any.downcast_ref::<T>(), f.take()) {
+                        result = Some(f(t));
+                    }
+                })
+            }?;
+        }
+        (ArgPtr::Shared(ptr, _), _, Some(resolve_ref)) => {
+            // SAFETY: as `open_path` for a shared root.
+            unsafe {
+                resolve_ref(ptr, &path, &mut |any| {
+                    if let (Some(t), Some(f)) = (any.downcast_ref::<T>(), f.take()) {
+                        result = Some(f(t));
+                    }
+                })
+            }?;
+        }
+        _ => return Err(Status::WrongType),
+    }
     result.ok_or(Status::WrongType)
 }
 
@@ -810,6 +908,12 @@ impl<'a> ArgSet<'a> {
     pub fn opaque_shared<T>(self, arg: &'a T) -> Self {
         let ptr: *const T = arg;
         self.push(ArgSlot::new_opaque::<T>(ArgPtr::Shared(ptr.cast(), |_, _, _| None)))
+    }
+
+    /// W9b: `&G` where `G` is a path root (`Game`): the guest gets the root handle and, through `open_path`, read-only
+    /// path handles to what the root can reach.
+    pub fn root_shared<G: PathRootRef>(self, root: &'a G) -> Self {
+        self.push(ArgSlot::new_root_shared(root))
     }
 
     /// A by-value scalar (`bridge::encode::*` bits).
@@ -927,6 +1031,14 @@ impl ArgView<'_> {
         };
         // SAFETY: as `opaque_mut`, shared access only.
         Some(unsafe { &*ptr.cast::<T>() })
+    }
+
+    /// Argument `index` as the shared root it was registered as ([`ArgSet::root_shared`]).
+    pub fn root_shared<G: PathRootRef>(&self, index: usize) -> Option<&G> {
+        let slot = (*self.slots.get(index)?)?;
+        let (ArgPtr::Shared(ptr, _), true) = (slot.ptr, slot.resolve_ref.is_some() && slot.type_name == std::any::type_name::<G>()) else { return None };
+        // SAFETY: registered from a live `&G` held by the scope for the whole call.
+        Some(unsafe { &*ptr.cast::<G>() })
     }
 
     /// The arguments again as a set (for the next mod of a chain).
@@ -1433,6 +1545,21 @@ mod tests {
         }
     }
 
+    impl PathRootRef for World {
+        fn resolve_ref(&self, path: &[Accessor], f: &mut dyn FnMut(&dyn Any)) -> Result<(), Status> {
+            match path {
+                [Accessor::Field(0), Accessor::Id(id)] => match self.things.iter().find(|t| t.count as u64 == *id) {
+                    Some(thing) => {
+                        f(thing);
+                        Ok(())
+                    }
+                    None => Err(Status::Stale),
+                },
+                _ => Err(Status::BadField),
+            }
+        }
+    }
+
     fn thing_path(id: u64) -> Vec<Accessor> {
         vec![Accessor::Field(0), Accessor::Id(id)]
     }
@@ -1642,6 +1769,38 @@ mod tests {
         scope_n(args, &mut |_: &ArgView<'_>| 0, |h| {
             assert_eq!(set(h, 0, 1), Err(Status::WrongKind));
             assert_eq!(with_arg::<Thing, _>(h, |_| ()), Err(Status::WrongType));
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn a_shared_root_gives_read_only_path_handles_and_shared_getters_work_on_both_kinds() {
+        let world = World { things: vec![Thing { count: 7, x: 1.5 }, Thing { count: 8, x: 2.0 }] };
+        let seen = RefCell::new(Vec::new());
+        scope_n(
+            ArgSet::new().root_shared(&world),
+            &mut |view: &ArgView<'_>| {
+                assert!(view.root_shared::<World>(0).is_some());
+                0
+            },
+            |root| {
+                let a = open_path(root, thing_path(7)).unwrap();
+                seen.borrow_mut().push(with_arg_shared::<Thing, _>(a, |t| t.count).unwrap());
+                seen.borrow_mut().push(with_arg_shared::<Thing, _>(open_path(root, thing_path(8)).unwrap(), |t| t.x as i32 as i64 as i32 + 100).unwrap());
+                assert_eq!(with_arg::<Thing, _>(a, |t| t.count), Err(Status::ReadOnly), "no mutable access through a shared root");
+                assert_eq!(with_arg_shared::<World, _>(a, |_| ()), Err(Status::WrongType), "wrong type");
+                assert_eq!(open_path(root, thing_path(99)), Err(Status::Stale), "a missing object");
+                run_original(root).unwrap();
+            },
+        )
+        .unwrap();
+        assert_eq!(*seen.borrow(), vec![7, 102]);
+        assert_eq!(live_path_handles(), 0);
+        // a plain `&mut` argument and a shared one are both readable through `with_arg_shared`
+        let (mut a, b) = (Thing { count: 3, x: 0.0 }, Thing { count: 4, x: 0.0 });
+        scope_n(ArgSet::new().mut_ref(&mut a, &THING).shared(&b, &THING_REF), &mut |_: &ArgView<'_>| 0, |h0| {
+            assert_eq!(with_arg_shared::<Thing, _>(h0, |t| t.count), Ok(3));
+            assert_eq!(with_arg_shared::<Thing, _>(h0 + 1, |t| t.count), Ok(4));
         })
         .unwrap();
     }
