@@ -473,9 +473,160 @@ pub mod types {
         Sleeping,
     }
     #[derive(Clone, Debug, PartialEq)]
+    pub enum ParticleType {
+        Block,
+        BlockCrumble,
+        Trail,
+        DustPillar,
+        FallingDust,
+        Smoke,
+        LargeSmoke,
+        WhiteSmoke,
+        Flame,
+        SoulFireFlame,
+        CopperFireFlame,
+        SmallFlame,
+        Lava,
+        DrippingWater,
+        FallingWater,
+        DrippingLava,
+        FallingLava,
+        LandingLava,
+        DrippingHoney,
+        FallingHoney,
+        LandingHoney,
+        FallingNectar,
+        FallingSporeBlossom,
+        SporeBlossomAir,
+        DrippingObsidianTear,
+        FallingObsidianTear,
+        LandingObsidianTear,
+        DrippingDripstoneWater,
+        FallingDripstoneWater,
+        DrippingDripstoneLava,
+        FallingDripstoneLava,
+        Splash,
+        Rain,
+        Bubble,
+        SulfurBubbles,
+        NoxiousGas,
+        NoxiousGasCloud,
+        Geyser,
+        GeyserBase,
+        GeyserPoof,
+        GeyserPlume,
+        BubblePop,
+        BubbleColumnUp,
+        CurrentDown,
+        Underwater,
+        Portal,
+        ReversePortal,
+        Enchant,
+        Nautilus,
+        VaultConnection,
+        Crit,
+        EnchantedHit,
+        DamageIndicator,
+        Heart,
+        AngryVillager,
+        HappyVillager,
+        Composter,
+        Mycelium,
+        Dolphin,
+        EggCrack,
+        Poof,
+        Explosion,
+        ExplosionEmitter,
+        CampfireCosySmoke,
+        CampfireSignalSmoke,
+        Note,
+        Dust,
+        TotemOfUndying,
+        Firework,
+        EndRod,
+        Ash,
+        WhiteAsh,
+        CrimsonSpore,
+        WarpedSpore,
+        CherryLeaves,
+        PaleOakLeaves,
+        TintedLeaves,
+        Effect,
+        InstantEffect,
+        EntityEffect,
+        Witch,
+        Infested,
+        Cloud,
+        Sneeze,
+        Snowflake,
+        Soul,
+        SculkSoul,
+        DragonBreath,
+        Gust,
+        SmallGust,
+        GustEmitterLarge,
+        GustEmitterSmall,
+        DustColorTransition,
+        SculkCharge,
+        SculkChargePop,
+        Shriek,
+        SonicBoom,
+        Vibration,
+        SweepAttack,
+        Glow,
+        WaxOn,
+        WaxOff,
+        ElectricSpark,
+        Scrape,
+        SquidInk,
+        GlowSquidInk,
+        Item,
+        ItemSlime,
+        ItemSnowball,
+        ItemCobweb,
+        SulfurCubeGoo,
+        Flash,
+        Firefly,
+        TrialSpawnerDetection,
+        TrialSpawnerDetectionOminous,
+        TrialOmen,
+        RaidOmen,
+        OminousSpawning,
+        Spit,
+        Fishing,
+        DustPlume,
+        RedPoplarLeaves,
+        OrangePoplarLeaves,
+        YellowPoplarLeaves,
+        PauseMobGrowth,
+        ResetMobGrowth,
+        BlockMarker,
+    }
+    #[derive(Clone, Debug, PartialEq)]
     pub enum Who {
         Player,
         Mob(u32),
+    }
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct AvatarBob {
+        pub walk_dist: f32,
+        pub walk_dist_o: f32,
+        pub bob: f32,
+        pub bob_o: f32,
+        pub cloak: [f64; 3],
+        pub cloak_o: [f64; 3],
+    }
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct ParticleOptions {
+        pub ty: types::ParticleType,
+        pub block: Option<(String, u32,)>,
+        pub color: [f32; 4],
+        pub scale: f32,
+        pub to_color: [f32; 3],
+        pub trail: Option<([f64; 3], i32,)>,
+        pub item: Option<Vec<String>>,
+        pub geyser: Option<(i32, f32,)>,
+        pub mod_particle: Option<String>,
     }
     #[derive(Clone, Debug, PartialEq)]
     pub struct Vec3 {
@@ -2771,6 +2922,530 @@ pub mod types {
         }
     }
 
+    fn enc_horizon_client_core__particle_type__ParticleType(v: &types::ParticleType, out: &mut Vec<u8>) {
+        match v {
+            types::ParticleType::Block => {
+                Encode::encode(&0u32, out);
+            }
+            types::ParticleType::BlockCrumble => {
+                Encode::encode(&1u32, out);
+            }
+            types::ParticleType::Trail => {
+                Encode::encode(&2u32, out);
+            }
+            types::ParticleType::DustPillar => {
+                Encode::encode(&3u32, out);
+            }
+            types::ParticleType::FallingDust => {
+                Encode::encode(&4u32, out);
+            }
+            types::ParticleType::Smoke => {
+                Encode::encode(&5u32, out);
+            }
+            types::ParticleType::LargeSmoke => {
+                Encode::encode(&6u32, out);
+            }
+            types::ParticleType::WhiteSmoke => {
+                Encode::encode(&7u32, out);
+            }
+            types::ParticleType::Flame => {
+                Encode::encode(&8u32, out);
+            }
+            types::ParticleType::SoulFireFlame => {
+                Encode::encode(&9u32, out);
+            }
+            types::ParticleType::CopperFireFlame => {
+                Encode::encode(&10u32, out);
+            }
+            types::ParticleType::SmallFlame => {
+                Encode::encode(&11u32, out);
+            }
+            types::ParticleType::Lava => {
+                Encode::encode(&12u32, out);
+            }
+            types::ParticleType::DrippingWater => {
+                Encode::encode(&13u32, out);
+            }
+            types::ParticleType::FallingWater => {
+                Encode::encode(&14u32, out);
+            }
+            types::ParticleType::DrippingLava => {
+                Encode::encode(&15u32, out);
+            }
+            types::ParticleType::FallingLava => {
+                Encode::encode(&16u32, out);
+            }
+            types::ParticleType::LandingLava => {
+                Encode::encode(&17u32, out);
+            }
+            types::ParticleType::DrippingHoney => {
+                Encode::encode(&18u32, out);
+            }
+            types::ParticleType::FallingHoney => {
+                Encode::encode(&19u32, out);
+            }
+            types::ParticleType::LandingHoney => {
+                Encode::encode(&20u32, out);
+            }
+            types::ParticleType::FallingNectar => {
+                Encode::encode(&21u32, out);
+            }
+            types::ParticleType::FallingSporeBlossom => {
+                Encode::encode(&22u32, out);
+            }
+            types::ParticleType::SporeBlossomAir => {
+                Encode::encode(&23u32, out);
+            }
+            types::ParticleType::DrippingObsidianTear => {
+                Encode::encode(&24u32, out);
+            }
+            types::ParticleType::FallingObsidianTear => {
+                Encode::encode(&25u32, out);
+            }
+            types::ParticleType::LandingObsidianTear => {
+                Encode::encode(&26u32, out);
+            }
+            types::ParticleType::DrippingDripstoneWater => {
+                Encode::encode(&27u32, out);
+            }
+            types::ParticleType::FallingDripstoneWater => {
+                Encode::encode(&28u32, out);
+            }
+            types::ParticleType::DrippingDripstoneLava => {
+                Encode::encode(&29u32, out);
+            }
+            types::ParticleType::FallingDripstoneLava => {
+                Encode::encode(&30u32, out);
+            }
+            types::ParticleType::Splash => {
+                Encode::encode(&31u32, out);
+            }
+            types::ParticleType::Rain => {
+                Encode::encode(&32u32, out);
+            }
+            types::ParticleType::Bubble => {
+                Encode::encode(&33u32, out);
+            }
+            types::ParticleType::SulfurBubbles => {
+                Encode::encode(&34u32, out);
+            }
+            types::ParticleType::NoxiousGas => {
+                Encode::encode(&35u32, out);
+            }
+            types::ParticleType::NoxiousGasCloud => {
+                Encode::encode(&36u32, out);
+            }
+            types::ParticleType::Geyser => {
+                Encode::encode(&37u32, out);
+            }
+            types::ParticleType::GeyserBase => {
+                Encode::encode(&38u32, out);
+            }
+            types::ParticleType::GeyserPoof => {
+                Encode::encode(&39u32, out);
+            }
+            types::ParticleType::GeyserPlume => {
+                Encode::encode(&40u32, out);
+            }
+            types::ParticleType::BubblePop => {
+                Encode::encode(&41u32, out);
+            }
+            types::ParticleType::BubbleColumnUp => {
+                Encode::encode(&42u32, out);
+            }
+            types::ParticleType::CurrentDown => {
+                Encode::encode(&43u32, out);
+            }
+            types::ParticleType::Underwater => {
+                Encode::encode(&44u32, out);
+            }
+            types::ParticleType::Portal => {
+                Encode::encode(&45u32, out);
+            }
+            types::ParticleType::ReversePortal => {
+                Encode::encode(&46u32, out);
+            }
+            types::ParticleType::Enchant => {
+                Encode::encode(&47u32, out);
+            }
+            types::ParticleType::Nautilus => {
+                Encode::encode(&48u32, out);
+            }
+            types::ParticleType::VaultConnection => {
+                Encode::encode(&49u32, out);
+            }
+            types::ParticleType::Crit => {
+                Encode::encode(&50u32, out);
+            }
+            types::ParticleType::EnchantedHit => {
+                Encode::encode(&51u32, out);
+            }
+            types::ParticleType::DamageIndicator => {
+                Encode::encode(&52u32, out);
+            }
+            types::ParticleType::Heart => {
+                Encode::encode(&53u32, out);
+            }
+            types::ParticleType::AngryVillager => {
+                Encode::encode(&54u32, out);
+            }
+            types::ParticleType::HappyVillager => {
+                Encode::encode(&55u32, out);
+            }
+            types::ParticleType::Composter => {
+                Encode::encode(&56u32, out);
+            }
+            types::ParticleType::Mycelium => {
+                Encode::encode(&57u32, out);
+            }
+            types::ParticleType::Dolphin => {
+                Encode::encode(&58u32, out);
+            }
+            types::ParticleType::EggCrack => {
+                Encode::encode(&59u32, out);
+            }
+            types::ParticleType::Poof => {
+                Encode::encode(&60u32, out);
+            }
+            types::ParticleType::Explosion => {
+                Encode::encode(&61u32, out);
+            }
+            types::ParticleType::ExplosionEmitter => {
+                Encode::encode(&62u32, out);
+            }
+            types::ParticleType::CampfireCosySmoke => {
+                Encode::encode(&63u32, out);
+            }
+            types::ParticleType::CampfireSignalSmoke => {
+                Encode::encode(&64u32, out);
+            }
+            types::ParticleType::Note => {
+                Encode::encode(&65u32, out);
+            }
+            types::ParticleType::Dust => {
+                Encode::encode(&66u32, out);
+            }
+            types::ParticleType::TotemOfUndying => {
+                Encode::encode(&67u32, out);
+            }
+            types::ParticleType::Firework => {
+                Encode::encode(&68u32, out);
+            }
+            types::ParticleType::EndRod => {
+                Encode::encode(&69u32, out);
+            }
+            types::ParticleType::Ash => {
+                Encode::encode(&70u32, out);
+            }
+            types::ParticleType::WhiteAsh => {
+                Encode::encode(&71u32, out);
+            }
+            types::ParticleType::CrimsonSpore => {
+                Encode::encode(&72u32, out);
+            }
+            types::ParticleType::WarpedSpore => {
+                Encode::encode(&73u32, out);
+            }
+            types::ParticleType::CherryLeaves => {
+                Encode::encode(&74u32, out);
+            }
+            types::ParticleType::PaleOakLeaves => {
+                Encode::encode(&75u32, out);
+            }
+            types::ParticleType::TintedLeaves => {
+                Encode::encode(&76u32, out);
+            }
+            types::ParticleType::Effect => {
+                Encode::encode(&77u32, out);
+            }
+            types::ParticleType::InstantEffect => {
+                Encode::encode(&78u32, out);
+            }
+            types::ParticleType::EntityEffect => {
+                Encode::encode(&79u32, out);
+            }
+            types::ParticleType::Witch => {
+                Encode::encode(&80u32, out);
+            }
+            types::ParticleType::Infested => {
+                Encode::encode(&81u32, out);
+            }
+            types::ParticleType::Cloud => {
+                Encode::encode(&82u32, out);
+            }
+            types::ParticleType::Sneeze => {
+                Encode::encode(&83u32, out);
+            }
+            types::ParticleType::Snowflake => {
+                Encode::encode(&84u32, out);
+            }
+            types::ParticleType::Soul => {
+                Encode::encode(&85u32, out);
+            }
+            types::ParticleType::SculkSoul => {
+                Encode::encode(&86u32, out);
+            }
+            types::ParticleType::DragonBreath => {
+                Encode::encode(&87u32, out);
+            }
+            types::ParticleType::Gust => {
+                Encode::encode(&88u32, out);
+            }
+            types::ParticleType::SmallGust => {
+                Encode::encode(&89u32, out);
+            }
+            types::ParticleType::GustEmitterLarge => {
+                Encode::encode(&90u32, out);
+            }
+            types::ParticleType::GustEmitterSmall => {
+                Encode::encode(&91u32, out);
+            }
+            types::ParticleType::DustColorTransition => {
+                Encode::encode(&92u32, out);
+            }
+            types::ParticleType::SculkCharge => {
+                Encode::encode(&93u32, out);
+            }
+            types::ParticleType::SculkChargePop => {
+                Encode::encode(&94u32, out);
+            }
+            types::ParticleType::Shriek => {
+                Encode::encode(&95u32, out);
+            }
+            types::ParticleType::SonicBoom => {
+                Encode::encode(&96u32, out);
+            }
+            types::ParticleType::Vibration => {
+                Encode::encode(&97u32, out);
+            }
+            types::ParticleType::SweepAttack => {
+                Encode::encode(&98u32, out);
+            }
+            types::ParticleType::Glow => {
+                Encode::encode(&99u32, out);
+            }
+            types::ParticleType::WaxOn => {
+                Encode::encode(&100u32, out);
+            }
+            types::ParticleType::WaxOff => {
+                Encode::encode(&101u32, out);
+            }
+            types::ParticleType::ElectricSpark => {
+                Encode::encode(&102u32, out);
+            }
+            types::ParticleType::Scrape => {
+                Encode::encode(&103u32, out);
+            }
+            types::ParticleType::SquidInk => {
+                Encode::encode(&104u32, out);
+            }
+            types::ParticleType::GlowSquidInk => {
+                Encode::encode(&105u32, out);
+            }
+            types::ParticleType::Item => {
+                Encode::encode(&106u32, out);
+            }
+            types::ParticleType::ItemSlime => {
+                Encode::encode(&107u32, out);
+            }
+            types::ParticleType::ItemSnowball => {
+                Encode::encode(&108u32, out);
+            }
+            types::ParticleType::ItemCobweb => {
+                Encode::encode(&109u32, out);
+            }
+            types::ParticleType::SulfurCubeGoo => {
+                Encode::encode(&110u32, out);
+            }
+            types::ParticleType::Flash => {
+                Encode::encode(&111u32, out);
+            }
+            types::ParticleType::Firefly => {
+                Encode::encode(&112u32, out);
+            }
+            types::ParticleType::TrialSpawnerDetection => {
+                Encode::encode(&113u32, out);
+            }
+            types::ParticleType::TrialSpawnerDetectionOminous => {
+                Encode::encode(&114u32, out);
+            }
+            types::ParticleType::TrialOmen => {
+                Encode::encode(&115u32, out);
+            }
+            types::ParticleType::RaidOmen => {
+                Encode::encode(&116u32, out);
+            }
+            types::ParticleType::OminousSpawning => {
+                Encode::encode(&117u32, out);
+            }
+            types::ParticleType::Spit => {
+                Encode::encode(&118u32, out);
+            }
+            types::ParticleType::Fishing => {
+                Encode::encode(&119u32, out);
+            }
+            types::ParticleType::DustPlume => {
+                Encode::encode(&120u32, out);
+            }
+            types::ParticleType::RedPoplarLeaves => {
+                Encode::encode(&121u32, out);
+            }
+            types::ParticleType::OrangePoplarLeaves => {
+                Encode::encode(&122u32, out);
+            }
+            types::ParticleType::YellowPoplarLeaves => {
+                Encode::encode(&123u32, out);
+            }
+            types::ParticleType::PauseMobGrowth => {
+                Encode::encode(&124u32, out);
+            }
+            types::ParticleType::ResetMobGrowth => {
+                Encode::encode(&125u32, out);
+            }
+            types::ParticleType::BlockMarker => {
+                Encode::encode(&126u32, out);
+            }
+        }
+    }
+    fn dec_horizon_client_core__particle_type__ParticleType(d: &mut Decoder<'_>) -> Result<types::ParticleType, CallError> {
+        d.enter()?;
+        let r = dec_horizon_client_core__particle_type__ParticleType_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_client_core__particle_type__ParticleType_body(d: &mut Decoder<'_>) -> Result<types::ParticleType, CallError> {
+        match <u32 as Decode>::decode(d)? {
+            0 => Ok(types::ParticleType::Block),
+            1 => Ok(types::ParticleType::BlockCrumble),
+            2 => Ok(types::ParticleType::Trail),
+            3 => Ok(types::ParticleType::DustPillar),
+            4 => Ok(types::ParticleType::FallingDust),
+            5 => Ok(types::ParticleType::Smoke),
+            6 => Ok(types::ParticleType::LargeSmoke),
+            7 => Ok(types::ParticleType::WhiteSmoke),
+            8 => Ok(types::ParticleType::Flame),
+            9 => Ok(types::ParticleType::SoulFireFlame),
+            10 => Ok(types::ParticleType::CopperFireFlame),
+            11 => Ok(types::ParticleType::SmallFlame),
+            12 => Ok(types::ParticleType::Lava),
+            13 => Ok(types::ParticleType::DrippingWater),
+            14 => Ok(types::ParticleType::FallingWater),
+            15 => Ok(types::ParticleType::DrippingLava),
+            16 => Ok(types::ParticleType::FallingLava),
+            17 => Ok(types::ParticleType::LandingLava),
+            18 => Ok(types::ParticleType::DrippingHoney),
+            19 => Ok(types::ParticleType::FallingHoney),
+            20 => Ok(types::ParticleType::LandingHoney),
+            21 => Ok(types::ParticleType::FallingNectar),
+            22 => Ok(types::ParticleType::FallingSporeBlossom),
+            23 => Ok(types::ParticleType::SporeBlossomAir),
+            24 => Ok(types::ParticleType::DrippingObsidianTear),
+            25 => Ok(types::ParticleType::FallingObsidianTear),
+            26 => Ok(types::ParticleType::LandingObsidianTear),
+            27 => Ok(types::ParticleType::DrippingDripstoneWater),
+            28 => Ok(types::ParticleType::FallingDripstoneWater),
+            29 => Ok(types::ParticleType::DrippingDripstoneLava),
+            30 => Ok(types::ParticleType::FallingDripstoneLava),
+            31 => Ok(types::ParticleType::Splash),
+            32 => Ok(types::ParticleType::Rain),
+            33 => Ok(types::ParticleType::Bubble),
+            34 => Ok(types::ParticleType::SulfurBubbles),
+            35 => Ok(types::ParticleType::NoxiousGas),
+            36 => Ok(types::ParticleType::NoxiousGasCloud),
+            37 => Ok(types::ParticleType::Geyser),
+            38 => Ok(types::ParticleType::GeyserBase),
+            39 => Ok(types::ParticleType::GeyserPoof),
+            40 => Ok(types::ParticleType::GeyserPlume),
+            41 => Ok(types::ParticleType::BubblePop),
+            42 => Ok(types::ParticleType::BubbleColumnUp),
+            43 => Ok(types::ParticleType::CurrentDown),
+            44 => Ok(types::ParticleType::Underwater),
+            45 => Ok(types::ParticleType::Portal),
+            46 => Ok(types::ParticleType::ReversePortal),
+            47 => Ok(types::ParticleType::Enchant),
+            48 => Ok(types::ParticleType::Nautilus),
+            49 => Ok(types::ParticleType::VaultConnection),
+            50 => Ok(types::ParticleType::Crit),
+            51 => Ok(types::ParticleType::EnchantedHit),
+            52 => Ok(types::ParticleType::DamageIndicator),
+            53 => Ok(types::ParticleType::Heart),
+            54 => Ok(types::ParticleType::AngryVillager),
+            55 => Ok(types::ParticleType::HappyVillager),
+            56 => Ok(types::ParticleType::Composter),
+            57 => Ok(types::ParticleType::Mycelium),
+            58 => Ok(types::ParticleType::Dolphin),
+            59 => Ok(types::ParticleType::EggCrack),
+            60 => Ok(types::ParticleType::Poof),
+            61 => Ok(types::ParticleType::Explosion),
+            62 => Ok(types::ParticleType::ExplosionEmitter),
+            63 => Ok(types::ParticleType::CampfireCosySmoke),
+            64 => Ok(types::ParticleType::CampfireSignalSmoke),
+            65 => Ok(types::ParticleType::Note),
+            66 => Ok(types::ParticleType::Dust),
+            67 => Ok(types::ParticleType::TotemOfUndying),
+            68 => Ok(types::ParticleType::Firework),
+            69 => Ok(types::ParticleType::EndRod),
+            70 => Ok(types::ParticleType::Ash),
+            71 => Ok(types::ParticleType::WhiteAsh),
+            72 => Ok(types::ParticleType::CrimsonSpore),
+            73 => Ok(types::ParticleType::WarpedSpore),
+            74 => Ok(types::ParticleType::CherryLeaves),
+            75 => Ok(types::ParticleType::PaleOakLeaves),
+            76 => Ok(types::ParticleType::TintedLeaves),
+            77 => Ok(types::ParticleType::Effect),
+            78 => Ok(types::ParticleType::InstantEffect),
+            79 => Ok(types::ParticleType::EntityEffect),
+            80 => Ok(types::ParticleType::Witch),
+            81 => Ok(types::ParticleType::Infested),
+            82 => Ok(types::ParticleType::Cloud),
+            83 => Ok(types::ParticleType::Sneeze),
+            84 => Ok(types::ParticleType::Snowflake),
+            85 => Ok(types::ParticleType::Soul),
+            86 => Ok(types::ParticleType::SculkSoul),
+            87 => Ok(types::ParticleType::DragonBreath),
+            88 => Ok(types::ParticleType::Gust),
+            89 => Ok(types::ParticleType::SmallGust),
+            90 => Ok(types::ParticleType::GustEmitterLarge),
+            91 => Ok(types::ParticleType::GustEmitterSmall),
+            92 => Ok(types::ParticleType::DustColorTransition),
+            93 => Ok(types::ParticleType::SculkCharge),
+            94 => Ok(types::ParticleType::SculkChargePop),
+            95 => Ok(types::ParticleType::Shriek),
+            96 => Ok(types::ParticleType::SonicBoom),
+            97 => Ok(types::ParticleType::Vibration),
+            98 => Ok(types::ParticleType::SweepAttack),
+            99 => Ok(types::ParticleType::Glow),
+            100 => Ok(types::ParticleType::WaxOn),
+            101 => Ok(types::ParticleType::WaxOff),
+            102 => Ok(types::ParticleType::ElectricSpark),
+            103 => Ok(types::ParticleType::Scrape),
+            104 => Ok(types::ParticleType::SquidInk),
+            105 => Ok(types::ParticleType::GlowSquidInk),
+            106 => Ok(types::ParticleType::Item),
+            107 => Ok(types::ParticleType::ItemSlime),
+            108 => Ok(types::ParticleType::ItemSnowball),
+            109 => Ok(types::ParticleType::ItemCobweb),
+            110 => Ok(types::ParticleType::SulfurCubeGoo),
+            111 => Ok(types::ParticleType::Flash),
+            112 => Ok(types::ParticleType::Firefly),
+            113 => Ok(types::ParticleType::TrialSpawnerDetection),
+            114 => Ok(types::ParticleType::TrialSpawnerDetectionOminous),
+            115 => Ok(types::ParticleType::TrialOmen),
+            116 => Ok(types::ParticleType::RaidOmen),
+            117 => Ok(types::ParticleType::OminousSpawning),
+            118 => Ok(types::ParticleType::Spit),
+            119 => Ok(types::ParticleType::Fishing),
+            120 => Ok(types::ParticleType::DustPlume),
+            121 => Ok(types::ParticleType::RedPoplarLeaves),
+            122 => Ok(types::ParticleType::OrangePoplarLeaves),
+            123 => Ok(types::ParticleType::YellowPoplarLeaves),
+            124 => Ok(types::ParticleType::PauseMobGrowth),
+            125 => Ok(types::ParticleType::ResetMobGrowth),
+            126 => Ok(types::ParticleType::BlockMarker),
+            n => Err(CallError::InvalidTag("ParticleType", n)),
+        }
+    }
+
     fn enc_horizon_client_core__who__Who(v: &types::Who, out: &mut Vec<u8>) {
         match v {
             types::Who::Player => {
@@ -2794,6 +3469,192 @@ pub mod types {
             1 => Ok(types::Who::Mob(<u32 as Decode>::decode(d)?)),
             n => Err(CallError::InvalidTag("Who", n)),
         }
+    }
+
+    fn enc_horizon_client_render__camera__AvatarBob(v: &types::AvatarBob, out: &mut Vec<u8>) {
+        Encode::encode(&v.walk_dist, out);
+        Encode::encode(&v.walk_dist_o, out);
+        Encode::encode(&v.bob, out);
+        Encode::encode(&v.bob_o, out);
+        for e0 in (&v.cloak).iter() {
+            Encode::encode(e0, out);
+        }
+        for e0 in (&v.cloak_o).iter() {
+            Encode::encode(e0, out);
+        }
+    }
+    fn dec_horizon_client_render__camera__AvatarBob(d: &mut Decoder<'_>) -> Result<types::AvatarBob, CallError> {
+        d.enter()?;
+        let r = dec_horizon_client_render__camera__AvatarBob_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_client_render__camera__AvatarBob_body(d: &mut Decoder<'_>) -> Result<types::AvatarBob, CallError> {
+        Ok(types::AvatarBob {
+            walk_dist: <f32 as Decode>::decode(d)?,
+            walk_dist_o: <f32 as Decode>::decode(d)?,
+            bob: <f32 as Decode>::decode(d)?,
+            bob_o: <f32 as Decode>::decode(d)?,
+            cloak: {
+                let mut v0 = Vec::new();
+                for _ in 0..(3) {
+                    v0.push(<f64 as Decode>::decode(d)?);
+                }
+                match <[_; 3]>::try_from(v0) {
+                    Ok(a) => a,
+                    Err(_) => return Err(CallError::UnexpectedEnd),
+                }
+            },
+            cloak_o: {
+                let mut v0 = Vec::new();
+                for _ in 0..(3) {
+                    v0.push(<f64 as Decode>::decode(d)?);
+                }
+                match <[_; 3]>::try_from(v0) {
+                    Ok(a) => a,
+                    Err(_) => return Err(CallError::UnexpectedEnd),
+                }
+            },
+        })
+    }
+
+    fn enc_horizon_client_render__particles__ParticleOptions(v: &types::ParticleOptions, out: &mut Vec<u8>) {
+        enc_horizon_client_core__particle_type__ParticleType(&v.ty, out);
+        match &v.block {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                {
+                    let t1 = v0;
+                    Encode::encode(&t1.0, out);
+                    Encode::encode(&t1.1, out);
+                }
+            }
+        }
+        for e0 in (&v.color).iter() {
+            Encode::encode(e0, out);
+        }
+        Encode::encode(&v.scale, out);
+        for e0 in (&v.to_color).iter() {
+            Encode::encode(e0, out);
+        }
+        match &v.trail {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                {
+                    let t1 = v0;
+                    for e2 in (&t1.0).iter() {
+                        Encode::encode(e2, out);
+                    }
+                    Encode::encode(&t1.1, out);
+                }
+            }
+        }
+        match &v.item {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                {
+                    let s1 = v0;
+                    codec::enc_len(s1.len(), out);
+                    for e1 in s1.iter() {
+                        Encode::encode(e1, out);
+                    }
+                }
+            }
+        }
+        match &v.geyser {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                {
+                    let t1 = v0;
+                    Encode::encode(&t1.0, out);
+                    Encode::encode(&t1.1, out);
+                }
+            }
+        }
+        match &v.mod_particle {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+    }
+    fn dec_horizon_client_render__particles__ParticleOptions(d: &mut Decoder<'_>) -> Result<types::ParticleOptions, CallError> {
+        d.enter()?;
+        let r = dec_horizon_client_render__particles__ParticleOptions_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_client_render__particles__ParticleOptions_body(d: &mut Decoder<'_>) -> Result<types::ParticleOptions, CallError> {
+        Ok(types::ParticleOptions {
+            ty: dec_horizon_client_core__particle_type__ParticleType(d)?,
+            block: match d.tag()? {
+                0 => None,
+                1 => Some((<String as Decode>::decode(d)?, <u32 as Decode>::decode(d)?,)),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            color: {
+                let mut v0 = Vec::new();
+                for _ in 0..(4) {
+                    v0.push(<f32 as Decode>::decode(d)?);
+                }
+                match <[_; 4]>::try_from(v0) {
+                    Ok(a) => a,
+                    Err(_) => return Err(CallError::UnexpectedEnd),
+                }
+            },
+            scale: <f32 as Decode>::decode(d)?,
+            to_color: {
+                let mut v0 = Vec::new();
+                for _ in 0..(3) {
+                    v0.push(<f32 as Decode>::decode(d)?);
+                }
+                match <[_; 3]>::try_from(v0) {
+                    Ok(a) => a,
+                    Err(_) => return Err(CallError::UnexpectedEnd),
+                }
+            },
+            trail: match d.tag()? {
+                0 => None,
+                1 => Some(({
+                let mut v2 = Vec::new();
+                for _ in 0..(3) {
+                    v2.push(<f64 as Decode>::decode(d)?);
+                }
+                match <[_; 3]>::try_from(v2) {
+                    Ok(a) => a,
+                    Err(_) => return Err(CallError::UnexpectedEnd),
+                }
+            }, <i32 as Decode>::decode(d)?,)),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            item: match d.tag()? {
+                0 => None,
+                1 => Some({
+                let n1 = d.vec_len()?;
+                let mut v1 = Decoder::vec_with(n1);
+                for _ in 0..n1 {
+                    v1.push(<String as Decode>::decode(d)?);
+                }
+                v1
+            }),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            geyser: match d.tag()? {
+                0 => None,
+                1 => Some((<i32 as Decode>::decode(d)?, <f32 as Decode>::decode(d)?,)),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            mod_particle: match d.tag()? {
+                0 => None,
+                1 => Some(<String as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+        })
     }
 
     fn enc_horizon_core__geometry__Vec3(v: &types::Vec3, out: &mut Vec<u8>) {
@@ -10620,6 +11481,39 @@ pub fn mobs_exact_attributes(a0: &[u8]) -> Result<Vec<(String, Vec<(String, f64)
             }
             v2
         },));
+            }
+            v0
+        };
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::Extra.avatar#get`
+pub fn mobs_extra_avatar_get(h: Handle) -> Result<types::AvatarBob, Error> {
+    let result = call(h, 1517, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<types::AvatarBob, CallError> {
+        let d = &mut dec;
+        let value = dec_horizon_client_render__camera__AvatarBob(d)?;
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::Extra.effect_particles#get`
+pub fn mobs_extra_effect_particles_get(h: Handle) -> Result<Vec<types::ParticleOptions>, Error> {
+    let result = call(h, 1519, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<Vec<types::ParticleOptions>, CallError> {
+        let d = &mut dec;
+        let value = {
+            let n0 = d.vec_len()?;
+            let mut v0 = Decoder::vec_with(n0);
+            for _ in 0..n0 {
+                v0.push(dec_horizon_client_render__particles__ParticleOptions(d)?);
             }
             v0
         };

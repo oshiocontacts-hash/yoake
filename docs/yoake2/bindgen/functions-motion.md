@@ -147,8 +147,8 @@
 | `motion::<PlayerMotion as State>::snapshot` | 275 | &self | handle-required | external type `yoake_state::Value` (crate not loaded) [return value] |
 | `motion::<PlayerMotion as State>::type_name` | 275 | - | bound (b, mechanical) | - |
 | `motion::<PlayerMotion as State>::validate_set` | 275 | &self | handle-required | external type `yoake_state::Value` (crate not loaded) [&argument] |
-| `motion::MotionResources::load` | 81 | - | excluded | external type `horizon_client_render::assets::Assets` (crate not loaded) [&argument]; generic type alias `Result`; std type `std::path::Path` has no codec yet [&argument] |
-| `motion::MotionResources::load_with_facts` | 92 | - | excluded | external type `horizon_client_render::assets::Assets` (crate not loaded) [&argument]; generic type alias `Result`; std type `std::path::Path` has no codec yet [&argument] |
+| `motion::MotionResources::load` | 81 | - | excluded | a reference nested inside another type needs a handle [&argument]; generic type alias `Result`; std type `std::path::Path` has no codec yet [&argument] |
+| `motion::MotionResources::load_with_facts` | 92 | - | excluded | a reference nested inside another type needs a handle [&argument]; generic type alias `Result`; std type `std::path::Path` has no codec yet [&argument] |
 | `motion::MotionWorld::__yoake_trait_auto_jump_world_collision_boxes` | 2280 | &mut self | excluded | field `min` of `Aabb` is private to another module; generic type alias `Result`; hook machinery (`__yoake_*`): not an engine function; receiver type carries a lifetime: it cannot be a hook-argument handle |
 | `motion::MotionWorld::__yoake_trait_auto_jump_world_collision_shape` | 2272 | &mut self | excluded | generic type alias `Result`; hook machinery (`__yoake_*`): not an engine function; receiver type carries a lifetime: it cannot be a hook-argument handle |
 | `motion::MotionWorld::__yoake_trait_climbing_world_set_last_climbable_position` | 2256 | &mut self | excluded | hook machinery (`__yoake_*`): not an engine function; receiver type carries a lifetime: it cannot be a hook-argument handle |
@@ -334,7 +334,7 @@
 | `motion::PlayerMotion::new` | 546 | - | excluded | field `attributes` of `Catalog` is private to another module [&argument]; generic type alias `Result` |
 | `motion::PlayerMotion::packed_attributes` | 810 | &self | bound (b, mechanical) | - |
 | `motion::PlayerMotion::percent_frozen` | 685 | &self | bound (a) | - |
-| `motion::PlayerMotion::powder_snow_subject` | 701 | &self | handle-required | external type `horizon_client_render::collisions::PowderSnowSubject` (crate not loaded) [return value] |
+| `motion::PlayerMotion::powder_snow_subject` | 701 | &self | bound (b, mechanical) | - |
 | `motion::PlayerMotion::remove_frost` | 989 | &mut self | excluded | generic type alias `Result` |
 | `motion::PlayerMotion::saved_attributes` | 796 | &self | bound (b, mechanical) | - |
 | `motion::PlayerMotion::set_modifier` | 757 | &mut self | excluded | generic type alias `Result` |
@@ -464,7 +464,7 @@
 | `motion::PlayerMotion.impulse` | get + set |
 | `motion::PlayerMotion.spawn_extra_particles_on_fall` | get + set |
 | `motion::PlayerMotion.health` | no accessor: generic type `crate::synced_values::SyncedValues` requires a listed instantiation |
-| `motion::PlayerMotion.status` | no accessor: external type `horizon_client_render::effects::StatusFlags` (crate not loaded) |
+| `motion::PlayerMotion.status` | get + set |
 | `motion::PlayerMotion.fluids` | no accessor: field `trackers` of `EntityFluidInteraction` is private to another module |
 | `motion::PlayerMotion.in_powder_snow` | get + set |
 | `motion::PlayerMotion.was_in_powder_snow` | get + set |

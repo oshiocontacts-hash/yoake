@@ -2461,6 +2461,530 @@ pub mod yoake_glue {
         }
     }
 
+    fn enc_horizon_client_core__particle_type__ParticleType(v: &horizon_client_core::particle_type::ParticleType, out: &mut Vec<u8>) {
+        match v {
+            horizon_client_core::particle_type::ParticleType::Block => {
+                Encode::encode(&0u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::BlockCrumble => {
+                Encode::encode(&1u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Trail => {
+                Encode::encode(&2u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::DustPillar => {
+                Encode::encode(&3u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::FallingDust => {
+                Encode::encode(&4u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Smoke => {
+                Encode::encode(&5u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::LargeSmoke => {
+                Encode::encode(&6u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::WhiteSmoke => {
+                Encode::encode(&7u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Flame => {
+                Encode::encode(&8u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::SoulFireFlame => {
+                Encode::encode(&9u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::CopperFireFlame => {
+                Encode::encode(&10u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::SmallFlame => {
+                Encode::encode(&11u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Lava => {
+                Encode::encode(&12u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::DrippingWater => {
+                Encode::encode(&13u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::FallingWater => {
+                Encode::encode(&14u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::DrippingLava => {
+                Encode::encode(&15u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::FallingLava => {
+                Encode::encode(&16u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::LandingLava => {
+                Encode::encode(&17u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::DrippingHoney => {
+                Encode::encode(&18u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::FallingHoney => {
+                Encode::encode(&19u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::LandingHoney => {
+                Encode::encode(&20u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::FallingNectar => {
+                Encode::encode(&21u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::FallingSporeBlossom => {
+                Encode::encode(&22u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::SporeBlossomAir => {
+                Encode::encode(&23u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::DrippingObsidianTear => {
+                Encode::encode(&24u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::FallingObsidianTear => {
+                Encode::encode(&25u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::LandingObsidianTear => {
+                Encode::encode(&26u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::DrippingDripstoneWater => {
+                Encode::encode(&27u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::FallingDripstoneWater => {
+                Encode::encode(&28u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::DrippingDripstoneLava => {
+                Encode::encode(&29u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::FallingDripstoneLava => {
+                Encode::encode(&30u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Splash => {
+                Encode::encode(&31u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Rain => {
+                Encode::encode(&32u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Bubble => {
+                Encode::encode(&33u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::SulfurBubbles => {
+                Encode::encode(&34u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::NoxiousGas => {
+                Encode::encode(&35u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::NoxiousGasCloud => {
+                Encode::encode(&36u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Geyser => {
+                Encode::encode(&37u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::GeyserBase => {
+                Encode::encode(&38u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::GeyserPoof => {
+                Encode::encode(&39u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::GeyserPlume => {
+                Encode::encode(&40u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::BubblePop => {
+                Encode::encode(&41u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::BubbleColumnUp => {
+                Encode::encode(&42u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::CurrentDown => {
+                Encode::encode(&43u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Underwater => {
+                Encode::encode(&44u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Portal => {
+                Encode::encode(&45u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::ReversePortal => {
+                Encode::encode(&46u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Enchant => {
+                Encode::encode(&47u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Nautilus => {
+                Encode::encode(&48u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::VaultConnection => {
+                Encode::encode(&49u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Crit => {
+                Encode::encode(&50u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::EnchantedHit => {
+                Encode::encode(&51u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::DamageIndicator => {
+                Encode::encode(&52u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Heart => {
+                Encode::encode(&53u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::AngryVillager => {
+                Encode::encode(&54u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::HappyVillager => {
+                Encode::encode(&55u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Composter => {
+                Encode::encode(&56u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Mycelium => {
+                Encode::encode(&57u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Dolphin => {
+                Encode::encode(&58u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::EggCrack => {
+                Encode::encode(&59u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Poof => {
+                Encode::encode(&60u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Explosion => {
+                Encode::encode(&61u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::ExplosionEmitter => {
+                Encode::encode(&62u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::CampfireCosySmoke => {
+                Encode::encode(&63u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::CampfireSignalSmoke => {
+                Encode::encode(&64u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Note => {
+                Encode::encode(&65u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Dust => {
+                Encode::encode(&66u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::TotemOfUndying => {
+                Encode::encode(&67u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Firework => {
+                Encode::encode(&68u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::EndRod => {
+                Encode::encode(&69u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Ash => {
+                Encode::encode(&70u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::WhiteAsh => {
+                Encode::encode(&71u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::CrimsonSpore => {
+                Encode::encode(&72u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::WarpedSpore => {
+                Encode::encode(&73u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::CherryLeaves => {
+                Encode::encode(&74u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::PaleOakLeaves => {
+                Encode::encode(&75u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::TintedLeaves => {
+                Encode::encode(&76u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Effect => {
+                Encode::encode(&77u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::InstantEffect => {
+                Encode::encode(&78u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::EntityEffect => {
+                Encode::encode(&79u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Witch => {
+                Encode::encode(&80u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Infested => {
+                Encode::encode(&81u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Cloud => {
+                Encode::encode(&82u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Sneeze => {
+                Encode::encode(&83u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Snowflake => {
+                Encode::encode(&84u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Soul => {
+                Encode::encode(&85u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::SculkSoul => {
+                Encode::encode(&86u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::DragonBreath => {
+                Encode::encode(&87u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Gust => {
+                Encode::encode(&88u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::SmallGust => {
+                Encode::encode(&89u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::GustEmitterLarge => {
+                Encode::encode(&90u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::GustEmitterSmall => {
+                Encode::encode(&91u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::DustColorTransition => {
+                Encode::encode(&92u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::SculkCharge => {
+                Encode::encode(&93u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::SculkChargePop => {
+                Encode::encode(&94u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Shriek => {
+                Encode::encode(&95u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::SonicBoom => {
+                Encode::encode(&96u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Vibration => {
+                Encode::encode(&97u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::SweepAttack => {
+                Encode::encode(&98u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Glow => {
+                Encode::encode(&99u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::WaxOn => {
+                Encode::encode(&100u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::WaxOff => {
+                Encode::encode(&101u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::ElectricSpark => {
+                Encode::encode(&102u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Scrape => {
+                Encode::encode(&103u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::SquidInk => {
+                Encode::encode(&104u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::GlowSquidInk => {
+                Encode::encode(&105u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Item => {
+                Encode::encode(&106u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::ItemSlime => {
+                Encode::encode(&107u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::ItemSnowball => {
+                Encode::encode(&108u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::ItemCobweb => {
+                Encode::encode(&109u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::SulfurCubeGoo => {
+                Encode::encode(&110u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Flash => {
+                Encode::encode(&111u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Firefly => {
+                Encode::encode(&112u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::TrialSpawnerDetection => {
+                Encode::encode(&113u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::TrialSpawnerDetectionOminous => {
+                Encode::encode(&114u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::TrialOmen => {
+                Encode::encode(&115u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::RaidOmen => {
+                Encode::encode(&116u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::OminousSpawning => {
+                Encode::encode(&117u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Spit => {
+                Encode::encode(&118u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::Fishing => {
+                Encode::encode(&119u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::DustPlume => {
+                Encode::encode(&120u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::RedPoplarLeaves => {
+                Encode::encode(&121u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::OrangePoplarLeaves => {
+                Encode::encode(&122u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::YellowPoplarLeaves => {
+                Encode::encode(&123u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::PauseMobGrowth => {
+                Encode::encode(&124u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::ResetMobGrowth => {
+                Encode::encode(&125u32, out);
+            }
+            horizon_client_core::particle_type::ParticleType::BlockMarker => {
+                Encode::encode(&126u32, out);
+            }
+        }
+    }
+    fn dec_horizon_client_core__particle_type__ParticleType(d: &mut Decoder<'_>) -> Result<horizon_client_core::particle_type::ParticleType, CallError> {
+        d.enter()?;
+        let r = dec_horizon_client_core__particle_type__ParticleType_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_client_core__particle_type__ParticleType_body(d: &mut Decoder<'_>) -> Result<horizon_client_core::particle_type::ParticleType, CallError> {
+        match <u32 as Decode>::decode(d)? {
+            0 => Ok(horizon_client_core::particle_type::ParticleType::Block),
+            1 => Ok(horizon_client_core::particle_type::ParticleType::BlockCrumble),
+            2 => Ok(horizon_client_core::particle_type::ParticleType::Trail),
+            3 => Ok(horizon_client_core::particle_type::ParticleType::DustPillar),
+            4 => Ok(horizon_client_core::particle_type::ParticleType::FallingDust),
+            5 => Ok(horizon_client_core::particle_type::ParticleType::Smoke),
+            6 => Ok(horizon_client_core::particle_type::ParticleType::LargeSmoke),
+            7 => Ok(horizon_client_core::particle_type::ParticleType::WhiteSmoke),
+            8 => Ok(horizon_client_core::particle_type::ParticleType::Flame),
+            9 => Ok(horizon_client_core::particle_type::ParticleType::SoulFireFlame),
+            10 => Ok(horizon_client_core::particle_type::ParticleType::CopperFireFlame),
+            11 => Ok(horizon_client_core::particle_type::ParticleType::SmallFlame),
+            12 => Ok(horizon_client_core::particle_type::ParticleType::Lava),
+            13 => Ok(horizon_client_core::particle_type::ParticleType::DrippingWater),
+            14 => Ok(horizon_client_core::particle_type::ParticleType::FallingWater),
+            15 => Ok(horizon_client_core::particle_type::ParticleType::DrippingLava),
+            16 => Ok(horizon_client_core::particle_type::ParticleType::FallingLava),
+            17 => Ok(horizon_client_core::particle_type::ParticleType::LandingLava),
+            18 => Ok(horizon_client_core::particle_type::ParticleType::DrippingHoney),
+            19 => Ok(horizon_client_core::particle_type::ParticleType::FallingHoney),
+            20 => Ok(horizon_client_core::particle_type::ParticleType::LandingHoney),
+            21 => Ok(horizon_client_core::particle_type::ParticleType::FallingNectar),
+            22 => Ok(horizon_client_core::particle_type::ParticleType::FallingSporeBlossom),
+            23 => Ok(horizon_client_core::particle_type::ParticleType::SporeBlossomAir),
+            24 => Ok(horizon_client_core::particle_type::ParticleType::DrippingObsidianTear),
+            25 => Ok(horizon_client_core::particle_type::ParticleType::FallingObsidianTear),
+            26 => Ok(horizon_client_core::particle_type::ParticleType::LandingObsidianTear),
+            27 => Ok(horizon_client_core::particle_type::ParticleType::DrippingDripstoneWater),
+            28 => Ok(horizon_client_core::particle_type::ParticleType::FallingDripstoneWater),
+            29 => Ok(horizon_client_core::particle_type::ParticleType::DrippingDripstoneLava),
+            30 => Ok(horizon_client_core::particle_type::ParticleType::FallingDripstoneLava),
+            31 => Ok(horizon_client_core::particle_type::ParticleType::Splash),
+            32 => Ok(horizon_client_core::particle_type::ParticleType::Rain),
+            33 => Ok(horizon_client_core::particle_type::ParticleType::Bubble),
+            34 => Ok(horizon_client_core::particle_type::ParticleType::SulfurBubbles),
+            35 => Ok(horizon_client_core::particle_type::ParticleType::NoxiousGas),
+            36 => Ok(horizon_client_core::particle_type::ParticleType::NoxiousGasCloud),
+            37 => Ok(horizon_client_core::particle_type::ParticleType::Geyser),
+            38 => Ok(horizon_client_core::particle_type::ParticleType::GeyserBase),
+            39 => Ok(horizon_client_core::particle_type::ParticleType::GeyserPoof),
+            40 => Ok(horizon_client_core::particle_type::ParticleType::GeyserPlume),
+            41 => Ok(horizon_client_core::particle_type::ParticleType::BubblePop),
+            42 => Ok(horizon_client_core::particle_type::ParticleType::BubbleColumnUp),
+            43 => Ok(horizon_client_core::particle_type::ParticleType::CurrentDown),
+            44 => Ok(horizon_client_core::particle_type::ParticleType::Underwater),
+            45 => Ok(horizon_client_core::particle_type::ParticleType::Portal),
+            46 => Ok(horizon_client_core::particle_type::ParticleType::ReversePortal),
+            47 => Ok(horizon_client_core::particle_type::ParticleType::Enchant),
+            48 => Ok(horizon_client_core::particle_type::ParticleType::Nautilus),
+            49 => Ok(horizon_client_core::particle_type::ParticleType::VaultConnection),
+            50 => Ok(horizon_client_core::particle_type::ParticleType::Crit),
+            51 => Ok(horizon_client_core::particle_type::ParticleType::EnchantedHit),
+            52 => Ok(horizon_client_core::particle_type::ParticleType::DamageIndicator),
+            53 => Ok(horizon_client_core::particle_type::ParticleType::Heart),
+            54 => Ok(horizon_client_core::particle_type::ParticleType::AngryVillager),
+            55 => Ok(horizon_client_core::particle_type::ParticleType::HappyVillager),
+            56 => Ok(horizon_client_core::particle_type::ParticleType::Composter),
+            57 => Ok(horizon_client_core::particle_type::ParticleType::Mycelium),
+            58 => Ok(horizon_client_core::particle_type::ParticleType::Dolphin),
+            59 => Ok(horizon_client_core::particle_type::ParticleType::EggCrack),
+            60 => Ok(horizon_client_core::particle_type::ParticleType::Poof),
+            61 => Ok(horizon_client_core::particle_type::ParticleType::Explosion),
+            62 => Ok(horizon_client_core::particle_type::ParticleType::ExplosionEmitter),
+            63 => Ok(horizon_client_core::particle_type::ParticleType::CampfireCosySmoke),
+            64 => Ok(horizon_client_core::particle_type::ParticleType::CampfireSignalSmoke),
+            65 => Ok(horizon_client_core::particle_type::ParticleType::Note),
+            66 => Ok(horizon_client_core::particle_type::ParticleType::Dust),
+            67 => Ok(horizon_client_core::particle_type::ParticleType::TotemOfUndying),
+            68 => Ok(horizon_client_core::particle_type::ParticleType::Firework),
+            69 => Ok(horizon_client_core::particle_type::ParticleType::EndRod),
+            70 => Ok(horizon_client_core::particle_type::ParticleType::Ash),
+            71 => Ok(horizon_client_core::particle_type::ParticleType::WhiteAsh),
+            72 => Ok(horizon_client_core::particle_type::ParticleType::CrimsonSpore),
+            73 => Ok(horizon_client_core::particle_type::ParticleType::WarpedSpore),
+            74 => Ok(horizon_client_core::particle_type::ParticleType::CherryLeaves),
+            75 => Ok(horizon_client_core::particle_type::ParticleType::PaleOakLeaves),
+            76 => Ok(horizon_client_core::particle_type::ParticleType::TintedLeaves),
+            77 => Ok(horizon_client_core::particle_type::ParticleType::Effect),
+            78 => Ok(horizon_client_core::particle_type::ParticleType::InstantEffect),
+            79 => Ok(horizon_client_core::particle_type::ParticleType::EntityEffect),
+            80 => Ok(horizon_client_core::particle_type::ParticleType::Witch),
+            81 => Ok(horizon_client_core::particle_type::ParticleType::Infested),
+            82 => Ok(horizon_client_core::particle_type::ParticleType::Cloud),
+            83 => Ok(horizon_client_core::particle_type::ParticleType::Sneeze),
+            84 => Ok(horizon_client_core::particle_type::ParticleType::Snowflake),
+            85 => Ok(horizon_client_core::particle_type::ParticleType::Soul),
+            86 => Ok(horizon_client_core::particle_type::ParticleType::SculkSoul),
+            87 => Ok(horizon_client_core::particle_type::ParticleType::DragonBreath),
+            88 => Ok(horizon_client_core::particle_type::ParticleType::Gust),
+            89 => Ok(horizon_client_core::particle_type::ParticleType::SmallGust),
+            90 => Ok(horizon_client_core::particle_type::ParticleType::GustEmitterLarge),
+            91 => Ok(horizon_client_core::particle_type::ParticleType::GustEmitterSmall),
+            92 => Ok(horizon_client_core::particle_type::ParticleType::DustColorTransition),
+            93 => Ok(horizon_client_core::particle_type::ParticleType::SculkCharge),
+            94 => Ok(horizon_client_core::particle_type::ParticleType::SculkChargePop),
+            95 => Ok(horizon_client_core::particle_type::ParticleType::Shriek),
+            96 => Ok(horizon_client_core::particle_type::ParticleType::SonicBoom),
+            97 => Ok(horizon_client_core::particle_type::ParticleType::Vibration),
+            98 => Ok(horizon_client_core::particle_type::ParticleType::SweepAttack),
+            99 => Ok(horizon_client_core::particle_type::ParticleType::Glow),
+            100 => Ok(horizon_client_core::particle_type::ParticleType::WaxOn),
+            101 => Ok(horizon_client_core::particle_type::ParticleType::WaxOff),
+            102 => Ok(horizon_client_core::particle_type::ParticleType::ElectricSpark),
+            103 => Ok(horizon_client_core::particle_type::ParticleType::Scrape),
+            104 => Ok(horizon_client_core::particle_type::ParticleType::SquidInk),
+            105 => Ok(horizon_client_core::particle_type::ParticleType::GlowSquidInk),
+            106 => Ok(horizon_client_core::particle_type::ParticleType::Item),
+            107 => Ok(horizon_client_core::particle_type::ParticleType::ItemSlime),
+            108 => Ok(horizon_client_core::particle_type::ParticleType::ItemSnowball),
+            109 => Ok(horizon_client_core::particle_type::ParticleType::ItemCobweb),
+            110 => Ok(horizon_client_core::particle_type::ParticleType::SulfurCubeGoo),
+            111 => Ok(horizon_client_core::particle_type::ParticleType::Flash),
+            112 => Ok(horizon_client_core::particle_type::ParticleType::Firefly),
+            113 => Ok(horizon_client_core::particle_type::ParticleType::TrialSpawnerDetection),
+            114 => Ok(horizon_client_core::particle_type::ParticleType::TrialSpawnerDetectionOminous),
+            115 => Ok(horizon_client_core::particle_type::ParticleType::TrialOmen),
+            116 => Ok(horizon_client_core::particle_type::ParticleType::RaidOmen),
+            117 => Ok(horizon_client_core::particle_type::ParticleType::OminousSpawning),
+            118 => Ok(horizon_client_core::particle_type::ParticleType::Spit),
+            119 => Ok(horizon_client_core::particle_type::ParticleType::Fishing),
+            120 => Ok(horizon_client_core::particle_type::ParticleType::DustPlume),
+            121 => Ok(horizon_client_core::particle_type::ParticleType::RedPoplarLeaves),
+            122 => Ok(horizon_client_core::particle_type::ParticleType::OrangePoplarLeaves),
+            123 => Ok(horizon_client_core::particle_type::ParticleType::YellowPoplarLeaves),
+            124 => Ok(horizon_client_core::particle_type::ParticleType::PauseMobGrowth),
+            125 => Ok(horizon_client_core::particle_type::ParticleType::ResetMobGrowth),
+            126 => Ok(horizon_client_core::particle_type::ParticleType::BlockMarker),
+            n => Err(CallError::InvalidTag("ParticleType", n)),
+        }
+    }
+
     fn enc_horizon_client_core__who__Who(v: &horizon_client_core::who::Who, out: &mut Vec<u8>) {
         match v {
             horizon_client_core::who::Who::Player => {
@@ -2484,6 +3008,192 @@ pub mod yoake_glue {
             1 => Ok(horizon_client_core::who::Who::Mob(<u32 as Decode>::decode(d)?)),
             n => Err(CallError::InvalidTag("Who", n)),
         }
+    }
+
+    fn enc_horizon_client_render__camera__AvatarBob(v: &horizon_client_render::camera::AvatarBob, out: &mut Vec<u8>) {
+        Encode::encode(&v.walk_dist, out);
+        Encode::encode(&v.walk_dist_o, out);
+        Encode::encode(&v.bob, out);
+        Encode::encode(&v.bob_o, out);
+        for e0 in (&v.cloak).iter() {
+            Encode::encode(e0, out);
+        }
+        for e0 in (&v.cloak_o).iter() {
+            Encode::encode(e0, out);
+        }
+    }
+    fn dec_horizon_client_render__camera__AvatarBob(d: &mut Decoder<'_>) -> Result<horizon_client_render::camera::AvatarBob, CallError> {
+        d.enter()?;
+        let r = dec_horizon_client_render__camera__AvatarBob_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_client_render__camera__AvatarBob_body(d: &mut Decoder<'_>) -> Result<horizon_client_render::camera::AvatarBob, CallError> {
+        Ok(horizon_client_render::camera::AvatarBob {
+            walk_dist: <f32 as Decode>::decode(d)?,
+            walk_dist_o: <f32 as Decode>::decode(d)?,
+            bob: <f32 as Decode>::decode(d)?,
+            bob_o: <f32 as Decode>::decode(d)?,
+            cloak: {
+                let mut v0 = Vec::new();
+                for _ in 0..(3) {
+                    v0.push(<f64 as Decode>::decode(d)?);
+                }
+                match <[_; 3]>::try_from(v0) {
+                    Ok(a) => a,
+                    Err(_) => return Err(CallError::UnexpectedEnd),
+                }
+            },
+            cloak_o: {
+                let mut v0 = Vec::new();
+                for _ in 0..(3) {
+                    v0.push(<f64 as Decode>::decode(d)?);
+                }
+                match <[_; 3]>::try_from(v0) {
+                    Ok(a) => a,
+                    Err(_) => return Err(CallError::UnexpectedEnd),
+                }
+            },
+        })
+    }
+
+    fn enc_horizon_client_render__particles__ParticleOptions(v: &horizon_client_render::particles::ParticleOptions, out: &mut Vec<u8>) {
+        enc_horizon_client_core__particle_type__ParticleType(&v.ty, out);
+        match &v.block {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                {
+                    let t1 = v0;
+                    Encode::encode(&t1.0, out);
+                    Encode::encode(&t1.1, out);
+                }
+            }
+        }
+        for e0 in (&v.color).iter() {
+            Encode::encode(e0, out);
+        }
+        Encode::encode(&v.scale, out);
+        for e0 in (&v.to_color).iter() {
+            Encode::encode(e0, out);
+        }
+        match &v.trail {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                {
+                    let t1 = v0;
+                    for e2 in (&t1.0).iter() {
+                        Encode::encode(e2, out);
+                    }
+                    Encode::encode(&t1.1, out);
+                }
+            }
+        }
+        match &v.item {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                {
+                    let s1 = v0;
+                    codec::enc_len(s1.len(), out);
+                    for e1 in s1.iter() {
+                        Encode::encode(e1, out);
+                    }
+                }
+            }
+        }
+        match &v.geyser {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                {
+                    let t1 = v0;
+                    Encode::encode(&t1.0, out);
+                    Encode::encode(&t1.1, out);
+                }
+            }
+        }
+        match &v.mod_particle {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+    }
+    fn dec_horizon_client_render__particles__ParticleOptions(d: &mut Decoder<'_>) -> Result<horizon_client_render::particles::ParticleOptions, CallError> {
+        d.enter()?;
+        let r = dec_horizon_client_render__particles__ParticleOptions_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_client_render__particles__ParticleOptions_body(d: &mut Decoder<'_>) -> Result<horizon_client_render::particles::ParticleOptions, CallError> {
+        Ok(horizon_client_render::particles::ParticleOptions {
+            ty: dec_horizon_client_core__particle_type__ParticleType(d)?,
+            block: match d.tag()? {
+                0 => None,
+                1 => Some((<String as Decode>::decode(d)?, <u32 as Decode>::decode(d)?,)),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            color: {
+                let mut v0 = Vec::new();
+                for _ in 0..(4) {
+                    v0.push(<f32 as Decode>::decode(d)?);
+                }
+                match <[_; 4]>::try_from(v0) {
+                    Ok(a) => a,
+                    Err(_) => return Err(CallError::UnexpectedEnd),
+                }
+            },
+            scale: <f32 as Decode>::decode(d)?,
+            to_color: {
+                let mut v0 = Vec::new();
+                for _ in 0..(3) {
+                    v0.push(<f32 as Decode>::decode(d)?);
+                }
+                match <[_; 3]>::try_from(v0) {
+                    Ok(a) => a,
+                    Err(_) => return Err(CallError::UnexpectedEnd),
+                }
+            },
+            trail: match d.tag()? {
+                0 => None,
+                1 => Some(({
+                let mut v2 = Vec::new();
+                for _ in 0..(3) {
+                    v2.push(<f64 as Decode>::decode(d)?);
+                }
+                match <[_; 3]>::try_from(v2) {
+                    Ok(a) => a,
+                    Err(_) => return Err(CallError::UnexpectedEnd),
+                }
+            }, <i32 as Decode>::decode(d)?,)),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            item: match d.tag()? {
+                0 => None,
+                1 => Some({
+                let n1 = d.vec_len()?;
+                let mut v1 = Decoder::vec_with(n1);
+                for _ in 0..n1 {
+                    v1.push(<String as Decode>::decode(d)?);
+                }
+                v1
+            }),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            geyser: match d.tag()? {
+                0 => None,
+                1 => Some((<i32 as Decode>::decode(d)?, <f32 as Decode>::decode(d)?,)),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            mod_particle: match d.tag()? {
+                0 => None,
+                1 => Some(<String as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+        })
     }
 
     fn enc_horizon_core__geometry__Vec3(v: &horizon_core::geometry::Vec3, out: &mut Vec<u8>) {
@@ -8547,6 +9257,32 @@ pub mod yoake_glue {
         Ok(())
     }
 
+    /// `mobs::Extra.avatar#get`
+    fn call_1517(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        enc_horizon_client_render__camera__AvatarBob(&recv.avatar, out);
+        Ok(())
+    }
+
+    /// `mobs::Extra.avatar#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
+    /// `mobs::Extra.effect_particles#get`
+    fn call_1519(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        {
+            let s0 = &recv.effect_particles;
+            codec::enc_len(s0.len(), out);
+            for e0 in s0.iter() {
+                enc_horizon_client_render__particles__ParticleOptions(e0, out);
+            }
+        }
+        Ok(())
+    }
+
+    /// `mobs::Extra.effect_particles#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
     /// Scalar fields of `crate::mobs::Attrs` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__mobs__Attrs: FieldTable<crate::mobs::Attrs> = FieldTable {
         get: |t, f| match f {
@@ -10103,6 +10839,10 @@ pub mod yoake_glue {
         (1291, "mobs::anger_left"),
         (1292, "mobs::culls_back_faces"),
         (1293, "mobs::exact_attributes"),
+        (1517, "mobs::Extra.avatar#get"),
+        (1518, "mobs::Extra.avatar#set"),
+        (1519, "mobs::Extra.effect_particles#get"),
+        (1520, "mobs::Extra.effect_particles#set"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -10940,6 +11680,10 @@ pub mod yoake_glue {
             1291 => call_1291(args, out),
             1292 => call_1292(args, out),
             1293 => call_1293(args, out),
+            1517 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_1517(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1518 => Err(CallError::ReadOnly(id)),
+            1519 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_1519(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1520 => Err(CallError::ReadOnly(id)),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {

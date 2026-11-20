@@ -35,20 +35,20 @@
     "derived": 54,
     "derived_bound": 22,
     "fields_total": 441,
-    "fields_bound": 359,
+    "fields_bound": 361,
     "handle_types": 21
   },
   {
     "label": "motion",
     "total": 367,
     "bound_a": 35,
-    "bound_mech": 6,
-    "handle_required": 6,
+    "bound_mech": 7,
+    "handle_required": 5,
     "excluded": 320,
     "derived": 6,
     "derived_bound": 2,
     "fields_total": 110,
-    "fields_bound": 89,
+    "fields_bound": 90,
     "handle_types": 3
   },
   {
@@ -76,5 +76,31 @@
     "fields_total": 43,
     "fields_bound": 14,
     "handle_types": 4
+  },
+  {
+    "label": "render_world",
+    "total": 33,
+    "bound_a": 10,
+    "bound_mech": 10,
+    "handle_required": 5,
+    "excluded": 8,
+    "derived": 8,
+    "derived_bound": 3,
+    "fields_total": 46,
+    "fields_bound": 37,
+    "handle_types": 4
+  },
+  {
+    "label": "render_settings",
+    "total": 26,
+    "bound_a": 8,
+    "bound_mech": 3,
+    "handle_required": 15,
+    "excluded": 0,
+    "derived": 5,
+    "derived_bound": 2,
+    "fields_total": 78,
+    "fields_bound": 71,
+    "handle_types": 2
   }
 ]

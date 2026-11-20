@@ -6,10 +6,12 @@ Functions counted: free functions, inherent methods, and non-derived trait-impl 
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | `items` | 69 | 7 | 13 | **20 (29.0%)** | 15 (21.7%) | 34 (49.3%) | 8 / 21 | 73 / 90 | 9 |
 | `entities` | 163 | 30 | 25 | **55 (33.7%)** | 32 (19.6%) | 76 (46.6%) | 9 / 23 | 85 / 97 | 13 |
-| `mobs` | 131 | 52 | 38 | **90 (68.7%)** | 27 (20.6%) | 14 (10.7%) | 22 / 54 | 359 / 441 | 21 |
-| `motion` | 367 | 35 | 6 | **41 (11.2%)** | 6 (1.6%) | 320 (87.2%) | 2 / 6 | 89 / 110 | 3 |
+| `mobs` | 131 | 52 | 38 | **90 (68.7%)** | 27 (20.6%) | 14 (10.7%) | 22 / 54 | 361 / 441 | 21 |
+| `motion` | 367 | 35 | 7 | **42 (11.4%)** | 5 (1.4%) | 320 (87.2%) | 2 / 6 | 90 / 110 | 3 |
 | `game_items` | 5 | 5 | 0 | **5 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 0 / 0 | 0 / 0 | 0 |
 | `entity_query` | 20 | 1 | 6 | **7 (35.0%)** | 4 (20.0%) | 9 (45.0%) | 6 / 10 | 14 / 43 | 4 |
+| `render_world` | 33 | 10 | 10 | **20 (60.6%)** | 5 (15.2%) | 8 (24.2%) | 3 / 8 | 37 / 46 | 4 |
+| `render_settings` | 26 | 8 | 3 | **11 (42.3%)** | 15 (57.7%) | 0 (0.0%) | 2 / 5 | 71 / 78 | 2 |
 
 ## `items` (horizon-items/src/items.rs)
 
@@ -120,7 +122,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 | reason | occurrences |
 |---|---:|
-| external type `horizon_client_render::world::World` (crate not loaded) [&argument] | 10 |
+| field `entries` of `Attachments` is private to another module [&argument] | 10 |
 | field `min` of `Aabb` is private to another module | 5 |
 | field `min` of `Aabb` is private to another module [return value] | 5 |
 | field `0` of `JoinSeq` is private to another module | 4 |
@@ -140,7 +142,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | hook machinery (`__yoake_*`): not an engine function | 62 |
 | field `0` of `JoinSeq` is private to another module [&argument] | 15 |
 | field `min` of `Aabb` is private to another module [return value] | 13 |
-| external type `horizon_client_render::world::World` (crate not loaded) [&argument] | 12 |
+| field `entries` of `Attachments` is private to another module [&argument] | 12 |
 | field `min` of `Aabb` is private to another module | 9 |
 | field `0` of `Wire` is private to another module [&argument] | 7 |
 | field `0` of `JoinSeq` is private to another module [&mut argument] | 6 |
@@ -182,7 +184,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 - bound now: **90 of 131** (68.7%): 52 basic + 38 mechanical
 - handle-required, not yet bound: 27 (20.6%)
 - excluded: 14 (10.7%)
-- field accessors (get + set pairs): 359 of 441 fields
+- field accessors (get + set pairs): 361 of 441 fields
 - handle types (receivers of bound methods or owners of bound fields): 21
 
 ### Handle types and how a guest reaches them
@@ -198,7 +200,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | `crate::mobs::DamageKind` | 2 | 0 | `Game.fight.last_blow` |
 | `crate::mobs::ElytraAnimation` | 3 | 2 | `Game.mobs.extra.elytra` |
 | `crate::mobs::EntityModelDocument` | 1 | 0 | - |
-| `crate::mobs::Extra` | 3 | 124 | `Game.mobs.extra` |
+| `crate::mobs::Extra` | 3 | 126 | `Game.mobs.extra` |
 | `crate::mobs::Flags` | 1 | 13 | `Game.mobs.kind.flags` |
 | `crate::mobs::MannequinDescription` | 3 | 0 | `Game.mobs.extra.description` |
 | `crate::mobs::Mob` | 55 | 65 | `Game.mobs` |
@@ -231,7 +233,6 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | external type `glam::f32::mat3::Mat3` (crate not loaded) [by-value self] | 1 |
 | external type `glam::f32::sse2::mat4::Mat4` (crate not loaded) | 1 |
 | external type `glam::f64::dvec3::DVec3` (crate not loaded) | 1 |
-| external type `horizon_client_render::mesher::Vertex` (crate not loaded) [&mut argument] | 1 |
 | external type `serde_json::value::Value` (crate not loaded) [&argument] | 1 |
 | external type `serde_json::value::Value` (crate not loaded) [return value] | 1 |
 | external type `yoake_state::Field` (crate not loaded) | 1 |
@@ -252,7 +253,6 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | `impl Trait` requires a listed instantiation | 1 |
 | a reference nested inside another type needs a handle [return value] | 1 |
 | external type `glam::f32::sse2::mat4::Mat4` (crate not loaded) | 1 |
-| external type `horizon_client_render::mesher::Vertex` (crate not loaded) [&mut argument] | 1 |
 | field `state` of `LegacyRandom` is private to another module [&mut argument] | 1 |
 | hook machinery (`__yoake_*`): not an engine function | 1 |
 | receiver type carries a lifetime: it cannot be a hook-argument handle | 1 |
@@ -261,7 +261,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 - `mobs::Mob`: `position`, `previous`, `velocity`, `yaw`, `previous_yaw`, `body_yaw`, `head_yaw`, `head_pitch`, `on_ground`, `health`, `fall_distance`, `persistent`, `name_visible`, `invisible`, `no_gravity`, `no_ai`, `silent`, `fire_ticks`, `ticks_frozen`, `glowing`, `air`, `absorption`
 
-337 read-only field accessors (getter only).
+339 read-only field accessors (getter only).
 
 ### Fields without accessors
 
@@ -269,11 +269,8 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 |---|---:|
 | `MobWorld` carries a lifetime (cannot be a handle type) | 37 |
 | `Teams` carries a lifetime (cannot be a handle type) | 2 |
-| a reference nested inside another type needs a handle | 13 |
+| a reference nested inside another type needs a handle | 14 |
 | external type `glam::f32::mat3::Mat3` (crate not loaded) | 1 |
-| external type `horizon_client_render::camera::AvatarBob` (crate not loaded) | 1 |
-| external type `horizon_client_render::chunk::block_entity::Data` (crate not loaded) | 1 |
-| external type `horizon_client_render::particles::ParticleOptions` (crate not loaded) | 1 |
 | external type `horizon_protocol::entity_data::Profile` (crate not loaded) | 1 |
 | external type `serde_json::value::Value` (crate not loaded) | 2 |
 | field `0` of `JoinSeq` is private to another module | 1 |
@@ -297,10 +294,10 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 ## `motion` (horizon-client/src/motion.rs)
 
-- bound now: **41 of 367** (11.2%): 35 basic + 6 mechanical
-- handle-required, not yet bound: 6 (1.6%)
+- bound now: **42 of 367** (11.4%): 35 basic + 7 mechanical
+- handle-required, not yet bound: 5 (1.4%)
 - excluded: 320 (87.2%)
-- field accessors (get + set pairs): 89 of 110 fields
+- field accessors (get + set pairs): 90 of 110 fields
 - handle types (receivers of bound methods or owners of bound fields): 3
 
 ### Handle types and how a guest reaches them
@@ -311,14 +308,13 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 |---|---:|---:|---|
 | `crate::motion::LocationEffects` | 1 | 5 | `Game.player.location_effects` |
 | `crate::motion::MotionResources` | 0 | 6 | `Game.motion` |
-| `crate::motion::PlayerMotion` | 37 | 78 | `Game.player` |
+| `crate::motion::PlayerMotion` | 38 | 79 | `Game.player` |
 
 ### Handle-required: reasons
 
 | reason | occurrences |
 |---|---:|
 | external type `yoake_state::Value` (crate not loaded) [&argument] | 2 |
-| external type `horizon_client_render::collisions::PowderSnowSubject` (crate not loaded) [return value] | 1 |
 | external type `yoake_state::Field` (crate not loaded) | 1 |
 | external type `yoake_state::Value` (crate not loaded) [return value] | 1 |
 | field `min` of `Aabb` is private to another module [return value] | 1 |
@@ -333,7 +329,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | field `min` of `Aabb` is private to another module | 6 |
 | associated-type projection requires a listed instantiation | 5 |
 | `impl Trait` requires a listed instantiation | 2 |
-| external type `horizon_client_render::assets::Assets` (crate not loaded) [&argument] | 2 |
+| a reference nested inside another type needs a handle [&argument] | 2 |
 | field `attributes` of `Catalog` is private to another module [&argument] | 2 |
 | std type `core::io::error::Result` has no codec yet [return value] | 2 |
 | std type `std::path::Path` has no codec yet [&argument] | 2 |
@@ -351,7 +347,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 - `motion::PlayerMotion`: `fire_ticks`, `air`, `position`, `velocity`, `fall_distance`, `yaw`, `head_yaw`, `flying`
 
-81 read-only field accessors (getter only).
+82 read-only field accessors (getter only).
 
 ### Fields without accessors
 
@@ -359,7 +355,6 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 |---|---:|
 | `MotionWorld` carries a lifetime (cannot be a handle type) | 6 |
 | a reference nested inside another type needs a handle | 1 |
-| external type `horizon_client_render::effects::StatusFlags` (crate not loaded) | 1 |
 | field `attributes` of `Catalog` is private to another module | 1 |
 | field `center` of `BorderGeometry` is private to another module | 1 |
 | field `definitions` of `Catalog` is private to another module | 1 |
@@ -461,20 +456,125 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | `QuerySources` carries a lifetime (cannot be a handle type) | 20 |
 | field `0` of `NativeWorldEpoch` is private to another module | 1 |
 
+## `render_world` (horizon-client-render/src/world.rs)
+
+- bound now: **20 of 33** (60.6%): 10 basic + 10 mechanical
+- handle-required, not yet bound: 5 (15.2%)
+- excluded: 8 (24.2%)
+- field accessors (get + set pairs): 37 of 46 fields
+- handle types (receivers of bound methods or owners of bound fields): 4
+
+### Handle types and how a guest reaches them
+
+A type is reachable as a hook argument (`Root::HookArg`) when one of its methods is hooked; every type below has bound methods or accessors. The last column is the shortest chain of `Game` fields that mentions the type (resolution from `Game` is not built; this is where it would start).
+
+| handle type | bound methods | bound field pairs | from `Game` by field path |
+|---|---:|---:|---|
+| `crate::world::DirtySections` | 5 | 0 | `Game.world.dirty_sections` |
+| `crate::world::HealthRules` | 1 | 6 | `Game.world.health_rules` |
+| `crate::world::Weather` | 6 | 7 | `Game.world.weather` |
+| `crate::world::World` | 9 | 24 | `Game.world` |
+
+### Handle-required: reasons
+
+| reason | occurrences |
+|---|---:|
+| a reference nested inside another type needs a handle [return value] | 1 |
+| field `0` of `SectionMask` is private to another module [return value] | 1 |
+| field `entries` of `Attachments` is private to another module [return value] | 1 |
+| field `min_y` of `ColumnLayout` is private to another module [return value] | 1 |
+| field `state` of `LegacyRandom` is private to another module [&mut argument] | 1 |
+
+### Excluded: reasons
+
+| reason | occurrences |
+|---|---:|
+| `impl Trait` requires a listed instantiation | 6 |
+| closure argument (`impl Fn*`): guest callback handles are not built | 5 |
+| generic type alias `crate::Result` | 2 |
+| a reference nested inside another type needs a handle [&argument] | 1 |
+| field `choices` of `StateModels` is private to another module [&argument] | 1 |
+
+### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
+
+(none writable; 37 read-only field accessors)
+
+### Fields without accessors
+
+| reason | fields |
+|---|---:|
+| `Holder` is #[non_exhaustive] in another crate | 1 |
+| field `0` of `SectionMask` is private to another module | 3 |
+| field `columns` of `ChunkMap` is private to another module | 1 |
+| field `entries` of `Attachments` is private to another module | 1 |
+| field `map` of `BlockEntities` is private to another module | 1 |
+| field `state` of `LegacyRandom` is private to another module | 1 |
+| generic type `crate::poi_sections::PoiSections` requires a listed instantiation | 1 |
+
+## `render_settings` (horizon-client-render/src/settings.rs)
+
+- bound now: **11 of 26** (42.3%): 8 basic + 3 mechanical
+- handle-required, not yet bound: 15 (57.7%)
+- excluded: 0 (0.0%)
+- field accessors (get + set pairs): 71 of 78 fields
+- handle types (receivers of bound methods or owners of bound fields): 2
+
+### Handle types and how a guest reaches them
+
+A type is reachable as a hook argument (`Root::HookArg`) when one of its methods is hooked; every type below has bound methods or accessors. The last column is the shortest chain of `Game` fields that mentions the type (resolution from `Game` is not built; this is where it would start).
+
+| handle type | bound methods | bound field pairs | from `Game` by field path |
+|---|---:|---:|---|
+| `crate::settings::Opt` | 2 | 0 | `Game.ui.options.dragging` |
+| `crate::settings::Settings` | 7 | 71 | `Game.settings` |
+
+### Handle-required: reasons
+
+| reason | occurrences |
+|---|---:|
+| external type `horizon_client_input::keybinds::KeyBinds` (crate not loaded) [return value] | 5 |
+| field `values` of `OptionsFile` is private to another module [&mut argument] | 5 |
+| std type `std::path::Path` has no codec yet [&argument] | 2 |
+| external type `horizon_narrator::Status` (crate not loaded) | 1 |
+| external type `horizon_narrator::Status` (crate not loaded) [return value] | 1 |
+| external type `horizon_protocol::packets::configuration::ClientInformation` (crate not loaded) [return value] | 1 |
+| field `values` of `OptionsFile` is private to another module | 1 |
+| field `values` of `OptionsFile` is private to another module [return value] | 1 |
+
+### Excluded: reasons
+
+(none)
+
+### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
+
+(none writable; 71 read-only field accessors)
+
+### Fields without accessors
+
+| reason | fields |
+|---|---:|
+| external type `horizon_client_input::gamepad::PadSettings` (crate not loaded) | 1 |
+| external type `horizon_client_input::keybinds::KeyBinds` (crate not loaded) | 1 |
+| external type `horizon_client_input::window::VideoMode` (crate not loaded) | 1 |
+| external type `horizon_cosmetics::prefs::Others` (crate not loaded) | 1 |
+| external type `horizon_shader_api::manifest::PackOption` (crate not loaded) | 1 |
+| external type `horizon_shaders::options::PackOption` (crate not loaded) | 1 |
+| field `values` of `OptionsFile` is private to another module | 1 |
+
 ## External types whose crate JSON was not loaded
 
 - `glam::f32::mat3::Mat3`
 - `glam::f32::sse2::mat4::Mat4`
 - `glam::f64::dvec3::DVec3`
-- `horizon_client_render::assets::Assets`
-- `horizon_client_render::camera::AvatarBob`
-- `horizon_client_render::chunk::block_entity::Data`
-- `horizon_client_render::collisions::PowderSnowSubject`
-- `horizon_client_render::effects::StatusFlags`
-- `horizon_client_render::mesher::Vertex`
-- `horizon_client_render::particles::ParticleOptions`
-- `horizon_client_render::world::World`
+- `horizon_client_input::gamepad::PadSettings`
+- `horizon_client_input::keybinds::KeyBinds`
+- `horizon_client_input::window::VideoMode`
+- `horizon_cosmetics::prefs::Others`
+- `horizon_narrator::Status`
 - `horizon_protocol::entity_data::Profile`
+- `horizon_protocol::packets::configuration::ClientInformation`
+- `horizon_shader_api::manifest::PackOption`
+- `horizon_shaders::options::PackOption`
 - `serde_json::value::Value`
 - `yoake_state::Field`
 - `yoake_state::Value`
@@ -492,7 +592,9 @@ A guest in a hook whose argument 0 is the `Game` root gets the root handle, call
 - `Game.cushions` by `id` -> `horizon_client_lib::entities::Cushion`: 6 methods + 12 field accessors
 - `Game.experience` -> `horizon_client_lib::entities::Experience`: 7 methods + 6 field accessors
 - `Game.mobs` by `id` -> `horizon_client_lib::mobs::Mob`: 55 methods + 130 field accessors
-- `Game.player` -> `horizon_client_lib::motion::PlayerMotion`: 37 methods + 156 field accessors
+- `Game.player` -> `horizon_client_lib::motion::PlayerMotion`: 38 methods + 158 field accessors
+- `Game.world` -> `horizon_client_render::world::World`: 9 methods + 48 field accessors
+- `Game.settings` -> `horizon_client_render::settings::Settings`: 7 methods + 142 field accessors
 
-574 bindings (methods plus getter/setter ids) are reachable this way across 9 types; before, they were reachable only inside a hook on the type itself.
+783 bindings (methods plus getter/setter ids) are reachable this way across 11 types; before, they were reachable only inside a hook on the type itself.
 
