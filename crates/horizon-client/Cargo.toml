@@ -204,3 +204,8 @@ required-features = ["yoake2-slice"]
 name = "yoake2_template"
 path = "tests/yoake2_template.rs"
 required-features = ["yoake2-slice"]
+
+# F3-7: a protocol-level client for the levels e2e (tools/levels_e2e.py): no game, no window.
+[[example]]
+name = "level_probe"
+path = "examples/level_probe.rs"

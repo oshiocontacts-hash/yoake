@@ -86,6 +86,43 @@ pub fn parse_modules_txt(text: &str) -> Result<Vec<ModuleSpec>, String> {
     Ok(out)
 }
 
+/// W5: `--module '*'` stands for every top-level `mod` of the crate root (not `cfg(test)`, not in `exclude`).
+/// Other arguments pass through. An exclude entry matches a top-level module name exactly.
+pub fn expand_star_modules(
+    crate_root: &Path,
+    crate_name: &str,
+    modules: &[String],
+    exclude: &[String],
+) -> Result<Vec<String>, String> {
+    let mut out = Vec::new();
+    for module in modules {
+        if module != "*" {
+            if !exclude.iter().any(|e| e == module) {
+                out.push(module.clone());
+            }
+            continue;
+        }
+        let root_file = find_crate_root_file(crate_root, crate_name)?;
+        let source = std::fs::read_to_string(&root_file)
+            .map_err(|e| format!("failed to read {}: {e}", root_file.display()))?;
+        let parsed = syn::parse_file(&source)
+            .map_err(|e| format!("failed to parse {}: {e}", root_file.display()))?;
+        for item in &parsed.items {
+            if let Item::Mod(item_mod) = item {
+                let name = item_mod.ident.to_string();
+                if has_cfg_test(&item_mod.attrs)
+                    || name.starts_with("__yoake")
+                    || exclude.iter().any(|e| *e == name)
+                {
+                    continue;
+                }
+                out.push(name);
+            }
+        }
+    }
+    Ok(out)
+}
+
 pub fn normalize_module_arg(raw: &str) -> Result<Vec<String>, String> {
     let trimmed = raw.trim().strip_prefix("::").unwrap_or(raw.trim());
     let trimmed = trimmed.strip_prefix("crate::").unwrap_or(trimmed);
@@ -523,6 +560,14 @@ fn resolve_external_mod(
         if path.is_file() {
             return Ok(path);
         }
+        // F1 spike: for a `#[path]` module declared in a non-mod-rs file (`foo.rs`), rustc resolves the
+        // path relative to the directory of that file, not `foo/`.
+        if let Some(parent) = dir_for_children.parent() {
+            let alt = parent.join(&rel);
+            if alt.is_file() {
+                return Ok(alt);
+            }
+        }
         return Err(format!(
             "module '{name}' #[path = \"{rel}\"] resolved to missing file {}",
             path.display()
@@ -669,6 +714,32 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn path_attribute_in_a_non_mod_rs_file_is_relative_to_that_files_directory() {
+        let dir = std::env::temp_dir().join(format!("yoake-codemod-path-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(dir.join("src/lib.rs"), "pub mod outer;
+").unwrap();
+        std::fs::write(
+            dir.join("src/outer.rs"),
+            "#[path = \"outer_inner.rs\"]
+mod inner;
+pub fn a() {}
+",
+        )
+        .unwrap();
+        std::fs::write(dir.join("src/outer_inner.rs"), "pub fn b() {}
+").unwrap();
+        let files = collect_module_files(&dir, "c", &[vec!["outer".to_string()]], false).unwrap();
+        let names: Vec<String> = files
+            .iter()
+            .map(|f| f.path.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert!(names.contains(&"outer_inner.rs".to_string()), "{names:?}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn parse_package_edition_handles_explicit_and_workspace_inherited() {

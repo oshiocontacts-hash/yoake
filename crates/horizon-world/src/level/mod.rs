@@ -696,6 +696,16 @@ pub trait LevelAccess {
     fn dimension(&self) -> Dimension {
         Dimension::Overworld
     }
+    /// The level's id: `minecraft:overworld`, `minecraft:the_nether`, `minecraft:the_end` for the
+    /// three dimensions, and its own for a level past them (F3-6). Additive: `dimension()` keeps
+    /// answering one of the three.
+    fn level_id(&self) -> &str {
+        match self.dimension() {
+            Dimension::Overworld => "minecraft:overworld",
+            Dimension::Nether => "minecraft:the_nether",
+            Dimension::End => "minecraft:the_end",
+        }
+    }
     /// The rules of the level's dimension type (F3-4b): the dimension's own
     /// unless the level is one past the vanilla three.
     fn level_rules(&self) -> LevelRules {

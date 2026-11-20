@@ -567,6 +567,9 @@ pub(super) struct Remote {
     /// The level keys the server listed at login (`ClientboundLoginPacket.levels`):
     /// the only ids a respawn may name that this client has not met.
     level_keys: Vec<String>,
+    /// Levels the server created after login that this client was sent into (F3-6): their ids
+    /// are interned too, up to a bound, since the login list could not name them.
+    runtime_levels: Vec<String>,
     /// `ClientPacketListener.levelLoadTracker`: the loading screen after a login
     /// or respawn, until the player's section is shown.
     pub(super) level_load: horizon_client::level_loading::LevelLoadTracker,
@@ -1163,6 +1166,7 @@ impl Game<'_> {
             loaded_sent: false,
             heard_level: None,
             level_keys: Vec::new(),
+            runtime_levels: Vec::new(),
             level_load: horizon_client::level_loading::LevelLoadTracker::new(0),
             sent_info: info,
             predictions: HashMap::new(),
@@ -2312,7 +2316,18 @@ impl Game<'_> {
             shape,
             sent: sent_type,
         } = remote_level_type(&r.registries, spawn.dimension_type);
-        let listed = r.level_keys.iter().any(|k| *k == spawn.dimension);
+        let mut listed = r.level_keys.iter().any(|k| *k == spawn.dimension)
+            || r.runtime_levels.contains(&spawn.dimension);
+        // A level created after login: the server cannot list it in the login packet, so a valid
+        // level id with a type of its own is taken (bounded, so a server cannot grow the interner).
+        if !listed
+            && r.runtime_levels.len() < 64
+            && horizon_client::level_registry::check_level_id(&spawn.dimension).is_ok()
+            && !horizon_client::level_registry::VANILLA_LEVELS.contains(&spawn.dimension.as_str())
+        {
+            r.runtime_levels.push(spawn.dimension.clone());
+            listed = true;
+        }
         // handleRespawn keeps the ClientLevel only for the same level key:
         // two levels sharing a dimension type are still two levels.
         let same = keep_world && r.heard_level.as_deref() == Some(spawn.dimension.as_str());
@@ -2347,7 +2362,7 @@ impl Game<'_> {
         } else {
             Dim::lookup_or_overworld(&spawn.dimension)
         };
-        self.ensure_level_ctx(Some(sent_type));
+        self.ensure_level_ctx(Some(sent_type), listed.then_some(spawn.sea_level));
         self.audio.set_world(&spawn.dimension);
         // ClientPacketListener.handleLogin / handleRespawn: the server's
         // Player.getLastDeathLocation, for the recovery compass.

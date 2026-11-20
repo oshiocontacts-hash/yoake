@@ -3,6 +3,7 @@
 //! blows it up anywhere else (`useWithoutItem`), and respawning goes to it
 //! (`ServerPlayer.findRespawnAndUseSpawnBlock`, `PlayerList.respawn`),
 //! using a charge.
+use super::level_facts::SetSpawn;
 use super::{Dim, Game};
 use horizon_client::first_person::Hand;
 use horizon_client::{
@@ -601,10 +602,16 @@ impl Game<'_> {
     /// beds never.
     pub(super) fn bed_sets_spawn(&self, state: BlockStateId) -> bool {
         let beds = self.level_facts().beds;
-        if &*self.res.facts().get(state).name == "minecraft:straw_bed" {
+        let rule = if &*self.res.facts().get(state).name == "minecraft:straw_bed" {
             beds.straw_sets_spawn
         } else {
             beds.sets_spawn
+        };
+        match rule {
+            SetSpawn::Always => true,
+            SetSpawn::Never => false,
+            // `BedRule.Rule.WHEN_DARK`: the level's own sky is dark (sky darkening).
+            SetSpawn::WhenDark => self.sky_darken() >= 4,
         }
     }
     /// `ServerPlayer.findRespawnAndUseSpawnBlock` for a config in the loaded

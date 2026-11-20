@@ -19,7 +19,7 @@ use horizon_protocol::packets::play::{self, Clientbound as C};
 /// chunks are loading around `target`.
 pub(super) struct Trip {
     conn: u32,
-    dim: Dim,
+    pub(super) dim: Dim,
     /// The level the player came from: the vehicle it rides waits there
     /// until the exit is found.
     source: Dim,
@@ -454,9 +454,12 @@ impl Game<'_> {
         let end = plan.is_none();
         // Coordinates scale by 8 between the Overworld and the Nether; an
         // End portal has fixed destinations.
+        let vanilla = |d: Dim| matches!(d, Dim::Overworld | Dim::Nether | Dim::End);
         let scale = match (source, target) {
             (Dim::Overworld, Dim::Nether) | (Dim::End, Dim::Nether) => 1.0 / 8.0,
             (Dim::Nether, Dim::Overworld) => 8.0,
+            // A level past the vanilla three: the ratio of the types' `coordinate_scale`.
+            (s, t) if !vanilla(s) || !vanilla(t) => self.travel_scale(s, t),
             _ => 1.0,
         };
         self.end_portal_travel = end;
@@ -863,6 +866,22 @@ impl Game<'_> {
                     .finish(ticket, Some("native teleport player disconnected".into()));
                 continue;
             };
+            // A level created after this player joined, with a dimension type they were not sent,
+            // cannot be shown to them until they reconnect (F3-6/F3-7): they stay where they are
+            // and are told so.
+            if !host.hub.guest_knows_level(t.conn, t.dim.id()) {
+                let why = format!(
+                    "Level {} was created after you joined, with a dimension type your client does not have: reconnect to enter it.",
+                    t.dim.id()
+                );
+                self.native_player_ops.finish(ticket, Some(why.clone()));
+                let uuid = host.hub.guests[i].uuid;
+                host.hub.system_message_to_player(
+                    uuid,
+                    horizon_client::lan::data::component_nbt(&serde_json::json!({ "text": why })),
+                );
+                continue;
+            }
             let previous = self.dim;
             if ticket.is_some() {
                 // F3-3: ids in the level registry resolve to their own level (interned when the world loads); an unregistered id keeps the Overworld fallback.

@@ -1110,7 +1110,7 @@ impl Hub {
                     pos: *pos,
                 }),
             portal_cooldown,
-            sea_level: 63,
+            sea_level: self.sync.level(&self.config.dimension).map_or(63, |l| l.sea_level),
         }
     }
 
@@ -1196,13 +1196,23 @@ impl Hub {
         })
     }
 
+    /// Whether the guest `conn` has the dimension type of level `level` in the registry it was
+    /// sent: a level created after it joined with a type of its own is not one it can enter
+    /// until it reconnects (F3-6). The vanilla levels and unknown guests are always fine.
+    pub fn guest_knows_level(&self, conn: u32, level: &str) -> bool {
+        let Some(g) = self.guest(conn) else {
+            return true;
+        };
+        self.sync.level(level).is_none() || (self.sync.level_type_id(level) as usize) < g.known_types
+    }
+
     /// The levels of a server, in MinecraftServer.levelKeys order.
     fn level_keys(&self) -> Vec<String> {
         let mut keys = ["overworld", "the_end", "the_nether"]
             .map(|l| format!("minecraft:{l}"))
             .to_vec();
         // The world's other levels (F3-4), after the vanilla three.
-        keys.extend(self.sync.levels.iter().map(|l| l.id.clone()));
+        keys.extend(self.sync.all_levels().into_iter().map(|l| l.id));
         keys
     }
 
@@ -1211,6 +1221,7 @@ impl Hub {
         let Some(i) = self.guests.iter().position(|g| g.conn == conn) else {
             return;
         };
+        self.guests[i].known_types = self.sync.dimension_type_count();
         let (name, uuid, entity_id, mode) = {
             let g = &self.guests[i];
             (g.name.clone(), g.uuid, g.entity_id, g.game_mode)
@@ -4547,6 +4558,7 @@ mod tests {
                 id: "mypack:moon".into(),
                 type_name: "mypack:moon_type".into(),
                 shape: crate::chunk::LevelShape::new(0, 128, 128, true, false).unwrap(),
+                sea_level: 63,
                 type_json: serde_json::json!({ "min_y": 0, "height": 128 }),
             }]);
         }
@@ -4642,6 +4654,46 @@ mod tests {
             hub_in_level("minecraft:overworld", false).level_keys(),
             ["minecraft:overworld", "minecraft:the_end", "minecraft:the_nether"]
         );
+    }
+
+    /// F3-6: a player who joined before a level with a type of its own was created cannot be sent
+    /// into it; one whose registry has the type (or any vanilla level) can. A new login lists it.
+    #[test]
+    fn a_level_created_after_a_guest_joined_needs_a_reconnect_when_its_type_is_new() {
+        let mut hub = hub_in_level("minecraft:overworld", false);
+        // The guest was placed with the four vanilla types.
+        hub.guests[0].known_types = hub.sync.dimension_type_count();
+        assert_eq!(hub.guests[0].known_types, 4);
+        let level = |id: &str, ty: &str| crate::level_registry::NetLevel {
+            id: id.into(),
+            type_name: ty.into(),
+            shape: crate::chunk::LevelShape::new(0, 128, 128, true, false).unwrap(),
+            sea_level: 63,
+            type_json: serde_json::json!({ "min_y": 0, "height": 128 }),
+        };
+        hub.sync.announce_level(level("made:old_type", "minecraft:overworld"));
+        hub.sync.announce_level(level("made:new_type", "made:own_type"));
+        assert!(hub.guest_knows_level(1, "made:old_type"));
+        assert!(!hub.guest_knows_level(1, "made:new_type"), "type index 4 is past the 4 it was sent");
+        assert!(hub.guest_knows_level(1, "minecraft:the_nether"));
+        assert!(hub.guest_knows_level(99, "made:new_type"), "no such guest: nothing to refuse");
+        // A guest joining now is sent it, and told the keys.
+        hub.guests[0].known_types = hub.sync.dimension_type_count();
+        assert!(hub.guest_knows_level(1, "made:new_type"));
+        assert_eq!(
+            hub.level_keys(),
+            [
+                "minecraft:overworld",
+                "minecraft:the_end",
+                "minecraft:the_nether",
+                "made:old_type",
+                "made:new_type"
+            ]
+        );
+        // The level in place can be one created: its type index is the registry's.
+        hub.set_dimension("made:new_type");
+        assert_eq!(hub.spawn_info(0, 0).dimension_type, 4);
+        assert_eq!(hub.spawn_info(0, 0).sea_level, 63);
     }
 
     #[test]

@@ -35,14 +35,23 @@ pub(super) enum Sleep {
     Never,
 }
 
+/// `BedRule.canSetSpawn`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum SetSpawn {
+    Always,
+    /// Only while it is dark outside by the level's own sky.
+    WhenDark,
+    Never,
+}
+
 /// The `bed_rule` and `straw_bed_rule` attributes and the respawn anchor
 /// rule of a level.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct BedRules {
     pub sleep: Sleep,
-    pub sets_spawn: bool,
+    pub sets_spawn: SetSpawn,
     pub destroy_on_use: bool,
-    pub straw_sets_spawn: bool,
+    pub straw_sets_spawn: SetSpawn,
     pub straw_destroy_on_leave: bool,
     /// `gameplay/respawn_anchor_works`.
     pub anchor_works: bool,
@@ -50,17 +59,17 @@ pub(super) struct BedRules {
 impl BedRules {
     const OVERWORLD: Self = Self {
         sleep: Sleep::WhenDark,
-        sets_spawn: true,
+        sets_spawn: SetSpawn::Always,
         destroy_on_use: false,
-        straw_sets_spawn: false,
+        straw_sets_spawn: SetSpawn::Never,
         straw_destroy_on_leave: true,
         anchor_works: false,
     };
     const NETHER: Self = Self {
         sleep: Sleep::Never,
-        sets_spawn: false,
+        sets_spawn: SetSpawn::Never,
         destroy_on_use: true,
-        straw_sets_spawn: false,
+        straw_sets_spawn: SetSpawn::Never,
         straw_destroy_on_leave: false,
         anchor_works: true,
     };
@@ -72,9 +81,10 @@ impl BedRules {
     /// sleep when dark, set the spawn, no destroying (the straw bed the same).
     fn of_type(t: &DimensionType) -> Self {
         let rule = |key: &str| t.attributes.get(&format!("minecraft:gameplay/{key}"));
-        let spawn = |r: Option<&Value>| {
-            r.and_then(|r| r["can_set_spawn"].as_str())
-                .is_none_or(|s| s != "never")
+        let spawn = |r: Option<&Value>| match r.and_then(|r| r["can_set_spawn"].as_str()) {
+            Some("never") => SetSpawn::Never,
+            Some("when_dark") => SetSpawn::WhenDark,
+            _ => SetSpawn::Always,
         };
         let flag = |r: Option<&Value>, k: &str| r.and_then(|r| r[k].as_bool()).unwrap_or(false);
         let bed = rule("bed_rule");
@@ -321,7 +331,7 @@ impl Game<'_> {
     /// client (its data, or its name for a type the client knows). A client
     /// calls it with `sent` at every entry, so a type the server changed is
     /// read again.
-    pub(super) fn ensure_level_ctx(&mut self, sent: Option<(String, Option<Value>)>) {
+    pub(super) fn ensure_level_ctx(&mut self, sent: Option<(String, Option<Value>)>, sea: Option<i32>) {
         let dim = self.dim;
         if matches!(dim, Dim::Overworld | Dim::Nether | Dim::End) {
             return;
@@ -353,7 +363,14 @@ impl Game<'_> {
                 (name, entry.dimension_type.clone())
             }
         };
-        let facts = LevelFacts::of_type(&dimension_type);
+        let mut facts = LevelFacts::of_type(&dimension_type);
+        // The sea level is the generator's, not the type's: the level
+        // registry's on a server, the one the server sent on a client.
+        let sea = sea.or_else(|| self.level_registry.get(dim.id()).and_then(|e| e.sea_level));
+        if let Some(sea) = sea {
+            facts.sea_level = sea;
+            facts.rules.sea_level = sea;
+        }
         // The world's unzipped data packs: where a pack type's own timelines are.
         let packs: Vec<std::path::PathBuf> = if self.remote.is_some() {
             Vec::new()
@@ -517,7 +534,7 @@ mod tests {
     fn bed_rules_read_the_attributes() {
         let plain = LevelFacts::of_type(&DimensionType::new(0, 128)).beds;
         assert_eq!(plain.sleep, Sleep::WhenDark);
-        assert!(plain.sets_spawn && !plain.destroy_on_use && !plain.anchor_works);
+        assert!(plain.sets_spawn == SetSpawn::Always && !plain.destroy_on_use && !plain.anchor_works);
         let mut end = hell();
         end.attributes.insert("minecraft:gameplay/respawn_anchor_works".into(), serde_json::json!(false));
         assert_eq!(LevelFacts::of_type(&end).beds, BedRules::END);
@@ -527,6 +544,15 @@ mod tests {
             serde_json::json!({"can_sleep": "always", "can_set_spawn": "always"}),
         );
         assert_eq!(LevelFacts::of_type(&sleepy).beds.sleep, Sleep::Always);
+        // `can_set_spawn: when_dark` is its own rule (checked against the level's sky when used).
+        let mut dark = DimensionType::new(0, 128);
+        dark.attributes.insert(
+            "minecraft:gameplay/bed_rule".into(),
+            serde_json::json!({"can_set_spawn": "when_dark"}),
+        );
+        assert_eq!(LevelFacts::of_type(&dark).beds.sets_spawn, SetSpawn::WhenDark);
+        assert_eq!(plain.sets_spawn, SetSpawn::Always);
+        assert_eq!(plain.straw_sets_spawn, SetSpawn::Always, "a straw rule left out is the default");
     }
 
     /// A type that lists timelines has a day even with a fixed time; one that lists none and

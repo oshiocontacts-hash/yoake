@@ -261,8 +261,12 @@ impl WorldRequest {
             dim,
             shape,
             registry.generator_stem(dim.id()),
-            level.seed,
+            registry.seed(dim.id(), level.seed),
             &level.enabled_features,
+            // The generators mods staged before the world was read (F3-6): a player saved in a
+            // level of one reopens there.
+            &horizon_client::mod_generator::staged().1,
+            registry.save_dir(&save_root, dim.id()),
         )?;
         drop(streaming_step);
         streaming.radius = settings.render_distance;
@@ -696,7 +700,14 @@ pub(super) fn build_level_registry(
     let overrides = world_worldgen_overrides(world_root, &options.resources, res.biomes(), enabled_features);
     // The biome catalog is only needed to decode stems of levels other than the three; a
     // world with none does not load the worldgen data for it (the generator does, later).
-    let data = LevelRegistry::needs_catalog(world_root, &overrides)
+    // The levels created in earlier sessions and the ones mods staged are read with the others
+    // (F3-6); ephemeral levels of an earlier session left their chunks in `yoake_temp`.
+    let _ = std::fs::remove_dir_all(world_root.join(horizon_client::level_registry::EPHEMERAL_DIR));
+    let stored = LevelRegistry::stored_levels(world_root);
+    let (staged, _) = horizon_client::mod_generator::staged();
+    let data = (LevelRegistry::needs_catalog(world_root, &overrides)
+        || !stored.is_empty()
+        || !staged.is_empty())
         .then(|| {
             horizon_client::vanillagen::shared_data_with(
                 &options.resources.join("worldgen"),
@@ -707,13 +718,14 @@ pub(super) fn build_level_registry(
             .ok()
         })
         .flatten();
-    let registry = LevelRegistry::for_world(
+    let mut registry = LevelRegistry::for_world(
         world_root,
         &options.resources,
         &overrides,
         shapes,
         data.as_ref().map(|d| d.source_catalog()),
     );
+    registry.restore_levels(stored, staged, data.as_ref().map(|d| d.source_catalog()));
     for problem in registry.problems() {
         log::error!("Horizon: {}", problem.message);
     }
@@ -733,6 +745,24 @@ pub(super) fn level_fast_lava(
     }
 }
 
+/// The world-settings shape (`dimensions.minecraft:overworld.generator`) the flat and debug
+/// generators read, made from a level stem whose generator is one of them; `None` for any other.
+fn level_generator_settings(stem: &serde_json::Value) -> Option<horizon_world::nbt::Tag> {
+    use horizon_world::nbt::Tag;
+    let generator = stem.get("generator")?;
+    let kind = generator.get("type")?.as_str()?;
+    if !matches!(kind, "minecraft:flat" | "minecraft:debug") {
+        return None;
+    }
+    Some(Tag::compound([(
+        "dimensions",
+        Tag::compound([(
+            "minecraft:overworld",
+            Tag::compound([("generator", horizon_client::lan::data::json_to_nbt(generator))]),
+        )]),
+    )]))
+}
+
 pub(super) fn make_streaming(
     res: &Resources,
     pack: &PackResources,
@@ -744,11 +774,10 @@ pub(super) fn make_streaming(
     stem: Option<&serde_json::Value>,
     seed: i64,
     enabled_features: &[String],
+    mod_generators: &horizon_client::mod_generator::ModGenerators,
+    save_dir: std::path::PathBuf,
 ) -> Result<(Streaming, Arc<SaveDir>, Option<Arc<VanillaTerrain>>)> {
-    let save = Arc::new(SaveDir::new(
-        horizon_client::save::dimension_dir(world_root, dim.id()),
-        shape,
-    ));
+    let save = Arc::new(SaveDir::new(save_dir, shape));
     if dim == Dim::End {
         // Migrate before any chunk reader can cache the old block entities. A side file it
         // can't read stays where it is and costs only its old exits: the End still opens.
@@ -765,9 +794,35 @@ pub(super) fn make_streaming(
         enabled_features,
     );
     let mut locator = None;
-    let flat = (dim == Dim::Overworld)
-        .then(|| horizon_client::save::world_gen_settings(world_root))
-        .flatten()
+    // The generator settings the flat and debug generators read: the world's for the Overworld,
+    // a level's own stem for any other (F3-5).
+    let gen_settings: Option<horizon_world::nbt::Tag> = if dim == Dim::Overworld {
+        horizon_client::save::world_gen_settings(world_root)
+    } else {
+        stem.and_then(level_generator_settings)
+    };
+    // A mod's generator (`yoake:mod`).
+    let mod_terrain = match stem.map(|s| &s["generator"]) {
+        Some(g) if g["type"].as_str() == Some("yoake:mod") => {
+            let id = g["id"].as_str().unwrap_or_default();
+            Some(
+                mod_generators
+                    .terrain(
+                        id,
+                        dim.id(),
+                        seed,
+                        shape,
+                        g.get("settings").cloned().unwrap_or_else(|| serde_json::json!({})),
+                        pack.assets.clone(),
+                        res.biomes().clone(),
+                    )
+                    ?,
+            )
+        }
+        _ => None,
+    };
+    let flat = gen_settings
+        .as_ref()
         .and_then(|s| {
             horizon_client::flatgen::FlatTerrain::from_settings(
                 &s,
@@ -777,12 +832,11 @@ pub(super) fn make_streaming(
             )
         });
     // `DebugLevelSource`: the overworld of the Debug preset.
-    let debug = (dim == Dim::Overworld)
-        .then(|| horizon_client::save::world_gen_settings(world_root))
-        .flatten()
+    let debug = gen_settings
+        .as_ref()
         .and_then(|s| {
             horizon_client::debugworld::DebugTerrain::from_settings(
-                &s,
+                s,
                 pack.assets.registry,
                 res.biomes(),
                 shape,
@@ -793,10 +847,12 @@ pub(super) fn make_streaming(
     // even when automatic structure starts are disabled.
     let automatic_structures =
         horizon_client::save::WorldGen::read(world_root).is_none_or(|w| w.structures);
-    let flat_structures = (dim == Dim::Overworld)
-        .then(|| horizon_client::save::world_gen_settings(world_root))
-        .flatten()
-        .and_then(|s| horizon_client::flatgen::FlatTerrain::structure_settings(&s));
+    // The flat structure generator is built for the Overworld's build height; a level of another
+    // height keeps the plain flat ground (F3-6).
+    let flat_structures = gen_settings
+        .as_ref()
+        .filter(|_| shape == horizon_client::save::LevelShape::OVERWORLD)
+        .and_then(horizon_client::flatgen::FlatTerrain::structure_settings);
     // A generator that cannot be built (a layer block the registry lacks, a level shorter
     // than the noise) leaves the world on its flat ground, as it was before.
     let flat_vanilla = flat_structures.and_then(|settings| {
@@ -821,7 +877,18 @@ pub(super) fn make_streaming(
             }
         }
     });
-    let mut streaming = if let Some(inner) = debug {
+    let mut streaming = if let Some(inner) = mod_terrain {
+        Streaming::new(
+            Arc::new(Persistent {
+                inner: Arc::new(inner),
+                save: save.clone(),
+                registry: pack.assets.clone(),
+                biomes: biomes.clone(),
+            }),
+            pack.context_with(biomes.clone()),
+            res.threads(),
+        )
+    } else if let Some(inner) = debug {
         Streaming::new(
             Arc::new(Persistent {
                 inner: Arc::new(inner),

@@ -128,6 +128,11 @@ pub(super) struct Levels {
 
 impl Levels {
     /// A parked level, without opening or loading it.
+    /// Closes the level `dim` not in place, if it is open, dropping its streaming and files.
+    pub(super) fn drop_parked(&mut self, dim: Dim) -> bool {
+        self.parked.remove(&dim).is_some()
+    }
+
     pub(super) fn parked_world(&self, dim: Dim) -> Option<&World> {
         self.parked.get(&dim).map(|level| &level.world)
     }
@@ -188,14 +193,20 @@ impl Game<'_> {
             dim,
             shape,
             entry.stem_json.as_ref(),
-            self.level.seed,
+            // The level's own seed when its stem gives one (F3-7), else the world's as in vanilla.
+            self.level_registry.seed(dim.id(), self.level.seed),
             &self.level.enabled_features,
+            &self.mod_generators,
+            self.level_registry.save_dir(&self.world_root, dim.id()),
         )?;
         // F3-4: a level past the vanilla three shades blocks as its type says.
         if !matches!(dim, Dim::Overworld | Dim::Nether | Dim::End) {
             streaming.nether_shading = entry.dimension_type.cardinal_light == "nether";
         }
-        let mut world = World::new(self.res.facts().air, self.level.seed);
+        let mut world = World::new(
+            self.res.facts().air,
+            self.level_registry.seed(dim.id(), self.level.seed),
+        );
         world.attachments = save.load_attachments();
         world.shape = shape;
         world.fast_lava = super::world_loading::level_fast_lava(&self.level_registry, dim);
@@ -357,7 +368,7 @@ impl Game<'_> {
             }
             p.idle = 0;
             let left = std::mem::replace(&mut self.dim, target);
-            self.ensure_level_ctx(None);
+            self.ensure_level_ctx(None, None);
             self.levels.parked.insert(left, p);
             if opened {
                 // The new streaming's radius and meshing options.
@@ -803,6 +814,21 @@ impl Game<'_> {
         self.level_registry
             .register_level(id, stem, data.source_catalog())?;
         Ok(Dim::intern(id))
+    }
+
+    /// Registers a chunk generator for levels whose stem is
+    /// `{"type": "yoake:mod", "id": <id>}`, before the world starts ticking (F3-5). The native side
+    /// of the mod generator API; WASM mods reach it with F3-8.
+    #[allow(dead_code)] // The mod API reaches it with F3-8.
+    pub(super) fn register_mod_generator(
+        &mut self,
+        id: &str,
+        factory: std::sync::Arc<dyn horizon_client::mod_generator::ModGeneratorFactory>,
+    ) -> std::result::Result<(), String> {
+        if self.level_registry.is_frozen() {
+            return Err("the world already started ticking".to_owned());
+        }
+        self.mod_generators.register(id, factory)
     }
 
     /// Save every parked level (`MinecraftServer.saveAllChunks`); the level

@@ -716,6 +716,17 @@ impl Game<'_> {
             return Err("invalid native player teleport position or rotation".into());
         }
         let (target, conn, source) = self.native_player_target(uuid)?;
+        // A level created after the player joined, with a dimension type the player was not
+        // sent, cannot be shown to them until they reconnect (F3-6).
+        if self
+            .lan
+            .as_ref()
+            .is_some_and(|h| !h.hub.guest_knows_level(conn, dimension_name))
+        {
+            return Err(format!(
+                "level {dimension_name} was created after the player joined with a dimension type they do not have; they can enter it after reconnecting"
+            ));
+        }
         if let Some(previous) = self.native_player_ops.active.get(&conn).copied()
             && self
                 .native_player_ops

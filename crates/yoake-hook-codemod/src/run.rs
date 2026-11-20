@@ -73,6 +73,35 @@ struct ScanCtx<'a> {
     seen_locations: &'a mut BTreeMap<String, String>,
     seen_keys: &'a mut BTreeSet<String>,
     stats: &'a mut SummaryStats,
+    /// W5: functions with at most this many statements are not stamped (0 = no rule).
+    min_stmts: usize,
+    /// W7: the ledger is read-only: no new ids, no ledger writes, nothing fails because of ledger state.
+    frozen: bool,
+    /// W4: hook impls on types that have no crate-level path (private types of private modules).
+    private_types: bool,
+    /// W5: keys stamped regardless of the size rule (`hook-ledger/stamp-allow.txt`).
+    allow_small: &'a BTreeSet<String>,
+}
+
+/// W7: with a frozen ledger only keys that already have a live id are stamped.
+fn frozen_gate(ctx: &mut ScanCtx<'_>, fn_key: &str) -> Result<(), &'static str> {
+    if ctx.frozen && ctx.ledger_set.shard_mut(ctx.crate_ident).live_id(fn_key).is_none() {
+        return Err("no ledger id (frozen ledger)");
+    }
+    Ok(())
+}
+
+/// W5 size rule: a small body is excluded unless it is allow-listed or already live in the ledger.
+fn size_gate(ctx: &mut ScanCtx<'_>, fn_key: &str, block: &Block) -> Result<(), &'static str> {
+    frozen_gate(ctx, fn_key)?;
+    if ctx.min_stmts == 0
+        || block.stmts.len() > ctx.min_stmts
+        || ctx.allow_small.contains(fn_key)
+        || ctx.ledger_set.shard_mut(ctx.crate_ident).live_id(fn_key).is_some()
+    {
+        return Ok(());
+    }
+    Err("small body")
 }
 
 struct FileVisitor<'a, 'b> {
@@ -229,7 +258,8 @@ impl VisitMut for FileVisitor<'_, '_> {
             &item_fn.vis,
             &item_fn.sig,
         );
-        match eligible::check_fn(&item_fn.attrs, &item_fn.sig) {
+        let gate = size_gate(self.ctx, &fn_key, &item_fn.block);
+        match eligible::check_fn(&item_fn.attrs, &item_fn.sig).and_then(|()| gate) {
             Ok(()) => {
                 let id = match assign_hook(self.ctx, &fn_key, &sig) {
                     Ok(id) => id,
@@ -296,7 +326,13 @@ impl VisitMut for FileVisitor<'_, '_> {
                 SelfTyStatus::Local {
                     is_struct_enum_union: true,
                     crate_level_visible: false,
-                } => Err("self type has no crate-level path"),
+                } => {
+                    if self.ctx.private_types {
+                        Ok(())
+                    } else {
+                        Err("self type has no crate-level path")
+                    }
+                }
                 SelfTyStatus::Local {
                     is_struct_enum_union: false,
                     ..
@@ -311,7 +347,7 @@ impl VisitMut for FileVisitor<'_, '_> {
                 SelfTyStatus::Local {
                     crate_level_visible: false,
                     ..
-                } => Err("self type has no crate-level path"),
+                } if !self.ctx.private_types => Err("self type has no crate-level path"),
                 _ => Ok(()),
             }
         };
@@ -430,8 +466,10 @@ impl VisitMut for FileVisitor<'_, '_> {
                 &method.vis,
                 &method.sig,
             );
-            let eligibility =
-                impl_check.and_then(|()| eligible::check_fn(&method.attrs, &method.sig));
+            let gate = size_gate(self.ctx, &fn_key, &method.block);
+            let eligibility = impl_check
+                .and_then(|()| eligible::check_fn(&method.attrs, &method.sig))
+                .and_then(|()| gate);
             match eligibility {
                 Ok(()) => {
                     let id = match assign_hook(self.ctx, &fn_key, &sig) {
@@ -547,6 +585,7 @@ impl VisitMut for FileVisitor<'_, '_> {
                 .expect("trait impl has trait_meta");
             let eligibility = self_ty_check
                 .and_then(|()| check_trait_eligibility(trait_meta, &method.attrs, &method.sig, &helper.block));
+            let eligibility = eligibility.and_then(|()| frozen_gate(self.ctx, &fn_key));
             match eligibility {
                 Ok(()) => {
                     let id = match assign_hook(self.ctx, &fn_key, &sig) {
@@ -614,6 +653,7 @@ impl VisitMut for FileVisitor<'_, '_> {
             .expect("trait impl has trait_meta");
         let eligibility = self_ty_check
             .and_then(|()| check_trait_eligibility(trait_meta, &method.attrs, &method.sig, &method.block));
+        let eligibility = eligibility.and_then(|()| frozen_gate(self.ctx, &fn_key));
         match eligibility {
             Ok(()) => {
                 let id = match assign_hook(self.ctx, &fn_key, &sig) {
@@ -728,8 +768,14 @@ pub fn execute(config: &Config) -> Result<bool, String> {
         return crate::callsite::execute(config);
     }
     let crate_ident = key::normalize_crate_name(&config.crate_name);
-    let targets = config
-        .modules
+    let module_args = modules::expand_star_modules(
+        &config.crate_root,
+        &config.crate_name,
+        &config.modules,
+        &config.exclude_modules,
+    )?;
+    let allow_small = read_allow_small(&config.ledger);
+    let targets = module_args
         .iter()
         .map(|m| modules::normalize_module_arg(m))
         .collect::<Result<Vec<_>, _>>()?;
@@ -753,6 +799,21 @@ pub fn execute(config: &Config) -> Result<bool, String> {
                     .or_insert_with(|| ex.reason.clone());
             }
         }
+    }
+
+    // W1: keys the verify loop withdrew (`hook-ledger/stamp-exclude.txt`): retire a live id, then record the
+    // manual exclusion in the ledger (the request file is only the transport between rounds).
+    for (key, reason) in crate::verify::read_excludes(&config.ledger) {
+        let shard = ledger_set.shard_mut(&crate_ident);
+        if shard.live_id(&key).is_some() {
+            shard
+                .tombstone(&key)
+                .map_err(|e| format!("failed to tombstone '{key}': {e}"))?;
+        }
+        shard
+            .exclude_manual(Kind::Fn, &key, &reason)
+            .map_err(|e| format!("failed to record manual exclusion '{key}': {e}"))?;
+        manual_keys.entry(key).or_insert(reason);
     }
 
     for (old_key, new_key) in &config.renames {
@@ -794,6 +855,10 @@ pub fn execute(config: &Config) -> Result<bool, String> {
             seen_locations: &mut seen_locations,
             seen_keys: &mut seen_keys,
             stats: &mut stats,
+            min_stmts: config.min_stmts,
+            frozen: config.frozen_ledger,
+            private_types: config.private_types,
+            allow_small: &allow_small,
         };
 
         let mut visitor = FileVisitor {
@@ -825,6 +890,16 @@ pub fn execute(config: &Config) -> Result<bool, String> {
                 updated: new_source,
             });
         }
+    }
+
+    if config.frozen_ledger {
+        // W7: sources only; the ledger is never read back or written.
+        print_summary(&stats);
+        for update in &file_updates {
+            std::fs::write(&update.path, &update.updated)
+                .map_err(|e| format!("failed to write {}: {e}", update.path.display()))?;
+        }
+        return Ok(true);
     }
 
     reconcile_missing_keys(
@@ -1273,6 +1348,19 @@ fn register_seen(
     Ok(())
 }
 
+/// `hook-ledger/stamp-allow.txt`: one fn key per line (`#` comments), stamped even when the body is small.
+fn read_allow_small(ledger: &Path) -> BTreeSet<String> {
+    std::fs::read_to_string(ledger.join("stamp-allow.txt"))
+        .map(|text| {
+            text.lines()
+                .map(|l| l.split('#').next().unwrap_or("").trim())
+                .filter(|l| !l.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn assign_hook(ctx: &mut ScanCtx<'_>, fn_key: &str, sig: &str) -> Result<u32, String> {
     if ctx.tombstones.contains(fn_key) {
         return Err(format!(
@@ -1296,6 +1384,9 @@ fn tombstone_live_if_requested(
     fn_key: &str,
     reason: &str,
 ) -> Result<(), String> {
+    if ctx.frozen {
+        return Ok(());
+    }
     let shard = ctx.ledger_set.shard_mut(ctx.crate_ident);
     if shard.live_id(fn_key).is_some() {
         if ctx.tombstones.remove(fn_key) {
@@ -1361,7 +1452,21 @@ fn exclude_manual_hook(
     Ok(())
 }
 
+static QUIET: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Wrapper mode keeps the codemod's summary off stdout (cargo parses rustc's stdout).
+pub fn is_quiet() -> bool {
+    QUIET.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+pub fn set_quiet(quiet: bool) {
+    QUIET.store(quiet, std::sync::atomic::Ordering::Relaxed);
+}
+
 fn print_summary(stats: &SummaryStats) {
+    if QUIET.load(std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
     let excluded_total: usize = stats.excluded_by_reason.values().sum();
     println!(
         "summary: hooked={}, newly_assigned={}, excluded={}, trait_methods_converted={}, sig_changes={}, tombstoned={}",
@@ -1450,6 +1555,10 @@ impl Stand {
             seen_locations: &mut seen_locations,
             seen_keys: &mut seen_keys,
             stats: &mut stats,
+            min_stmts: 0,
+            frozen: false,
+            private_types: false,
+            allow_small: &BTreeSet::new(),
         };
         let mut visitor = FileVisitor {
             file_path: &file.path,

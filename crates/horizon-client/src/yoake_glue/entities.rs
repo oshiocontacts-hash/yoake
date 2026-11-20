@@ -6,7 +6,7 @@
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]
-    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, RefFieldTable, Status};
+    use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, PathRootRef, RefFieldTable, Status};
     use yoake_slice::codec::{self, CallError, Decode, Decoder, Encode};
 
     fn enc_crate__entities__Cushion(v: &crate::entities::Cushion, out: &mut Vec<u8>) {
@@ -324,7 +324,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.disabled_slots#get`
-    fn call_1(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_1(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.disabled_slots, out);
         Ok(())
@@ -341,7 +341,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.enchantment_block#get`
-    fn call_3(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_3(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.enchantment_block {
             None => out.push(0),
@@ -357,7 +357,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ArmorStand.enchantment_fall_distance#get`
-    fn call_5(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_5(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.enchantment_fall_distance, out);
         Ok(())
@@ -367,7 +367,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ArmorStand.fire_ticks#get`
-    fn call_7(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_7(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fire_ticks, out);
         Ok(())
@@ -384,7 +384,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.health#get`
-    fn call_9(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_9(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.health, out);
         Ok(())
@@ -401,7 +401,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.id#get`
-    fn call_11(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_11(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.id, out);
         Ok(())
@@ -411,7 +411,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ArmorStand.invisible#get`
-    fn call_13(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_13(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.invisible, out);
         Ok(())
@@ -428,7 +428,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.last_hit#get`
-    fn call_15(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_15(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.last_hit, out);
         Ok(())
@@ -445,7 +445,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.marker#get`
-    fn call_17(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_17(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.marker, out);
         Ok(())
@@ -455,7 +455,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ArmorStand.name_visible#get`
-    fn call_19(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_19(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.name_visible, out);
         Ok(())
@@ -472,7 +472,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.no_base_plate#get`
-    fn call_21(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_21(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.no_base_plate, out);
         Ok(())
@@ -489,7 +489,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.no_gravity#get`
-    fn call_23(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_23(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.no_gravity, out);
         Ok(())
@@ -506,7 +506,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.on_ground#get`
-    fn call_25(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_25(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.on_ground, out);
         Ok(())
@@ -523,7 +523,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.pose#get`
-    fn call_27(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_27(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.pose).iter() {
             for e1 in (e0).iter() {
@@ -562,7 +562,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.position#get`
-    fn call_29(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_29(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.position, out);
         Ok(())
@@ -579,7 +579,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.previous#get`
-    fn call_31(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_31(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.previous, out);
         Ok(())
@@ -596,7 +596,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.previous_yaw#get`
-    fn call_33(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_33(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.previous_yaw, out);
         Ok(())
@@ -613,7 +613,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.show_arms#get`
-    fn call_35(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_35(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.show_arms, out);
         Ok(())
@@ -630,7 +630,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.small#get`
-    fn call_37(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_37(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.small, out);
         Ok(())
@@ -647,7 +647,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.support#get`
-    fn call_39(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_39(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_world__ground_support__GroundState(&recv.support, out);
         Ok(())
@@ -657,7 +657,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ArmorStand.vehicle#get`
-    fn call_41(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_41(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.vehicle {
             None => out.push(0),
@@ -673,7 +673,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ArmorStand.velocity#get`
-    fn call_43(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_43(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.velocity, out);
         Ok(())
@@ -690,7 +690,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand.yaw#get`
-    fn call_45(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_45(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.yaw, out);
         Ok(())
@@ -707,7 +707,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::Cushion.check_interval#get`
-    fn call_47(recv: &mut crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_47(recv: &crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.check_interval, out);
         Ok(())
@@ -717,7 +717,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Cushion.color#get`
-    fn call_49(recv: &mut crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_49(recv: &crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.color, out);
         Ok(())
@@ -727,7 +727,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Cushion.id#get`
-    fn call_51(recv: &mut crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_51(recv: &crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.id, out);
         Ok(())
@@ -737,7 +737,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Cushion.pos#get`
-    fn call_53(recv: &mut crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_53(recv: &crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.pos).iter() {
             Encode::encode(e0, out);
@@ -749,7 +749,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Cushion.position#get`
-    fn call_55(recv: &mut crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_55(recv: &crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.position, out);
         Ok(())
@@ -759,7 +759,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Cushion.yaw#get`
-    fn call_57(recv: &mut crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_57(recv: &crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.yaw, out);
         Ok(())
@@ -769,7 +769,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Experience.level#get`
-    fn call_59(recv: &mut crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_59(recv: &crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.level, out);
         Ok(())
@@ -779,7 +779,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Experience.progress#get`
-    fn call_61(recv: &mut crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_61(recv: &crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.progress, out);
         Ok(())
@@ -789,7 +789,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Experience.total#get`
-    fn call_63(recv: &mut crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_63(recv: &crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.total, out);
         Ok(())
@@ -799,7 +799,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ExperienceOrb.age#get`
-    fn call_65(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_65(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.age, out);
         Ok(())
@@ -809,7 +809,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ExperienceOrb.count#get`
-    fn call_67(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_67(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.count, out);
         Ok(())
@@ -819,7 +819,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ExperienceOrb.health#get`
-    fn call_69(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_69(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.health, out);
         Ok(())
@@ -829,7 +829,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ExperienceOrb.id#get`
-    fn call_71(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_71(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.id, out);
         Ok(())
@@ -839,7 +839,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ExperienceOrb.no_gravity#get`
-    fn call_73(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_73(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.no_gravity, out);
         Ok(())
@@ -849,7 +849,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ExperienceOrb.on_ground#get`
-    fn call_75(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_75(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.on_ground, out);
         Ok(())
@@ -859,7 +859,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ExperienceOrb.position#get`
-    fn call_77(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_77(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.position, out);
         Ok(())
@@ -869,7 +869,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ExperienceOrb.previous#get`
-    fn call_79(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_79(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.previous, out);
         Ok(())
@@ -879,7 +879,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ExperienceOrb.ticks#get`
-    fn call_81(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_81(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.ticks, out);
         Ok(())
@@ -889,7 +889,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ExperienceOrb.value#get`
-    fn call_83(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_83(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.value, out);
         Ok(())
@@ -899,7 +899,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ExperienceOrb.velocity#get`
-    fn call_85(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_85(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.velocity, out);
         Ok(())
@@ -909,7 +909,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemEntity.age#get`
-    fn call_87(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_87(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.age, out);
         Ok(())
@@ -926,7 +926,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity.bob_offset#get`
-    fn call_89(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_89(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.bob_offset, out);
         Ok(())
@@ -943,7 +943,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity.fire_ticks#get`
-    fn call_91(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_91(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fire_ticks, out);
         Ok(())
@@ -960,7 +960,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity.health#get`
-    fn call_93(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_93(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.health, out);
         Ok(())
@@ -977,7 +977,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity.horizontal_collision#get`
-    fn call_95(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_95(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.horizontal_collision, out);
         Ok(())
@@ -987,7 +987,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemEntity.id#get`
-    fn call_97(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_97(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.id, out);
         Ok(())
@@ -997,7 +997,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemEntity.needs_sync#get`
-    fn call_99(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_99(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.needs_sync, out);
         Ok(())
@@ -1014,7 +1014,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity.no_gravity#get`
-    fn call_101(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_101(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.no_gravity, out);
         Ok(())
@@ -1031,7 +1031,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity.on_ground#get`
-    fn call_103(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_103(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.on_ground, out);
         Ok(())
@@ -1048,7 +1048,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity.pickup_delay#get`
-    fn call_105(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_105(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.pickup_delay, out);
         Ok(())
@@ -1065,7 +1065,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity.position#get`
-    fn call_107(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_107(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.position, out);
         Ok(())
@@ -1082,7 +1082,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity.previous#get`
-    fn call_109(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_109(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.previous, out);
         Ok(())
@@ -1099,7 +1099,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity.stuck#get`
-    fn call_111(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_111(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.stuck, out);
         Ok(())
@@ -1116,7 +1116,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity.target#get`
-    fn call_113(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_113(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.target {
             None => out.push(0),
@@ -1134,7 +1134,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemEntity.thrower#get`
-    fn call_115(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_115(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.thrower {
             None => out.push(0),
@@ -1152,7 +1152,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemEntity.ticks#get`
-    fn call_117(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_117(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.ticks, out);
         Ok(())
@@ -1169,7 +1169,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity.velocity#get`
-    fn call_119(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_119(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.velocity, out);
         Ok(())
@@ -1186,7 +1186,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity.vertical_collision#get`
-    fn call_121(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_121(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.vertical_collision, out);
         Ok(())
@@ -1196,7 +1196,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemEnvironmentTick.alive#get`
-    fn call_123(recv: &mut crate::entities::ItemEnvironmentTick, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_123(recv: &crate::entities::ItemEnvironmentTick, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.alive, out);
         Ok(())
@@ -1206,7 +1206,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemEnvironmentTick.lava_hurt#get`
-    fn call_125(recv: &mut crate::entities::ItemEnvironmentTick, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_125(recv: &crate::entities::ItemEnvironmentTick, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.lava_hurt, out);
         Ok(())
@@ -1216,7 +1216,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemFrame.check_interval#get`
-    fn call_127(recv: &mut crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_127(recv: &crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.check_interval, out);
         Ok(())
@@ -1226,7 +1226,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemFrame.drop_chance#get`
-    fn call_129(recv: &mut crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_129(recv: &crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.drop_chance, out);
         Ok(())
@@ -1236,7 +1236,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemFrame.facing#get`
-    fn call_131(recv: &mut crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_131(recv: &crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.facing, out);
         Ok(())
@@ -1246,7 +1246,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemFrame.fixed#get`
-    fn call_133(recv: &mut crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_133(recv: &crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fixed, out);
         Ok(())
@@ -1256,7 +1256,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemFrame.glow#get`
-    fn call_135(recv: &mut crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_135(recv: &crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.glow, out);
         Ok(())
@@ -1266,7 +1266,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemFrame.id#get`
-    fn call_137(recv: &mut crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_137(recv: &crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.id, out);
         Ok(())
@@ -1276,7 +1276,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemFrame.invisible#get`
-    fn call_139(recv: &mut crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_139(recv: &crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.invisible, out);
         Ok(())
@@ -1286,7 +1286,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemFrame.pos#get`
-    fn call_141(recv: &mut crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_141(recv: &crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.pos).iter() {
             Encode::encode(e0, out);
@@ -1298,7 +1298,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemFrame.rotation#get`
-    fn call_143(recv: &mut crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_143(recv: &crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.rotation, out);
         Ok(())
@@ -1308,7 +1308,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemStep.moved#get`
-    fn call_145(recv: &mut crate::entities::ItemStep, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_145(recv: &crate::entities::ItemStep, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.moved, out);
         Ok(())
@@ -1318,7 +1318,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ItemStep.old_velocity#get`
-    fn call_147(recv: &mut crate::entities::ItemStep, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_147(recv: &crate::entities::ItemStep, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_core__geometry__Vec3(&recv.old_velocity, out);
         Ok(())
@@ -1328,7 +1328,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Painting.check_interval#get`
-    fn call_149(recv: &mut crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_149(recv: &crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.check_interval, out);
         Ok(())
@@ -1338,7 +1338,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Painting.facing#get`
-    fn call_151(recv: &mut crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_151(recv: &crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.facing, out);
         Ok(())
@@ -1348,7 +1348,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Painting.height#get`
-    fn call_153(recv: &mut crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_153(recv: &crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.height, out);
         Ok(())
@@ -1358,7 +1358,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Painting.id#get`
-    fn call_155(recv: &mut crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_155(recv: &crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.id, out);
         Ok(())
@@ -1368,7 +1368,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Painting.pos#get`
-    fn call_157(recv: &mut crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_157(recv: &crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.pos).iter() {
             Encode::encode(e0, out);
@@ -1380,7 +1380,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::Painting.width#get`
-    fn call_159(recv: &mut crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_159(recv: &crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.width, out);
         Ok(())
@@ -1390,7 +1390,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::StandStep.falling#get`
-    fn call_161(recv: &mut crate::entities::StandStep, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_161(recv: &crate::entities::StandStep, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.falling, out);
         Ok(())
@@ -1400,7 +1400,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::StandStep.friction#get`
-    fn call_163(recv: &mut crate::entities::StandStep, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_163(recv: &crate::entities::StandStep, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.friction, out);
         Ok(())
@@ -1465,51 +1465,51 @@ pub mod yoake_glue {
     }
 
     /// `entities::<ArmorStand as EntityRules>::get_default_gravity`
-    fn call_297(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_297(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ArmorStand as crate::entity_rules::EntityRules>::get_default_gravity(&*recv);
+        let r = <crate::entities::ArmorStand as crate::entity_rules::EntityRules>::get_default_gravity(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::<ArmorStand as EntityRules>::is_no_gravity`
-    fn call_298(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_298(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ArmorStand as crate::entity_rules::EntityRules>::is_no_gravity(&*recv);
+        let r = <crate::entities::ArmorStand as crate::entity_rules::EntityRules>::is_no_gravity(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::<ArmorStand as EntityRules>::is_pushed_by_fluid`
-    fn call_299(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_299(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ArmorStand as crate::entity_rules::EntityRules>::is_pushed_by_fluid(&*recv);
+        let r = <crate::entities::ArmorStand as crate::entity_rules::EntityRules>::is_pushed_by_fluid(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::<Cushion as Clone>::clone`
-    fn call_300(recv: &mut crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_300(recv: &crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Cushion as core::clone::Clone>::clone(&*recv);
+        let r = <crate::entities::Cushion as core::clone::Clone>::clone(recv);
         enc_crate__entities__Cushion(&r, out);
         Ok(())
     }
 
     /// `entities::<Experience as Clone>::clone`
-    fn call_301(recv: &mut crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_301(recv: &crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Experience as core::clone::Clone>::clone(&*recv);
+        let r = <crate::entities::Experience as core::clone::Clone>::clone(recv);
         enc_crate__entities__Experience(&r, out);
         Ok(())
     }
@@ -1535,92 +1535,92 @@ pub mod yoake_glue {
     }
 
     /// `entities::<ExperienceOrb as EntityRules>::get_default_gravity`
-    fn call_304(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_304(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ExperienceOrb as crate::entity_rules::EntityRules>::get_default_gravity(&*recv);
+        let r = <crate::entities::ExperienceOrb as crate::entity_rules::EntityRules>::get_default_gravity(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::<ExperienceOrb as EntityRules>::is_no_gravity`
-    fn call_305(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_305(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ExperienceOrb as crate::entity_rules::EntityRules>::is_no_gravity(&*recv);
+        let r = <crate::entities::ExperienceOrb as crate::entity_rules::EntityRules>::is_no_gravity(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::<ItemEntity as EntityRules>::get_default_gravity`
-    fn call_306(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_306(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ItemEntity as crate::entity_rules::EntityRules>::get_default_gravity(&*recv);
+        let r = <crate::entities::ItemEntity as crate::entity_rules::EntityRules>::get_default_gravity(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::<ItemEntity as EntityRules>::is_no_gravity`
-    fn call_307(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_307(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ItemEntity as crate::entity_rules::EntityRules>::is_no_gravity(&*recv);
+        let r = <crate::entities::ItemEntity as crate::entity_rules::EntityRules>::is_no_gravity(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::<ItemStep as Clone>::clone`
-    fn call_308(recv: &mut crate::entities::ItemStep, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_308(recv: &crate::entities::ItemStep, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ItemStep as core::clone::Clone>::clone(&*recv);
+        let r = <crate::entities::ItemStep as core::clone::Clone>::clone(recv);
         enc_crate__entities__ItemStep(&r, out);
         Ok(())
     }
 
     /// `entities::<StandMedium as Clone>::clone`
-    fn call_309(recv: &mut crate::entities::StandMedium, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_309(recv: &crate::entities::StandMedium, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::StandMedium as core::clone::Clone>::clone(&*recv);
+        let r = <crate::entities::StandMedium as core::clone::Clone>::clone(recv);
         enc_crate__entities__StandMedium(&r, out);
         Ok(())
     }
 
     /// `entities::<StandMedium as PartialEq>::eq`
-    fn call_310(recv: &mut crate::entities::StandMedium, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_310(recv: &crate::entities::StandMedium, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__entities__StandMedium(d)?;
         d.finish()?;
-        let r = <crate::entities::StandMedium as core::cmp::PartialEq>::eq(&*recv, &a0);
+        let r = <crate::entities::StandMedium as core::cmp::PartialEq>::eq(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::<StandStep as Clone>::clone`
-    fn call_311(recv: &mut crate::entities::StandStep, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_311(recv: &crate::entities::StandStep, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::StandStep as core::clone::Clone>::clone(&*recv);
+        let r = <crate::entities::StandStep as core::clone::Clone>::clone(recv);
         enc_crate__entities__StandStep(&r, out);
         Ok(())
     }
 
     /// `entities::ArmorStand::feet_are_leather_boots`
-    fn call_312(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_312(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ArmorStand>::feet_are_leather_boots(&*recv);
+        let r = <crate::entities::ArmorStand>::feet_are_leather_boots(recv);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -1651,34 +1651,34 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand::is_disabled`
-    fn call_315(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_315(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <usize as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::entities::ArmorStand>::is_disabled(&*recv, a0);
+        let r = <crate::entities::ArmorStand>::is_disabled(recv, a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::ArmorStand::render_position`
-    fn call_316(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_316(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <f64 as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::entities::ArmorStand>::render_position(&*recv, a0);
+        let r = <crate::entities::ArmorStand>::render_position(recv, a0);
         enc_horizon_core__geometry__Vec3(&r, out);
         Ok(())
     }
 
     /// `entities::ArmorStand::render_yaw`
-    fn call_317(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_317(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <f32 as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::entities::ArmorStand>::render_yaw(&*recv, a0);
+        let r = <crate::entities::ArmorStand>::render_yaw(recv, a0);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -1695,12 +1695,12 @@ pub mod yoake_glue {
     }
 
     /// `entities::ArmorStand::swap_locked`
-    fn call_319(recv: &mut crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_319(recv: &crate::entities::ArmorStand, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <usize as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::entities::ArmorStand>::swap_locked(&*recv, a0);
+        let r = <crate::entities::ArmorStand>::swap_locked(recv, a0);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -1717,11 +1717,11 @@ pub mod yoake_glue {
     }
 
     /// `entities::Cushion::bounds`
-    fn call_321(recv: &mut crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_321(recv: &crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Cushion>::bounds(&*recv);
+        let r = <crate::entities::Cushion>::bounds(recv);
         {
             let t0 = &r;
             for e1 in (&t0.0).iter() {
@@ -1735,52 +1735,52 @@ pub mod yoake_glue {
     }
 
     /// `entities::Cushion::color_name`
-    fn call_322(recv: &mut crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_322(recv: &crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Cushion>::color_name(&*recv);
+        let r = <crate::entities::Cushion>::color_name(recv);
         Encode::encode(r, out);
         Ok(())
     }
 
     /// `entities::Cushion::dismount`
-    fn call_323(recv: &mut crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_323(recv: &crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Cushion>::dismount(&*recv);
+        let r = <crate::entities::Cushion>::dismount(recv);
         enc_horizon_core__geometry__Vec3(&r, out);
         Ok(())
     }
 
     /// `entities::Cushion::item`
-    fn call_324(recv: &mut crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_324(recv: &crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Cushion>::item(&*recv);
+        let r = <crate::entities::Cushion>::item(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::Cushion::seat`
-    fn call_325(recv: &mut crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_325(recv: &crate::entities::Cushion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Cushion>::seat(&*recv);
+        let r = <crate::entities::Cushion>::seat(recv);
         enc_horizon_core__geometry__Vec3(&r, out);
         Ok(())
     }
 
     /// `entities::Experience::death_reward`
-    fn call_326(recv: &mut crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_326(recv: &crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <bool as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::entities::Experience>::death_reward(&*recv, a0);
+        let r = <crate::entities::Experience>::death_reward(recv, a0);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -1824,43 +1824,43 @@ pub mod yoake_glue {
     }
 
     /// `entities::Experience::yoake_state_level`
-    fn call_330(recv: &mut crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_330(recv: &crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Experience>::yoake_state_level(&*recv);
+        let r = <crate::entities::Experience>::yoake_state_level(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::Experience::yoake_state_progress`
-    fn call_331(recv: &mut crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_331(recv: &crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Experience>::yoake_state_progress(&*recv);
+        let r = <crate::entities::Experience>::yoake_state_progress(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::Experience::yoake_state_total`
-    fn call_332(recv: &mut crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_332(recv: &crate::entities::Experience, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Experience>::yoake_state_total(&*recv);
+        let r = <crate::entities::Experience>::yoake_state_total(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::ExperienceOrb::can_merge`
-    fn call_333(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_333(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <u32 as Decode>::decode(d)?;
         let mut a1 = <u32 as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::entities::ExperienceOrb>::can_merge(&*recv, a0, a1);
+        let r = <crate::entities::ExperienceOrb>::can_merge(recv, a0, a1);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -1877,11 +1877,11 @@ pub mod yoake_glue {
     }
 
     /// `entities::ExperienceOrb::icon`
-    fn call_335(recv: &mut crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_335(recv: &crate::entities::ExperienceOrb, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ExperienceOrb>::icon(&*recv);
+        let r = <crate::entities::ExperienceOrb>::icon(recv);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -1948,11 +1948,11 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity::has_infinite_pickup_delay`
-    fn call_341(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_341(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ItemEntity>::has_infinite_pickup_delay(&*recv);
+        let r = <crate::entities::ItemEntity>::has_infinite_pickup_delay(recv);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -1977,13 +1977,13 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEntity::mergeable`
-    fn call_343(recv: &mut crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_343(recv: &crate::entities::ItemEntity, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <i32 as Decode>::decode(d)?;
         let mut a1 = <u32 as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::entities::ItemEntity>::mergeable(&*recv, a0, a1);
+        let r = <crate::entities::ItemEntity>::mergeable(recv, a0, a1);
         Encode::encode(&r, out);
         Ok(())
     }
@@ -1999,22 +1999,22 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemEnvironmentTick::should_play_lava_hurt_sound`
-    fn call_345(recv: &mut crate::entities::ItemEnvironmentTick, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_345(recv: &crate::entities::ItemEnvironmentTick, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <u32 as Decode>::decode(d)?;
         d.finish()?;
-        let r = <crate::entities::ItemEnvironmentTick>::should_play_lava_hurt_sound(&*recv, a0);
+        let r = <crate::entities::ItemEnvironmentTick>::should_play_lava_hurt_sound(recv, a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::ItemFrame::bounds`
-    fn call_346(recv: &mut crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_346(recv: &crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ItemFrame>::bounds(&*recv);
+        let r = <crate::entities::ItemFrame>::bounds(recv);
         {
             let t0 = &r;
             for e1 in (&t0.0).iter() {
@@ -2028,21 +2028,21 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemFrame::kind`
-    fn call_347(recv: &mut crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_347(recv: &crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ItemFrame>::kind(&*recv);
+        let r = <crate::entities::ItemFrame>::kind(recv);
         Encode::encode(r, out);
         Ok(())
     }
 
     /// `entities::ItemFrame::step`
-    fn call_348(recv: &mut crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_348(recv: &crate::entities::ItemFrame, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ItemFrame>::step(&*recv);
+        let r = <crate::entities::ItemFrame>::step(recv);
         for e0 in (&r).iter() {
             Encode::encode(e0, out);
         }
@@ -2050,21 +2050,21 @@ pub mod yoake_glue {
     }
 
     /// `entities::ObstacleGrid::is_empty`
-    fn call_349(recv: &mut crate::entities::ObstacleGrid, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_349(recv: &crate::entities::ObstacleGrid, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::ObstacleGrid>::is_empty(&*recv);
+        let r = <crate::entities::ObstacleGrid>::is_empty(recv);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `entities::Painting::bounds`
-    fn call_350(recv: &mut crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_350(recv: &crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Painting>::bounds(&*recv);
+        let r = <crate::entities::Painting>::bounds(recv);
         {
             let t0 = &r;
             for e1 in (&t0.0).iter() {
@@ -2078,11 +2078,11 @@ pub mod yoake_glue {
     }
 
     /// `entities::Painting::left`
-    fn call_351(recv: &mut crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_351(recv: &crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Painting>::left(&*recv);
+        let r = <crate::entities::Painting>::left(recv);
         for e0 in (&r).iter() {
             Encode::encode(e0, out);
         }
@@ -2090,11 +2090,11 @@ pub mod yoake_glue {
     }
 
     /// `entities::Painting::step`
-    fn call_352(recv: &mut crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_352(recv: &crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Painting>::step(&*recv);
+        let r = <crate::entities::Painting>::step(recv);
         for e0 in (&r).iter() {
             Encode::encode(e0, out);
         }
@@ -2114,17 +2114,17 @@ pub mod yoake_glue {
     }
 
     /// `entities::<Painting as Clone>::clone`
-    fn call_367(recv: &mut crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_367(recv: &crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::entities::Painting as core::clone::Clone>::clone(&*recv);
+        let r = <crate::entities::Painting as core::clone::Clone>::clone(recv);
         enc_crate__entities__Painting(&r, out);
         Ok(())
     }
 
     /// `entities::Painting.variant#get`
-    fn call_368(recv: &mut crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_368(recv: &crate::entities::Painting, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&**(&recv.variant), out);
         Ok(())
@@ -2144,7 +2144,7 @@ pub mod yoake_glue {
     }
 
     /// `entities::ItemCells.cells#get`
-    fn call_401(recv: &mut crate::entities::ItemCells, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_401(recv: &crate::entities::ItemCells, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.cells;
@@ -2172,7 +2172,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `entities::ObstacleGrid.cells#get`
-    fn call_403(recv: &mut crate::entities::ObstacleGrid, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_403(recv: &crate::entities::ObstacleGrid, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.cells;
@@ -2838,238 +2838,238 @@ pub mod yoake_glue {
     pub fn call(handle: u64, id: u32, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let start = out.len();
         let result = match id {
-            1 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_1(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            1 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_1(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_2(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            3 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_3(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            3 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_3(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             4 => Err(CallError::ReadOnly(id)),
-            5 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_5(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            5 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_5(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             6 => Err(CallError::ReadOnly(id)),
-            7 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_7(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            7 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_7(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             8 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_8(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            9 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_9(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            9 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_9(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             10 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_10(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            11 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_11(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            11 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_11(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             12 => Err(CallError::ReadOnly(id)),
-            13 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_13(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            13 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_13(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             14 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_14(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            15 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_15(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            15 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_15(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             16 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_16(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            17 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_17(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            17 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_17(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             18 => Err(CallError::ReadOnly(id)),
-            19 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_19(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            19 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_19(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             20 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_20(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            21 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_21(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            21 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_21(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             22 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_22(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            23 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_23(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            23 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_23(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             24 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_24(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            25 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_25(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            25 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_25(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             26 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_26(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            27 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_27(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            27 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_27(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             28 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_28(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            29 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_29(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            29 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_29(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             30 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_30(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            31 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_31(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            31 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_31(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             32 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_32(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            33 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_33(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            33 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_33(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             34 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_34(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            35 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_35(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            35 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_35(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             36 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_36(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            37 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_37(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            37 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_37(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             38 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_38(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            39 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_39(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            39 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_39(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             40 => Err(CallError::ReadOnly(id)),
-            41 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_41(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            41 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_41(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             42 => Err(CallError::ReadOnly(id)),
-            43 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_43(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            43 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_43(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             44 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_44(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            45 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_45(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            45 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_45(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             46 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_46(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            47 => activation::with_arg::<crate::entities::Cushion, _>(handle, |recv| call_47(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            47 => activation::with_arg_shared::<crate::entities::Cushion, _>(handle, |recv| call_47(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             48 => Err(CallError::ReadOnly(id)),
-            49 => activation::with_arg::<crate::entities::Cushion, _>(handle, |recv| call_49(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            49 => activation::with_arg_shared::<crate::entities::Cushion, _>(handle, |recv| call_49(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             50 => Err(CallError::ReadOnly(id)),
-            51 => activation::with_arg::<crate::entities::Cushion, _>(handle, |recv| call_51(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            51 => activation::with_arg_shared::<crate::entities::Cushion, _>(handle, |recv| call_51(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             52 => Err(CallError::ReadOnly(id)),
-            53 => activation::with_arg::<crate::entities::Cushion, _>(handle, |recv| call_53(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            53 => activation::with_arg_shared::<crate::entities::Cushion, _>(handle, |recv| call_53(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             54 => Err(CallError::ReadOnly(id)),
-            55 => activation::with_arg::<crate::entities::Cushion, _>(handle, |recv| call_55(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            55 => activation::with_arg_shared::<crate::entities::Cushion, _>(handle, |recv| call_55(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             56 => Err(CallError::ReadOnly(id)),
-            57 => activation::with_arg::<crate::entities::Cushion, _>(handle, |recv| call_57(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            57 => activation::with_arg_shared::<crate::entities::Cushion, _>(handle, |recv| call_57(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             58 => Err(CallError::ReadOnly(id)),
-            59 => activation::with_arg::<crate::entities::Experience, _>(handle, |recv| call_59(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            59 => activation::with_arg_shared::<crate::entities::Experience, _>(handle, |recv| call_59(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             60 => Err(CallError::ReadOnly(id)),
-            61 => activation::with_arg::<crate::entities::Experience, _>(handle, |recv| call_61(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            61 => activation::with_arg_shared::<crate::entities::Experience, _>(handle, |recv| call_61(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             62 => Err(CallError::ReadOnly(id)),
-            63 => activation::with_arg::<crate::entities::Experience, _>(handle, |recv| call_63(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            63 => activation::with_arg_shared::<crate::entities::Experience, _>(handle, |recv| call_63(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             64 => Err(CallError::ReadOnly(id)),
-            65 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_65(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            65 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_65(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             66 => Err(CallError::ReadOnly(id)),
-            67 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_67(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            67 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_67(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             68 => Err(CallError::ReadOnly(id)),
-            69 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_69(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            69 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_69(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             70 => Err(CallError::ReadOnly(id)),
-            71 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_71(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            71 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_71(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             72 => Err(CallError::ReadOnly(id)),
-            73 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_73(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            73 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_73(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             74 => Err(CallError::ReadOnly(id)),
-            75 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_75(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            75 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_75(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             76 => Err(CallError::ReadOnly(id)),
-            77 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_77(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            77 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_77(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             78 => Err(CallError::ReadOnly(id)),
-            79 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_79(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            79 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_79(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             80 => Err(CallError::ReadOnly(id)),
-            81 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_81(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            81 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_81(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             82 => Err(CallError::ReadOnly(id)),
-            83 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_83(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            83 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_83(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             84 => Err(CallError::ReadOnly(id)),
-            85 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_85(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            85 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_85(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             86 => Err(CallError::ReadOnly(id)),
-            87 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_87(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            87 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_87(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             88 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_88(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            89 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_89(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            89 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_89(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             90 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_90(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            91 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_91(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            91 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_91(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             92 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_92(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            93 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_93(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            93 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_93(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             94 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_94(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            95 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_95(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            95 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_95(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             96 => Err(CallError::ReadOnly(id)),
-            97 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_97(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            97 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_97(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             98 => Err(CallError::ReadOnly(id)),
-            99 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_99(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            99 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_99(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             100 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_100(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            101 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_101(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            101 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_101(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             102 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_102(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            103 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_103(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            103 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_103(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             104 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_104(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            105 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_105(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            105 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_105(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             106 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_106(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            107 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_107(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            107 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_107(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             108 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_108(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            109 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_109(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            109 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_109(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             110 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_110(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            111 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_111(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            111 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_111(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             112 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_112(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            113 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_113(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            113 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_113(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             114 => Err(CallError::ReadOnly(id)),
-            115 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_115(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            115 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_115(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             116 => Err(CallError::ReadOnly(id)),
-            117 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_117(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            117 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_117(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             118 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_118(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            119 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_119(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            119 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_119(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             120 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_120(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            121 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_121(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            121 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_121(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             122 => Err(CallError::ReadOnly(id)),
-            123 => activation::with_arg::<crate::entities::ItemEnvironmentTick, _>(handle, |recv| call_123(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            123 => activation::with_arg_shared::<crate::entities::ItemEnvironmentTick, _>(handle, |recv| call_123(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             124 => Err(CallError::ReadOnly(id)),
-            125 => activation::with_arg::<crate::entities::ItemEnvironmentTick, _>(handle, |recv| call_125(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            125 => activation::with_arg_shared::<crate::entities::ItemEnvironmentTick, _>(handle, |recv| call_125(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             126 => Err(CallError::ReadOnly(id)),
-            127 => activation::with_arg::<crate::entities::ItemFrame, _>(handle, |recv| call_127(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            127 => activation::with_arg_shared::<crate::entities::ItemFrame, _>(handle, |recv| call_127(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             128 => Err(CallError::ReadOnly(id)),
-            129 => activation::with_arg::<crate::entities::ItemFrame, _>(handle, |recv| call_129(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            129 => activation::with_arg_shared::<crate::entities::ItemFrame, _>(handle, |recv| call_129(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             130 => Err(CallError::ReadOnly(id)),
-            131 => activation::with_arg::<crate::entities::ItemFrame, _>(handle, |recv| call_131(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            131 => activation::with_arg_shared::<crate::entities::ItemFrame, _>(handle, |recv| call_131(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             132 => Err(CallError::ReadOnly(id)),
-            133 => activation::with_arg::<crate::entities::ItemFrame, _>(handle, |recv| call_133(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            133 => activation::with_arg_shared::<crate::entities::ItemFrame, _>(handle, |recv| call_133(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             134 => Err(CallError::ReadOnly(id)),
-            135 => activation::with_arg::<crate::entities::ItemFrame, _>(handle, |recv| call_135(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            135 => activation::with_arg_shared::<crate::entities::ItemFrame, _>(handle, |recv| call_135(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             136 => Err(CallError::ReadOnly(id)),
-            137 => activation::with_arg::<crate::entities::ItemFrame, _>(handle, |recv| call_137(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            137 => activation::with_arg_shared::<crate::entities::ItemFrame, _>(handle, |recv| call_137(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             138 => Err(CallError::ReadOnly(id)),
-            139 => activation::with_arg::<crate::entities::ItemFrame, _>(handle, |recv| call_139(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            139 => activation::with_arg_shared::<crate::entities::ItemFrame, _>(handle, |recv| call_139(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             140 => Err(CallError::ReadOnly(id)),
-            141 => activation::with_arg::<crate::entities::ItemFrame, _>(handle, |recv| call_141(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            141 => activation::with_arg_shared::<crate::entities::ItemFrame, _>(handle, |recv| call_141(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             142 => Err(CallError::ReadOnly(id)),
-            143 => activation::with_arg::<crate::entities::ItemFrame, _>(handle, |recv| call_143(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            143 => activation::with_arg_shared::<crate::entities::ItemFrame, _>(handle, |recv| call_143(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             144 => Err(CallError::ReadOnly(id)),
-            145 => activation::with_arg::<crate::entities::ItemStep, _>(handle, |recv| call_145(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            145 => activation::with_arg_shared::<crate::entities::ItemStep, _>(handle, |recv| call_145(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             146 => Err(CallError::ReadOnly(id)),
-            147 => activation::with_arg::<crate::entities::ItemStep, _>(handle, |recv| call_147(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            147 => activation::with_arg_shared::<crate::entities::ItemStep, _>(handle, |recv| call_147(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             148 => Err(CallError::ReadOnly(id)),
-            149 => activation::with_arg::<crate::entities::Painting, _>(handle, |recv| call_149(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            149 => activation::with_arg_shared::<crate::entities::Painting, _>(handle, |recv| call_149(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             150 => Err(CallError::ReadOnly(id)),
-            151 => activation::with_arg::<crate::entities::Painting, _>(handle, |recv| call_151(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            151 => activation::with_arg_shared::<crate::entities::Painting, _>(handle, |recv| call_151(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             152 => Err(CallError::ReadOnly(id)),
-            153 => activation::with_arg::<crate::entities::Painting, _>(handle, |recv| call_153(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            153 => activation::with_arg_shared::<crate::entities::Painting, _>(handle, |recv| call_153(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             154 => Err(CallError::ReadOnly(id)),
-            155 => activation::with_arg::<crate::entities::Painting, _>(handle, |recv| call_155(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            155 => activation::with_arg_shared::<crate::entities::Painting, _>(handle, |recv| call_155(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             156 => Err(CallError::ReadOnly(id)),
-            157 => activation::with_arg::<crate::entities::Painting, _>(handle, |recv| call_157(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            157 => activation::with_arg_shared::<crate::entities::Painting, _>(handle, |recv| call_157(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             158 => Err(CallError::ReadOnly(id)),
-            159 => activation::with_arg::<crate::entities::Painting, _>(handle, |recv| call_159(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            159 => activation::with_arg_shared::<crate::entities::Painting, _>(handle, |recv| call_159(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             160 => Err(CallError::ReadOnly(id)),
-            161 => activation::with_arg::<crate::entities::StandStep, _>(handle, |recv| call_161(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            161 => activation::with_arg_shared::<crate::entities::StandStep, _>(handle, |recv| call_161(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             162 => Err(CallError::ReadOnly(id)),
-            163 => activation::with_arg::<crate::entities::StandStep, _>(handle, |recv| call_163(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            163 => activation::with_arg_shared::<crate::entities::StandStep, _>(handle, |recv| call_163(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             164 => Err(CallError::ReadOnly(id)),
             165 => call_165(args, out),
             166 => call_166(args, out),
             167 => call_167(args, out),
             168 => call_168(args, out),
-            297 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_297(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            298 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_298(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            299 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_299(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            300 => activation::with_arg::<crate::entities::Cushion, _>(handle, |recv| call_300(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            301 => activation::with_arg::<crate::entities::Experience, _>(handle, |recv| call_301(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            297 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_297(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            298 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_298(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            299 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_299(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            300 => activation::with_arg_shared::<crate::entities::Cushion, _>(handle, |recv| call_300(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            301 => activation::with_arg_shared::<crate::entities::Experience, _>(handle, |recv| call_301(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             302 => call_302(args, out),
             303 => call_303(args, out),
-            304 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_304(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            305 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_305(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            306 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_306(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            307 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_307(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            308 => activation::with_arg::<crate::entities::ItemStep, _>(handle, |recv| call_308(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            309 => activation::with_arg::<crate::entities::StandMedium, _>(handle, |recv| call_309(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            310 => activation::with_arg::<crate::entities::StandMedium, _>(handle, |recv| call_310(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            311 => activation::with_arg::<crate::entities::StandStep, _>(handle, |recv| call_311(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            312 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_312(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            304 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_304(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            305 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_305(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            306 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_306(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            307 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_307(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            308 => activation::with_arg_shared::<crate::entities::ItemStep, _>(handle, |recv| call_308(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            309 => activation::with_arg_shared::<crate::entities::StandMedium, _>(handle, |recv| call_309(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            310 => activation::with_arg_shared::<crate::entities::StandMedium, _>(handle, |recv| call_310(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            311 => activation::with_arg_shared::<crate::entities::StandStep, _>(handle, |recv| call_311(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            312 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_312(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             313 => call_313(args, out),
             314 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_314(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            315 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_315(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            316 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_316(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            317 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_317(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            315 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_315(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            316 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_316(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            317 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_317(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             318 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_318(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            319 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_319(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            319 => activation::with_arg_shared::<crate::entities::ArmorStand, _>(handle, |recv| call_319(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             320 => activation::with_arg::<crate::entities::ArmorStand, _>(handle, |recv| call_320(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            321 => activation::with_arg::<crate::entities::Cushion, _>(handle, |recv| call_321(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            322 => activation::with_arg::<crate::entities::Cushion, _>(handle, |recv| call_322(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            323 => activation::with_arg::<crate::entities::Cushion, _>(handle, |recv| call_323(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            324 => activation::with_arg::<crate::entities::Cushion, _>(handle, |recv| call_324(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            325 => activation::with_arg::<crate::entities::Cushion, _>(handle, |recv| call_325(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            326 => activation::with_arg::<crate::entities::Experience, _>(handle, |recv| call_326(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            321 => activation::with_arg_shared::<crate::entities::Cushion, _>(handle, |recv| call_321(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            322 => activation::with_arg_shared::<crate::entities::Cushion, _>(handle, |recv| call_322(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            323 => activation::with_arg_shared::<crate::entities::Cushion, _>(handle, |recv| call_323(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            324 => activation::with_arg_shared::<crate::entities::Cushion, _>(handle, |recv| call_324(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            325 => activation::with_arg_shared::<crate::entities::Cushion, _>(handle, |recv| call_325(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            326 => activation::with_arg_shared::<crate::entities::Experience, _>(handle, |recv| call_326(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             327 => activation::with_arg::<crate::entities::Experience, _>(handle, |recv| call_327(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             328 => call_328(args, out),
             329 => activation::with_arg::<crate::entities::Experience, _>(handle, |recv| call_329(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            330 => activation::with_arg::<crate::entities::Experience, _>(handle, |recv| call_330(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            331 => activation::with_arg::<crate::entities::Experience, _>(handle, |recv| call_331(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            332 => activation::with_arg::<crate::entities::Experience, _>(handle, |recv| call_332(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            333 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_333(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            330 => activation::with_arg_shared::<crate::entities::Experience, _>(handle, |recv| call_330(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            331 => activation::with_arg_shared::<crate::entities::Experience, _>(handle, |recv| call_331(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            332 => activation::with_arg_shared::<crate::entities::Experience, _>(handle, |recv| call_332(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            333 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_333(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             334 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_334(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            335 => activation::with_arg::<crate::entities::ExperienceOrb, _>(handle, |recv| call_335(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            335 => activation::with_arg_shared::<crate::entities::ExperienceOrb, _>(handle, |recv| call_335(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             336 => call_336(args, out),
             337 => activation::with_arg::<crate::entities::ItemCells, _>(handle, |recv| call_337(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             338 => call_338(args, out),
             339 => activation::with_arg::<crate::entities::ItemCells, _>(handle, |recv| call_339(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             340 => activation::with_arg::<crate::entities::ItemCells, _>(handle, |recv| call_340(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            341 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_341(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            341 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_341(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             342 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_342(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            343 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_343(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            343 => activation::with_arg_shared::<crate::entities::ItemEntity, _>(handle, |recv| call_343(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             344 => activation::with_arg::<crate::entities::ItemEntity, _>(handle, |recv| call_344(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            345 => activation::with_arg::<crate::entities::ItemEnvironmentTick, _>(handle, |recv| call_345(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            346 => activation::with_arg::<crate::entities::ItemFrame, _>(handle, |recv| call_346(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            347 => activation::with_arg::<crate::entities::ItemFrame, _>(handle, |recv| call_347(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            348 => activation::with_arg::<crate::entities::ItemFrame, _>(handle, |recv| call_348(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            349 => activation::with_arg::<crate::entities::ObstacleGrid, _>(handle, |recv| call_349(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            350 => activation::with_arg::<crate::entities::Painting, _>(handle, |recv| call_350(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            351 => activation::with_arg::<crate::entities::Painting, _>(handle, |recv| call_351(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            352 => activation::with_arg::<crate::entities::Painting, _>(handle, |recv| call_352(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            345 => activation::with_arg_shared::<crate::entities::ItemEnvironmentTick, _>(handle, |recv| call_345(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            346 => activation::with_arg_shared::<crate::entities::ItemFrame, _>(handle, |recv| call_346(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            347 => activation::with_arg_shared::<crate::entities::ItemFrame, _>(handle, |recv| call_347(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            348 => activation::with_arg_shared::<crate::entities::ItemFrame, _>(handle, |recv| call_348(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            349 => activation::with_arg_shared::<crate::entities::ObstacleGrid, _>(handle, |recv| call_349(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            350 => activation::with_arg_shared::<crate::entities::Painting, _>(handle, |recv| call_350(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            351 => activation::with_arg_shared::<crate::entities::Painting, _>(handle, |recv| call_351(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            352 => activation::with_arg_shared::<crate::entities::Painting, _>(handle, |recv| call_352(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             353 => call_353(args, out),
-            367 => activation::with_arg::<crate::entities::Painting, _>(handle, |recv| call_367(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            368 => activation::with_arg::<crate::entities::Painting, _>(handle, |recv| call_368(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            367 => activation::with_arg_shared::<crate::entities::Painting, _>(handle, |recv| call_367(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            368 => activation::with_arg_shared::<crate::entities::Painting, _>(handle, |recv| call_368(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             369 => Err(CallError::ReadOnly(id)),
             400 => call_400(args, out),
-            401 => activation::with_arg::<crate::entities::ItemCells, _>(handle, |recv| call_401(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            401 => activation::with_arg_shared::<crate::entities::ItemCells, _>(handle, |recv| call_401(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             402 => Err(CallError::ReadOnly(id)),
-            403 => activation::with_arg::<crate::entities::ObstacleGrid, _>(handle, |recv| call_403(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            403 => activation::with_arg_shared::<crate::entities::ObstacleGrid, _>(handle, |recv| call_403(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             404 => Err(CallError::ReadOnly(id)),
             405 => call_405(args, out),
             _ => Err(CallError::UnknownBinding(id)),

@@ -36,6 +36,11 @@ pub const VANILLA_LEVELS: [&str; 3] = [
     "minecraft:the_end",
 ];
 
+/// The side file of the levels created while a world runs.
+pub const STORED_LEVELS: &str = "yoake_levels.json";
+/// Where ephemeral levels save, inside the world folder; wiped when the world opens.
+pub const EPHEMERAL_DIR: &str = "yoake_temp";
+
 /// Where a level comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LevelSource {
@@ -47,6 +52,9 @@ pub enum LevelSource {
     Pack,
     /// Registered by a mod through [`LevelRegistry::register_level`].
     Mod,
+    /// Created while the server runs ([`LevelRegistry::create_level`]); a persistent one is
+    /// listed in `data/yoake_levels.json` and comes back when the world opens.
+    Created,
 }
 
 /// One level of a world.
@@ -64,6 +72,17 @@ pub struct LevelEntry {
     pub stem: Option<LevelStem>,
     pub dimension_type: DimensionType,
     pub shape: LevelShape,
+    /// The generator's sea level (the `sea_level` of the noise settings the
+    /// stem names; superflat and debug have their own), for a level past
+    /// the vanilla three. `None` when the generator has none (a type's
+    /// ceiling decides then).
+    pub sea_level: Option<i32>,
+    /// A created level that saves nothing in the world folder: its chunks live under
+    /// `yoake_temp/` and go with the level, or the next time the world opens.
+    pub ephemeral: bool,
+    /// The level's own seed (`"seed"` in its stem; a Yoake extension), `None` for the world's,
+    /// which is what every level has in vanilla.
+    pub seed: Option<i64>,
 }
 
 /// A level after the vanilla three, as the network side sees it (F3-4).
@@ -73,6 +92,8 @@ pub struct NetLevel {
     /// The `minecraft:dimension_type` entry the level uses.
     pub type_name: String,
     pub shape: LevelShape,
+    /// The generator's sea level (the client's `SpawnInfo.sea_level`).
+    pub sea_level: i32,
     /// The type's data, sent to clients that do not know the entry.
     pub type_json: Value,
 }
@@ -90,6 +111,12 @@ pub enum LevelError {
     Unsupported { id: String, reason: String },
     /// A stem needs the biome catalog and none is available.
     NoCatalog(String),
+    /// No such level in this world.
+    Unknown(String),
+    /// One of the three vanilla levels.
+    Vanilla(String),
+    /// A level of a data pack, the save or a mod: not the registry's to remove.
+    NotCreated(String),
 }
 impl fmt::Display for LevelError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -99,6 +126,12 @@ impl fmt::Display for LevelError {
             Self::BadId { id, reason } => write!(f, "level id `{id}` is not usable: {reason}"),
             Self::Stem { id, error } => write!(f, "level stem `{id}`: {error}"),
             Self::Unsupported { id, reason } => write!(f, "level `{id}`: {reason}"),
+            Self::Unknown(id) => write!(f, "level `{id}` is not one of this world's levels"),
+            Self::Vanilla(id) => write!(f, "`{id}` is one of the three vanilla levels"),
+            Self::NotCreated(id) => write!(
+                f,
+                "level `{id}` comes from a data pack, the save or a mod, not from level creation"
+            ),
             Self::NoCatalog(id) => write!(
                 f,
                 "level stem `{id}` cannot be checked: the worldgen data is not available"
@@ -124,6 +157,8 @@ pub struct LevelRegistry {
     entries: Vec<LevelEntry>,
     problems: Vec<LevelProblem>,
     frozen: bool,
+    /// The `sea_level` of each noise settings entry, by id (the prepared data's, then the packs').
+    noise_sea: BTreeMap<String, i32>,
 }
 
 impl Default for LevelRegistry {
@@ -200,6 +235,67 @@ pub fn prepared_dimension_types(resources: &Path) -> BTreeMap<String, String> {
     out
 }
 
+/// The `sea_level` of every noise settings entry, by id: the prepared data's
+/// (`<resources>/data/minecraft/worldgen/noise_settings`), the packs' over it.
+pub fn noise_sea_levels(resources: &Path, overrides: &WorldgenOverrides) -> BTreeMap<String, i32> {
+    let mut out = BTreeMap::new();
+    let sea = |text: &str| {
+        serde_json::from_str::<Value>(text)
+            .ok()?
+            .get("sea_level")?
+            .as_i64()
+            .and_then(|n| i32::try_from(n).ok())
+    };
+    if let Ok(read) = std::fs::read_dir(resources.join("data/minecraft/worldgen/noise_settings")) {
+        for entry in read.flatten() {
+            let path = entry.path();
+            if path.extension().is_none_or(|e| e != "json") {
+                continue;
+            }
+            if let (Some(stem), Ok(text)) = (
+                path.file_stem().and_then(|s| s.to_str()),
+                std::fs::read_to_string(&path),
+            ) && let Some(n) = sea(&text)
+            {
+                out.insert(format!("minecraft:{stem}"), n);
+            }
+        }
+    }
+    for (id, text) in overrides.entries("settings") {
+        if let Some(n) = sea(text) {
+            out.insert(id.to_owned(), n);
+        }
+    }
+    out
+}
+
+/// The sea level a generator gives its level: the noise settings' `sea_level`,
+/// superflat's -63 and the debug world's 63 (`ChunkGenerator.getSeaLevel`).
+fn generator_sea_level(generator: &GeneratorSpec, noise_sea: &BTreeMap<String, i32>) -> Option<i32> {
+    match generator {
+        GeneratorSpec::Noise { settings, .. } => match settings {
+            horizon_world::dimension::SettingsRef::Id(id) => noise_sea.get(id).copied(),
+            horizon_world::dimension::SettingsRef::Inline(v) => v
+                .get("sea_level")
+                .and_then(Value::as_i64)
+                .and_then(|n| i32::try_from(n).ok()),
+        },
+        GeneratorSpec::Flat(_) => Some(-63),
+        GeneratorSpec::Debug => Some(63),
+        GeneratorSpec::Mod { .. } => None,
+    }
+}
+
+/// The `seed` a stem gives its level, when it does (a number, or a numeric string as vanilla's
+/// seed fields allow).
+fn json_seed(stem: &Value) -> Option<i64> {
+    match stem.get("seed")? {
+        Value::Number(n) => n.as_i64(),
+        Value::String(s) => s.parse().ok(),
+        _ => None,
+    }
+}
+
 /// What a registry is built from.
 pub struct LevelInputs<'a> {
     /// The prepared dimension type files, by id (`prepared_dimension_types`).
@@ -212,6 +308,8 @@ pub struct LevelInputs<'a> {
     pub vanilla_shapes: LevelShapes,
     /// Needed only to decode non-vanilla stems.
     pub catalog: Option<&'a BiomeSourceCatalog>,
+    /// `noise_sea_levels`.
+    pub noise_sea: BTreeMap<String, i32>,
 }
 
 impl LevelRegistry {
@@ -219,6 +317,7 @@ impl LevelRegistry {
     /// world with no packs, no mods and no extra stems is.
     pub fn vanilla() -> Self {
         Self::build(LevelInputs {
+            noise_sea: Default::default(),
             prepared_types: BTreeMap::new(),
             overrides: &WorldgenOverrides::default(),
             saved_stems: BTreeMap::new(),
@@ -266,6 +365,7 @@ impl LevelRegistry {
         catalog: Option<&BiomeSourceCatalog>,
     ) -> Self {
         Self::build(LevelInputs {
+            noise_sea: noise_sea_levels(resources, overrides),
             prepared_types: prepared_dimension_types(resources),
             overrides,
             saved_stems: Self::saved_stems(world),
@@ -294,6 +394,7 @@ impl LevelRegistry {
                 })
                 .collect(),
             frozen: false,
+            noise_sea: inputs.noise_sea,
         };
         // Stems by id: saved, then packs over them.
         let mut stems: BTreeMap<String, (Value, LevelSource)> = inputs
@@ -351,6 +452,9 @@ impl LevelRegistry {
                 stem,
                 dimension_type,
                 shape: inputs.vanilla_shapes.get(id),
+                sea_level: None,
+                ephemeral: false,
+                seed: None,
             });
         }
         // The others.
@@ -392,16 +496,8 @@ impl LevelRegistry {
                 error,
             })?
             .clone();
-        // Superflat and debug generators are built for the Overworld only
-        // until F3-5 builds a generator for every level.
-        if !matches!(stem.generator, GeneratorSpec::Noise { .. }) {
-            return Err(LevelError::Unsupported {
-                id: id.to_owned(),
-                reason: "only noise generators run outside the three vanilla levels for now \
-                         (flat and debug generators for any level come with F3-5)"
-                    .to_owned(),
-            });
-        }
+        // Noise, superflat, debug and mod generators all run in any level (F3-5); a mod's is
+        // looked up when the level opens, since mods register after the world is read.
         let shape = shape_of(&dimension_type).map_err(|reason| LevelError::Unsupported {
             id: id.to_owned(),
             reason: format!("its dimension type's shape is refused: {reason}"),
@@ -409,9 +505,11 @@ impl LevelRegistry {
         // The generator resolves the stem's type by id from the packs' data;
         // a type only the registry knows (a mod's) is written into the stem.
         let mut stem_json = json;
-        if matches!(stem.dimension_type, TypeRef::Id(_)) && from == LevelSource::Mod {
+        if matches!(stem.dimension_type, TypeRef::Id(_)) && matches!(from, LevelSource::Mod | LevelSource::Created) {
             stem_json["type"] = dimension_type.to_value();
         }
+        let sea_level = generator_sea_level(&stem.generator, &self.noise_sea);
+        let seed = json_seed(&stem_json);
         Ok(LevelEntry {
             id: id.to_owned(),
             source: from,
@@ -420,6 +518,9 @@ impl LevelRegistry {
             stem: Some(stem),
             dimension_type,
             shape,
+            sea_level,
+            ephemeral: false,
+            seed,
         })
     }
 
@@ -457,6 +558,137 @@ impl LevelRegistry {
         let entry = self.make_entry(id, stem, LevelSource::Mod, Some(catalog))?;
         self.entries.push(entry);
         Ok(self.entries.last().expect("pushed"))
+    }
+
+    /// Creates a level while the server runs (F3-6): the same stem rules as a mod's, no freeze.
+    /// `ephemeral` levels save under `yoake_temp/` and are not listed for the next time the
+    /// world opens.
+    pub fn create_level(
+        &mut self,
+        id: &str,
+        stem: Value,
+        catalog: &BiomeSourceCatalog,
+        ephemeral: bool,
+    ) -> Result<&LevelEntry, LevelError> {
+        if self.contains(id) {
+            return Err(LevelError::Duplicate(id.to_owned()));
+        }
+        let mut entry = self.make_entry(id, stem, LevelSource::Created, Some(catalog))?;
+        entry.ephemeral = ephemeral;
+        self.entries.push(entry);
+        Ok(self.entries.last().expect("pushed"))
+    }
+
+    /// The seed the level generates with: its own, else `world_seed`.
+    pub fn seed(&self, id: &str, world_seed: i64) -> i64 {
+        self.get(id).and_then(|e| e.seed).unwrap_or(world_seed)
+    }
+
+    /// Gives a created level a new seed (or the world's again with `None`), in its stem too, so
+    /// the side file keeps it (F3-7). Only created levels change; the others come from data.
+    pub fn set_seed(&mut self, id: &str, seed: Option<i64>) -> Result<(), LevelError> {
+        let Some(entry) = self.entries.iter_mut().find(|e| e.id == id) else {
+            return Err(LevelError::Unknown(id.to_owned()));
+        };
+        match entry.source {
+            LevelSource::Vanilla => return Err(LevelError::Vanilla(id.to_owned())),
+            LevelSource::Created => {}
+            _ => return Err(LevelError::NotCreated(id.to_owned())),
+        }
+        entry.seed = seed;
+        if let Some(Value::Object(stem)) = entry.stem_json.as_mut() {
+            match seed {
+                Some(s) => stem.insert("seed".into(), Value::from(s)),
+                None => stem.remove("seed"),
+            };
+        }
+        Ok(())
+    }
+
+    /// Takes a created level out of the registry (F3-6). The caller has closed it and cleared
+    /// its files; vanilla levels and levels of packs, the save or mods are not removable.
+    pub fn remove_level(&mut self, id: &str) -> Result<LevelEntry, LevelError> {
+        let Some(index) = self.entries.iter().position(|e| e.id == id) else {
+            return Err(LevelError::Unknown(id.to_owned()));
+        };
+        match self.entries[index].source {
+            LevelSource::Vanilla => Err(LevelError::Vanilla(id.to_owned())),
+            LevelSource::Created => Ok(self.entries.remove(index)),
+            _ => Err(LevelError::NotCreated(id.to_owned())),
+        }
+    }
+
+    /// The levels created in an earlier session: `data/yoake_levels.json` (absent when there are
+    /// none, so a vanilla save is unchanged), as (id, stem).
+    pub fn stored_levels(world: &Path) -> Vec<(String, Value)> {
+        let Ok(text) = std::fs::read_to_string(world.join("data").join(STORED_LEVELS)) else {
+            return Vec::new();
+        };
+        let Ok(json) = serde_json::from_str::<Value>(&text) else {
+            log::warn!("Horizon: {STORED_LEVELS} is not valid JSON; its levels are not restored");
+            return Vec::new();
+        };
+        json["levels"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|l| Some((l["id"].as_str()?.to_owned(), l["stem"].clone())))
+            .collect()
+    }
+
+    /// Writes the persistent created levels to `data/yoake_levels.json`, or removes the file when
+    /// there are none.
+    pub fn write_created(&self, world: &Path) -> std::io::Result<()> {
+        let levels: Vec<Value> = self
+            .entries
+            .iter()
+            .filter(|e| e.source == LevelSource::Created && !e.ephemeral)
+            .filter_map(|e| {
+                Some(serde_json::json!({"id": e.id, "stem": e.stem_json.clone()?}))
+            })
+            .collect();
+        let path = world.join("data").join(STORED_LEVELS);
+        if levels.is_empty() {
+            return match std::fs::remove_file(&path) {
+                Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+                _ => Ok(()),
+            };
+        }
+        std::fs::create_dir_all(path.parent().expect("a data folder"))?;
+        std::fs::write(
+            path,
+            serde_json::to_string_pretty(&serde_json::json!({"version": 1, "levels": levels}))
+                .expect("json"),
+        )
+    }
+
+    /// Puts the levels of an earlier session (`stored`, created levels) and the levels mods
+    /// staged (`staged`) into a registry being built for a world (F3-6); a stem that does not
+    /// validate is reported and left out.
+    pub fn restore_levels(
+        &mut self,
+        stored: Vec<(String, Value)>,
+        staged: Vec<(String, Value)>,
+        catalog: Option<&BiomeSourceCatalog>,
+    ) {
+        for (id, stem) in stored {
+            let result = match catalog {
+                Some(catalog) => self.create_level(&id, stem, catalog, false).map(|_| ()),
+                None => Err(LevelError::NoCatalog(id.clone())),
+            };
+            if let Err(e) = result {
+                self.problems.push(LevelProblem { id, message: e.to_string() });
+            }
+        }
+        for (id, stem) in staged {
+            let result = match catalog {
+                Some(catalog) => self.register_level(&id, stem, catalog).map(|_| ()),
+                None => Err(LevelError::NoCatalog(id.clone())),
+            };
+            if let Err(e) = result {
+                self.problems.push(LevelProblem { id, message: e.to_string() });
+            }
+        }
     }
 
     /// From now on the registry takes no more levels (the first server tick).
@@ -513,12 +745,17 @@ impl LevelRegistry {
                     _ => e.id.clone(),
                 },
                 shape: e.shape,
+                sea_level: e.sea_level.unwrap_or(if e.dimension_type.has_ceiling { 32 } else { 63 }),
                 type_json: e.dimension_type.to_value(),
             })
             .collect()
     }
     /// The level's save folder inside the world.
     pub fn save_dir(&self, world: &Path, id: &str) -> PathBuf {
+        if self.get(id).is_some_and(|e| e.ephemeral) {
+            let (ns, path) = id.split_once(':').unwrap_or(("minecraft", id));
+            return world.join(EPHEMERAL_DIR).join(ns).join(path);
+        }
         crate::save::dimension_dir(world, id)
     }
 }
@@ -565,6 +802,7 @@ mod tests {
     fn build(o: &WorldgenOverrides, saved: &[(&str, Value)]) -> LevelRegistry {
         let cat = catalog();
         LevelRegistry::build(LevelInputs {
+            noise_sea: Default::default(),
             prepared_types: BTreeMap::new(),
             overrides: o,
             saved_stems: saved.iter().map(|(k, v)| (k.to_string(), v.clone())).collect(),
@@ -609,6 +847,148 @@ mod tests {
             reg.save_dir(world, "mypack:moon"),
             reg.save_dir(world, "minecraft:overworld")
         );
+    }
+
+    /// The sea level is the generator's: the named noise settings', an inline one's, else the type's rule.
+    /// F3-6: levels created while the server runs: no freeze, their own save dir, listed in
+    /// `data/yoake_levels.json` unless ephemeral, and removable only when created.
+    #[test]
+    fn created_levels_persist_restore_and_are_removable() {
+        let cat = catalog();
+        let mut reg = LevelRegistry::vanilla();
+        reg.freeze();
+        assert_eq!(reg.register_level("a:late", grid_stem("minecraft:overworld"), &cat).unwrap_err(), LevelError::Frozen);
+        let world = std::env::temp_dir().join(format!("hz-f36-reg-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&world);
+        reg.create_level("a:kept", grid_stem("minecraft:overworld"), &cat, false).expect("no freeze");
+        reg.create_level("a:temp", grid_stem("minecraft:overworld"), &cat, true).unwrap();
+        assert_eq!(
+            reg.create_level("a:kept", grid_stem("minecraft:overworld"), &cat, false).unwrap_err(),
+            LevelError::Duplicate("a:kept".into())
+        );
+        assert_eq!(reg.get("a:kept").unwrap().source, LevelSource::Created);
+        assert_eq!(reg.save_dir(&world, "a:kept"), world.join("dimensions").join("a").join("kept"));
+        assert_eq!(reg.save_dir(&world, "a:temp"), world.join(EPHEMERAL_DIR).join("a").join("temp"));
+        // Only the persistent one is written; vanilla saves have no such file.
+        assert!(LevelRegistry::stored_levels(&world).is_empty());
+        reg.write_created(&world).unwrap();
+        let stored = LevelRegistry::stored_levels(&world);
+        assert_eq!(stored.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>(), ["a:kept"]);
+        // The next session restores it (and reports a stem it cannot), beside the staged ones.
+        let mut next = LevelRegistry::vanilla();
+        let mut broken = stored.clone();
+        broken.push(("a:broken".into(), serde_json::json!({"type": "nope:missing"})));
+        next.restore_levels(broken, vec![("a:staged".into(), grid_stem("minecraft:overworld"))], Some(&cat));
+        assert_eq!(next.get("a:kept").unwrap().source, LevelSource::Created);
+        assert_eq!(next.get("a:staged").unwrap().source, LevelSource::Mod);
+        assert!(!next.contains("a:broken") && next.problems().iter().any(|p| p.id == "a:broken"));
+        // Removal: vanilla, mod and unknown levels are refused; a created one goes.
+        assert_eq!(next.remove_level("minecraft:the_end").unwrap_err(), LevelError::Vanilla("minecraft:the_end".into()));
+        assert_eq!(next.remove_level("a:staged").unwrap_err(), LevelError::NotCreated("a:staged".into()));
+        assert_eq!(next.remove_level("a:nope").unwrap_err(), LevelError::Unknown("a:nope".into()));
+        next.remove_level("a:kept").unwrap();
+        next.write_created(&world).unwrap();
+        assert!(!world.join("data").join(STORED_LEVELS).exists(), "the file goes with the last level");
+        let _ = std::fs::remove_dir_all(&world);
+    }
+
+    /// F3-7: a level's stem may carry its own seed; otherwise it generates with the world's.
+    #[test]
+    fn a_level_may_have_its_own_seed() {
+        let cat = catalog();
+        let mut reg = LevelRegistry::vanilla();
+        let mut stem = grid_stem("minecraft:overworld");
+        stem["seed"] = serde_json::json!(-77);
+        reg.create_level("a:seeded", stem, &cat, false).unwrap();
+        let mut text = grid_stem("minecraft:overworld");
+        text["seed"] = serde_json::json!("123");
+        reg.create_level("a:text", text, &cat, false).unwrap();
+        reg.create_level("a:plain", grid_stem("minecraft:overworld"), &cat, false).unwrap();
+        assert_eq!(reg.seed("a:seeded", 5), -77);
+        assert_eq!(reg.seed("a:text", 5), 123);
+        assert_eq!(reg.seed("a:plain", 5), 5);
+        assert_eq!(reg.seed("minecraft:overworld", 5), 5, "vanilla levels use the world's seed");
+        // A created level's seed changes and is kept in its stem (for the side file); the rest do not.
+        reg.set_seed("a:plain", Some(9)).unwrap();
+        assert_eq!(reg.seed("a:plain", 5), 9);
+        assert_eq!(reg.generator_stem("a:plain").unwrap()["seed"], 9);
+        reg.set_seed("a:plain", None).unwrap();
+        assert_eq!(reg.seed("a:plain", 5), 5);
+        assert!(reg.generator_stem("a:plain").unwrap().get("seed").is_none());
+        assert_eq!(reg.set_seed("minecraft:the_end", Some(1)).unwrap_err(), LevelError::Vanilla("minecraft:the_end".into()));
+        assert_eq!(reg.set_seed("a:none", Some(1)).unwrap_err(), LevelError::Unknown("a:none".into()));
+        let mut o = LevelRegistry::vanilla();
+        o.register_level("a:mod", grid_stem("minecraft:overworld"), &cat).unwrap();
+        assert_eq!(o.set_seed("a:mod", Some(1)).unwrap_err(), LevelError::NotCreated("a:mod".into()));
+    }
+
+    /// F3-5: superflat, debug, mod and every biome-source variant are levels of their own.
+    #[test]
+    fn flat_debug_mod_and_checkerboard_stems_are_levels() {
+        let with = |generator: Value| {
+            let mut s = grid_stem("minecraft:overworld");
+            s["generator"] = generator;
+            s
+        };
+        let o = overrides_with(
+            &[
+                ("a:flat", with(serde_json::json!({"type":"minecraft:flat","settings":{"biome":"minecraft:plains","layers":[{"block":"minecraft:stone","height":3}]}}))),
+                ("a:debug", with(serde_json::json!({"type":"minecraft:debug"}))),
+                ("a:mod", with(serde_json::json!({"type":"yoake:mod","id":"mymod:floor","settings":{"depth":3}}))),
+                ("a:checker", with(serde_json::json!({"type":"minecraft:noise","settings":"minecraft:overworld",
+                    "biome_source":{"type":"minecraft:checkerboard","biomes":["minecraft:plains","minecraft:desert"],"scale":2}}))),
+                ("a:fixed", with(serde_json::json!({"type":"minecraft:noise","settings":"minecraft:overworld",
+                    "biome_source":{"type":"minecraft:fixed","biome":"minecraft:desert"}}))),
+                ("a:no_mod_id", with(serde_json::json!({"type":"yoake:mod"}))),
+                ("a:bad_mod_id", with(serde_json::json!({"type":"yoake:mod","id":"nocolon"}))),
+            ],
+            &[],
+        );
+        let reg = build(&o, &[]);
+        let ids: Vec<_> = reg.ids().skip(3).collect();
+        assert_eq!(ids, ["a:checker", "a:debug", "a:fixed", "a:flat", "a:mod"], "{:?}", reg.problems());
+        let sea = |id: &str| reg.get(id).unwrap().sea_level;
+        assert_eq!((sea("a:flat"), sea("a:debug"), sea("a:mod")), (Some(-63), Some(63), None));
+        let problems: Vec<_> = reg.problems().iter().map(|p| p.id.as_str()).collect();
+        assert_eq!(problems, ["a:bad_mod_id", "a:no_mod_id"]);
+        // The stem a mod level has survives as the generator reads it.
+        let stem = reg.generator_stem("a:mod").unwrap();
+        assert_eq!(stem["generator"]["id"], "mymod:floor");
+    }
+
+    #[test]
+    fn the_sea_level_comes_from_the_generators_noise_settings() {
+        let stem = |settings: Value| {
+            let mut s = grid_stem("minecraft:overworld");
+            s["generator"]["settings"] = settings;
+            s
+        };
+        let o = overrides_with(
+            &[
+                ("mypack:named", stem(serde_json::json!("mypack:shallow"))),
+                ("mypack:inline", stem(serde_json::json!({"sea_level": 20}))),
+                ("mypack:unknown", stem(serde_json::json!("mypack:nowhere"))),
+            ],
+            &[],
+        );
+        let cat = catalog();
+        let reg = LevelRegistry::build(LevelInputs {
+            noise_sea: BTreeMap::from([("mypack:shallow".to_owned(), 40)]),
+            prepared_types: BTreeMap::new(),
+            overrides: &o,
+            saved_stems: BTreeMap::new(),
+            vanilla_shapes: LevelShapes::VANILLA,
+            catalog: Some(&cat),
+        });
+        assert_eq!(reg.problems(), &[]);
+        let sea = |id: &str| reg.get(id).unwrap().sea_level;
+        assert_eq!(sea("mypack:named"), Some(40));
+        assert_eq!(sea("mypack:inline"), Some(20));
+        assert_eq!(sea("mypack:unknown"), None);
+        assert_eq!(sea("minecraft:overworld"), None, "the vanilla levels keep their own");
+        let net: Vec<_> = reg.network_levels().iter().map(|l| (l.id.clone(), l.sea_level)).collect();
+        assert!(net.contains(&("mypack:named".to_owned(), 40)));
+        assert!(net.contains(&("mypack:unknown".to_owned(), 63)), "the ceiling rule when the generator has none");
     }
 
     #[test]
@@ -665,14 +1045,11 @@ mod tests {
         no_type.as_object_mut().unwrap().remove("type");
         let mut bad_grid = grid_stem("minecraft:overworld");
         bad_grid["generator"]["biome_source"]["cells"] = serde_json::json!(["minecraft:plains"]);
-        let mut flat = grid_stem("minecraft:overworld");
-        flat["generator"] = serde_json::json!({"type":"minecraft:flat","settings":{}});
         let mut o = overrides_with(
             &[
                 ("a:unknown_type", grid_stem("nope:missing")),
                 ("a:no_type", no_type),
                 ("a:bad_grid", bad_grid),
-                ("a:flat", flat),
                 ("a:../escape", grid_stem("minecraft:overworld")),
                 ("a:good", grid_stem("minecraft:overworld")),
             ],
@@ -693,7 +1070,6 @@ mod tests {
         assert!(msg("a:unknown_type").contains("unknown dimension type `nope:missing`"));
         assert!(msg("a:no_type").contains("missing field `type`"));
         assert!(msg("a:bad_grid").contains("biome source"));
-        assert!(msg("a:flat").contains("F3-5"));
         assert!(msg("a:../escape").contains("not usable"));
         assert!(msg("a:not_json").contains("invalid JSON"));
         assert!(msg("a:bad_type").contains("dimension type"));
@@ -720,6 +1096,7 @@ mod tests {
     fn a_non_vanilla_stem_without_a_catalog_is_left_out_with_a_message() {
         let o = overrides_with(&[("mypack:moon", grid_stem("minecraft:overworld"))], &[]);
         let reg = LevelRegistry::build(LevelInputs {
+            noise_sea: Default::default(),
             prepared_types: BTreeMap::new(),
             overrides: &o,
             saved_stems: BTreeMap::new(),
@@ -803,6 +1180,7 @@ mod tests {
             .to_string(),
         );
         let reg = LevelRegistry::build(LevelInputs {
+            noise_sea: Default::default(),
             prepared_types: prepared,
             overrides: &WorldgenOverrides::default(),
             saved_stems: BTreeMap::new(),
@@ -922,6 +1300,7 @@ mod tests {
             return;
         }
         let reg = LevelRegistry::build(LevelInputs {
+            noise_sea: Default::default(),
             prepared_types: prepared,
             overrides: &WorldgenOverrides::default(),
             saved_stems: BTreeMap::new(),
