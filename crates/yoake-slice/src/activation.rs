@@ -818,7 +818,7 @@ impl<'a> ArgSet<'a> {
     }
 
     /// The same slots again (the chain hands the next mod the arguments as the previous one left them).
-    fn dup(&self) -> ArgSet<'a> {
+    pub(crate) fn dup(&self) -> ArgSet<'a> {
         ArgSet { slots: self.slots, n: self.n, overflow: self.overflow, _borrow: PhantomData }
     }
 }

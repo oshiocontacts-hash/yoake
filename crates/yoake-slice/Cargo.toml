@@ -33,6 +33,10 @@ name = "multi"
 required-features = ["wasm"]
 
 [[test]]
+name = "nary"
+required-features = ["wasm"]
+
+[[test]]
 name = "policy"
 required-features = ["wasm"]
 
