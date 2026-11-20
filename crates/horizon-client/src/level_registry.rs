@@ -64,6 +64,11 @@ pub struct LevelEntry {
     pub stem: Option<LevelStem>,
     pub dimension_type: DimensionType,
     pub shape: LevelShape,
+    /// The generator's sea level (the `sea_level` of the noise settings the
+    /// stem names; superflat and debug have their own), for a level past
+    /// the vanilla three. `None` when the generator has none (a type's
+    /// ceiling decides then).
+    pub sea_level: Option<i32>,
 }
 
 /// A level after the vanilla three, as the network side sees it (F3-4).
@@ -73,6 +78,8 @@ pub struct NetLevel {
     /// The `minecraft:dimension_type` entry the level uses.
     pub type_name: String,
     pub shape: LevelShape,
+    /// The generator's sea level (the client's `SpawnInfo.sea_level`).
+    pub sea_level: i32,
     /// The type's data, sent to clients that do not know the entry.
     pub type_json: Value,
 }
@@ -124,6 +131,8 @@ pub struct LevelRegistry {
     entries: Vec<LevelEntry>,
     problems: Vec<LevelProblem>,
     frozen: bool,
+    /// The `sea_level` of each noise settings entry, by id (the prepared data's, then the packs').
+    noise_sea: BTreeMap<String, i32>,
 }
 
 impl Default for LevelRegistry {
@@ -200,6 +209,56 @@ pub fn prepared_dimension_types(resources: &Path) -> BTreeMap<String, String> {
     out
 }
 
+/// The `sea_level` of every noise settings entry, by id: the prepared data's
+/// (`<resources>/data/minecraft/worldgen/noise_settings`), the packs' over it.
+pub fn noise_sea_levels(resources: &Path, overrides: &WorldgenOverrides) -> BTreeMap<String, i32> {
+    let mut out = BTreeMap::new();
+    let sea = |text: &str| {
+        serde_json::from_str::<Value>(text)
+            .ok()?
+            .get("sea_level")?
+            .as_i64()
+            .and_then(|n| i32::try_from(n).ok())
+    };
+    if let Ok(read) = std::fs::read_dir(resources.join("data/minecraft/worldgen/noise_settings")) {
+        for entry in read.flatten() {
+            let path = entry.path();
+            if path.extension().is_none_or(|e| e != "json") {
+                continue;
+            }
+            if let (Some(stem), Ok(text)) = (
+                path.file_stem().and_then(|s| s.to_str()),
+                std::fs::read_to_string(&path),
+            ) && let Some(n) = sea(&text)
+            {
+                out.insert(format!("minecraft:{stem}"), n);
+            }
+        }
+    }
+    for (id, text) in overrides.entries("settings") {
+        if let Some(n) = sea(text) {
+            out.insert(id.to_owned(), n);
+        }
+    }
+    out
+}
+
+/// The sea level a generator gives its level: the noise settings' `sea_level`,
+/// superflat's -63 and the debug world's 63 (`ChunkGenerator.getSeaLevel`).
+fn generator_sea_level(generator: &GeneratorSpec, noise_sea: &BTreeMap<String, i32>) -> Option<i32> {
+    match generator {
+        GeneratorSpec::Noise { settings, .. } => match settings {
+            horizon_world::dimension::SettingsRef::Id(id) => noise_sea.get(id).copied(),
+            horizon_world::dimension::SettingsRef::Inline(v) => v
+                .get("sea_level")
+                .and_then(Value::as_i64)
+                .and_then(|n| i32::try_from(n).ok()),
+        },
+        GeneratorSpec::Flat(_) => Some(-63),
+        GeneratorSpec::Debug => Some(63),
+    }
+}
+
 /// What a registry is built from.
 pub struct LevelInputs<'a> {
     /// The prepared dimension type files, by id (`prepared_dimension_types`).
@@ -212,6 +271,8 @@ pub struct LevelInputs<'a> {
     pub vanilla_shapes: LevelShapes,
     /// Needed only to decode non-vanilla stems.
     pub catalog: Option<&'a BiomeSourceCatalog>,
+    /// `noise_sea_levels`.
+    pub noise_sea: BTreeMap<String, i32>,
 }
 
 impl LevelRegistry {
@@ -219,6 +280,7 @@ impl LevelRegistry {
     /// world with no packs, no mods and no extra stems is.
     pub fn vanilla() -> Self {
         Self::build(LevelInputs {
+            noise_sea: Default::default(),
             prepared_types: BTreeMap::new(),
             overrides: &WorldgenOverrides::default(),
             saved_stems: BTreeMap::new(),
@@ -266,6 +328,7 @@ impl LevelRegistry {
         catalog: Option<&BiomeSourceCatalog>,
     ) -> Self {
         Self::build(LevelInputs {
+            noise_sea: noise_sea_levels(resources, overrides),
             prepared_types: prepared_dimension_types(resources),
             overrides,
             saved_stems: Self::saved_stems(world),
@@ -294,6 +357,7 @@ impl LevelRegistry {
                 })
                 .collect(),
             frozen: false,
+            noise_sea: inputs.noise_sea,
         };
         // Stems by id: saved, then packs over them.
         let mut stems: BTreeMap<String, (Value, LevelSource)> = inputs
@@ -351,6 +415,7 @@ impl LevelRegistry {
                 stem,
                 dimension_type,
                 shape: inputs.vanilla_shapes.get(id),
+                sea_level: None,
             });
         }
         // The others.
@@ -412,6 +477,7 @@ impl LevelRegistry {
         if matches!(stem.dimension_type, TypeRef::Id(_)) && from == LevelSource::Mod {
             stem_json["type"] = dimension_type.to_value();
         }
+        let sea_level = generator_sea_level(&stem.generator, &self.noise_sea);
         Ok(LevelEntry {
             id: id.to_owned(),
             source: from,
@@ -420,6 +486,7 @@ impl LevelRegistry {
             stem: Some(stem),
             dimension_type,
             shape,
+            sea_level,
         })
     }
 
@@ -513,6 +580,7 @@ impl LevelRegistry {
                     _ => e.id.clone(),
                 },
                 shape: e.shape,
+                sea_level: e.sea_level.unwrap_or(if e.dimension_type.has_ceiling { 32 } else { 63 }),
                 type_json: e.dimension_type.to_value(),
             })
             .collect()
@@ -565,6 +633,7 @@ mod tests {
     fn build(o: &WorldgenOverrides, saved: &[(&str, Value)]) -> LevelRegistry {
         let cat = catalog();
         LevelRegistry::build(LevelInputs {
+            noise_sea: Default::default(),
             prepared_types: BTreeMap::new(),
             overrides: o,
             saved_stems: saved.iter().map(|(k, v)| (k.to_string(), v.clone())).collect(),
@@ -609,6 +678,42 @@ mod tests {
             reg.save_dir(world, "mypack:moon"),
             reg.save_dir(world, "minecraft:overworld")
         );
+    }
+
+    /// The sea level is the generator's: the named noise settings', an inline one's, else the type's rule.
+    #[test]
+    fn the_sea_level_comes_from_the_generators_noise_settings() {
+        let stem = |settings: Value| {
+            let mut s = grid_stem("minecraft:overworld");
+            s["generator"]["settings"] = settings;
+            s
+        };
+        let o = overrides_with(
+            &[
+                ("mypack:named", stem(serde_json::json!("mypack:shallow"))),
+                ("mypack:inline", stem(serde_json::json!({"sea_level": 20}))),
+                ("mypack:unknown", stem(serde_json::json!("mypack:nowhere"))),
+            ],
+            &[],
+        );
+        let cat = catalog();
+        let reg = LevelRegistry::build(LevelInputs {
+            noise_sea: BTreeMap::from([("mypack:shallow".to_owned(), 40)]),
+            prepared_types: BTreeMap::new(),
+            overrides: &o,
+            saved_stems: BTreeMap::new(),
+            vanilla_shapes: LevelShapes::VANILLA,
+            catalog: Some(&cat),
+        });
+        assert_eq!(reg.problems(), &[]);
+        let sea = |id: &str| reg.get(id).unwrap().sea_level;
+        assert_eq!(sea("mypack:named"), Some(40));
+        assert_eq!(sea("mypack:inline"), Some(20));
+        assert_eq!(sea("mypack:unknown"), None);
+        assert_eq!(sea("minecraft:overworld"), None, "the vanilla levels keep their own");
+        let net: Vec<_> = reg.network_levels().iter().map(|l| (l.id.clone(), l.sea_level)).collect();
+        assert!(net.contains(&("mypack:named".to_owned(), 40)));
+        assert!(net.contains(&("mypack:unknown".to_owned(), 63)), "the ceiling rule when the generator has none");
     }
 
     #[test]
@@ -720,6 +825,7 @@ mod tests {
     fn a_non_vanilla_stem_without_a_catalog_is_left_out_with_a_message() {
         let o = overrides_with(&[("mypack:moon", grid_stem("minecraft:overworld"))], &[]);
         let reg = LevelRegistry::build(LevelInputs {
+            noise_sea: Default::default(),
             prepared_types: BTreeMap::new(),
             overrides: &o,
             saved_stems: BTreeMap::new(),
@@ -803,6 +909,7 @@ mod tests {
             .to_string(),
         );
         let reg = LevelRegistry::build(LevelInputs {
+            noise_sea: Default::default(),
             prepared_types: prepared,
             overrides: &WorldgenOverrides::default(),
             saved_stems: BTreeMap::new(),
@@ -922,6 +1029,7 @@ mod tests {
             return;
         }
         let reg = LevelRegistry::build(LevelInputs {
+            noise_sea: Default::default(),
             prepared_types: prepared,
             overrides: &WorldgenOverrides::default(),
             saved_stems: BTreeMap::new(),

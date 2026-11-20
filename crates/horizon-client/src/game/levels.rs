@@ -357,7 +357,7 @@ impl Game<'_> {
             }
             p.idle = 0;
             let left = std::mem::replace(&mut self.dim, target);
-            self.ensure_level_ctx(None);
+            self.ensure_level_ctx(None, None);
             self.levels.parked.insert(left, p);
             if opened {
                 // The new streaming's radius and meshing options.

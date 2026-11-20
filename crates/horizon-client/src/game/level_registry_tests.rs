@@ -193,7 +193,7 @@ fn a_pack_level_follows_its_type_and_a_client_reads_the_same_type() {
         assert!(night.sky_color.iter().sum::<f32>() < sky.sky_color.iter().sum::<f32>() * 0.5);
         assert!(facts.day_cycle && facts.rules.day_cycle);
         assert!(!facts.rules.fast_lava && !facts.fast_lava);
-        assert!(facts.beds.sets_spawn && !facts.beds.anchor_works);
+        assert!(facts.beds.sets_spawn == super::level_facts::SetSpawn::Always && !facts.beds.anchor_works);
         // The vanilla levels keep their fixed rules.
         game.enter_level(None, Dim::Nether).unwrap();
         assert_eq!(game.level_facts(), LevelFacts::NETHER);

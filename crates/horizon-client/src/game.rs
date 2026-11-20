@@ -12829,7 +12829,7 @@ impl Game<'_> {
         book.to_be_displayed.retain(|r| index.contains(r));
         self.dim = dim;
         self.level_ctxs.clear();
-        self.ensure_level_ctx(None);
+        self.ensure_level_ctx(None, None);
         self.audio.set_world(dim.id());
         // LevelStorageAccess.getIconFile: this save's icon.png is what the
         // Select World list shows.

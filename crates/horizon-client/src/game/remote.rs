@@ -2344,7 +2344,7 @@ impl Game<'_> {
         } else {
             Dim::lookup_or_overworld(&spawn.dimension)
         };
-        self.ensure_level_ctx(Some(sent_type));
+        self.ensure_level_ctx(Some(sent_type), listed.then_some(spawn.sea_level));
         self.audio.set_world(&spawn.dimension);
         // ClientPacketListener.handleLogin / handleRespawn: the server's
         // Player.getLastDeathLocation, for the recovery compass.

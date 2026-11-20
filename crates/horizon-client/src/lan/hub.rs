@@ -1100,7 +1100,7 @@ impl Hub {
                     pos: *pos,
                 }),
             portal_cooldown,
-            sea_level: 63,
+            sea_level: self.sync.level(&self.config.dimension).map_or(63, |l| l.sea_level),
         }
     }
 
@@ -4537,6 +4537,7 @@ mod tests {
                 id: "mypack:moon".into(),
                 type_name: "mypack:moon_type".into(),
                 shape: crate::chunk::LevelShape::new(0, 128, 128, true, false).unwrap(),
+                sea_level: 63,
                 type_json: serde_json::json!({ "min_y": 0, "height": 128 }),
             }]);
         }
