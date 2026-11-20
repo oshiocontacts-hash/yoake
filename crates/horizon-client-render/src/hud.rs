@@ -838,7 +838,18 @@ impl HudAtlas {
     /// draws one: the slot costs 4 MiB of pixels, so a game without native
     /// mods holds none of them.
     pub fn build_over_with_image(root: &Path, defaults: &Path, mod_image: bool) -> Result<Self> {
-        let mut atlas = Self::pack(root, defaults, WALKED_TEXTURE_FOLDERS, true, mod_image)?;
+        Self::build_over_with_images(root, defaults, mod_image, Vec::new())
+    }
+    /// [`build_over_with_image`](Self::build_over_with_image) with images that belong in the atlas
+    /// but are in no file: `(sprite name, width, height, RGBA8)`, a custom mob's embedded bbmodel
+    /// texture (F4M-6). One whose name a file already gives is left out (the file wins).
+    pub fn build_over_with_images(
+        root: &Path,
+        defaults: &Path,
+        mod_image: bool,
+        extra: Vec<(String, u32, u32, Vec<u8>)>,
+    ) -> Result<Self> {
+        let mut atlas = Self::pack(root, defaults, WALKED_TEXTURE_FOLDERS, true, mod_image, extra)?;
         atlas.text_shader = pack_text::load(root, defaults);
         Ok(atlas)
     }
@@ -908,7 +919,7 @@ impl HudAtlas {
     /// holding its textures. The pixels are dropped once the glyph widths are
     /// read, since nothing uploads them.
     pub fn fonts(root: &Path) -> Result<Self> {
-        let mut atlas = Self::pack(root, root, &["font"], false, false)?;
+        let mut atlas = Self::pack(root, root, &["font"], false, false, Vec::new())?;
         atlas.pixels = Vec::new();
         Ok(atlas)
     }
@@ -1060,6 +1071,7 @@ impl HudAtlas {
         folders: &[&str],
         full: bool,
         mod_image: bool,
+        extra_images: Vec<PackedImage>,
     ) -> Result<Self> {
         let textures = root.join("assets/minecraft/textures");
         let default_textures =
@@ -1288,6 +1300,16 @@ impl HudAtlas {
                 crate::title_edition::rust_edition(edition.1, edition.2, &edition.3)
         {
             edition.3 = pixels;
+        }
+        // Images no file gives (a custom mob's embedded bbmodel texture): the file's sprite wins.
+        for image in extra_images {
+            if image.1 > 0
+                && image.2 > 0
+                && image.3.len() == (image.1 * image.2 * 4) as usize
+                && !images.iter().any(|i| i.0 == image.0)
+            {
+                images.push(image);
+            }
         }
         images.push(("horizon/white".into(), 4, 4, vec![255; 64]));
         if full {

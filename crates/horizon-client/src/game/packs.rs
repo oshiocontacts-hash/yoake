@@ -510,7 +510,9 @@ pub(super) fn stage_pack(
     // the frame that applies the reload (about 20 ms of it).
     let (render, atlas, panorama, (sounds, ui_metadata, language)) = std::thread::scope(|s| {
         let atlas = s.spawn(|| {
-            HudAtlas::build_over_with_image(&root, vanilla_root, mod_image)
+            // A custom mob's embedded bbmodel texture joins the entity atlas (F4M-6).
+            let embedded = horizon_client::mobs::custom::render_state::embedded_textures();
+            HudAtlas::build_over_with_images(&root, vanilla_root, mod_image, embedded)
                 .map_err(|e| e.to_string())
         });
         let panorama = s.spawn(|| horizon_client::gfx::panorama::Faces::load(&root, vanilla_root));

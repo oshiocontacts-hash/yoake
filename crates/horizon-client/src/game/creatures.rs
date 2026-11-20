@@ -1673,8 +1673,12 @@ impl Game<'_> {
                 for event in std::mem::take(&mut t.outbox) {
                     match event {
                         MobEvent::Sound(s, _, volume, pitch) => {
-                            self.audio
-                                .play(&format!("minecraft:{s}"), Some(center), volume, pitch);
+                            self.audio.play(
+                                &horizon_client::mobs::custom::build::sound_event(s),
+                                Some(center),
+                                volume,
+                                pitch,
+                            );
                         }
                         MobEvent::Infested { .. } => infested = true,
                         other => {
@@ -1956,8 +1960,12 @@ impl Game<'_> {
                 }
                 MobEvent::Sound(name, at, volume, pitch)
                 | MobEvent::LocalSound(name, at, volume, pitch) => {
-                    self.audio
-                        .play(&format!("minecraft:{name}"), Some(at), volume, pitch)
+                    self.audio.play(
+                        &horizon_client::mobs::custom::build::sound_event(name),
+                        Some(at),
+                        volume,
+                        pitch,
+                    )
                 }
                 MobEvent::LevelEventSound {
                     sound,
@@ -6620,7 +6628,7 @@ impl Game<'_> {
         let _ = self.apply_entity_nbt(super::commands::Target::Mob(id), tag);
     }
     /// A beam target's centre (half its height), interpolated.
-    fn beam_target(&self, who: Option<Who>, alpha: f64) -> Option<glam::DVec3> {
+    pub(super) fn beam_target(&self, who: Option<Who>, alpha: f64) -> Option<glam::DVec3> {
         match who? {
             Who::Player => {
                 let p = self.player.as_ref()?;
@@ -6773,6 +6781,8 @@ impl Game<'_> {
         let lookup = |name: &str| atlas.sprites.get(name).map(|r| [r.u0, r.v0, r.u1, r.v1]);
         let scale = self.view_scale();
         self.rendered_mobs.set(0);
+        // The frame counter of the custom mobs' LOD stagger (F4M-6); one add, no allocation.
+        self.custom_mob_render.borrow_mut().begin_frame();
         let skinning = self.skinning();
         // What custom entity model animations read of the frame.
         horizon_client::mobs::cem_anim::set_frame(horizon_client::mobs::cem_anim::Frame {
@@ -6824,13 +6834,35 @@ impl Game<'_> {
             }
             // EntityRenderer.shouldRender: the culling box, grown by 0.5
             // (GuardianRenderer also draws while its beam is out).
+            // A fully custom mob with a model (F4M-6): the one test this loop pays.
+            let custom = mob
+                .kind
+                .custom
+                .as_ref()
+                .and_then(|c| c.render.as_ref().map(|r| (c, r)));
             if let Some(view) = &self.view_frustum
                 && horizon_client::mobs::guardian::beam(mob, alpha as f32).is_none()
             {
-                let lo =
-                    d.as_vec3() - glam::Vec3::new(w as f32 / 2.0 + 0.5, 0.5, w as f32 / 2.0 + 0.5);
-                let hi = d.as_vec3()
-                    + glam::Vec3::new(w as f32 / 2.0 + 0.5, h as f32 + 0.5, w as f32 / 2.0 + 0.5);
+                let (lo, hi) = match custom {
+                    // The type's `cull` box (else its hitbox) at the model scale, grown by 0.5.
+                    Some((_, tr)) => {
+                        let (lo, hi) = tr.cull_box(w as f32, h as f32, mob.model_scale());
+                        (
+                            d.as_vec3() + glam::Vec3::from(lo) - glam::Vec3::splat(0.5),
+                            d.as_vec3() + glam::Vec3::from(hi) + glam::Vec3::splat(0.5),
+                        )
+                    }
+                    None => (
+                        d.as_vec3()
+                            - glam::Vec3::new(w as f32 / 2.0 + 0.5, 0.5, w as f32 / 2.0 + 0.5),
+                        d.as_vec3()
+                            + glam::Vec3::new(
+                                w as f32 / 2.0 + 0.5,
+                                h as f32 + 0.5,
+                                w as f32 / 2.0 + 0.5,
+                            ),
+                    ),
+                };
                 if !view.intersects(lo, hi) {
                     continue;
                 }
@@ -6907,6 +6939,42 @@ impl Game<'_> {
                         out.truncate(entity_start);
                         continue;
                     }
+                }
+                if outline.is_none() {
+                    self.cull_entity_vertices(out, entity_start);
+                }
+                continue;
+            }
+            // Fully custom mobs (F4M-6): pose, layers and items from the type's model; the name
+            // tag, shadow and fire are drawn elsewhere as for any mob, and a mod's `native_mob_layer`
+            // still adds to it. `native_mob_submit` above has already had its say.
+            if let Some((ct, tr)) = custom {
+                self.custom_mob_geometry(
+                    mob,
+                    ct,
+                    tr,
+                    camera,
+                    alpha,
+                    d.length(),
+                    packed,
+                    &lookup,
+                    out,
+                );
+                self.mod_mob_layer_geometry(
+                    mob,
+                    None,
+                    alpha as f32,
+                    camera,
+                    packed,
+                    out,
+                    &mut equipment_outlines,
+                );
+                if outline.is_some() || !equipment_outlines.is_empty() {
+                    self.mark_equipment_outlines(out, entity_start, outline, &equipment_outlines);
+                }
+                if outline.is_some() && mob.invisible {
+                    out.truncate(entity_start);
+                    continue;
                 }
                 if outline.is_none() {
                     self.cull_entity_vertices(out, entity_start);

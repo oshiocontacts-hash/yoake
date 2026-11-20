@@ -60,6 +60,10 @@ pub fn shadow_params(entity: &str) -> (f32, f32) {
 /// it; slimes, magma cubes, sulfur cubes and pufferfish size theirs alone.
 pub fn mob_shadow_radius(m: &Mob) -> f32 {
     use crate::mobs::Species as S;
+    // A fully custom mob's `model.shadow.radius` (F4M-6), times its scale (baby scale included).
+    if let Some((radius, _)) = m.kind.custom.as_ref().and_then(|c| c.render.as_ref()).and_then(|r| r.shadow) {
+        return radius * m.model_scale();
+    }
     let species = m.species();
     match species {
         // AbstractCubeMobRenderer: size * 0.25.
@@ -100,7 +104,11 @@ pub fn mob_casters(mobs: &[Mob], alpha: f64) -> impl Iterator<Item = (DVec3, f32
             p.y + (q.y - p.y) * alpha,
             p.z + (q.z - p.z) * alpha,
         );
-        (pos, mob_shadow_radius(m), shadow_params(&m.kind.id).1)
+        let strength = match m.kind.custom.as_ref().and_then(|c| c.render.as_ref()).and_then(|r| r.shadow) {
+            Some((_, strength)) => strength,
+            None => shadow_params(&m.kind.id).1,
+        };
+        (pos, mob_shadow_radius(m), strength)
     })
 }
 

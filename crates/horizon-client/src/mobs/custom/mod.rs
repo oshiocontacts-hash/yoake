@@ -17,6 +17,7 @@ pub mod hitbox;
 pub mod persist;
 pub mod registry;
 pub mod remote;
+pub mod render_state;
 pub mod spawn;
 pub mod stats;
 
@@ -185,6 +186,8 @@ pub struct CustomType {
     pub synced: Vec<SyncedDef>,
     /// The type's animation runtime (F4M-5b): `None` when it has no model with animations.
     pub anim: Option<anim_sync::TypeAnim>,
+    /// What the client draws it with (F4M-6): baked quads, layers, LOD, cull box; `None` without a model.
+    pub render: Option<render_state::TypeRender>,
     /// Identifies the layout of the tracked values and controllers on the wire (`horizon:mob_sync`).
     pub sync_version: u32,
     /// `tameable`, `breedable`, the seats with `saddle_item` and `rideable_when`, and the `interact`
@@ -249,6 +252,7 @@ impl CustomType {
             format!("{ns}:entities/{path}")
         });
         let anim = model.and_then(anim_sync::TypeAnim::new);
+        let render = model.and_then(|m| render_state::TypeRender::new(&file, m));
         let mut me = Self {
             id: file.id.clone(),
             file,
@@ -261,6 +265,7 @@ impl CustomType {
             loot_table,
             synced,
             anim,
+            render,
             sync_version: 0,
             tame: None,
             breed: None,

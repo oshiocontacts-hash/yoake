@@ -349,6 +349,7 @@ mod remote_camera;
 mod remote_chat;
 mod remote_chunks;
 mod remote_custom_mob;
+mod custom_mob_draw;
 mod custom_mob_interact;
 mod remote_mob_data;
 mod remote_mob_particles;
@@ -2303,7 +2304,8 @@ impl UiResources {
             });
             let mod_image = crate::game::mods::built_with_native_mods();
             let atlas = startup::time("ui.atlas", || {
-                HudAtlas::build_over_with_image(root, defaults, mod_image)
+                let embedded = horizon_client::mobs::custom::render_state::embedded_textures();
+                HudAtlas::build_over_with_images(root, defaults, mod_image, embedded)
             });
             let panorama = panorama
                 .join()
@@ -2739,6 +2741,8 @@ pub(crate) struct Game<'a> {
     /// and this frame's draws.
     skin_models: std::cell::RefCell<horizon_client::mobs::skin::SkinModels>,
     skin_frame: std::cell::RefCell<horizon_client::gfx::entity_skin::SkinFrame>,
+    /// Fully custom mobs' render state (F4M-6); empty, and never touched, without a custom type.
+    custom_mob_render: std::cell::RefCell<horizon_client::mobs::custom::render_state::CustomRender>,
     /// The glowing entities' silhouettes this frame (game/glowing.rs).
     glowing_vertices: std::cell::RefCell<Vec<Vertex>>,
     /// The shader pack's entity and block entity ids, while one draws entities.
@@ -8086,6 +8090,7 @@ impl Game<'_> {
                 self.tick_block_entity_anims()
             });
             horizon_client::spans::time("tick_particles", || self.tick_particles());
+            self.tick_custom_mob_events();
             self.tick_client_ambient();
         }
         if running {
@@ -12433,8 +12438,12 @@ impl Game<'_> {
             for event in queued {
                 match event {
                     horizon_client::mobs::MobEvent::Sound(s, at, volume, pitch) => {
-                        self.audio
-                            .play(&format!("minecraft:{s}"), Some(at), volume, pitch);
+                        self.audio.play(
+                            &horizon_client::mobs::custom::build::sound_event(s),
+                            Some(at),
+                            volume,
+                            pitch,
+                        );
                     }
                     horizon_client::mobs::MobEvent::Infested { .. } => infested = true,
                     other => {
@@ -19641,6 +19650,7 @@ impl<'a> Game<'a> {
             entity_motion: Default::default(),
             skin_models: Default::default(),
             skin_frame: Default::default(),
+            custom_mob_render: Default::default(),
             glowing_vertices: Default::default(),
             pack_ids: None,
             health_hud: hud_layout::HealthHud::default(),
