@@ -8600,7 +8600,7 @@ pub mod yoake_glue {
     }
 
     /// `mobs::Seen.custom#get`
-    fn call_2515(recv: &mut crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2515(recv: &crate::mobs::Seen, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.custom {
             None => out.push(0),
@@ -8616,28 +8616,28 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::<CustomLevel as Clone>::clone`
-    fn call_2517(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2517(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
-        let r = <crate::mobs::CustomLevel as core::clone::Clone>::clone(&*recv);
+        let r = <crate::mobs::CustomLevel as core::clone::Clone>::clone(recv);
         enc_crate__mobs__CustomLevel(&r, out);
         Ok(())
     }
 
     /// `mobs::<CustomLevel as PartialEq>::eq`
-    fn call_2518(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2518(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__mobs__CustomLevel(d)?;
         d.finish()?;
-        let r = <crate::mobs::CustomLevel as core::cmp::PartialEq>::eq(&*recv, &a0);
+        let r = <crate::mobs::CustomLevel as core::cmp::PartialEq>::eq(recv, &a0);
         Encode::encode(&r, out);
         Ok(())
     }
 
     /// `mobs::CustomLevel.ambient#get`
-    fn call_2519(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2519(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.ambient, out);
         Ok(())
@@ -8647,7 +8647,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::CustomLevel.day_cycle#get`
-    fn call_2521(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2521(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.day_cycle, out);
         Ok(())
@@ -8657,7 +8657,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::CustomLevel.fast_lava#get`
-    fn call_2523(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2523(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fast_lava, out);
         Ok(())
@@ -8667,7 +8667,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::CustomLevel.has_skylight#get`
-    fn call_2525(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2525(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.has_skylight, out);
         Ok(())
@@ -8677,7 +8677,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::CustomLevel.piglins_zombify#get`
-    fn call_2527(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2527(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.piglins_zombify, out);
         Ok(())
@@ -8687,7 +8687,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::CustomLevel.snow_golem_melts#get`
-    fn call_2529(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2529(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.snow_golem_melts, out);
         Ok(())
@@ -8697,7 +8697,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mobs::CustomLevel.spawn_light#get`
-    fn call_2531(recv: &mut crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2531(recv: &crate::mobs::CustomLevel, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mobs__spawn_rules__LightRule(&recv.spawn_light, out);
         Ok(())
@@ -11146,23 +11146,23 @@ pub mod yoake_glue {
             1291 => call_1291(args, out),
             1292 => call_1292(args, out),
             1293 => call_1293(args, out),
-            2515 => activation::with_arg::<crate::mobs::Seen, _>(handle, |recv| call_2515(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2515 => activation::with_arg_shared::<crate::mobs::Seen, _>(handle, |recv| call_2515(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2516 => Err(CallError::ReadOnly(id)),
-            2517 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2517(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2518 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2518(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2519 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2519(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2517 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2517(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2518 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2518(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2519 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2519(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2520 => Err(CallError::ReadOnly(id)),
-            2521 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2521(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2521 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2521(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2522 => Err(CallError::ReadOnly(id)),
-            2523 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2523(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2523 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2523(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2524 => Err(CallError::ReadOnly(id)),
-            2525 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2525(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2525 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2525(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2526 => Err(CallError::ReadOnly(id)),
-            2527 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2527(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2527 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2527(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2528 => Err(CallError::ReadOnly(id)),
-            2529 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2529(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2529 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2529(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2530 => Err(CallError::ReadOnly(id)),
-            2531 => activation::with_arg::<crate::mobs::CustomLevel, _>(handle, |recv| call_2531(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2531 => activation::with_arg_shared::<crate::mobs::CustomLevel, _>(handle, |recv| call_2531(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2532 => Err(CallError::ReadOnly(id)),
             _ => Err(CallError::UnknownBinding(id)),
         };
