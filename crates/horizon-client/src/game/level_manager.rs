@@ -159,6 +159,7 @@ impl Game<'_> {
         }
         let dir = self.level_registry.save_dir(&self.world_root, id);
         // Closing the level releases its region files before they are removed.
+        self.level_before_close(id);
         self.levels.drop_parked(dim);
         self.level_ctxs.remove(&dim);
         match std::fs::remove_dir_all(&dir) {
@@ -190,6 +191,7 @@ impl Game<'_> {
             .and_then(|()| self.save_level(true))
             .and_then(|()| self.enter_level(None, back))
             .map_err(|e| LevelManagerError::Io(e.to_string()))?;
+        self.level_before_close(id);
         self.levels.drop_parked(dim);
         Ok(())
     }
@@ -211,6 +213,7 @@ impl Game<'_> {
                 .write_created(&self.world_root)
                 .map_err(|e| LevelManagerError::Io(format!("data/yoake_levels.json: {e}")))?;
         }
+        self.level_before_close(id);
         self.levels.drop_parked(dim);
         let dir = self.level_registry.save_dir(&self.world_root, id);
         for folder in ["region", "entities", "poi"] {

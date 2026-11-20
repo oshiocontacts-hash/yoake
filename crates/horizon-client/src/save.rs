@@ -2872,6 +2872,7 @@ impl SaveDir {
         let tables = self.tables.get().map(|t| &**t);
         let records = chunks
             .iter()
+            .filter(|c| !c.not_generated)
             .map(|c| {
                 (
                     (c.x, c.z),
@@ -2909,6 +2910,7 @@ impl SaveDir {
         });
         let records = chunks
             .iter()
+            .filter(|c| !c.not_generated)
             .map(|c| ((c.x, c.z), Record::Chunk(c.clone(), encoding.clone())))
             .collect();
         self.queue(Folder::Region, records, false)?;

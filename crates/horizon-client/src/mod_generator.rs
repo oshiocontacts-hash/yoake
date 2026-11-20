@@ -24,8 +24,14 @@ pub struct ModChunk<'a> {
     pub chunk_z: i32,
     pub shape: LevelShape,
     biome_of: &'a dyn Fn(&str) -> Option<u16>,
+    failed: bool,
 }
 impl ModChunk<'_> {
+    /// Says the generator could not fill this chunk (it ran over its limits, say). What it wrote stays,
+    /// but the chunk is not saved while nobody edits it, so it generates again when it next loads.
+    pub fn mark_failed(&mut self) {
+        self.failed = true;
+    }
     /// Block `state` (a state id from [`ModGeneratorContext::block`]) at the
     /// chunk-local column `x`, `z` (0..16) and world height `y`. Positions
     /// outside the level's height are ignored.
@@ -157,6 +163,7 @@ impl ModGenerators {
             .map_err(|e| format!("generator `{id}` for level {level}: {e}"))?;
         let plains = biomes.id("minecraft:plains");
         Ok(ModTerrain {
+            level: level.to_owned(),
             source,
             shape,
             plains,
@@ -165,8 +172,18 @@ impl ModGenerators {
     }
 }
 
+/// A chunk of a level made by a mod's generator is about to be filled (F3-8b). A mod's hook here sees
+/// the empty chunk first and may write into it through the `ModChunk` bindings (`set_block`,
+/// `fill_layer`, `block`, `set_biome`); the level's generator then fills it. Only levels of mod
+/// generators, so the vanilla terrain is untouched. About one call per chunk.
+#[yoake_inject_macro::yoake_inject(id = "worldgen::generate_chunk", side = "server")]
+fn generate_chunk(level: &str, cx: i32, cz: i32, chunk: &mut ModChunk<'_>) {
+    let _ = (level, cx, cz, chunk);
+}
+
 /// A [`ModColumnSource`] as the engine's chunk generator.
 pub struct ModTerrain {
+    level: String,
     source: Arc<dyn ModColumnSource>,
     shape: LevelShape,
     plains: u16,
@@ -187,16 +204,21 @@ impl ChunkGenerator for ModTerrain {
         let biome_of = move |name: &str| {
             biomes.contains(name).then(|| biomes.id(name))
         };
-        self.source.generate(&mut ModChunk {
+        let mut mod_chunk = ModChunk {
             chunk: &mut chunk,
             chunk_x: cx,
             chunk_z: cz,
             shape: self.shape,
             biome_of: &biome_of,
-        });
+            failed: false,
+        };
+        generate_chunk(&self.level, cx, cz, &mut mod_chunk);
+        self.source.generate(&mut mod_chunk);
+        let failed = mod_chunk.failed;
         for s in &mut chunk.sections {
             Arc::make_mut(s).compact();
         }
+        chunk.not_generated = failed;
         Box::new(chunk)
     }
     fn finish(&self, proto: Proto) -> Chunk {
