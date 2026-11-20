@@ -430,7 +430,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::<HealthRules as Clone>::clone`
-    fn call_1679(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2697(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -440,7 +440,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::<HealthRules as Default>::default`
-    fn call_1680(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2698(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -450,7 +450,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::<Weather as Clone>::clone`
-    fn call_1681(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2699(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -460,7 +460,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::<Weather as Default>::default`
-    fn call_1682(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2700(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -470,7 +470,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::DirtySections::clear`
-    fn call_1683(recv: &mut crate::world::DirtySections, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2701(recv: &mut crate::world::DirtySections, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -479,7 +479,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::DirtySections::contains`
-    fn call_1684(recv: &crate::world::DirtySections, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2702(recv: &crate::world::DirtySections, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = (<i32 as Decode>::decode(d)?, <i32 as Decode>::decode(d)?, <i32 as Decode>::decode(d)?,);
@@ -490,7 +490,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::DirtySections::insert`
-    fn call_1685(recv: &mut crate::world::DirtySections, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2703(recv: &mut crate::world::DirtySections, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = (<i32 as Decode>::decode(d)?, <i32 as Decode>::decode(d)?, <i32 as Decode>::decode(d)?,);
@@ -500,7 +500,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::DirtySections::is_empty`
-    fn call_1686(recv: &crate::world::DirtySections, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2704(recv: &crate::world::DirtySections, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -510,7 +510,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::DirtySections::len`
-    fn call_1687(recv: &crate::world::DirtySections, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2705(recv: &crate::world::DirtySections, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -520,7 +520,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::HealthRules.difficulty#get`
-    fn call_1688(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2706(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_world__food__Difficulty(&recv.difficulty, out);
         Ok(())
@@ -530,7 +530,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::HealthRules.drowning_damage#get`
-    fn call_1690(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2708(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.drowning_damage, out);
         Ok(())
@@ -540,7 +540,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::HealthRules.fall_damage#get`
-    fn call_1692(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2710(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fall_damage, out);
         Ok(())
@@ -550,7 +550,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::HealthRules.fire_damage#get`
-    fn call_1694(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2712(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fire_damage, out);
         Ok(())
@@ -560,7 +560,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::HealthRules.freeze_damage#get`
-    fn call_1696(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2714(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.freeze_damage, out);
         Ok(())
@@ -570,7 +570,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::HealthRules.natural_regeneration#get`
-    fn call_1698(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2716(recv: &crate::world::HealthRules, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.natural_regeneration, out);
         Ok(())
@@ -580,7 +580,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::Weather.clear_time#get`
-    fn call_1700(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2718(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.clear_time, out);
         Ok(())
@@ -590,7 +590,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::Weather.rain_level#get`
-    fn call_1702(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2720(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let t0 = &recv.rain_level;
@@ -604,7 +604,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::Weather.rain_time#get`
-    fn call_1704(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2722(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.rain_time, out);
         Ok(())
@@ -614,7 +614,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::Weather.raining#get`
-    fn call_1706(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2724(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.raining, out);
         Ok(())
@@ -624,7 +624,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::Weather.thunder_level#get`
-    fn call_1708(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2726(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let t0 = &recv.thunder_level;
@@ -638,7 +638,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::Weather.thunder_time#get`
-    fn call_1710(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2728(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.thunder_time, out);
         Ok(())
@@ -648,7 +648,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::Weather.thundering#get`
-    fn call_1712(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2730(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.thundering, out);
         Ok(())
@@ -658,7 +658,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::Weather::after_sleep`
-    fn call_1714(recv: &mut crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2732(recv: &mut crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <bool as Decode>::decode(d)?;
@@ -668,7 +668,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::Weather::is_raining`
-    fn call_1715(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2733(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -678,7 +678,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::Weather::is_thundering`
-    fn call_1716(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2734(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -688,7 +688,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::Weather::levels`
-    fn call_1717(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2735(recv: &crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <f32 as Decode>::decode(d)?;
@@ -703,7 +703,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::Weather::tick_levels`
-    fn call_1718(recv: &mut crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2736(recv: &mut crate::world::Weather, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -712,7 +712,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::World.air#get`
-    fn call_1719(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2737(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_world__registry__BlockStateId(&recv.air, out);
         Ok(())
@@ -722,7 +722,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.block_log#get`
-    fn call_1721(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2739(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.block_log {
             None => out.push(0),
@@ -749,7 +749,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.block_names#get`
-    fn call_1723(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2741(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.block_names;
@@ -771,7 +771,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.bulk_log#get`
-    fn call_1725(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2743(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.bulk_log;
@@ -791,7 +791,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.chest_openers#get`
-    fn call_1727(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2745(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.chest_openers;
@@ -817,7 +817,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.day_time#get`
-    fn call_1729(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2747(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.day_time, out);
         Ok(())
@@ -827,7 +827,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.dirty_light#get`
-    fn call_1731(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2749(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.dirty_light;
@@ -847,7 +847,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.fast_lava#get`
-    fn call_1733(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2751(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fast_lava, out);
         Ok(())
@@ -857,7 +857,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.game_time#get`
-    fn call_1735(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2753(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.game_time, out);
         Ok(())
@@ -867,7 +867,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.health_rules#get`
-    fn call_1737(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2755(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__world__HealthRules(&recv.health_rules, out);
         Ok(())
@@ -877,7 +877,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.inhabited#get`
-    fn call_1739(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2757(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.inhabited;
@@ -898,7 +898,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.light_edits#get`
-    fn call_1741(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2759(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.light_edits;
@@ -924,7 +924,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.loaded_chunks#get`
-    fn call_1743(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2761(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.loaded_chunks;
@@ -945,7 +945,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.loaded_entities#get`
-    fn call_1745(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2763(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.loaded_entities;
@@ -975,7 +975,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.modified#get`
-    fn call_1747(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2765(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.modified;
@@ -995,7 +995,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.moving_piston_fallback#get`
-    fn call_1749(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2767(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.moving_piston_fallback;
@@ -1017,7 +1017,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.moving_pistons#get`
-    fn call_1751(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2769(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.moving_pistons;
@@ -1039,7 +1039,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.path_writes#get`
-    fn call_1753(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2771(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         match &recv.path_writes {
             None => out.push(0),
@@ -1071,7 +1071,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.revision#get`
-    fn call_1755(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2773(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.revision, out);
         Ok(())
@@ -1081,7 +1081,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.shape#get`
-    fn call_1757(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2775(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__chunk__LevelShape(&recv.shape, out);
         Ok(())
@@ -1091,7 +1091,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.shulkers#get`
-    fn call_1759(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2777(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.shulkers;
@@ -1110,7 +1110,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.watched#get`
-    fn call_1761(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2779(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.watched;
@@ -1126,7 +1126,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.watched_writes#get`
-    fn call_1763(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2781(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.watched_writes;
@@ -1152,7 +1152,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World.weather#get`
-    fn call_1765(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2783(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__world__Weather(&recv.weather, out);
         Ok(())
@@ -1162,7 +1162,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_world::World::block`
-    fn call_1767(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2785(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <i32 as Decode>::decode(d)?;
@@ -1175,7 +1175,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::World::block_entity_tickers`
-    fn call_1768(recv: &mut crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2786(recv: &mut crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -1200,7 +1200,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::World::bottom_y`
-    fn call_1769(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2787(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -1210,7 +1210,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::World::forget_block_entity_source`
-    fn call_1770(recv: &mut crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2788(recv: &mut crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = (<i32 as Decode>::decode(d)?, <i32 as Decode>::decode(d)?, <i32 as Decode>::decode(d)?,);
@@ -1220,7 +1220,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::World::is_air`
-    fn call_1771(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2789(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_horizon_world__registry__BlockStateId(d)?;
@@ -1231,7 +1231,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::World::light`
-    fn call_1772(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2790(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <i32 as Decode>::decode(d)?;
@@ -1244,7 +1244,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::World::loaded`
-    fn call_1773(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2791(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <i32 as Decode>::decode(d)?;
@@ -1256,7 +1256,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::World::set_block_lock`
-    fn call_1774(recv: &mut crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2792(recv: &mut crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = (<i32 as Decode>::decode(d)?, <i32 as Decode>::decode(d)?, <i32 as Decode>::decode(d)?,);
@@ -1267,7 +1267,7 @@ pub mod yoake_glue {
     }
 
     /// `render_world::World::top_y`
-    fn call_1775(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2793(recv: &crate::world::World, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -1357,103 +1357,103 @@ pub mod yoake_glue {
 
     /// Every binding of this module: id and lock key.
     pub const BINDINGS: &[(u32, &str)] = &[
-        (1679, "render_world::<HealthRules as Clone>::clone"),
-        (1680, "render_world::<HealthRules as Default>::default"),
-        (1681, "render_world::<Weather as Clone>::clone"),
-        (1682, "render_world::<Weather as Default>::default"),
-        (1683, "render_world::DirtySections::clear"),
-        (1684, "render_world::DirtySections::contains"),
-        (1685, "render_world::DirtySections::insert"),
-        (1686, "render_world::DirtySections::is_empty"),
-        (1687, "render_world::DirtySections::len"),
-        (1688, "render_world::HealthRules.difficulty#get"),
-        (1689, "render_world::HealthRules.difficulty#set"),
-        (1690, "render_world::HealthRules.drowning_damage#get"),
-        (1691, "render_world::HealthRules.drowning_damage#set"),
-        (1692, "render_world::HealthRules.fall_damage#get"),
-        (1693, "render_world::HealthRules.fall_damage#set"),
-        (1694, "render_world::HealthRules.fire_damage#get"),
-        (1695, "render_world::HealthRules.fire_damage#set"),
-        (1696, "render_world::HealthRules.freeze_damage#get"),
-        (1697, "render_world::HealthRules.freeze_damage#set"),
-        (1698, "render_world::HealthRules.natural_regeneration#get"),
-        (1699, "render_world::HealthRules.natural_regeneration#set"),
-        (1700, "render_world::Weather.clear_time#get"),
-        (1701, "render_world::Weather.clear_time#set"),
-        (1702, "render_world::Weather.rain_level#get"),
-        (1703, "render_world::Weather.rain_level#set"),
-        (1704, "render_world::Weather.rain_time#get"),
-        (1705, "render_world::Weather.rain_time#set"),
-        (1706, "render_world::Weather.raining#get"),
-        (1707, "render_world::Weather.raining#set"),
-        (1708, "render_world::Weather.thunder_level#get"),
-        (1709, "render_world::Weather.thunder_level#set"),
-        (1710, "render_world::Weather.thunder_time#get"),
-        (1711, "render_world::Weather.thunder_time#set"),
-        (1712, "render_world::Weather.thundering#get"),
-        (1713, "render_world::Weather.thundering#set"),
-        (1714, "render_world::Weather::after_sleep"),
-        (1715, "render_world::Weather::is_raining"),
-        (1716, "render_world::Weather::is_thundering"),
-        (1717, "render_world::Weather::levels"),
-        (1718, "render_world::Weather::tick_levels"),
-        (1719, "render_world::World.air#get"),
-        (1720, "render_world::World.air#set"),
-        (1721, "render_world::World.block_log#get"),
-        (1722, "render_world::World.block_log#set"),
-        (1723, "render_world::World.block_names#get"),
-        (1724, "render_world::World.block_names#set"),
-        (1725, "render_world::World.bulk_log#get"),
-        (1726, "render_world::World.bulk_log#set"),
-        (1727, "render_world::World.chest_openers#get"),
-        (1728, "render_world::World.chest_openers#set"),
-        (1729, "render_world::World.day_time#get"),
-        (1730, "render_world::World.day_time#set"),
-        (1731, "render_world::World.dirty_light#get"),
-        (1732, "render_world::World.dirty_light#set"),
-        (1733, "render_world::World.fast_lava#get"),
-        (1734, "render_world::World.fast_lava#set"),
-        (1735, "render_world::World.game_time#get"),
-        (1736, "render_world::World.game_time#set"),
-        (1737, "render_world::World.health_rules#get"),
-        (1738, "render_world::World.health_rules#set"),
-        (1739, "render_world::World.inhabited#get"),
-        (1740, "render_world::World.inhabited#set"),
-        (1741, "render_world::World.light_edits#get"),
-        (1742, "render_world::World.light_edits#set"),
-        (1743, "render_world::World.loaded_chunks#get"),
-        (1744, "render_world::World.loaded_chunks#set"),
-        (1745, "render_world::World.loaded_entities#get"),
-        (1746, "render_world::World.loaded_entities#set"),
-        (1747, "render_world::World.modified#get"),
-        (1748, "render_world::World.modified#set"),
-        (1749, "render_world::World.moving_piston_fallback#get"),
-        (1750, "render_world::World.moving_piston_fallback#set"),
-        (1751, "render_world::World.moving_pistons#get"),
-        (1752, "render_world::World.moving_pistons#set"),
-        (1753, "render_world::World.path_writes#get"),
-        (1754, "render_world::World.path_writes#set"),
-        (1755, "render_world::World.revision#get"),
-        (1756, "render_world::World.revision#set"),
-        (1757, "render_world::World.shape#get"),
-        (1758, "render_world::World.shape#set"),
-        (1759, "render_world::World.shulkers#get"),
-        (1760, "render_world::World.shulkers#set"),
-        (1761, "render_world::World.watched#get"),
-        (1762, "render_world::World.watched#set"),
-        (1763, "render_world::World.watched_writes#get"),
-        (1764, "render_world::World.watched_writes#set"),
-        (1765, "render_world::World.weather#get"),
-        (1766, "render_world::World.weather#set"),
-        (1767, "render_world::World::block"),
-        (1768, "render_world::World::block_entity_tickers"),
-        (1769, "render_world::World::bottom_y"),
-        (1770, "render_world::World::forget_block_entity_source"),
-        (1771, "render_world::World::is_air"),
-        (1772, "render_world::World::light"),
-        (1773, "render_world::World::loaded"),
-        (1774, "render_world::World::set_block_lock"),
-        (1775, "render_world::World::top_y"),
+        (2697, "render_world::<HealthRules as Clone>::clone"),
+        (2698, "render_world::<HealthRules as Default>::default"),
+        (2699, "render_world::<Weather as Clone>::clone"),
+        (2700, "render_world::<Weather as Default>::default"),
+        (2701, "render_world::DirtySections::clear"),
+        (2702, "render_world::DirtySections::contains"),
+        (2703, "render_world::DirtySections::insert"),
+        (2704, "render_world::DirtySections::is_empty"),
+        (2705, "render_world::DirtySections::len"),
+        (2706, "render_world::HealthRules.difficulty#get"),
+        (2707, "render_world::HealthRules.difficulty#set"),
+        (2708, "render_world::HealthRules.drowning_damage#get"),
+        (2709, "render_world::HealthRules.drowning_damage#set"),
+        (2710, "render_world::HealthRules.fall_damage#get"),
+        (2711, "render_world::HealthRules.fall_damage#set"),
+        (2712, "render_world::HealthRules.fire_damage#get"),
+        (2713, "render_world::HealthRules.fire_damage#set"),
+        (2714, "render_world::HealthRules.freeze_damage#get"),
+        (2715, "render_world::HealthRules.freeze_damage#set"),
+        (2716, "render_world::HealthRules.natural_regeneration#get"),
+        (2717, "render_world::HealthRules.natural_regeneration#set"),
+        (2718, "render_world::Weather.clear_time#get"),
+        (2719, "render_world::Weather.clear_time#set"),
+        (2720, "render_world::Weather.rain_level#get"),
+        (2721, "render_world::Weather.rain_level#set"),
+        (2722, "render_world::Weather.rain_time#get"),
+        (2723, "render_world::Weather.rain_time#set"),
+        (2724, "render_world::Weather.raining#get"),
+        (2725, "render_world::Weather.raining#set"),
+        (2726, "render_world::Weather.thunder_level#get"),
+        (2727, "render_world::Weather.thunder_level#set"),
+        (2728, "render_world::Weather.thunder_time#get"),
+        (2729, "render_world::Weather.thunder_time#set"),
+        (2730, "render_world::Weather.thundering#get"),
+        (2731, "render_world::Weather.thundering#set"),
+        (2732, "render_world::Weather::after_sleep"),
+        (2733, "render_world::Weather::is_raining"),
+        (2734, "render_world::Weather::is_thundering"),
+        (2735, "render_world::Weather::levels"),
+        (2736, "render_world::Weather::tick_levels"),
+        (2737, "render_world::World.air#get"),
+        (2738, "render_world::World.air#set"),
+        (2739, "render_world::World.block_log#get"),
+        (2740, "render_world::World.block_log#set"),
+        (2741, "render_world::World.block_names#get"),
+        (2742, "render_world::World.block_names#set"),
+        (2743, "render_world::World.bulk_log#get"),
+        (2744, "render_world::World.bulk_log#set"),
+        (2745, "render_world::World.chest_openers#get"),
+        (2746, "render_world::World.chest_openers#set"),
+        (2747, "render_world::World.day_time#get"),
+        (2748, "render_world::World.day_time#set"),
+        (2749, "render_world::World.dirty_light#get"),
+        (2750, "render_world::World.dirty_light#set"),
+        (2751, "render_world::World.fast_lava#get"),
+        (2752, "render_world::World.fast_lava#set"),
+        (2753, "render_world::World.game_time#get"),
+        (2754, "render_world::World.game_time#set"),
+        (2755, "render_world::World.health_rules#get"),
+        (2756, "render_world::World.health_rules#set"),
+        (2757, "render_world::World.inhabited#get"),
+        (2758, "render_world::World.inhabited#set"),
+        (2759, "render_world::World.light_edits#get"),
+        (2760, "render_world::World.light_edits#set"),
+        (2761, "render_world::World.loaded_chunks#get"),
+        (2762, "render_world::World.loaded_chunks#set"),
+        (2763, "render_world::World.loaded_entities#get"),
+        (2764, "render_world::World.loaded_entities#set"),
+        (2765, "render_world::World.modified#get"),
+        (2766, "render_world::World.modified#set"),
+        (2767, "render_world::World.moving_piston_fallback#get"),
+        (2768, "render_world::World.moving_piston_fallback#set"),
+        (2769, "render_world::World.moving_pistons#get"),
+        (2770, "render_world::World.moving_pistons#set"),
+        (2771, "render_world::World.path_writes#get"),
+        (2772, "render_world::World.path_writes#set"),
+        (2773, "render_world::World.revision#get"),
+        (2774, "render_world::World.revision#set"),
+        (2775, "render_world::World.shape#get"),
+        (2776, "render_world::World.shape#set"),
+        (2777, "render_world::World.shulkers#get"),
+        (2778, "render_world::World.shulkers#set"),
+        (2779, "render_world::World.watched#get"),
+        (2780, "render_world::World.watched#set"),
+        (2781, "render_world::World.watched_writes#get"),
+        (2782, "render_world::World.watched_writes#set"),
+        (2783, "render_world::World.weather#get"),
+        (2784, "render_world::World.weather#set"),
+        (2785, "render_world::World::block"),
+        (2786, "render_world::World::block_entity_tickers"),
+        (2787, "render_world::World::bottom_y"),
+        (2788, "render_world::World::forget_block_entity_source"),
+        (2789, "render_world::World::is_air"),
+        (2790, "render_world::World::light"),
+        (2791, "render_world::World::loaded"),
+        (2792, "render_world::World::set_block_lock"),
+        (2793, "render_world::World::top_y"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -1461,103 +1461,103 @@ pub mod yoake_glue {
     pub fn call(handle: u64, id: u32, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let start = out.len();
         let result = match id {
-            1679 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_1679(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1680 => call_1680(args, out),
-            1681 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_1681(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1682 => call_1682(args, out),
-            1683 => activation::with_arg::<crate::world::DirtySections, _>(handle, |recv| call_1683(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1684 => activation::with_arg_shared::<crate::world::DirtySections, _>(handle, |recv| call_1684(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1685 => activation::with_arg::<crate::world::DirtySections, _>(handle, |recv| call_1685(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1686 => activation::with_arg_shared::<crate::world::DirtySections, _>(handle, |recv| call_1686(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1687 => activation::with_arg_shared::<crate::world::DirtySections, _>(handle, |recv| call_1687(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1688 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_1688(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1689 => Err(CallError::ReadOnly(id)),
-            1690 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_1690(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1691 => Err(CallError::ReadOnly(id)),
-            1692 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_1692(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1693 => Err(CallError::ReadOnly(id)),
-            1694 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_1694(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1695 => Err(CallError::ReadOnly(id)),
-            1696 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_1696(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1697 => Err(CallError::ReadOnly(id)),
-            1698 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_1698(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1699 => Err(CallError::ReadOnly(id)),
-            1700 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_1700(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1701 => Err(CallError::ReadOnly(id)),
-            1702 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_1702(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1703 => Err(CallError::ReadOnly(id)),
-            1704 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_1704(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1705 => Err(CallError::ReadOnly(id)),
-            1706 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_1706(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1707 => Err(CallError::ReadOnly(id)),
-            1708 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_1708(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1709 => Err(CallError::ReadOnly(id)),
-            1710 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_1710(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1711 => Err(CallError::ReadOnly(id)),
-            1712 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_1712(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1713 => Err(CallError::ReadOnly(id)),
-            1714 => activation::with_arg::<crate::world::Weather, _>(handle, |recv| call_1714(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1715 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_1715(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1716 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_1716(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1717 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_1717(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1718 => activation::with_arg::<crate::world::Weather, _>(handle, |recv| call_1718(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1719 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1719(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1720 => Err(CallError::ReadOnly(id)),
-            1721 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1721(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1722 => Err(CallError::ReadOnly(id)),
-            1723 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1723(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1724 => Err(CallError::ReadOnly(id)),
-            1725 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1725(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1726 => Err(CallError::ReadOnly(id)),
-            1727 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1727(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1728 => Err(CallError::ReadOnly(id)),
-            1729 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1729(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1730 => Err(CallError::ReadOnly(id)),
-            1731 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1731(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1732 => Err(CallError::ReadOnly(id)),
-            1733 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1733(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1734 => Err(CallError::ReadOnly(id)),
-            1735 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1735(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1736 => Err(CallError::ReadOnly(id)),
-            1737 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1737(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1738 => Err(CallError::ReadOnly(id)),
-            1739 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1739(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1740 => Err(CallError::ReadOnly(id)),
-            1741 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1741(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1742 => Err(CallError::ReadOnly(id)),
-            1743 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1743(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1744 => Err(CallError::ReadOnly(id)),
-            1745 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1745(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1746 => Err(CallError::ReadOnly(id)),
-            1747 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1747(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1748 => Err(CallError::ReadOnly(id)),
-            1749 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1749(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1750 => Err(CallError::ReadOnly(id)),
-            1751 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1751(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1752 => Err(CallError::ReadOnly(id)),
-            1753 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1753(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1754 => Err(CallError::ReadOnly(id)),
-            1755 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1755(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1756 => Err(CallError::ReadOnly(id)),
-            1757 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1757(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1758 => Err(CallError::ReadOnly(id)),
-            1759 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1759(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1760 => Err(CallError::ReadOnly(id)),
-            1761 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1761(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1762 => Err(CallError::ReadOnly(id)),
-            1763 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1763(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1764 => Err(CallError::ReadOnly(id)),
-            1765 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1765(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1766 => Err(CallError::ReadOnly(id)),
-            1767 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1767(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1768 => activation::with_arg::<crate::world::World, _>(handle, |recv| call_1768(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1769 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1769(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1770 => activation::with_arg::<crate::world::World, _>(handle, |recv| call_1770(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1771 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1771(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1772 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1772(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1773 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1773(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1774 => activation::with_arg::<crate::world::World, _>(handle, |recv| call_1774(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1775 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_1775(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2697 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_2697(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2698 => call_2698(args, out),
+            2699 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_2699(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2700 => call_2700(args, out),
+            2701 => activation::with_arg::<crate::world::DirtySections, _>(handle, |recv| call_2701(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2702 => activation::with_arg_shared::<crate::world::DirtySections, _>(handle, |recv| call_2702(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2703 => activation::with_arg::<crate::world::DirtySections, _>(handle, |recv| call_2703(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2704 => activation::with_arg_shared::<crate::world::DirtySections, _>(handle, |recv| call_2704(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2705 => activation::with_arg_shared::<crate::world::DirtySections, _>(handle, |recv| call_2705(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2706 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_2706(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2707 => Err(CallError::ReadOnly(id)),
+            2708 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_2708(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2709 => Err(CallError::ReadOnly(id)),
+            2710 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_2710(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2711 => Err(CallError::ReadOnly(id)),
+            2712 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_2712(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2713 => Err(CallError::ReadOnly(id)),
+            2714 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_2714(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2715 => Err(CallError::ReadOnly(id)),
+            2716 => activation::with_arg_shared::<crate::world::HealthRules, _>(handle, |recv| call_2716(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2717 => Err(CallError::ReadOnly(id)),
+            2718 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_2718(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2719 => Err(CallError::ReadOnly(id)),
+            2720 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_2720(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2721 => Err(CallError::ReadOnly(id)),
+            2722 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_2722(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2723 => Err(CallError::ReadOnly(id)),
+            2724 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_2724(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2725 => Err(CallError::ReadOnly(id)),
+            2726 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_2726(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2727 => Err(CallError::ReadOnly(id)),
+            2728 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_2728(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2729 => Err(CallError::ReadOnly(id)),
+            2730 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_2730(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2731 => Err(CallError::ReadOnly(id)),
+            2732 => activation::with_arg::<crate::world::Weather, _>(handle, |recv| call_2732(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2733 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_2733(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2734 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_2734(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2735 => activation::with_arg_shared::<crate::world::Weather, _>(handle, |recv| call_2735(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2736 => activation::with_arg::<crate::world::Weather, _>(handle, |recv| call_2736(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2737 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2737(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2738 => Err(CallError::ReadOnly(id)),
+            2739 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2739(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2740 => Err(CallError::ReadOnly(id)),
+            2741 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2741(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2742 => Err(CallError::ReadOnly(id)),
+            2743 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2743(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2744 => Err(CallError::ReadOnly(id)),
+            2745 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2745(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2746 => Err(CallError::ReadOnly(id)),
+            2747 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2747(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2748 => Err(CallError::ReadOnly(id)),
+            2749 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2749(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2750 => Err(CallError::ReadOnly(id)),
+            2751 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2751(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2752 => Err(CallError::ReadOnly(id)),
+            2753 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2753(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2754 => Err(CallError::ReadOnly(id)),
+            2755 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2755(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2756 => Err(CallError::ReadOnly(id)),
+            2757 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2757(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2758 => Err(CallError::ReadOnly(id)),
+            2759 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2759(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2760 => Err(CallError::ReadOnly(id)),
+            2761 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2761(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2762 => Err(CallError::ReadOnly(id)),
+            2763 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2763(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2764 => Err(CallError::ReadOnly(id)),
+            2765 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2765(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2766 => Err(CallError::ReadOnly(id)),
+            2767 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2767(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2768 => Err(CallError::ReadOnly(id)),
+            2769 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2769(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2770 => Err(CallError::ReadOnly(id)),
+            2771 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2771(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2772 => Err(CallError::ReadOnly(id)),
+            2773 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2773(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2774 => Err(CallError::ReadOnly(id)),
+            2775 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2775(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2776 => Err(CallError::ReadOnly(id)),
+            2777 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2777(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2778 => Err(CallError::ReadOnly(id)),
+            2779 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2779(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2780 => Err(CallError::ReadOnly(id)),
+            2781 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2781(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2782 => Err(CallError::ReadOnly(id)),
+            2783 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2783(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2784 => Err(CallError::ReadOnly(id)),
+            2785 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2785(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2786 => activation::with_arg::<crate::world::World, _>(handle, |recv| call_2786(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2787 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2787(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2788 => activation::with_arg::<crate::world::World, _>(handle, |recv| call_2788(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2789 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2789(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2790 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2790(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2791 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2791(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2792 => activation::with_arg::<crate::world::World, _>(handle, |recv| call_2792(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2793 => activation::with_arg_shared::<crate::world::World, _>(handle, |recv| call_2793(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {

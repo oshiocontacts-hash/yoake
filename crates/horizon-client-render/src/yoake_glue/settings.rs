@@ -1281,7 +1281,7 @@ pub mod yoake_glue {
     }
 
     /// `render_settings::<Opt as Clone>::clone`
-    fn call_1524(recv: &crate::settings::Opt, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2542(recv: &crate::settings::Opt, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -1291,7 +1291,7 @@ pub mod yoake_glue {
     }
 
     /// `render_settings::<Opt as PartialEq>::eq`
-    fn call_1525(recv: &crate::settings::Opt, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2543(recv: &crate::settings::Opt, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = dec_crate__settings__Opt(d)?;
@@ -1302,7 +1302,7 @@ pub mod yoake_glue {
     }
 
     /// `render_settings::Settings.allow_cursor_changes#get`
-    fn call_1526(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2544(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.allow_cursor_changes, out);
         Ok(())
@@ -1312,7 +1312,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.attack_indicator#get`
-    fn call_1528(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2546(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.attack_indicator, out);
         Ok(())
@@ -1322,7 +1322,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.auto_jump#get`
-    fn call_1530(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2548(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.auto_jump, out);
         Ok(())
@@ -1332,7 +1332,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.auto_suggestions#get`
-    fn call_1532(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2550(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.auto_suggestions, out);
         Ok(())
@@ -1342,7 +1342,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.autosave_indicator#get`
-    fn call_1534(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2552(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.autosave_indicator, out);
         Ok(())
@@ -1352,7 +1352,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.biome_blend#get`
-    fn call_1536(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2554(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.biome_blend, out);
         Ok(())
@@ -1362,7 +1362,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.chat_colors#get`
-    fn call_1538(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2556(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chat_colors, out);
         Ok(())
@@ -1372,7 +1372,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.chat_delay#get`
-    fn call_1540(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2558(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chat_delay, out);
         Ok(())
@@ -1382,7 +1382,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.chat_height_focused#get`
-    fn call_1542(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2560(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chat_height_focused, out);
         Ok(())
@@ -1392,7 +1392,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.chat_height_unfocused#get`
-    fn call_1544(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2562(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chat_height_unfocused, out);
         Ok(())
@@ -1402,7 +1402,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.chat_line_spacing#get`
-    fn call_1546(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2564(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chat_line_spacing, out);
         Ok(())
@@ -1412,7 +1412,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.chat_links#get`
-    fn call_1548(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2566(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chat_links, out);
         Ok(())
@@ -1422,7 +1422,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.chat_links_prompt#get`
-    fn call_1550(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2568(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chat_links_prompt, out);
         Ok(())
@@ -1432,7 +1432,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.chat_opacity#get`
-    fn call_1552(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2570(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chat_opacity, out);
         Ok(())
@@ -1442,7 +1442,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.chat_scale#get`
-    fn call_1554(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2572(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chat_scale, out);
         Ok(())
@@ -1452,7 +1452,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.chat_visibility#get`
-    fn call_1556(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2574(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chat_visibility, out);
         Ok(())
@@ -1462,7 +1462,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.chat_width#get`
-    fn call_1558(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2576(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chat_width, out);
         Ok(())
@@ -1472,7 +1472,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.chunk_fade#get`
-    fn call_1560(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2578(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chunk_fade, out);
         Ok(())
@@ -1482,7 +1482,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.cloud_range#get`
-    fn call_1562(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2580(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.cloud_range, out);
         Ok(())
@@ -1492,7 +1492,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.clouds#get`
-    fn call_1564(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2582(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.clouds, out);
         Ok(())
@@ -1502,7 +1502,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.ctrl_click_emulates_right_click#get`
-    fn call_1566(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2584(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.ctrl_click_emulates_right_click, out);
         Ok(())
@@ -1512,7 +1512,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.cutout_leaves#get`
-    fn call_1568(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2586(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.cutout_leaves, out);
         Ok(())
@@ -1522,7 +1522,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.discrete_scroll#get`
-    fn call_1570(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2588(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.discrete_scroll, out);
         Ok(())
@@ -1532,7 +1532,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.entity_distance#get`
-    fn call_1572(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2590(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.entity_distance, out);
         Ok(())
@@ -1542,7 +1542,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.entity_shadows#get`
-    fn call_1574(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2592(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.entity_shadows, out);
         Ok(())
@@ -1552,7 +1552,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.force_unicode#get`
-    fn call_1576(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2594(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.force_unicode, out);
         Ok(())
@@ -1562,7 +1562,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.fov#get`
-    fn call_1578(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2596(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fov, out);
         Ok(())
@@ -1572,7 +1572,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.fullscreen#get`
-    fn call_1580(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2598(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.fullscreen, out);
         Ok(())
@@ -1582,7 +1582,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.gamma#get`
-    fn call_1582(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2600(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.gamma, out);
         Ok(())
@@ -1592,7 +1592,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.graphics_preset#get`
-    fn call_1584(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2602(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.graphics_preset, out);
         Ok(())
@@ -1602,7 +1602,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.gui_scale#get`
-    fn call_1586(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2604(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.gui_scale, out);
         Ok(())
@@ -1612,7 +1612,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.high_contrast#get`
-    fn call_1588(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2606(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.high_contrast, out);
         Ok(())
@@ -1622,7 +1622,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.horizon#get`
-    fn call_1590(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2608(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__graphics__Graphics(&recv.horizon, out);
         Ok(())
@@ -1632,7 +1632,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.improved_transparency#get`
-    fn call_1592(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2610(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.improved_transparency, out);
         Ok(())
@@ -1642,7 +1642,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.inactivity_fps_limit#get`
-    fn call_1594(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2612(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.inactivity_fps_limit, out);
         Ok(())
@@ -1652,7 +1652,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.invert_x#get`
-    fn call_1596(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2614(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.invert_x, out);
         Ok(())
@@ -1662,7 +1662,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.invert_y#get`
-    fn call_1598(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2616(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.invert_y, out);
         Ok(())
@@ -1672,7 +1672,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.japanese_glyphs#get`
-    fn call_1600(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2618(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.japanese_glyphs, out);
         Ok(())
@@ -1682,7 +1682,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.language#get`
-    fn call_1602(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2620(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.language, out);
         Ok(())
@@ -1692,7 +1692,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.main_hand_left#get`
-    fn call_1604(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2622(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.main_hand_left, out);
         Ok(())
@@ -1702,7 +1702,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.master_volume#get`
-    fn call_1606(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2624(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.master_volume, out);
         Ok(())
@@ -1712,7 +1712,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.max_fps#get`
-    fn call_1608(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2626(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.max_fps, out);
         Ok(())
@@ -1722,7 +1722,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.menu_blur#get`
-    fn call_1610(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2628(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.menu_blur, out);
         Ok(())
@@ -1732,7 +1732,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.mipmap_levels#get`
-    fn call_1612(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2630(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.mipmap_levels, out);
         Ok(())
@@ -1742,7 +1742,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.mods#get`
-    fn call_1614(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2632(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__mod_list__ModList(&recv.mods, out);
         Ok(())
@@ -1752,7 +1752,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.mouse_wheel_sensitivity#get`
-    fn call_1616(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2634(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.mouse_wheel_sensitivity, out);
         Ok(())
@@ -1762,7 +1762,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.notification_display_time#get`
-    fn call_1618(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2636(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.notification_display_time, out);
         Ok(())
@@ -1772,7 +1772,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.operator_items_tab#get`
-    fn call_1620(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2638(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.operator_items_tab, out);
         Ok(())
@@ -1782,7 +1782,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.particles#get`
-    fn call_1622(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2640(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.particles, out);
         Ok(())
@@ -1792,7 +1792,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.prioritize_chunk_updates#get`
-    fn call_1624(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2642(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.prioritize_chunk_updates, out);
         Ok(())
@@ -1802,7 +1802,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.quit_shortcuts#get`
-    fn call_1626(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2644(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.quit_shortcuts, out);
         Ok(())
@@ -1812,7 +1812,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.reduced_debug_info#get`
-    fn call_1628(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2646(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.reduced_debug_info, out);
         Ok(())
@@ -1822,7 +1822,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.render_distance#get`
-    fn call_1630(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2648(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.render_distance, out);
         Ok(())
@@ -1832,7 +1832,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.resource_packs#get`
-    fn call_1632(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2650(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         {
             let s0 = &recv.resource_packs;
@@ -1848,7 +1848,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.sensitivity#get`
-    fn call_1634(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2652(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sensitivity, out);
         Ok(())
@@ -1858,7 +1858,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.show_subtitles#get`
-    fn call_1636(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2654(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.show_subtitles, out);
         Ok(())
@@ -1868,7 +1868,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.simulation_distance#get`
-    fn call_1638(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2656(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.simulation_distance, out);
         Ok(())
@@ -1878,7 +1878,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.smooth_lighting#get`
-    fn call_1640(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2658(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.smooth_lighting, out);
         Ok(())
@@ -1888,7 +1888,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.sound_device#get`
-    fn call_1642(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2660(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sound_device, out);
         Ok(())
@@ -1898,7 +1898,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.sprint_window#get`
-    fn call_1644(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2662(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.sprint_window, out);
         Ok(())
@@ -1908,7 +1908,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.startup_api#get`
-    fn call_1646(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2664(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_crate__graphics__GraphicsApi(&recv.startup_api, out);
         Ok(())
@@ -1918,7 +1918,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.text_background_opacity#get`
-    fn call_1648(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2666(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.text_background_opacity, out);
         Ok(())
@@ -1928,7 +1928,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.toggle_attack#get`
-    fn call_1650(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2668(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.toggle_attack, out);
         Ok(())
@@ -1938,7 +1938,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.toggle_crouch#get`
-    fn call_1652(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2670(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.toggle_crouch, out);
         Ok(())
@@ -1948,7 +1948,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.toggle_sprint#get`
-    fn call_1654(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2672(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.toggle_sprint, out);
         Ok(())
@@ -1958,7 +1958,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.toggle_use#get`
-    fn call_1656(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2674(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.toggle_use, out);
         Ok(())
@@ -1968,7 +1968,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.view_bobbing#get`
-    fn call_1658(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2676(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.view_bobbing, out);
         Ok(())
@@ -1978,7 +1978,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.vignette#get`
-    fn call_1660(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2678(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.vignette, out);
         Ok(())
@@ -1988,7 +1988,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.volumes#get`
-    fn call_1662(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2680(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         for e0 in (&recv.volumes).iter() {
             Encode::encode(e0, out);
@@ -2000,7 +2000,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.vsync#get`
-    fn call_1664(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2682(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.vsync, out);
         Ok(())
@@ -2010,7 +2010,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings.weather_radius#get`
-    fn call_1666(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2684(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.weather_radius, out);
         Ok(())
@@ -2020,7 +2020,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `render_settings::Settings::chat_options`
-    fn call_1668(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2686(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -2030,7 +2030,7 @@ pub mod yoake_glue {
     }
 
     /// `render_settings::Settings::describe_for_crashes`
-    fn call_1669(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2687(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -2039,7 +2039,7 @@ pub mod yoake_glue {
     }
 
     /// `render_settings::Settings::final_volume`
-    fn call_1670(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2688(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
@@ -2050,7 +2050,7 @@ pub mod yoake_glue {
     }
 
     /// `render_settings::Settings::serialize`
-    fn call_1671(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2689(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -2060,7 +2060,7 @@ pub mod yoake_glue {
     }
 
     /// `render_settings::Settings::text_background`
-    fn call_1672(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2690(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <f32 as Decode>::decode(d)?;
@@ -2071,7 +2071,7 @@ pub mod yoake_glue {
     }
 
     /// `render_settings::Settings::video_mode_index`
-    fn call_1673(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2691(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -2081,7 +2081,7 @@ pub mod yoake_glue {
     }
 
     /// `render_settings::Settings::volume`
-    fn call_1674(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2692(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
@@ -2092,7 +2092,7 @@ pub mod yoake_glue {
     }
 
     /// `render_settings::default_language`
-    fn call_1675(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2693(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -2102,7 +2102,7 @@ pub mod yoake_glue {
     }
 
     /// `render_settings::set_source_volumes`
-    fn call_1676(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2694(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = {
@@ -2121,7 +2121,7 @@ pub mod yoake_glue {
     }
 
     /// `render_settings::sound_source`
-    fn call_1677(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2695(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
@@ -2132,7 +2132,7 @@ pub mod yoake_glue {
     }
 
     /// `render_settings::source_volume`
-    fn call_1678(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2696(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <usize as Decode>::decode(d)?;
@@ -2283,161 +2283,161 @@ pub mod yoake_glue {
 
     /// Every binding of this module: id and lock key.
     pub const BINDINGS: &[(u32, &str)] = &[
-        (1524, "render_settings::<Opt as Clone>::clone"),
-        (1525, "render_settings::<Opt as PartialEq>::eq"),
-        (1526, "render_settings::Settings.allow_cursor_changes#get"),
-        (1527, "render_settings::Settings.allow_cursor_changes#set"),
-        (1528, "render_settings::Settings.attack_indicator#get"),
-        (1529, "render_settings::Settings.attack_indicator#set"),
-        (1530, "render_settings::Settings.auto_jump#get"),
-        (1531, "render_settings::Settings.auto_jump#set"),
-        (1532, "render_settings::Settings.auto_suggestions#get"),
-        (1533, "render_settings::Settings.auto_suggestions#set"),
-        (1534, "render_settings::Settings.autosave_indicator#get"),
-        (1535, "render_settings::Settings.autosave_indicator#set"),
-        (1536, "render_settings::Settings.biome_blend#get"),
-        (1537, "render_settings::Settings.biome_blend#set"),
-        (1538, "render_settings::Settings.chat_colors#get"),
-        (1539, "render_settings::Settings.chat_colors#set"),
-        (1540, "render_settings::Settings.chat_delay#get"),
-        (1541, "render_settings::Settings.chat_delay#set"),
-        (1542, "render_settings::Settings.chat_height_focused#get"),
-        (1543, "render_settings::Settings.chat_height_focused#set"),
-        (1544, "render_settings::Settings.chat_height_unfocused#get"),
-        (1545, "render_settings::Settings.chat_height_unfocused#set"),
-        (1546, "render_settings::Settings.chat_line_spacing#get"),
-        (1547, "render_settings::Settings.chat_line_spacing#set"),
-        (1548, "render_settings::Settings.chat_links#get"),
-        (1549, "render_settings::Settings.chat_links#set"),
-        (1550, "render_settings::Settings.chat_links_prompt#get"),
-        (1551, "render_settings::Settings.chat_links_prompt#set"),
-        (1552, "render_settings::Settings.chat_opacity#get"),
-        (1553, "render_settings::Settings.chat_opacity#set"),
-        (1554, "render_settings::Settings.chat_scale#get"),
-        (1555, "render_settings::Settings.chat_scale#set"),
-        (1556, "render_settings::Settings.chat_visibility#get"),
-        (1557, "render_settings::Settings.chat_visibility#set"),
-        (1558, "render_settings::Settings.chat_width#get"),
-        (1559, "render_settings::Settings.chat_width#set"),
-        (1560, "render_settings::Settings.chunk_fade#get"),
-        (1561, "render_settings::Settings.chunk_fade#set"),
-        (1562, "render_settings::Settings.cloud_range#get"),
-        (1563, "render_settings::Settings.cloud_range#set"),
-        (1564, "render_settings::Settings.clouds#get"),
-        (1565, "render_settings::Settings.clouds#set"),
-        (1566, "render_settings::Settings.ctrl_click_emulates_right_click#get"),
-        (1567, "render_settings::Settings.ctrl_click_emulates_right_click#set"),
-        (1568, "render_settings::Settings.cutout_leaves#get"),
-        (1569, "render_settings::Settings.cutout_leaves#set"),
-        (1570, "render_settings::Settings.discrete_scroll#get"),
-        (1571, "render_settings::Settings.discrete_scroll#set"),
-        (1572, "render_settings::Settings.entity_distance#get"),
-        (1573, "render_settings::Settings.entity_distance#set"),
-        (1574, "render_settings::Settings.entity_shadows#get"),
-        (1575, "render_settings::Settings.entity_shadows#set"),
-        (1576, "render_settings::Settings.force_unicode#get"),
-        (1577, "render_settings::Settings.force_unicode#set"),
-        (1578, "render_settings::Settings.fov#get"),
-        (1579, "render_settings::Settings.fov#set"),
-        (1580, "render_settings::Settings.fullscreen#get"),
-        (1581, "render_settings::Settings.fullscreen#set"),
-        (1582, "render_settings::Settings.gamma#get"),
-        (1583, "render_settings::Settings.gamma#set"),
-        (1584, "render_settings::Settings.graphics_preset#get"),
-        (1585, "render_settings::Settings.graphics_preset#set"),
-        (1586, "render_settings::Settings.gui_scale#get"),
-        (1587, "render_settings::Settings.gui_scale#set"),
-        (1588, "render_settings::Settings.high_contrast#get"),
-        (1589, "render_settings::Settings.high_contrast#set"),
-        (1590, "render_settings::Settings.horizon#get"),
-        (1591, "render_settings::Settings.horizon#set"),
-        (1592, "render_settings::Settings.improved_transparency#get"),
-        (1593, "render_settings::Settings.improved_transparency#set"),
-        (1594, "render_settings::Settings.inactivity_fps_limit#get"),
-        (1595, "render_settings::Settings.inactivity_fps_limit#set"),
-        (1596, "render_settings::Settings.invert_x#get"),
-        (1597, "render_settings::Settings.invert_x#set"),
-        (1598, "render_settings::Settings.invert_y#get"),
-        (1599, "render_settings::Settings.invert_y#set"),
-        (1600, "render_settings::Settings.japanese_glyphs#get"),
-        (1601, "render_settings::Settings.japanese_glyphs#set"),
-        (1602, "render_settings::Settings.language#get"),
-        (1603, "render_settings::Settings.language#set"),
-        (1604, "render_settings::Settings.main_hand_left#get"),
-        (1605, "render_settings::Settings.main_hand_left#set"),
-        (1606, "render_settings::Settings.master_volume#get"),
-        (1607, "render_settings::Settings.master_volume#set"),
-        (1608, "render_settings::Settings.max_fps#get"),
-        (1609, "render_settings::Settings.max_fps#set"),
-        (1610, "render_settings::Settings.menu_blur#get"),
-        (1611, "render_settings::Settings.menu_blur#set"),
-        (1612, "render_settings::Settings.mipmap_levels#get"),
-        (1613, "render_settings::Settings.mipmap_levels#set"),
-        (1614, "render_settings::Settings.mods#get"),
-        (1615, "render_settings::Settings.mods#set"),
-        (1616, "render_settings::Settings.mouse_wheel_sensitivity#get"),
-        (1617, "render_settings::Settings.mouse_wheel_sensitivity#set"),
-        (1618, "render_settings::Settings.notification_display_time#get"),
-        (1619, "render_settings::Settings.notification_display_time#set"),
-        (1620, "render_settings::Settings.operator_items_tab#get"),
-        (1621, "render_settings::Settings.operator_items_tab#set"),
-        (1622, "render_settings::Settings.particles#get"),
-        (1623, "render_settings::Settings.particles#set"),
-        (1624, "render_settings::Settings.prioritize_chunk_updates#get"),
-        (1625, "render_settings::Settings.prioritize_chunk_updates#set"),
-        (1626, "render_settings::Settings.quit_shortcuts#get"),
-        (1627, "render_settings::Settings.quit_shortcuts#set"),
-        (1628, "render_settings::Settings.reduced_debug_info#get"),
-        (1629, "render_settings::Settings.reduced_debug_info#set"),
-        (1630, "render_settings::Settings.render_distance#get"),
-        (1631, "render_settings::Settings.render_distance#set"),
-        (1632, "render_settings::Settings.resource_packs#get"),
-        (1633, "render_settings::Settings.resource_packs#set"),
-        (1634, "render_settings::Settings.sensitivity#get"),
-        (1635, "render_settings::Settings.sensitivity#set"),
-        (1636, "render_settings::Settings.show_subtitles#get"),
-        (1637, "render_settings::Settings.show_subtitles#set"),
-        (1638, "render_settings::Settings.simulation_distance#get"),
-        (1639, "render_settings::Settings.simulation_distance#set"),
-        (1640, "render_settings::Settings.smooth_lighting#get"),
-        (1641, "render_settings::Settings.smooth_lighting#set"),
-        (1642, "render_settings::Settings.sound_device#get"),
-        (1643, "render_settings::Settings.sound_device#set"),
-        (1644, "render_settings::Settings.sprint_window#get"),
-        (1645, "render_settings::Settings.sprint_window#set"),
-        (1646, "render_settings::Settings.startup_api#get"),
-        (1647, "render_settings::Settings.startup_api#set"),
-        (1648, "render_settings::Settings.text_background_opacity#get"),
-        (1649, "render_settings::Settings.text_background_opacity#set"),
-        (1650, "render_settings::Settings.toggle_attack#get"),
-        (1651, "render_settings::Settings.toggle_attack#set"),
-        (1652, "render_settings::Settings.toggle_crouch#get"),
-        (1653, "render_settings::Settings.toggle_crouch#set"),
-        (1654, "render_settings::Settings.toggle_sprint#get"),
-        (1655, "render_settings::Settings.toggle_sprint#set"),
-        (1656, "render_settings::Settings.toggle_use#get"),
-        (1657, "render_settings::Settings.toggle_use#set"),
-        (1658, "render_settings::Settings.view_bobbing#get"),
-        (1659, "render_settings::Settings.view_bobbing#set"),
-        (1660, "render_settings::Settings.vignette#get"),
-        (1661, "render_settings::Settings.vignette#set"),
-        (1662, "render_settings::Settings.volumes#get"),
-        (1663, "render_settings::Settings.volumes#set"),
-        (1664, "render_settings::Settings.vsync#get"),
-        (1665, "render_settings::Settings.vsync#set"),
-        (1666, "render_settings::Settings.weather_radius#get"),
-        (1667, "render_settings::Settings.weather_radius#set"),
-        (1668, "render_settings::Settings::chat_options"),
-        (1669, "render_settings::Settings::describe_for_crashes"),
-        (1670, "render_settings::Settings::final_volume"),
-        (1671, "render_settings::Settings::serialize"),
-        (1672, "render_settings::Settings::text_background"),
-        (1673, "render_settings::Settings::video_mode_index"),
-        (1674, "render_settings::Settings::volume"),
-        (1675, "render_settings::default_language"),
-        (1676, "render_settings::set_source_volumes"),
-        (1677, "render_settings::sound_source"),
-        (1678, "render_settings::source_volume"),
+        (2542, "render_settings::<Opt as Clone>::clone"),
+        (2543, "render_settings::<Opt as PartialEq>::eq"),
+        (2544, "render_settings::Settings.allow_cursor_changes#get"),
+        (2545, "render_settings::Settings.allow_cursor_changes#set"),
+        (2546, "render_settings::Settings.attack_indicator#get"),
+        (2547, "render_settings::Settings.attack_indicator#set"),
+        (2548, "render_settings::Settings.auto_jump#get"),
+        (2549, "render_settings::Settings.auto_jump#set"),
+        (2550, "render_settings::Settings.auto_suggestions#get"),
+        (2551, "render_settings::Settings.auto_suggestions#set"),
+        (2552, "render_settings::Settings.autosave_indicator#get"),
+        (2553, "render_settings::Settings.autosave_indicator#set"),
+        (2554, "render_settings::Settings.biome_blend#get"),
+        (2555, "render_settings::Settings.biome_blend#set"),
+        (2556, "render_settings::Settings.chat_colors#get"),
+        (2557, "render_settings::Settings.chat_colors#set"),
+        (2558, "render_settings::Settings.chat_delay#get"),
+        (2559, "render_settings::Settings.chat_delay#set"),
+        (2560, "render_settings::Settings.chat_height_focused#get"),
+        (2561, "render_settings::Settings.chat_height_focused#set"),
+        (2562, "render_settings::Settings.chat_height_unfocused#get"),
+        (2563, "render_settings::Settings.chat_height_unfocused#set"),
+        (2564, "render_settings::Settings.chat_line_spacing#get"),
+        (2565, "render_settings::Settings.chat_line_spacing#set"),
+        (2566, "render_settings::Settings.chat_links#get"),
+        (2567, "render_settings::Settings.chat_links#set"),
+        (2568, "render_settings::Settings.chat_links_prompt#get"),
+        (2569, "render_settings::Settings.chat_links_prompt#set"),
+        (2570, "render_settings::Settings.chat_opacity#get"),
+        (2571, "render_settings::Settings.chat_opacity#set"),
+        (2572, "render_settings::Settings.chat_scale#get"),
+        (2573, "render_settings::Settings.chat_scale#set"),
+        (2574, "render_settings::Settings.chat_visibility#get"),
+        (2575, "render_settings::Settings.chat_visibility#set"),
+        (2576, "render_settings::Settings.chat_width#get"),
+        (2577, "render_settings::Settings.chat_width#set"),
+        (2578, "render_settings::Settings.chunk_fade#get"),
+        (2579, "render_settings::Settings.chunk_fade#set"),
+        (2580, "render_settings::Settings.cloud_range#get"),
+        (2581, "render_settings::Settings.cloud_range#set"),
+        (2582, "render_settings::Settings.clouds#get"),
+        (2583, "render_settings::Settings.clouds#set"),
+        (2584, "render_settings::Settings.ctrl_click_emulates_right_click#get"),
+        (2585, "render_settings::Settings.ctrl_click_emulates_right_click#set"),
+        (2586, "render_settings::Settings.cutout_leaves#get"),
+        (2587, "render_settings::Settings.cutout_leaves#set"),
+        (2588, "render_settings::Settings.discrete_scroll#get"),
+        (2589, "render_settings::Settings.discrete_scroll#set"),
+        (2590, "render_settings::Settings.entity_distance#get"),
+        (2591, "render_settings::Settings.entity_distance#set"),
+        (2592, "render_settings::Settings.entity_shadows#get"),
+        (2593, "render_settings::Settings.entity_shadows#set"),
+        (2594, "render_settings::Settings.force_unicode#get"),
+        (2595, "render_settings::Settings.force_unicode#set"),
+        (2596, "render_settings::Settings.fov#get"),
+        (2597, "render_settings::Settings.fov#set"),
+        (2598, "render_settings::Settings.fullscreen#get"),
+        (2599, "render_settings::Settings.fullscreen#set"),
+        (2600, "render_settings::Settings.gamma#get"),
+        (2601, "render_settings::Settings.gamma#set"),
+        (2602, "render_settings::Settings.graphics_preset#get"),
+        (2603, "render_settings::Settings.graphics_preset#set"),
+        (2604, "render_settings::Settings.gui_scale#get"),
+        (2605, "render_settings::Settings.gui_scale#set"),
+        (2606, "render_settings::Settings.high_contrast#get"),
+        (2607, "render_settings::Settings.high_contrast#set"),
+        (2608, "render_settings::Settings.horizon#get"),
+        (2609, "render_settings::Settings.horizon#set"),
+        (2610, "render_settings::Settings.improved_transparency#get"),
+        (2611, "render_settings::Settings.improved_transparency#set"),
+        (2612, "render_settings::Settings.inactivity_fps_limit#get"),
+        (2613, "render_settings::Settings.inactivity_fps_limit#set"),
+        (2614, "render_settings::Settings.invert_x#get"),
+        (2615, "render_settings::Settings.invert_x#set"),
+        (2616, "render_settings::Settings.invert_y#get"),
+        (2617, "render_settings::Settings.invert_y#set"),
+        (2618, "render_settings::Settings.japanese_glyphs#get"),
+        (2619, "render_settings::Settings.japanese_glyphs#set"),
+        (2620, "render_settings::Settings.language#get"),
+        (2621, "render_settings::Settings.language#set"),
+        (2622, "render_settings::Settings.main_hand_left#get"),
+        (2623, "render_settings::Settings.main_hand_left#set"),
+        (2624, "render_settings::Settings.master_volume#get"),
+        (2625, "render_settings::Settings.master_volume#set"),
+        (2626, "render_settings::Settings.max_fps#get"),
+        (2627, "render_settings::Settings.max_fps#set"),
+        (2628, "render_settings::Settings.menu_blur#get"),
+        (2629, "render_settings::Settings.menu_blur#set"),
+        (2630, "render_settings::Settings.mipmap_levels#get"),
+        (2631, "render_settings::Settings.mipmap_levels#set"),
+        (2632, "render_settings::Settings.mods#get"),
+        (2633, "render_settings::Settings.mods#set"),
+        (2634, "render_settings::Settings.mouse_wheel_sensitivity#get"),
+        (2635, "render_settings::Settings.mouse_wheel_sensitivity#set"),
+        (2636, "render_settings::Settings.notification_display_time#get"),
+        (2637, "render_settings::Settings.notification_display_time#set"),
+        (2638, "render_settings::Settings.operator_items_tab#get"),
+        (2639, "render_settings::Settings.operator_items_tab#set"),
+        (2640, "render_settings::Settings.particles#get"),
+        (2641, "render_settings::Settings.particles#set"),
+        (2642, "render_settings::Settings.prioritize_chunk_updates#get"),
+        (2643, "render_settings::Settings.prioritize_chunk_updates#set"),
+        (2644, "render_settings::Settings.quit_shortcuts#get"),
+        (2645, "render_settings::Settings.quit_shortcuts#set"),
+        (2646, "render_settings::Settings.reduced_debug_info#get"),
+        (2647, "render_settings::Settings.reduced_debug_info#set"),
+        (2648, "render_settings::Settings.render_distance#get"),
+        (2649, "render_settings::Settings.render_distance#set"),
+        (2650, "render_settings::Settings.resource_packs#get"),
+        (2651, "render_settings::Settings.resource_packs#set"),
+        (2652, "render_settings::Settings.sensitivity#get"),
+        (2653, "render_settings::Settings.sensitivity#set"),
+        (2654, "render_settings::Settings.show_subtitles#get"),
+        (2655, "render_settings::Settings.show_subtitles#set"),
+        (2656, "render_settings::Settings.simulation_distance#get"),
+        (2657, "render_settings::Settings.simulation_distance#set"),
+        (2658, "render_settings::Settings.smooth_lighting#get"),
+        (2659, "render_settings::Settings.smooth_lighting#set"),
+        (2660, "render_settings::Settings.sound_device#get"),
+        (2661, "render_settings::Settings.sound_device#set"),
+        (2662, "render_settings::Settings.sprint_window#get"),
+        (2663, "render_settings::Settings.sprint_window#set"),
+        (2664, "render_settings::Settings.startup_api#get"),
+        (2665, "render_settings::Settings.startup_api#set"),
+        (2666, "render_settings::Settings.text_background_opacity#get"),
+        (2667, "render_settings::Settings.text_background_opacity#set"),
+        (2668, "render_settings::Settings.toggle_attack#get"),
+        (2669, "render_settings::Settings.toggle_attack#set"),
+        (2670, "render_settings::Settings.toggle_crouch#get"),
+        (2671, "render_settings::Settings.toggle_crouch#set"),
+        (2672, "render_settings::Settings.toggle_sprint#get"),
+        (2673, "render_settings::Settings.toggle_sprint#set"),
+        (2674, "render_settings::Settings.toggle_use#get"),
+        (2675, "render_settings::Settings.toggle_use#set"),
+        (2676, "render_settings::Settings.view_bobbing#get"),
+        (2677, "render_settings::Settings.view_bobbing#set"),
+        (2678, "render_settings::Settings.vignette#get"),
+        (2679, "render_settings::Settings.vignette#set"),
+        (2680, "render_settings::Settings.volumes#get"),
+        (2681, "render_settings::Settings.volumes#set"),
+        (2682, "render_settings::Settings.vsync#get"),
+        (2683, "render_settings::Settings.vsync#set"),
+        (2684, "render_settings::Settings.weather_radius#get"),
+        (2685, "render_settings::Settings.weather_radius#set"),
+        (2686, "render_settings::Settings::chat_options"),
+        (2687, "render_settings::Settings::describe_for_crashes"),
+        (2688, "render_settings::Settings::final_volume"),
+        (2689, "render_settings::Settings::serialize"),
+        (2690, "render_settings::Settings::text_background"),
+        (2691, "render_settings::Settings::video_mode_index"),
+        (2692, "render_settings::Settings::volume"),
+        (2693, "render_settings::default_language"),
+        (2694, "render_settings::set_source_volumes"),
+        (2695, "render_settings::sound_source"),
+        (2696, "render_settings::source_volume"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -2445,161 +2445,161 @@ pub mod yoake_glue {
     pub fn call(handle: u64, id: u32, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let start = out.len();
         let result = match id {
-            1524 => activation::with_arg_shared::<crate::settings::Opt, _>(handle, |recv| call_1524(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1525 => activation::with_arg_shared::<crate::settings::Opt, _>(handle, |recv| call_1525(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1526 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1526(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1527 => Err(CallError::ReadOnly(id)),
-            1528 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1528(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1529 => Err(CallError::ReadOnly(id)),
-            1530 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1530(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1531 => Err(CallError::ReadOnly(id)),
-            1532 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1532(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1533 => Err(CallError::ReadOnly(id)),
-            1534 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1534(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1535 => Err(CallError::ReadOnly(id)),
-            1536 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1536(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1537 => Err(CallError::ReadOnly(id)),
-            1538 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1538(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1539 => Err(CallError::ReadOnly(id)),
-            1540 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1540(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1541 => Err(CallError::ReadOnly(id)),
-            1542 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1542(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1543 => Err(CallError::ReadOnly(id)),
-            1544 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1544(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1545 => Err(CallError::ReadOnly(id)),
-            1546 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1546(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1547 => Err(CallError::ReadOnly(id)),
-            1548 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1548(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1549 => Err(CallError::ReadOnly(id)),
-            1550 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1550(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1551 => Err(CallError::ReadOnly(id)),
-            1552 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1552(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1553 => Err(CallError::ReadOnly(id)),
-            1554 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1554(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1555 => Err(CallError::ReadOnly(id)),
-            1556 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1556(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1557 => Err(CallError::ReadOnly(id)),
-            1558 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1558(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1559 => Err(CallError::ReadOnly(id)),
-            1560 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1560(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1561 => Err(CallError::ReadOnly(id)),
-            1562 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1562(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1563 => Err(CallError::ReadOnly(id)),
-            1564 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1564(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1565 => Err(CallError::ReadOnly(id)),
-            1566 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1566(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1567 => Err(CallError::ReadOnly(id)),
-            1568 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1568(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1569 => Err(CallError::ReadOnly(id)),
-            1570 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1570(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1571 => Err(CallError::ReadOnly(id)),
-            1572 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1572(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1573 => Err(CallError::ReadOnly(id)),
-            1574 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1574(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1575 => Err(CallError::ReadOnly(id)),
-            1576 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1576(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1577 => Err(CallError::ReadOnly(id)),
-            1578 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1578(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1579 => Err(CallError::ReadOnly(id)),
-            1580 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1580(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1581 => Err(CallError::ReadOnly(id)),
-            1582 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1582(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1583 => Err(CallError::ReadOnly(id)),
-            1584 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1584(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1585 => Err(CallError::ReadOnly(id)),
-            1586 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1586(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1587 => Err(CallError::ReadOnly(id)),
-            1588 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1588(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1589 => Err(CallError::ReadOnly(id)),
-            1590 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1590(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1591 => Err(CallError::ReadOnly(id)),
-            1592 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1592(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1593 => Err(CallError::ReadOnly(id)),
-            1594 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1594(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1595 => Err(CallError::ReadOnly(id)),
-            1596 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1596(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1597 => Err(CallError::ReadOnly(id)),
-            1598 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1598(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1599 => Err(CallError::ReadOnly(id)),
-            1600 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1600(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1601 => Err(CallError::ReadOnly(id)),
-            1602 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1602(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1603 => Err(CallError::ReadOnly(id)),
-            1604 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1604(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1605 => Err(CallError::ReadOnly(id)),
-            1606 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1606(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1607 => Err(CallError::ReadOnly(id)),
-            1608 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1608(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1609 => Err(CallError::ReadOnly(id)),
-            1610 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1610(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1611 => Err(CallError::ReadOnly(id)),
-            1612 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1612(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1613 => Err(CallError::ReadOnly(id)),
-            1614 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1614(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1615 => Err(CallError::ReadOnly(id)),
-            1616 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1616(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1617 => Err(CallError::ReadOnly(id)),
-            1618 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1618(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1619 => Err(CallError::ReadOnly(id)),
-            1620 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1620(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1621 => Err(CallError::ReadOnly(id)),
-            1622 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1622(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1623 => Err(CallError::ReadOnly(id)),
-            1624 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1624(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1625 => Err(CallError::ReadOnly(id)),
-            1626 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1626(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1627 => Err(CallError::ReadOnly(id)),
-            1628 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1628(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1629 => Err(CallError::ReadOnly(id)),
-            1630 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1630(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1631 => Err(CallError::ReadOnly(id)),
-            1632 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1632(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1633 => Err(CallError::ReadOnly(id)),
-            1634 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1634(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1635 => Err(CallError::ReadOnly(id)),
-            1636 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1636(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1637 => Err(CallError::ReadOnly(id)),
-            1638 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1638(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1639 => Err(CallError::ReadOnly(id)),
-            1640 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1640(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1641 => Err(CallError::ReadOnly(id)),
-            1642 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1642(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1643 => Err(CallError::ReadOnly(id)),
-            1644 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1644(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1645 => Err(CallError::ReadOnly(id)),
-            1646 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1646(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1647 => Err(CallError::ReadOnly(id)),
-            1648 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1648(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1649 => Err(CallError::ReadOnly(id)),
-            1650 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1650(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1651 => Err(CallError::ReadOnly(id)),
-            1652 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1652(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1653 => Err(CallError::ReadOnly(id)),
-            1654 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1654(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1655 => Err(CallError::ReadOnly(id)),
-            1656 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1656(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1657 => Err(CallError::ReadOnly(id)),
-            1658 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1658(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1659 => Err(CallError::ReadOnly(id)),
-            1660 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1660(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1661 => Err(CallError::ReadOnly(id)),
-            1662 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1662(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1663 => Err(CallError::ReadOnly(id)),
-            1664 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1664(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1665 => Err(CallError::ReadOnly(id)),
-            1666 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1666(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1667 => Err(CallError::ReadOnly(id)),
-            1668 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1668(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1669 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1669(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1670 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1670(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1671 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1671(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1672 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1672(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1673 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1673(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1674 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_1674(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1675 => call_1675(args, out),
-            1676 => call_1676(args, out),
-            1677 => call_1677(args, out),
-            1678 => call_1678(args, out),
+            2542 => activation::with_arg_shared::<crate::settings::Opt, _>(handle, |recv| call_2542(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2543 => activation::with_arg_shared::<crate::settings::Opt, _>(handle, |recv| call_2543(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2544 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2544(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2545 => Err(CallError::ReadOnly(id)),
+            2546 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2546(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2547 => Err(CallError::ReadOnly(id)),
+            2548 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2548(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2549 => Err(CallError::ReadOnly(id)),
+            2550 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2550(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2551 => Err(CallError::ReadOnly(id)),
+            2552 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2552(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2553 => Err(CallError::ReadOnly(id)),
+            2554 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2554(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2555 => Err(CallError::ReadOnly(id)),
+            2556 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2556(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2557 => Err(CallError::ReadOnly(id)),
+            2558 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2558(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2559 => Err(CallError::ReadOnly(id)),
+            2560 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2560(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2561 => Err(CallError::ReadOnly(id)),
+            2562 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2562(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2563 => Err(CallError::ReadOnly(id)),
+            2564 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2564(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2565 => Err(CallError::ReadOnly(id)),
+            2566 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2566(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2567 => Err(CallError::ReadOnly(id)),
+            2568 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2568(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2569 => Err(CallError::ReadOnly(id)),
+            2570 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2570(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2571 => Err(CallError::ReadOnly(id)),
+            2572 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2572(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2573 => Err(CallError::ReadOnly(id)),
+            2574 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2574(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2575 => Err(CallError::ReadOnly(id)),
+            2576 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2576(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2577 => Err(CallError::ReadOnly(id)),
+            2578 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2578(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2579 => Err(CallError::ReadOnly(id)),
+            2580 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2580(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2581 => Err(CallError::ReadOnly(id)),
+            2582 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2582(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2583 => Err(CallError::ReadOnly(id)),
+            2584 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2584(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2585 => Err(CallError::ReadOnly(id)),
+            2586 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2586(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2587 => Err(CallError::ReadOnly(id)),
+            2588 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2588(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2589 => Err(CallError::ReadOnly(id)),
+            2590 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2590(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2591 => Err(CallError::ReadOnly(id)),
+            2592 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2592(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2593 => Err(CallError::ReadOnly(id)),
+            2594 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2594(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2595 => Err(CallError::ReadOnly(id)),
+            2596 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2596(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2597 => Err(CallError::ReadOnly(id)),
+            2598 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2598(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2599 => Err(CallError::ReadOnly(id)),
+            2600 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2600(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2601 => Err(CallError::ReadOnly(id)),
+            2602 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2602(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2603 => Err(CallError::ReadOnly(id)),
+            2604 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2604(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2605 => Err(CallError::ReadOnly(id)),
+            2606 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2606(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2607 => Err(CallError::ReadOnly(id)),
+            2608 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2608(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2609 => Err(CallError::ReadOnly(id)),
+            2610 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2610(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2611 => Err(CallError::ReadOnly(id)),
+            2612 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2612(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2613 => Err(CallError::ReadOnly(id)),
+            2614 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2614(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2615 => Err(CallError::ReadOnly(id)),
+            2616 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2616(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2617 => Err(CallError::ReadOnly(id)),
+            2618 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2618(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2619 => Err(CallError::ReadOnly(id)),
+            2620 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2620(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2621 => Err(CallError::ReadOnly(id)),
+            2622 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2622(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2623 => Err(CallError::ReadOnly(id)),
+            2624 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2624(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2625 => Err(CallError::ReadOnly(id)),
+            2626 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2626(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2627 => Err(CallError::ReadOnly(id)),
+            2628 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2628(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2629 => Err(CallError::ReadOnly(id)),
+            2630 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2630(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2631 => Err(CallError::ReadOnly(id)),
+            2632 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2632(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2633 => Err(CallError::ReadOnly(id)),
+            2634 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2634(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2635 => Err(CallError::ReadOnly(id)),
+            2636 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2636(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2637 => Err(CallError::ReadOnly(id)),
+            2638 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2638(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2639 => Err(CallError::ReadOnly(id)),
+            2640 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2640(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2641 => Err(CallError::ReadOnly(id)),
+            2642 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2642(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2643 => Err(CallError::ReadOnly(id)),
+            2644 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2644(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2645 => Err(CallError::ReadOnly(id)),
+            2646 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2646(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2647 => Err(CallError::ReadOnly(id)),
+            2648 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2648(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2649 => Err(CallError::ReadOnly(id)),
+            2650 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2650(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2651 => Err(CallError::ReadOnly(id)),
+            2652 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2652(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2653 => Err(CallError::ReadOnly(id)),
+            2654 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2654(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2655 => Err(CallError::ReadOnly(id)),
+            2656 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2656(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2657 => Err(CallError::ReadOnly(id)),
+            2658 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2658(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2659 => Err(CallError::ReadOnly(id)),
+            2660 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2660(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2661 => Err(CallError::ReadOnly(id)),
+            2662 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2662(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2663 => Err(CallError::ReadOnly(id)),
+            2664 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2664(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2665 => Err(CallError::ReadOnly(id)),
+            2666 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2666(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2667 => Err(CallError::ReadOnly(id)),
+            2668 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2668(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2669 => Err(CallError::ReadOnly(id)),
+            2670 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2670(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2671 => Err(CallError::ReadOnly(id)),
+            2672 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2672(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2673 => Err(CallError::ReadOnly(id)),
+            2674 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2674(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2675 => Err(CallError::ReadOnly(id)),
+            2676 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2676(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2677 => Err(CallError::ReadOnly(id)),
+            2678 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2678(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2679 => Err(CallError::ReadOnly(id)),
+            2680 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2680(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2681 => Err(CallError::ReadOnly(id)),
+            2682 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2682(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2683 => Err(CallError::ReadOnly(id)),
+            2684 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2684(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2685 => Err(CallError::ReadOnly(id)),
+            2686 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2686(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2687 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2687(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2688 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2688(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2689 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2689(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2690 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2690(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2691 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2691(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2692 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2692(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2693 => call_2693(args, out),
+            2694 => call_2694(args, out),
+            2695 => call_2695(args, out),
+            2696 => call_2696(args, out),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {

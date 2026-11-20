@@ -2,15 +2,38 @@
 // Regenerate: cargo run -p yoake-bindgen -- --config crates/yoake-bindgen/bindgen.json
 // Module `mod_generator` of crate `horizon_client_lib`; ids come from crates/yoake-bindgen/ids.lock.json.
 // Included inside the module so private items are reachable. `#![forbid(unsafe_code)]` below.
-#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, clippy::all)]
+#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, private_interfaces, private_bounds, clippy::all)]
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]
     use yoake_slice::activation::{self, Accessor, FieldTable, PathRoot, PathRootRef, RefFieldTable, Status};
     use yoake_slice::codec::{self, CallError, Decode, Decoder, Encode};
 
+    fn enc_horizon_client_render__chunk__LevelShape(v: &horizon_client_render::chunk::LevelShape, out: &mut Vec<u8>) {
+        Encode::encode(&v.sky_light, out);
+        Encode::encode(&v.has_ceiling, out);
+        Encode::encode(&v.min_y, out);
+        Encode::encode(&v.height, out);
+        Encode::encode(&v.logical_height, out);
+    }
+    fn dec_horizon_client_render__chunk__LevelShape(d: &mut Decoder<'_>) -> Result<horizon_client_render::chunk::LevelShape, CallError> {
+        d.enter()?;
+        let r = dec_horizon_client_render__chunk__LevelShape_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_client_render__chunk__LevelShape_body(d: &mut Decoder<'_>) -> Result<horizon_client_render::chunk::LevelShape, CallError> {
+        Ok(horizon_client_render::chunk::LevelShape {
+            sky_light: <bool as Decode>::decode(d)?,
+            has_ceiling: <bool as Decode>::decode(d)?,
+            min_y: <i32 as Decode>::decode(d)?,
+            height: <i32 as Decode>::decode(d)?,
+            logical_height: <i32 as Decode>::decode(d)?,
+        })
+    }
+
     /// `mod_generator::<ModTerrain as ChunkGenerator>::worker`
-    fn call_2533(recv: &crate::mod_generator::ModTerrain, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2794(recv: &crate::mod_generator::ModTerrain, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -19,7 +42,7 @@ pub mod yoake_glue {
     }
 
     /// `mod_generator::ModGeneratorContext.generator#get`
-    fn call_2534(recv: &crate::mod_generator::ModGeneratorContext, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2795(recv: &crate::mod_generator::ModGeneratorContext, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.generator, out);
         Ok(())
@@ -29,7 +52,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mod_generator::ModGeneratorContext.level#get`
-    fn call_2536(recv: &crate::mod_generator::ModGeneratorContext, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2797(recv: &crate::mod_generator::ModGeneratorContext, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.level, out);
         Ok(())
@@ -39,7 +62,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mod_generator::ModGeneratorContext.seed#get`
-    fn call_2538(recv: &crate::mod_generator::ModGeneratorContext, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2799(recv: &crate::mod_generator::ModGeneratorContext, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.seed, out);
         Ok(())
@@ -49,7 +72,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mod_generator::ModGeneratorContext::block`
-    fn call_2540(recv: &crate::mod_generator::ModGeneratorContext, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2801(recv: &crate::mod_generator::ModGeneratorContext, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
@@ -66,7 +89,7 @@ pub mod yoake_glue {
     }
 
     /// `mod_generator::ModGenerators::contains`
-    fn call_2541(recv: &crate::mod_generator::ModGenerators, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2802(recv: &crate::mod_generator::ModGenerators, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
@@ -77,7 +100,7 @@ pub mod yoake_glue {
     }
 
     /// `mod_generator::ModTerrain.level#get`
-    fn call_2542(recv: &crate::mod_generator::ModTerrain, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2803(recv: &crate::mod_generator::ModTerrain, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.level, out);
         Ok(())
@@ -87,7 +110,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mod_generator::ModTerrain.plains#get`
-    fn call_2544(recv: &crate::mod_generator::ModTerrain, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2805(recv: &crate::mod_generator::ModTerrain, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.plains, out);
         Ok(())
@@ -97,7 +120,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mod_generator::clear_staged`
-    fn call_2546(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2807(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -106,7 +129,7 @@ pub mod yoake_glue {
     }
 
     /// `mod_generator::ModChunk.chunk_x#get`
-    fn call_2547(recv: &crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2808(recv: &crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chunk_x, out);
         Ok(())
@@ -116,7 +139,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mod_generator::ModChunk.chunk_z#get`
-    fn call_2549(recv: &crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2810(recv: &crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.chunk_z, out);
         Ok(())
@@ -126,7 +149,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mod_generator::ModChunk.failed#get`
-    fn call_2551(recv: &crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2812(recv: &crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         Encode::encode(&recv.failed, out);
         Ok(())
@@ -136,7 +159,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `mod_generator::ModChunk::block`
-    fn call_2553(recv: &crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2814(recv: &crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <i32 as Decode>::decode(d)?;
@@ -149,7 +172,7 @@ pub mod yoake_glue {
     }
 
     /// `mod_generator::ModChunk::fill_layer`
-    fn call_2554(recv: &mut crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2815(recv: &mut crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <i32 as Decode>::decode(d)?;
@@ -160,7 +183,7 @@ pub mod yoake_glue {
     }
 
     /// `mod_generator::ModChunk::mark_failed`
-    fn call_2555(recv: &mut crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2816(recv: &mut crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -169,7 +192,7 @@ pub mod yoake_glue {
     }
 
     /// `mod_generator::ModChunk::set_biome`
-    fn call_2556(recv: &mut crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2817(recv: &mut crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <String as Decode>::decode(d)?;
@@ -180,7 +203,7 @@ pub mod yoake_glue {
     }
 
     /// `mod_generator::ModChunk::set_block`
-    fn call_2557(recv: &mut crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2818(recv: &mut crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         let mut a0 = <i32 as Decode>::decode(d)?;
@@ -191,6 +214,36 @@ pub mod yoake_glue {
         <crate::mod_generator::ModChunk>::set_block(recv, a0, a1, a2, a3);
         Ok(())
     }
+
+    /// `mod_generator::ModChunk.shape#get`
+    fn call_2819(recv: &crate::mod_generator::ModChunk, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        enc_horizon_client_render__chunk__LevelShape(&recv.shape, out);
+        Ok(())
+    }
+
+    /// `mod_generator::ModChunk.shape#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
+    /// `mod_generator::ModGeneratorContext.shape#get`
+    fn call_2821(recv: &crate::mod_generator::ModGeneratorContext, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        enc_horizon_client_render__chunk__LevelShape(&recv.shape, out);
+        Ok(())
+    }
+
+    /// `mod_generator::ModGeneratorContext.shape#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
+    /// `mod_generator::ModTerrain.shape#get`
+    fn call_2823(recv: &crate::mod_generator::ModTerrain, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        enc_horizon_client_render__chunk__LevelShape(&recv.shape, out);
+        Ok(())
+    }
+
+    /// `mod_generator::ModTerrain.shape#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
 
     /// Scalar fields of `crate::mod_generator::ModChunk` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__mod_generator__ModChunk: FieldTable<crate::mod_generator::ModChunk> = FieldTable {
@@ -255,31 +308,37 @@ pub mod yoake_glue {
 
     /// Every binding of this module: id and lock key.
     pub const BINDINGS: &[(u32, &str)] = &[
-        (2533, "mod_generator::<ModTerrain as ChunkGenerator>::worker"),
-        (2534, "mod_generator::ModGeneratorContext.generator#get"),
-        (2535, "mod_generator::ModGeneratorContext.generator#set"),
-        (2536, "mod_generator::ModGeneratorContext.level#get"),
-        (2537, "mod_generator::ModGeneratorContext.level#set"),
-        (2538, "mod_generator::ModGeneratorContext.seed#get"),
-        (2539, "mod_generator::ModGeneratorContext.seed#set"),
-        (2540, "mod_generator::ModGeneratorContext::block"),
-        (2541, "mod_generator::ModGenerators::contains"),
-        (2542, "mod_generator::ModTerrain.level#get"),
-        (2543, "mod_generator::ModTerrain.level#set"),
-        (2544, "mod_generator::ModTerrain.plains#get"),
-        (2545, "mod_generator::ModTerrain.plains#set"),
-        (2546, "mod_generator::clear_staged"),
-        (2547, "mod_generator::ModChunk.chunk_x#get"),
-        (2548, "mod_generator::ModChunk.chunk_x#set"),
-        (2549, "mod_generator::ModChunk.chunk_z#get"),
-        (2550, "mod_generator::ModChunk.chunk_z#set"),
-        (2551, "mod_generator::ModChunk.failed#get"),
-        (2552, "mod_generator::ModChunk.failed#set"),
-        (2553, "mod_generator::ModChunk::block"),
-        (2554, "mod_generator::ModChunk::fill_layer"),
-        (2555, "mod_generator::ModChunk::mark_failed"),
-        (2556, "mod_generator::ModChunk::set_biome"),
-        (2557, "mod_generator::ModChunk::set_block"),
+        (2794, "mod_generator::<ModTerrain as ChunkGenerator>::worker"),
+        (2795, "mod_generator::ModGeneratorContext.generator#get"),
+        (2796, "mod_generator::ModGeneratorContext.generator#set"),
+        (2797, "mod_generator::ModGeneratorContext.level#get"),
+        (2798, "mod_generator::ModGeneratorContext.level#set"),
+        (2799, "mod_generator::ModGeneratorContext.seed#get"),
+        (2800, "mod_generator::ModGeneratorContext.seed#set"),
+        (2801, "mod_generator::ModGeneratorContext::block"),
+        (2802, "mod_generator::ModGenerators::contains"),
+        (2803, "mod_generator::ModTerrain.level#get"),
+        (2804, "mod_generator::ModTerrain.level#set"),
+        (2805, "mod_generator::ModTerrain.plains#get"),
+        (2806, "mod_generator::ModTerrain.plains#set"),
+        (2807, "mod_generator::clear_staged"),
+        (2808, "mod_generator::ModChunk.chunk_x#get"),
+        (2809, "mod_generator::ModChunk.chunk_x#set"),
+        (2810, "mod_generator::ModChunk.chunk_z#get"),
+        (2811, "mod_generator::ModChunk.chunk_z#set"),
+        (2812, "mod_generator::ModChunk.failed#get"),
+        (2813, "mod_generator::ModChunk.failed#set"),
+        (2814, "mod_generator::ModChunk::block"),
+        (2815, "mod_generator::ModChunk::fill_layer"),
+        (2816, "mod_generator::ModChunk::mark_failed"),
+        (2817, "mod_generator::ModChunk::set_biome"),
+        (2818, "mod_generator::ModChunk::set_block"),
+        (2819, "mod_generator::ModChunk.shape#get"),
+        (2820, "mod_generator::ModChunk.shape#set"),
+        (2821, "mod_generator::ModGeneratorContext.shape#get"),
+        (2822, "mod_generator::ModGeneratorContext.shape#set"),
+        (2823, "mod_generator::ModTerrain.shape#get"),
+        (2824, "mod_generator::ModTerrain.shape#set"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -287,31 +346,37 @@ pub mod yoake_glue {
     pub fn call(handle: u64, id: u32, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let start = out.len();
         let result = match id {
-            2533 => activation::with_arg_shared::<crate::mod_generator::ModTerrain, _>(handle, |recv| call_2533(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2534 => activation::with_arg_shared::<crate::mod_generator::ModGeneratorContext, _>(handle, |recv| call_2534(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2535 => Err(CallError::ReadOnly(id)),
-            2536 => activation::with_arg_shared::<crate::mod_generator::ModGeneratorContext, _>(handle, |recv| call_2536(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2537 => Err(CallError::ReadOnly(id)),
-            2538 => activation::with_arg_shared::<crate::mod_generator::ModGeneratorContext, _>(handle, |recv| call_2538(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2539 => Err(CallError::ReadOnly(id)),
-            2540 => activation::with_arg_shared::<crate::mod_generator::ModGeneratorContext, _>(handle, |recv| call_2540(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2541 => activation::with_arg_shared::<crate::mod_generator::ModGenerators, _>(handle, |recv| call_2541(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2542 => activation::with_arg_shared::<crate::mod_generator::ModTerrain, _>(handle, |recv| call_2542(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2543 => Err(CallError::ReadOnly(id)),
-            2544 => activation::with_arg_shared::<crate::mod_generator::ModTerrain, _>(handle, |recv| call_2544(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2545 => Err(CallError::ReadOnly(id)),
-            2546 => call_2546(args, out),
-            2547 => activation::with_arg_shared::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2547(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2548 => Err(CallError::ReadOnly(id)),
-            2549 => activation::with_arg_shared::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2549(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2550 => Err(CallError::ReadOnly(id)),
-            2551 => activation::with_arg_shared::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2551(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2552 => Err(CallError::ReadOnly(id)),
-            2553 => activation::with_arg_shared::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2553(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2554 => activation::with_arg::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2554(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2555 => activation::with_arg::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2555(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2556 => activation::with_arg::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2556(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            2557 => activation::with_arg::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2557(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2794 => activation::with_arg_shared::<crate::mod_generator::ModTerrain, _>(handle, |recv| call_2794(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2795 => activation::with_arg_shared::<crate::mod_generator::ModGeneratorContext, _>(handle, |recv| call_2795(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2796 => Err(CallError::ReadOnly(id)),
+            2797 => activation::with_arg_shared::<crate::mod_generator::ModGeneratorContext, _>(handle, |recv| call_2797(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2798 => Err(CallError::ReadOnly(id)),
+            2799 => activation::with_arg_shared::<crate::mod_generator::ModGeneratorContext, _>(handle, |recv| call_2799(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2800 => Err(CallError::ReadOnly(id)),
+            2801 => activation::with_arg_shared::<crate::mod_generator::ModGeneratorContext, _>(handle, |recv| call_2801(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2802 => activation::with_arg_shared::<crate::mod_generator::ModGenerators, _>(handle, |recv| call_2802(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2803 => activation::with_arg_shared::<crate::mod_generator::ModTerrain, _>(handle, |recv| call_2803(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2804 => Err(CallError::ReadOnly(id)),
+            2805 => activation::with_arg_shared::<crate::mod_generator::ModTerrain, _>(handle, |recv| call_2805(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2806 => Err(CallError::ReadOnly(id)),
+            2807 => call_2807(args, out),
+            2808 => activation::with_arg_shared::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2808(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2809 => Err(CallError::ReadOnly(id)),
+            2810 => activation::with_arg_shared::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2810(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2811 => Err(CallError::ReadOnly(id)),
+            2812 => activation::with_arg_shared::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2812(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2813 => Err(CallError::ReadOnly(id)),
+            2814 => activation::with_arg_shared::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2814(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2815 => activation::with_arg::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2815(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2816 => activation::with_arg::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2816(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2817 => activation::with_arg::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2817(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2818 => activation::with_arg::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2818(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2819 => activation::with_arg_shared::<crate::mod_generator::ModChunk, _>(handle, |recv| call_2819(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2820 => Err(CallError::ReadOnly(id)),
+            2821 => activation::with_arg_shared::<crate::mod_generator::ModGeneratorContext, _>(handle, |recv| call_2821(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2822 => Err(CallError::ReadOnly(id)),
+            2823 => activation::with_arg_shared::<crate::mod_generator::ModTerrain, _>(handle, |recv| call_2823(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2824 => Err(CallError::ReadOnly(id)),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {

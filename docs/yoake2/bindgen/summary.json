@@ -35,20 +35,20 @@
     "derived": 57,
     "derived_bound": 24,
     "fields_total": 453,
-    "fields_bound": 367,
+    "fields_bound": 369,
     "handle_types": 22
   },
   {
     "label": "motion",
     "total": 367,
     "bound_a": 35,
-    "bound_mech": 6,
-    "handle_required": 6,
+    "bound_mech": 7,
+    "handle_required": 5,
     "excluded": 320,
     "derived": 6,
     "derived_bound": 2,
     "fields_total": 110,
-    "fields_bound": 89,
+    "fields_bound": 90,
     "handle_types": 3
   },
   {
@@ -78,16 +78,42 @@
     "handle_types": 4
   },
   {
+    "label": "render_world",
+    "total": 33,
+    "bound_a": 10,
+    "bound_mech": 10,
+    "handle_required": 5,
+    "excluded": 8,
+    "derived": 8,
+    "derived_bound": 3,
+    "fields_total": 46,
+    "fields_bound": 37,
+    "handle_types": 4
+  },
+  {
+    "label": "render_settings",
+    "total": 26,
+    "bound_a": 8,
+    "bound_mech": 3,
+    "handle_required": 15,
+    "excluded": 0,
+    "derived": 5,
+    "derived_bound": 2,
+    "fields_total": 78,
+    "fields_bound": 71,
+    "handle_types": 2
+  },
+  {
     "label": "mod_generator",
     "total": 25,
     "bound_a": 8,
     "bound_mech": 1,
-    "handle_required": 8,
-    "excluded": 8,
+    "handle_required": 6,
+    "excluded": 10,
     "derived": 3,
     "derived_bound": 0,
     "fields_total": 21,
-    "fields_bound": 8,
+    "fields_bound": 11,
     "handle_types": 4
   }
 ]

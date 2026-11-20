@@ -25,7 +25,7 @@ use std::sync::{Arc, RwLock};
 
 /// Which hand clicked.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Hand {
+pub enum ClickHand {
     Main,
     Off,
 }
@@ -62,7 +62,7 @@ pub enum Action {
 pub struct Context<'a> {
     /// The player's uuid (what an owner is saved as).
     pub player: [i32; 4],
-    pub hand: Hand,
+    pub hand: ClickHand,
     /// The held item's id; `None` for an empty hand.
     pub item: Option<&'a str>,
     pub sneaking: bool,

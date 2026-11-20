@@ -158,7 +158,7 @@ pub mod yoake_glue {
     }
 
     /// `game_items::Game.settings#handle`
-    fn call_1515(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2533(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -168,7 +168,7 @@ pub mod yoake_glue {
     }
 
     /// `game_items::Game.world#handle`
-    fn call_1516(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2534(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -347,8 +347,8 @@ pub mod yoake_glue {
         (461, "game_items::Game::yoake2_world_start_hook"),
         (462, "game_items::Game.mob#handle"),
         (463, "game_items::Game.player_motion#handle"),
-        (1515, "game_items::Game.settings#handle"),
-        (1516, "game_items::Game.world#handle"),
+        (2533, "game_items::Game.settings#handle"),
+        (2534, "game_items::Game.world#handle"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -365,8 +365,8 @@ pub mod yoake_glue {
             459 => call_459(handle, args, out),
             462 => call_462(handle, args, out),
             463 => call_463(handle, args, out),
-            1515 => call_1515(handle, args, out),
-            1516 => call_1516(handle, args, out),
+            2533 => call_2533(handle, args, out),
+            2534 => call_2534(handle, args, out),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {

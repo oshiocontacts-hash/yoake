@@ -2911,7 +2911,7 @@ pub fn motion_native_living_jump(a0: u32, a1: &str) -> Result<(), Error> {
 
 /// `motion::PlayerMotion.status#get`
 pub fn motion_playermotion_status_get(h: Handle) -> Result<types::StatusFlags, Error> {
-    let result = call(h, 1521, &[])?;
+    let result = call(h, 2539, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::StatusFlags, CallError> {
         let d = &mut dec;
@@ -2928,7 +2928,7 @@ pub fn motion_playermotion_powder_snow_subject(h: Handle) -> Result<types::Powde
     {
         let out = &mut args;
     }
-    let result = call(h, 1523, &args)?;
+    let result = call(h, 2541, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::PowderSnowSubject, CallError> {
         let d = &mut dec;

@@ -10915,6 +10915,42 @@
       "path": "mod_generator::ModChunk::set_block",
       "sig": "fn set_block(&mut Self, i32, i32, i32, u32) -> ()",
       "status": "bound"
+    },
+    {
+      "id": 2819,
+      "path": "mod_generator::ModChunk.shape#get",
+      "sig": "get shape: crate::LevelShape",
+      "status": "bound"
+    },
+    {
+      "id": 2820,
+      "path": "mod_generator::ModChunk.shape#set",
+      "sig": "set shape: crate::LevelShape",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2821,
+      "path": "mod_generator::ModGeneratorContext.shape#get",
+      "sig": "get shape: crate::LevelShape",
+      "status": "bound"
+    },
+    {
+      "id": 2822,
+      "path": "mod_generator::ModGeneratorContext.shape#set",
+      "sig": "set shape: crate::LevelShape",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2823,
+      "path": "mod_generator::ModTerrain.shape#get",
+      "sig": "get shape: crate::LevelShape",
+      "status": "bound"
+    },
+    {
+      "id": 2824,
+      "path": "mod_generator::ModTerrain.shape#set",
+      "sig": "set shape: crate::LevelShape",
+      "status": "ReadOnly"
     }
   ]
 }

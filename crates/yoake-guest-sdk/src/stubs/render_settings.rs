@@ -1576,7 +1576,7 @@ pub fn render_settings_opt_as_clone_clone(h: Handle) -> Result<types::Opt, Error
     {
         let out = &mut args;
     }
-    let result = call(h, 1524, &args)?;
+    let result = call(h, 2542, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::Opt, CallError> {
         let d = &mut dec;
@@ -1594,7 +1594,7 @@ pub fn render_settings_opt_as_partialeq_eq(h: Handle, a0: &types::Opt) -> Result
         let out = &mut args;
         enc_crate__settings__Opt(a0, out);
     }
-    let result = call(h, 1525, &args)?;
+    let result = call(h, 2543, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1607,7 +1607,7 @@ pub fn render_settings_opt_as_partialeq_eq(h: Handle, a0: &types::Opt) -> Result
 
 /// `render_settings::Settings.allow_cursor_changes#get`
 pub fn render_settings_settings_allow_cursor_changes_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1526, &[])?;
+    let result = call(h, 2544, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1620,7 +1620,7 @@ pub fn render_settings_settings_allow_cursor_changes_get(h: Handle) -> Result<bo
 
 /// `render_settings::Settings.attack_indicator#get`
 pub fn render_settings_settings_attack_indicator_get(h: Handle) -> Result<u8, Error> {
-    let result = call(h, 1528, &[])?;
+    let result = call(h, 2546, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<u8, CallError> {
         let d = &mut dec;
@@ -1633,7 +1633,7 @@ pub fn render_settings_settings_attack_indicator_get(h: Handle) -> Result<u8, Er
 
 /// `render_settings::Settings.auto_jump#get`
 pub fn render_settings_settings_auto_jump_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1530, &[])?;
+    let result = call(h, 2548, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1646,7 +1646,7 @@ pub fn render_settings_settings_auto_jump_get(h: Handle) -> Result<bool, Error> 
 
 /// `render_settings::Settings.auto_suggestions#get`
 pub fn render_settings_settings_auto_suggestions_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1532, &[])?;
+    let result = call(h, 2550, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1659,7 +1659,7 @@ pub fn render_settings_settings_auto_suggestions_get(h: Handle) -> Result<bool, 
 
 /// `render_settings::Settings.autosave_indicator#get`
 pub fn render_settings_settings_autosave_indicator_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1534, &[])?;
+    let result = call(h, 2552, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1672,7 +1672,7 @@ pub fn render_settings_settings_autosave_indicator_get(h: Handle) -> Result<bool
 
 /// `render_settings::Settings.biome_blend#get`
 pub fn render_settings_settings_biome_blend_get(h: Handle) -> Result<i32, Error> {
-    let result = call(h, 1536, &[])?;
+    let result = call(h, 2554, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;
@@ -1685,7 +1685,7 @@ pub fn render_settings_settings_biome_blend_get(h: Handle) -> Result<i32, Error>
 
 /// `render_settings::Settings.chat_colors#get`
 pub fn render_settings_settings_chat_colors_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1538, &[])?;
+    let result = call(h, 2556, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1698,7 +1698,7 @@ pub fn render_settings_settings_chat_colors_get(h: Handle) -> Result<bool, Error
 
 /// `render_settings::Settings.chat_delay#get`
 pub fn render_settings_settings_chat_delay_get(h: Handle) -> Result<f64, Error> {
-    let result = call(h, 1540, &[])?;
+    let result = call(h, 2558, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f64, CallError> {
         let d = &mut dec;
@@ -1711,7 +1711,7 @@ pub fn render_settings_settings_chat_delay_get(h: Handle) -> Result<f64, Error> 
 
 /// `render_settings::Settings.chat_height_focused#get`
 pub fn render_settings_settings_chat_height_focused_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1542, &[])?;
+    let result = call(h, 2560, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -1724,7 +1724,7 @@ pub fn render_settings_settings_chat_height_focused_get(h: Handle) -> Result<f32
 
 /// `render_settings::Settings.chat_height_unfocused#get`
 pub fn render_settings_settings_chat_height_unfocused_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1544, &[])?;
+    let result = call(h, 2562, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -1737,7 +1737,7 @@ pub fn render_settings_settings_chat_height_unfocused_get(h: Handle) -> Result<f
 
 /// `render_settings::Settings.chat_line_spacing#get`
 pub fn render_settings_settings_chat_line_spacing_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1546, &[])?;
+    let result = call(h, 2564, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -1750,7 +1750,7 @@ pub fn render_settings_settings_chat_line_spacing_get(h: Handle) -> Result<f32, 
 
 /// `render_settings::Settings.chat_links#get`
 pub fn render_settings_settings_chat_links_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1548, &[])?;
+    let result = call(h, 2566, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1763,7 +1763,7 @@ pub fn render_settings_settings_chat_links_get(h: Handle) -> Result<bool, Error>
 
 /// `render_settings::Settings.chat_links_prompt#get`
 pub fn render_settings_settings_chat_links_prompt_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1550, &[])?;
+    let result = call(h, 2568, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1776,7 +1776,7 @@ pub fn render_settings_settings_chat_links_prompt_get(h: Handle) -> Result<bool,
 
 /// `render_settings::Settings.chat_opacity#get`
 pub fn render_settings_settings_chat_opacity_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1552, &[])?;
+    let result = call(h, 2570, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -1789,7 +1789,7 @@ pub fn render_settings_settings_chat_opacity_get(h: Handle) -> Result<f32, Error
 
 /// `render_settings::Settings.chat_scale#get`
 pub fn render_settings_settings_chat_scale_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1554, &[])?;
+    let result = call(h, 2572, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -1802,7 +1802,7 @@ pub fn render_settings_settings_chat_scale_get(h: Handle) -> Result<f32, Error> 
 
 /// `render_settings::Settings.chat_visibility#get`
 pub fn render_settings_settings_chat_visibility_get(h: Handle) -> Result<u8, Error> {
-    let result = call(h, 1556, &[])?;
+    let result = call(h, 2574, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<u8, CallError> {
         let d = &mut dec;
@@ -1815,7 +1815,7 @@ pub fn render_settings_settings_chat_visibility_get(h: Handle) -> Result<u8, Err
 
 /// `render_settings::Settings.chat_width#get`
 pub fn render_settings_settings_chat_width_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1558, &[])?;
+    let result = call(h, 2576, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -1828,7 +1828,7 @@ pub fn render_settings_settings_chat_width_get(h: Handle) -> Result<f32, Error> 
 
 /// `render_settings::Settings.chunk_fade#get`
 pub fn render_settings_settings_chunk_fade_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1560, &[])?;
+    let result = call(h, 2578, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -1841,7 +1841,7 @@ pub fn render_settings_settings_chunk_fade_get(h: Handle) -> Result<f32, Error> 
 
 /// `render_settings::Settings.cloud_range#get`
 pub fn render_settings_settings_cloud_range_get(h: Handle) -> Result<i32, Error> {
-    let result = call(h, 1562, &[])?;
+    let result = call(h, 2580, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;
@@ -1854,7 +1854,7 @@ pub fn render_settings_settings_cloud_range_get(h: Handle) -> Result<i32, Error>
 
 /// `render_settings::Settings.clouds#get`
 pub fn render_settings_settings_clouds_get(h: Handle) -> Result<String, Error> {
-    let result = call(h, 1564, &[])?;
+    let result = call(h, 2582, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<String, CallError> {
         let d = &mut dec;
@@ -1867,7 +1867,7 @@ pub fn render_settings_settings_clouds_get(h: Handle) -> Result<String, Error> {
 
 /// `render_settings::Settings.ctrl_click_emulates_right_click#get`
 pub fn render_settings_settings_ctrl_click_emulates_right_click_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1566, &[])?;
+    let result = call(h, 2584, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1880,7 +1880,7 @@ pub fn render_settings_settings_ctrl_click_emulates_right_click_get(h: Handle) -
 
 /// `render_settings::Settings.cutout_leaves#get`
 pub fn render_settings_settings_cutout_leaves_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1568, &[])?;
+    let result = call(h, 2586, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1893,7 +1893,7 @@ pub fn render_settings_settings_cutout_leaves_get(h: Handle) -> Result<bool, Err
 
 /// `render_settings::Settings.discrete_scroll#get`
 pub fn render_settings_settings_discrete_scroll_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1570, &[])?;
+    let result = call(h, 2588, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1906,7 +1906,7 @@ pub fn render_settings_settings_discrete_scroll_get(h: Handle) -> Result<bool, E
 
 /// `render_settings::Settings.entity_distance#get`
 pub fn render_settings_settings_entity_distance_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1572, &[])?;
+    let result = call(h, 2590, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -1919,7 +1919,7 @@ pub fn render_settings_settings_entity_distance_get(h: Handle) -> Result<f32, Er
 
 /// `render_settings::Settings.entity_shadows#get`
 pub fn render_settings_settings_entity_shadows_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1574, &[])?;
+    let result = call(h, 2592, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1932,7 +1932,7 @@ pub fn render_settings_settings_entity_shadows_get(h: Handle) -> Result<bool, Er
 
 /// `render_settings::Settings.force_unicode#get`
 pub fn render_settings_settings_force_unicode_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1576, &[])?;
+    let result = call(h, 2594, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1945,7 +1945,7 @@ pub fn render_settings_settings_force_unicode_get(h: Handle) -> Result<bool, Err
 
 /// `render_settings::Settings.fov#get`
 pub fn render_settings_settings_fov_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1578, &[])?;
+    let result = call(h, 2596, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -1958,7 +1958,7 @@ pub fn render_settings_settings_fov_get(h: Handle) -> Result<f32, Error> {
 
 /// `render_settings::Settings.fullscreen#get`
 pub fn render_settings_settings_fullscreen_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1580, &[])?;
+    let result = call(h, 2598, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1971,7 +1971,7 @@ pub fn render_settings_settings_fullscreen_get(h: Handle) -> Result<bool, Error>
 
 /// `render_settings::Settings.gamma#get`
 pub fn render_settings_settings_gamma_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1582, &[])?;
+    let result = call(h, 2600, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -1984,7 +1984,7 @@ pub fn render_settings_settings_gamma_get(h: Handle) -> Result<f32, Error> {
 
 /// `render_settings::Settings.graphics_preset#get`
 pub fn render_settings_settings_graphics_preset_get(h: Handle) -> Result<String, Error> {
-    let result = call(h, 1584, &[])?;
+    let result = call(h, 2602, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<String, CallError> {
         let d = &mut dec;
@@ -1997,7 +1997,7 @@ pub fn render_settings_settings_graphics_preset_get(h: Handle) -> Result<String,
 
 /// `render_settings::Settings.gui_scale#get`
 pub fn render_settings_settings_gui_scale_get(h: Handle) -> Result<u32, Error> {
-    let result = call(h, 1586, &[])?;
+    let result = call(h, 2604, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<u32, CallError> {
         let d = &mut dec;
@@ -2010,7 +2010,7 @@ pub fn render_settings_settings_gui_scale_get(h: Handle) -> Result<u32, Error> {
 
 /// `render_settings::Settings.high_contrast#get`
 pub fn render_settings_settings_high_contrast_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1588, &[])?;
+    let result = call(h, 2606, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2023,7 +2023,7 @@ pub fn render_settings_settings_high_contrast_get(h: Handle) -> Result<bool, Err
 
 /// `render_settings::Settings.horizon#get`
 pub fn render_settings_settings_horizon_get(h: Handle) -> Result<types::Graphics, Error> {
-    let result = call(h, 1590, &[])?;
+    let result = call(h, 2608, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::Graphics, CallError> {
         let d = &mut dec;
@@ -2036,7 +2036,7 @@ pub fn render_settings_settings_horizon_get(h: Handle) -> Result<types::Graphics
 
 /// `render_settings::Settings.improved_transparency#get`
 pub fn render_settings_settings_improved_transparency_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1592, &[])?;
+    let result = call(h, 2610, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2049,7 +2049,7 @@ pub fn render_settings_settings_improved_transparency_get(h: Handle) -> Result<b
 
 /// `render_settings::Settings.inactivity_fps_limit#get`
 pub fn render_settings_settings_inactivity_fps_limit_get(h: Handle) -> Result<String, Error> {
-    let result = call(h, 1594, &[])?;
+    let result = call(h, 2612, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<String, CallError> {
         let d = &mut dec;
@@ -2062,7 +2062,7 @@ pub fn render_settings_settings_inactivity_fps_limit_get(h: Handle) -> Result<St
 
 /// `render_settings::Settings.invert_x#get`
 pub fn render_settings_settings_invert_x_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1596, &[])?;
+    let result = call(h, 2614, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2075,7 +2075,7 @@ pub fn render_settings_settings_invert_x_get(h: Handle) -> Result<bool, Error> {
 
 /// `render_settings::Settings.invert_y#get`
 pub fn render_settings_settings_invert_y_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1598, &[])?;
+    let result = call(h, 2616, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2088,7 +2088,7 @@ pub fn render_settings_settings_invert_y_get(h: Handle) -> Result<bool, Error> {
 
 /// `render_settings::Settings.japanese_glyphs#get`
 pub fn render_settings_settings_japanese_glyphs_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1600, &[])?;
+    let result = call(h, 2618, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2101,7 +2101,7 @@ pub fn render_settings_settings_japanese_glyphs_get(h: Handle) -> Result<bool, E
 
 /// `render_settings::Settings.language#get`
 pub fn render_settings_settings_language_get(h: Handle) -> Result<String, Error> {
-    let result = call(h, 1602, &[])?;
+    let result = call(h, 2620, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<String, CallError> {
         let d = &mut dec;
@@ -2114,7 +2114,7 @@ pub fn render_settings_settings_language_get(h: Handle) -> Result<String, Error>
 
 /// `render_settings::Settings.main_hand_left#get`
 pub fn render_settings_settings_main_hand_left_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1604, &[])?;
+    let result = call(h, 2622, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2127,7 +2127,7 @@ pub fn render_settings_settings_main_hand_left_get(h: Handle) -> Result<bool, Er
 
 /// `render_settings::Settings.master_volume#get`
 pub fn render_settings_settings_master_volume_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1606, &[])?;
+    let result = call(h, 2624, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -2140,7 +2140,7 @@ pub fn render_settings_settings_master_volume_get(h: Handle) -> Result<f32, Erro
 
 /// `render_settings::Settings.max_fps#get`
 pub fn render_settings_settings_max_fps_get(h: Handle) -> Result<u32, Error> {
-    let result = call(h, 1608, &[])?;
+    let result = call(h, 2626, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<u32, CallError> {
         let d = &mut dec;
@@ -2153,7 +2153,7 @@ pub fn render_settings_settings_max_fps_get(h: Handle) -> Result<u32, Error> {
 
 /// `render_settings::Settings.menu_blur#get`
 pub fn render_settings_settings_menu_blur_get(h: Handle) -> Result<i32, Error> {
-    let result = call(h, 1610, &[])?;
+    let result = call(h, 2628, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;
@@ -2166,7 +2166,7 @@ pub fn render_settings_settings_menu_blur_get(h: Handle) -> Result<i32, Error> {
 
 /// `render_settings::Settings.mipmap_levels#get`
 pub fn render_settings_settings_mipmap_levels_get(h: Handle) -> Result<i32, Error> {
-    let result = call(h, 1612, &[])?;
+    let result = call(h, 2630, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;
@@ -2179,7 +2179,7 @@ pub fn render_settings_settings_mipmap_levels_get(h: Handle) -> Result<i32, Erro
 
 /// `render_settings::Settings.mods#get`
 pub fn render_settings_settings_mods_get(h: Handle) -> Result<types::ModList, Error> {
-    let result = call(h, 1614, &[])?;
+    let result = call(h, 2632, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::ModList, CallError> {
         let d = &mut dec;
@@ -2192,7 +2192,7 @@ pub fn render_settings_settings_mods_get(h: Handle) -> Result<types::ModList, Er
 
 /// `render_settings::Settings.mouse_wheel_sensitivity#get`
 pub fn render_settings_settings_mouse_wheel_sensitivity_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1616, &[])?;
+    let result = call(h, 2634, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -2205,7 +2205,7 @@ pub fn render_settings_settings_mouse_wheel_sensitivity_get(h: Handle) -> Result
 
 /// `render_settings::Settings.notification_display_time#get`
 pub fn render_settings_settings_notification_display_time_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1618, &[])?;
+    let result = call(h, 2636, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -2218,7 +2218,7 @@ pub fn render_settings_settings_notification_display_time_get(h: Handle) -> Resu
 
 /// `render_settings::Settings.operator_items_tab#get`
 pub fn render_settings_settings_operator_items_tab_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1620, &[])?;
+    let result = call(h, 2638, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2231,7 +2231,7 @@ pub fn render_settings_settings_operator_items_tab_get(h: Handle) -> Result<bool
 
 /// `render_settings::Settings.particles#get`
 pub fn render_settings_settings_particles_get(h: Handle) -> Result<u8, Error> {
-    let result = call(h, 1622, &[])?;
+    let result = call(h, 2640, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<u8, CallError> {
         let d = &mut dec;
@@ -2244,7 +2244,7 @@ pub fn render_settings_settings_particles_get(h: Handle) -> Result<u8, Error> {
 
 /// `render_settings::Settings.prioritize_chunk_updates#get`
 pub fn render_settings_settings_prioritize_chunk_updates_get(h: Handle) -> Result<u8, Error> {
-    let result = call(h, 1624, &[])?;
+    let result = call(h, 2642, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<u8, CallError> {
         let d = &mut dec;
@@ -2257,7 +2257,7 @@ pub fn render_settings_settings_prioritize_chunk_updates_get(h: Handle) -> Resul
 
 /// `render_settings::Settings.quit_shortcuts#get`
 pub fn render_settings_settings_quit_shortcuts_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1626, &[])?;
+    let result = call(h, 2644, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2270,7 +2270,7 @@ pub fn render_settings_settings_quit_shortcuts_get(h: Handle) -> Result<bool, Er
 
 /// `render_settings::Settings.reduced_debug_info#get`
 pub fn render_settings_settings_reduced_debug_info_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1628, &[])?;
+    let result = call(h, 2646, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2283,7 +2283,7 @@ pub fn render_settings_settings_reduced_debug_info_get(h: Handle) -> Result<bool
 
 /// `render_settings::Settings.render_distance#get`
 pub fn render_settings_settings_render_distance_get(h: Handle) -> Result<i32, Error> {
-    let result = call(h, 1630, &[])?;
+    let result = call(h, 2648, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;
@@ -2296,7 +2296,7 @@ pub fn render_settings_settings_render_distance_get(h: Handle) -> Result<i32, Er
 
 /// `render_settings::Settings.resource_packs#get`
 pub fn render_settings_settings_resource_packs_get(h: Handle) -> Result<Vec<String>, Error> {
-    let result = call(h, 1632, &[])?;
+    let result = call(h, 2650, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<String>, CallError> {
         let d = &mut dec;
@@ -2316,7 +2316,7 @@ pub fn render_settings_settings_resource_packs_get(h: Handle) -> Result<Vec<Stri
 
 /// `render_settings::Settings.sensitivity#get`
 pub fn render_settings_settings_sensitivity_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1634, &[])?;
+    let result = call(h, 2652, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -2329,7 +2329,7 @@ pub fn render_settings_settings_sensitivity_get(h: Handle) -> Result<f32, Error>
 
 /// `render_settings::Settings.show_subtitles#get`
 pub fn render_settings_settings_show_subtitles_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1636, &[])?;
+    let result = call(h, 2654, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2342,7 +2342,7 @@ pub fn render_settings_settings_show_subtitles_get(h: Handle) -> Result<bool, Er
 
 /// `render_settings::Settings.simulation_distance#get`
 pub fn render_settings_settings_simulation_distance_get(h: Handle) -> Result<i32, Error> {
-    let result = call(h, 1638, &[])?;
+    let result = call(h, 2656, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;
@@ -2355,7 +2355,7 @@ pub fn render_settings_settings_simulation_distance_get(h: Handle) -> Result<i32
 
 /// `render_settings::Settings.smooth_lighting#get`
 pub fn render_settings_settings_smooth_lighting_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1640, &[])?;
+    let result = call(h, 2658, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2368,7 +2368,7 @@ pub fn render_settings_settings_smooth_lighting_get(h: Handle) -> Result<bool, E
 
 /// `render_settings::Settings.sound_device#get`
 pub fn render_settings_settings_sound_device_get(h: Handle) -> Result<String, Error> {
-    let result = call(h, 1642, &[])?;
+    let result = call(h, 2660, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<String, CallError> {
         let d = &mut dec;
@@ -2381,7 +2381,7 @@ pub fn render_settings_settings_sound_device_get(h: Handle) -> Result<String, Er
 
 /// `render_settings::Settings.sprint_window#get`
 pub fn render_settings_settings_sprint_window_get(h: Handle) -> Result<i32, Error> {
-    let result = call(h, 1644, &[])?;
+    let result = call(h, 2662, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;
@@ -2394,7 +2394,7 @@ pub fn render_settings_settings_sprint_window_get(h: Handle) -> Result<i32, Erro
 
 /// `render_settings::Settings.startup_api#get`
 pub fn render_settings_settings_startup_api_get(h: Handle) -> Result<types::GraphicsApi, Error> {
-    let result = call(h, 1646, &[])?;
+    let result = call(h, 2664, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::GraphicsApi, CallError> {
         let d = &mut dec;
@@ -2407,7 +2407,7 @@ pub fn render_settings_settings_startup_api_get(h: Handle) -> Result<types::Grap
 
 /// `render_settings::Settings.text_background_opacity#get`
 pub fn render_settings_settings_text_background_opacity_get(h: Handle) -> Result<f32, Error> {
-    let result = call(h, 1648, &[])?;
+    let result = call(h, 2666, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -2420,7 +2420,7 @@ pub fn render_settings_settings_text_background_opacity_get(h: Handle) -> Result
 
 /// `render_settings::Settings.toggle_attack#get`
 pub fn render_settings_settings_toggle_attack_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1650, &[])?;
+    let result = call(h, 2668, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2433,7 +2433,7 @@ pub fn render_settings_settings_toggle_attack_get(h: Handle) -> Result<bool, Err
 
 /// `render_settings::Settings.toggle_crouch#get`
 pub fn render_settings_settings_toggle_crouch_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1652, &[])?;
+    let result = call(h, 2670, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2446,7 +2446,7 @@ pub fn render_settings_settings_toggle_crouch_get(h: Handle) -> Result<bool, Err
 
 /// `render_settings::Settings.toggle_sprint#get`
 pub fn render_settings_settings_toggle_sprint_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1654, &[])?;
+    let result = call(h, 2672, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2459,7 +2459,7 @@ pub fn render_settings_settings_toggle_sprint_get(h: Handle) -> Result<bool, Err
 
 /// `render_settings::Settings.toggle_use#get`
 pub fn render_settings_settings_toggle_use_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1656, &[])?;
+    let result = call(h, 2674, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2472,7 +2472,7 @@ pub fn render_settings_settings_toggle_use_get(h: Handle) -> Result<bool, Error>
 
 /// `render_settings::Settings.view_bobbing#get`
 pub fn render_settings_settings_view_bobbing_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1658, &[])?;
+    let result = call(h, 2676, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2485,7 +2485,7 @@ pub fn render_settings_settings_view_bobbing_get(h: Handle) -> Result<bool, Erro
 
 /// `render_settings::Settings.vignette#get`
 pub fn render_settings_settings_vignette_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1660, &[])?;
+    let result = call(h, 2678, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2498,7 +2498,7 @@ pub fn render_settings_settings_vignette_get(h: Handle) -> Result<bool, Error> {
 
 /// `render_settings::Settings.volumes#get`
 pub fn render_settings_settings_volumes_get(h: Handle) -> Result<[f32; 11], Error> {
-    let result = call(h, 1662, &[])?;
+    let result = call(h, 2680, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<[f32; 11], CallError> {
         let d = &mut dec;
@@ -2520,7 +2520,7 @@ pub fn render_settings_settings_volumes_get(h: Handle) -> Result<[f32; 11], Erro
 
 /// `render_settings::Settings.vsync#get`
 pub fn render_settings_settings_vsync_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1664, &[])?;
+    let result = call(h, 2682, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -2533,7 +2533,7 @@ pub fn render_settings_settings_vsync_get(h: Handle) -> Result<bool, Error> {
 
 /// `render_settings::Settings.weather_radius#get`
 pub fn render_settings_settings_weather_radius_get(h: Handle) -> Result<i32, Error> {
-    let result = call(h, 1666, &[])?;
+    let result = call(h, 2684, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;
@@ -2550,7 +2550,7 @@ pub fn render_settings_settings_chat_options(h: Handle) -> Result<types::ChatOpt
     {
         let out = &mut args;
     }
-    let result = call(h, 1668, &args)?;
+    let result = call(h, 2686, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::ChatOptions, CallError> {
         let d = &mut dec;
@@ -2567,7 +2567,7 @@ pub fn render_settings_settings_describe_for_crashes(h: Handle) -> Result<(), Er
     {
         let out = &mut args;
     }
-    let result = call(h, 1669, &args)?;
+    let result = call(h, 2687, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<(), CallError> {
         let d = &mut dec;
@@ -2585,7 +2585,7 @@ pub fn render_settings_settings_final_volume(h: Handle, a0: &str) -> Result<f32,
         let out = &mut args;
         Encode::encode(a0, out);
     }
-    let result = call(h, 1670, &args)?;
+    let result = call(h, 2688, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -2602,7 +2602,7 @@ pub fn render_settings_settings_serialize(h: Handle) -> Result<String, Error> {
     {
         let out = &mut args;
     }
-    let result = call(h, 1671, &args)?;
+    let result = call(h, 2689, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<String, CallError> {
         let d = &mut dec;
@@ -2620,7 +2620,7 @@ pub fn render_settings_settings_text_background(h: Handle, a0: f32) -> Result<u3
         let out = &mut args;
         Encode::encode(&a0, out);
     }
-    let result = call(h, 1672, &args)?;
+    let result = call(h, 2690, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<u32, CallError> {
         let d = &mut dec;
@@ -2637,7 +2637,7 @@ pub fn render_settings_settings_video_mode_index(h: Handle) -> Result<i32, Error
     {
         let out = &mut args;
     }
-    let result = call(h, 1673, &args)?;
+    let result = call(h, 2691, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;
@@ -2655,7 +2655,7 @@ pub fn render_settings_settings_volume(h: Handle, a0: &str) -> Result<f32, Error
         let out = &mut args;
         Encode::encode(a0, out);
     }
-    let result = call(h, 1674, &args)?;
+    let result = call(h, 2692, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
@@ -2672,7 +2672,7 @@ pub fn render_settings_default_language() -> Result<String, Error> {
     {
         let out = &mut args;
     }
-    let result = call(Handle(0), 1675, &args)?;
+    let result = call(Handle(0), 2693, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<String, CallError> {
         let d = &mut dec;
@@ -2692,7 +2692,7 @@ pub fn render_settings_set_source_volumes(a0: [f32; 11]) -> Result<(), Error> {
             Encode::encode(e0, out);
         }
     }
-    let result = call(Handle(0), 1676, &args)?;
+    let result = call(Handle(0), 2694, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<(), CallError> {
         let d = &mut dec;
@@ -2710,7 +2710,7 @@ pub fn render_settings_sound_source(a0: &str) -> Result<usize, Error> {
         let out = &mut args;
         Encode::encode(a0, out);
     }
-    let result = call(Handle(0), 1677, &args)?;
+    let result = call(Handle(0), 2695, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<usize, CallError> {
         let d = &mut dec;
@@ -2728,7 +2728,7 @@ pub fn render_settings_source_volume(a0: usize) -> Result<f32, Error> {
         let out = &mut args;
         Encode::encode(&a0, out);
     }
-    let result = call(Handle(0), 1678, &args)?;
+    let result = call(Handle(0), 2696, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;

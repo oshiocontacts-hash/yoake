@@ -525,7 +525,7 @@ pub fn render_world_healthrules_as_clone_clone(h: Handle) -> Result<types::Healt
     {
         let out = &mut args;
     }
-    let result = call(h, 1679, &args)?;
+    let result = call(h, 2697, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::HealthRules, CallError> {
         let d = &mut dec;
@@ -542,7 +542,7 @@ pub fn render_world_healthrules_as_default_default() -> Result<types::HealthRule
     {
         let out = &mut args;
     }
-    let result = call(Handle(0), 1680, &args)?;
+    let result = call(Handle(0), 2698, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::HealthRules, CallError> {
         let d = &mut dec;
@@ -559,7 +559,7 @@ pub fn render_world_weather_as_clone_clone(h: Handle) -> Result<types::Weather, 
     {
         let out = &mut args;
     }
-    let result = call(h, 1681, &args)?;
+    let result = call(h, 2699, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::Weather, CallError> {
         let d = &mut dec;
@@ -576,7 +576,7 @@ pub fn render_world_weather_as_default_default() -> Result<types::Weather, Error
     {
         let out = &mut args;
     }
-    let result = call(Handle(0), 1682, &args)?;
+    let result = call(Handle(0), 2700, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::Weather, CallError> {
         let d = &mut dec;
@@ -593,7 +593,7 @@ pub fn render_world_dirtysections_clear(h: Handle) -> Result<(), Error> {
     {
         let out = &mut args;
     }
-    let result = call(h, 1683, &args)?;
+    let result = call(h, 2701, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<(), CallError> {
         let d = &mut dec;
@@ -616,7 +616,7 @@ pub fn render_world_dirtysections_contains(h: Handle, a0: &(i32, i32, i32,)) -> 
             Encode::encode(&t0.2, out);
         }
     }
-    let result = call(h, 1684, &args)?;
+    let result = call(h, 2702, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -639,7 +639,7 @@ pub fn render_world_dirtysections_insert(h: Handle, a0: (i32, i32, i32,)) -> Res
             Encode::encode(&t0.2, out);
         }
     }
-    let result = call(h, 1685, &args)?;
+    let result = call(h, 2703, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<(), CallError> {
         let d = &mut dec;
@@ -656,7 +656,7 @@ pub fn render_world_dirtysections_is_empty(h: Handle) -> Result<bool, Error> {
     {
         let out = &mut args;
     }
-    let result = call(h, 1686, &args)?;
+    let result = call(h, 2704, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -673,7 +673,7 @@ pub fn render_world_dirtysections_len(h: Handle) -> Result<usize, Error> {
     {
         let out = &mut args;
     }
-    let result = call(h, 1687, &args)?;
+    let result = call(h, 2705, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<usize, CallError> {
         let d = &mut dec;
@@ -686,7 +686,7 @@ pub fn render_world_dirtysections_len(h: Handle) -> Result<usize, Error> {
 
 /// `render_world::HealthRules.difficulty#get`
 pub fn render_world_healthrules_difficulty_get(h: Handle) -> Result<types::Difficulty, Error> {
-    let result = call(h, 1688, &[])?;
+    let result = call(h, 2706, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::Difficulty, CallError> {
         let d = &mut dec;
@@ -699,7 +699,7 @@ pub fn render_world_healthrules_difficulty_get(h: Handle) -> Result<types::Diffi
 
 /// `render_world::HealthRules.drowning_damage#get`
 pub fn render_world_healthrules_drowning_damage_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1690, &[])?;
+    let result = call(h, 2708, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -712,7 +712,7 @@ pub fn render_world_healthrules_drowning_damage_get(h: Handle) -> Result<bool, E
 
 /// `render_world::HealthRules.fall_damage#get`
 pub fn render_world_healthrules_fall_damage_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1692, &[])?;
+    let result = call(h, 2710, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -725,7 +725,7 @@ pub fn render_world_healthrules_fall_damage_get(h: Handle) -> Result<bool, Error
 
 /// `render_world::HealthRules.fire_damage#get`
 pub fn render_world_healthrules_fire_damage_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1694, &[])?;
+    let result = call(h, 2712, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -738,7 +738,7 @@ pub fn render_world_healthrules_fire_damage_get(h: Handle) -> Result<bool, Error
 
 /// `render_world::HealthRules.freeze_damage#get`
 pub fn render_world_healthrules_freeze_damage_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1696, &[])?;
+    let result = call(h, 2714, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -751,7 +751,7 @@ pub fn render_world_healthrules_freeze_damage_get(h: Handle) -> Result<bool, Err
 
 /// `render_world::HealthRules.natural_regeneration#get`
 pub fn render_world_healthrules_natural_regeneration_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1698, &[])?;
+    let result = call(h, 2716, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -764,7 +764,7 @@ pub fn render_world_healthrules_natural_regeneration_get(h: Handle) -> Result<bo
 
 /// `render_world::Weather.clear_time#get`
 pub fn render_world_weather_clear_time_get(h: Handle) -> Result<i32, Error> {
-    let result = call(h, 1700, &[])?;
+    let result = call(h, 2718, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;
@@ -777,7 +777,7 @@ pub fn render_world_weather_clear_time_get(h: Handle) -> Result<i32, Error> {
 
 /// `render_world::Weather.rain_level#get`
 pub fn render_world_weather_rain_level_get(h: Handle) -> Result<(f32, f32,), Error> {
-    let result = call(h, 1702, &[])?;
+    let result = call(h, 2720, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<(f32, f32,), CallError> {
         let d = &mut dec;
@@ -790,7 +790,7 @@ pub fn render_world_weather_rain_level_get(h: Handle) -> Result<(f32, f32,), Err
 
 /// `render_world::Weather.rain_time#get`
 pub fn render_world_weather_rain_time_get(h: Handle) -> Result<i32, Error> {
-    let result = call(h, 1704, &[])?;
+    let result = call(h, 2722, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;
@@ -803,7 +803,7 @@ pub fn render_world_weather_rain_time_get(h: Handle) -> Result<i32, Error> {
 
 /// `render_world::Weather.raining#get`
 pub fn render_world_weather_raining_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1706, &[])?;
+    let result = call(h, 2724, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -816,7 +816,7 @@ pub fn render_world_weather_raining_get(h: Handle) -> Result<bool, Error> {
 
 /// `render_world::Weather.thunder_level#get`
 pub fn render_world_weather_thunder_level_get(h: Handle) -> Result<(f32, f32,), Error> {
-    let result = call(h, 1708, &[])?;
+    let result = call(h, 2726, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<(f32, f32,), CallError> {
         let d = &mut dec;
@@ -829,7 +829,7 @@ pub fn render_world_weather_thunder_level_get(h: Handle) -> Result<(f32, f32,), 
 
 /// `render_world::Weather.thunder_time#get`
 pub fn render_world_weather_thunder_time_get(h: Handle) -> Result<i32, Error> {
-    let result = call(h, 1710, &[])?;
+    let result = call(h, 2728, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;
@@ -842,7 +842,7 @@ pub fn render_world_weather_thunder_time_get(h: Handle) -> Result<i32, Error> {
 
 /// `render_world::Weather.thundering#get`
 pub fn render_world_weather_thundering_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1712, &[])?;
+    let result = call(h, 2730, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -860,7 +860,7 @@ pub fn render_world_weather_after_sleep(h: Handle, a0: bool) -> Result<(), Error
         let out = &mut args;
         Encode::encode(&a0, out);
     }
-    let result = call(h, 1714, &args)?;
+    let result = call(h, 2732, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<(), CallError> {
         let d = &mut dec;
@@ -877,7 +877,7 @@ pub fn render_world_weather_is_raining(h: Handle) -> Result<bool, Error> {
     {
         let out = &mut args;
     }
-    let result = call(h, 1715, &args)?;
+    let result = call(h, 2733, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -894,7 +894,7 @@ pub fn render_world_weather_is_thundering(h: Handle) -> Result<bool, Error> {
     {
         let out = &mut args;
     }
-    let result = call(h, 1716, &args)?;
+    let result = call(h, 2734, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -912,7 +912,7 @@ pub fn render_world_weather_levels(h: Handle, a0: f32) -> Result<(f32, f32,), Er
         let out = &mut args;
         Encode::encode(&a0, out);
     }
-    let result = call(h, 1717, &args)?;
+    let result = call(h, 2735, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<(f32, f32,), CallError> {
         let d = &mut dec;
@@ -929,7 +929,7 @@ pub fn render_world_weather_tick_levels(h: Handle) -> Result<(), Error> {
     {
         let out = &mut args;
     }
-    let result = call(h, 1718, &args)?;
+    let result = call(h, 2736, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<(), CallError> {
         let d = &mut dec;
@@ -942,7 +942,7 @@ pub fn render_world_weather_tick_levels(h: Handle) -> Result<(), Error> {
 
 /// `render_world::World.air#get`
 pub fn render_world_world_air_get(h: Handle) -> Result<types::BlockStateId, Error> {
-    let result = call(h, 1719, &[])?;
+    let result = call(h, 2737, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::BlockStateId, CallError> {
         let d = &mut dec;
@@ -955,7 +955,7 @@ pub fn render_world_world_air_get(h: Handle) -> Result<types::BlockStateId, Erro
 
 /// `render_world::World.block_log#get`
 pub fn render_world_world_block_log_get(h: Handle) -> Result<Option<Vec<(i32, i32, i32,)>>, Error> {
-    let result = call(h, 1721, &[])?;
+    let result = call(h, 2739, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Option<Vec<(i32, i32, i32,)>>, CallError> {
         let d = &mut dec;
@@ -979,7 +979,7 @@ pub fn render_world_world_block_log_get(h: Handle) -> Result<Option<Vec<(i32, i3
 
 /// `render_world::World.block_names#get`
 pub fn render_world_world_block_names_get(h: Handle) -> Result<Vec<((i32, i32, i32,), String)>, Error> {
-    let result = call(h, 1723, &[])?;
+    let result = call(h, 2741, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<((i32, i32, i32,), String)>, CallError> {
         let d = &mut dec;
@@ -999,7 +999,7 @@ pub fn render_world_world_block_names_get(h: Handle) -> Result<Vec<((i32, i32, i
 
 /// `render_world::World.bulk_log#get`
 pub fn render_world_world_bulk_log_get(h: Handle) -> Result<Vec<(i32, i32,)>, Error> {
-    let result = call(h, 1725, &[])?;
+    let result = call(h, 2743, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<(i32, i32,)>, CallError> {
         let d = &mut dec;
@@ -1019,7 +1019,7 @@ pub fn render_world_world_bulk_log_get(h: Handle) -> Result<Vec<(i32, i32,)>, Er
 
 /// `render_world::World.chest_openers#get`
 pub fn render_world_world_chest_openers_get(h: Handle) -> Result<Vec<((i32, i32, i32,), (i32, f64,))>, Error> {
-    let result = call(h, 1727, &[])?;
+    let result = call(h, 2745, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<((i32, i32, i32,), (i32, f64,))>, CallError> {
         let d = &mut dec;
@@ -1039,7 +1039,7 @@ pub fn render_world_world_chest_openers_get(h: Handle) -> Result<Vec<((i32, i32,
 
 /// `render_world::World.day_time#get`
 pub fn render_world_world_day_time_get(h: Handle) -> Result<i64, Error> {
-    let result = call(h, 1729, &[])?;
+    let result = call(h, 2747, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i64, CallError> {
         let d = &mut dec;
@@ -1052,7 +1052,7 @@ pub fn render_world_world_day_time_get(h: Handle) -> Result<i64, Error> {
 
 /// `render_world::World.dirty_light#get`
 pub fn render_world_world_dirty_light_get(h: Handle) -> Result<Vec<(i32, i32,)>, Error> {
-    let result = call(h, 1731, &[])?;
+    let result = call(h, 2749, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<(i32, i32,)>, CallError> {
         let d = &mut dec;
@@ -1072,7 +1072,7 @@ pub fn render_world_world_dirty_light_get(h: Handle) -> Result<Vec<(i32, i32,)>,
 
 /// `render_world::World.fast_lava#get`
 pub fn render_world_world_fast_lava_get(h: Handle) -> Result<bool, Error> {
-    let result = call(h, 1733, &[])?;
+    let result = call(h, 2751, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1085,7 +1085,7 @@ pub fn render_world_world_fast_lava_get(h: Handle) -> Result<bool, Error> {
 
 /// `render_world::World.game_time#get`
 pub fn render_world_world_game_time_get(h: Handle) -> Result<i64, Error> {
-    let result = call(h, 1735, &[])?;
+    let result = call(h, 2753, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i64, CallError> {
         let d = &mut dec;
@@ -1098,7 +1098,7 @@ pub fn render_world_world_game_time_get(h: Handle) -> Result<i64, Error> {
 
 /// `render_world::World.health_rules#get`
 pub fn render_world_world_health_rules_get(h: Handle) -> Result<types::HealthRules, Error> {
-    let result = call(h, 1737, &[])?;
+    let result = call(h, 2755, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::HealthRules, CallError> {
         let d = &mut dec;
@@ -1111,7 +1111,7 @@ pub fn render_world_world_health_rules_get(h: Handle) -> Result<types::HealthRul
 
 /// `render_world::World.inhabited#get`
 pub fn render_world_world_inhabited_get(h: Handle) -> Result<Vec<((i32, i32,), i64)>, Error> {
-    let result = call(h, 1739, &[])?;
+    let result = call(h, 2757, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<((i32, i32,), i64)>, CallError> {
         let d = &mut dec;
@@ -1131,7 +1131,7 @@ pub fn render_world_world_inhabited_get(h: Handle) -> Result<Vec<((i32, i32,), i
 
 /// `render_world::World.light_edits#get`
 pub fn render_world_world_light_edits_get(h: Handle) -> Result<Vec<((i32, i32, i32,), u32, u32,)>, Error> {
-    let result = call(h, 1741, &[])?;
+    let result = call(h, 2759, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<((i32, i32, i32,), u32, u32,)>, CallError> {
         let d = &mut dec;
@@ -1151,7 +1151,7 @@ pub fn render_world_world_light_edits_get(h: Handle) -> Result<Vec<((i32, i32, i
 
 /// `render_world::World.loaded_chunks#get`
 pub fn render_world_world_loaded_chunks_get(h: Handle) -> Result<Vec<(i32, i32, bool,)>, Error> {
-    let result = call(h, 1743, &[])?;
+    let result = call(h, 2761, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<(i32, i32, bool,)>, CallError> {
         let d = &mut dec;
@@ -1171,7 +1171,7 @@ pub fn render_world_world_loaded_chunks_get(h: Handle) -> Result<Vec<(i32, i32, 
 
 /// `render_world::World.loaded_entities#get`
 pub fn render_world_world_loaded_entities_get(h: Handle) -> Result<Vec<((i32, i32,), Vec<types::Tag>,)>, Error> {
-    let result = call(h, 1745, &[])?;
+    let result = call(h, 2763, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<((i32, i32,), Vec<types::Tag>,)>, CallError> {
         let d = &mut dec;
@@ -1198,7 +1198,7 @@ pub fn render_world_world_loaded_entities_get(h: Handle) -> Result<Vec<((i32, i3
 
 /// `render_world::World.modified#get`
 pub fn render_world_world_modified_get(h: Handle) -> Result<Vec<(i32, i32,)>, Error> {
-    let result = call(h, 1747, &[])?;
+    let result = call(h, 2765, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<(i32, i32,)>, CallError> {
         let d = &mut dec;
@@ -1218,7 +1218,7 @@ pub fn render_world_world_modified_get(h: Handle) -> Result<Vec<(i32, i32,)>, Er
 
 /// `render_world::World.moving_piston_fallback#get`
 pub fn render_world_world_moving_piston_fallback_get(h: Handle) -> Result<Vec<([i32; 3], types::MovingPistonState,)>, Error> {
-    let result = call(h, 1749, &[])?;
+    let result = call(h, 2767, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<([i32; 3], types::MovingPistonState,)>, CallError> {
         let d = &mut dec;
@@ -1247,7 +1247,7 @@ pub fn render_world_world_moving_piston_fallback_get(h: Handle) -> Result<Vec<([
 
 /// `render_world::World.moving_pistons#get`
 pub fn render_world_world_moving_pistons_get(h: Handle) -> Result<Vec<([i32; 3], types::MovingPistonState,)>, Error> {
-    let result = call(h, 1751, &[])?;
+    let result = call(h, 2769, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<([i32; 3], types::MovingPistonState,)>, CallError> {
         let d = &mut dec;
@@ -1276,7 +1276,7 @@ pub fn render_world_world_moving_pistons_get(h: Handle) -> Result<Vec<([i32; 3],
 
 /// `render_world::World.path_writes#get`
 pub fn render_world_world_path_writes_get(h: Handle) -> Result<Option<Vec<((i32, i32, i32,), u32, u32,)>>, Error> {
-    let result = call(h, 1753, &[])?;
+    let result = call(h, 2771, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Option<Vec<((i32, i32, i32,), u32, u32,)>>, CallError> {
         let d = &mut dec;
@@ -1300,7 +1300,7 @@ pub fn render_world_world_path_writes_get(h: Handle) -> Result<Option<Vec<((i32,
 
 /// `render_world::World.revision#get`
 pub fn render_world_world_revision_get(h: Handle) -> Result<u64, Error> {
-    let result = call(h, 1755, &[])?;
+    let result = call(h, 2773, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<u64, CallError> {
         let d = &mut dec;
@@ -1313,7 +1313,7 @@ pub fn render_world_world_revision_get(h: Handle) -> Result<u64, Error> {
 
 /// `render_world::World.shape#get`
 pub fn render_world_world_shape_get(h: Handle) -> Result<types::LevelShape, Error> {
-    let result = call(h, 1757, &[])?;
+    let result = call(h, 2775, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::LevelShape, CallError> {
         let d = &mut dec;
@@ -1326,7 +1326,7 @@ pub fn render_world_world_shape_get(h: Handle) -> Result<types::LevelShape, Erro
 
 /// `render_world::World.shulkers#get`
 pub fn render_world_world_shulkers_get(h: Handle) -> Result<Vec<([i32; 3], types::Shulker)>, Error> {
-    let result = call(h, 1759, &[])?;
+    let result = call(h, 2777, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<([i32; 3], types::Shulker)>, CallError> {
         let d = &mut dec;
@@ -1355,7 +1355,7 @@ pub fn render_world_world_shulkers_get(h: Handle) -> Result<Vec<([i32; 3], types
 
 /// `render_world::World.watched#get`
 pub fn render_world_world_watched_get(h: Handle) -> Result<Vec<bool>, Error> {
-    let result = call(h, 1761, &[])?;
+    let result = call(h, 2779, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<bool>, CallError> {
         let d = &mut dec;
@@ -1375,7 +1375,7 @@ pub fn render_world_world_watched_get(h: Handle) -> Result<Vec<bool>, Error> {
 
 /// `render_world::World.watched_writes#get`
 pub fn render_world_world_watched_writes_get(h: Handle) -> Result<Vec<((i32, i32, i32,), u32, u32,)>, Error> {
-    let result = call(h, 1763, &[])?;
+    let result = call(h, 2781, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Vec<((i32, i32, i32,), u32, u32,)>, CallError> {
         let d = &mut dec;
@@ -1395,7 +1395,7 @@ pub fn render_world_world_watched_writes_get(h: Handle) -> Result<Vec<((i32, i32
 
 /// `render_world::World.weather#get`
 pub fn render_world_world_weather_get(h: Handle) -> Result<types::Weather, Error> {
-    let result = call(h, 1765, &[])?;
+    let result = call(h, 2783, &[])?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::Weather, CallError> {
         let d = &mut dec;
@@ -1415,7 +1415,7 @@ pub fn render_world_world_block(h: Handle, a0: i32, a1: i32, a2: i32) -> Result<
         Encode::encode(&a1, out);
         Encode::encode(&a2, out);
     }
-    let result = call(h, 1767, &args)?;
+    let result = call(h, 2785, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<types::BlockStateId, CallError> {
         let d = &mut dec;
@@ -1432,7 +1432,7 @@ pub fn render_world_world_block_entity_tickers(h: Handle) -> Result<Box<Vec<((i3
     {
         let out = &mut args;
     }
-    let result = call(h, 1768, &args)?;
+    let result = call(h, 2786, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<Box<Vec<((i32, i32, i32,), u32,)>>, CallError> {
         let d = &mut dec;
@@ -1456,7 +1456,7 @@ pub fn render_world_world_bottom_y(h: Handle) -> Result<i32, Error> {
     {
         let out = &mut args;
     }
-    let result = call(h, 1769, &args)?;
+    let result = call(h, 2787, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;
@@ -1479,7 +1479,7 @@ pub fn render_world_world_forget_block_entity_source(h: Handle, a0: (i32, i32, i
             Encode::encode(&t0.2, out);
         }
     }
-    let result = call(h, 1770, &args)?;
+    let result = call(h, 2788, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<(), CallError> {
         let d = &mut dec;
@@ -1497,7 +1497,7 @@ pub fn render_world_world_is_air(h: Handle, a0: types::BlockStateId) -> Result<b
         let out = &mut args;
         enc_horizon_world__registry__BlockStateId(&a0, out);
     }
-    let result = call(h, 1771, &args)?;
+    let result = call(h, 2789, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1517,7 +1517,7 @@ pub fn render_world_world_light(h: Handle, a0: i32, a1: i32, a2: i32) -> Result<
         Encode::encode(&a1, out);
         Encode::encode(&a2, out);
     }
-    let result = call(h, 1772, &args)?;
+    let result = call(h, 2790, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<u8, CallError> {
         let d = &mut dec;
@@ -1536,7 +1536,7 @@ pub fn render_world_world_loaded(h: Handle, a0: i32, a1: i32) -> Result<bool, Er
         Encode::encode(&a0, out);
         Encode::encode(&a1, out);
     }
-    let result = call(h, 1773, &args)?;
+    let result = call(h, 2791, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
@@ -1560,7 +1560,7 @@ pub fn render_world_world_set_block_lock(h: Handle, a0: (i32, i32, i32,), a1: &t
         }
         enc_horizon_world__nbt__Tag(a1, out);
     }
-    let result = call(h, 1774, &args)?;
+    let result = call(h, 2792, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<(), CallError> {
         let d = &mut dec;
@@ -1577,7 +1577,7 @@ pub fn render_world_world_top_y(h: Handle) -> Result<i32, Error> {
     {
         let out = &mut args;
     }
-    let result = call(h, 1775, &args)?;
+    let result = call(h, 2793, &args)?;
     let mut dec = Decoder::new(&result);
     let value = (|| -> Result<i32, CallError> {
         let d = &mut dec;

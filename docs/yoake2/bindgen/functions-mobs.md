@@ -187,8 +187,8 @@
 | `mobs::exact_attributes` | 424 | - | bound (b, mechanical) | - |
 | `mobs::load_model` | 3801 | - | handle-required | std type `std::path::Path` has no codec yet [&argument] |
 | `mobs::mob_can_use_portal` | 2452 | - | handle-required | field `0` of `JoinSeq` is private to another module [&argument] |
-| `mobs::render` | 3763 | - | handle-required | external type `glam::f64::dvec3::DVec3` (crate not loaded); external type `horizon_client_render::mesher::Vertex` (crate not loaded) [&mut argument]; field `0` of `JoinSeq` is private to another module [&argument] |
-| `mobs::render_model` | 3806 | - | excluded | `dyn Trait` values cannot cross the data ABI; external type `glam::f32::sse2::mat4::Mat4` (crate not loaded); external type `horizon_client_render::mesher::Vertex` (crate not loaded) [&mut argument] |
+| `mobs::render` | 3763 | - | handle-required | external type `glam::f64::dvec3::DVec3` (crate not loaded); field `0` of `JoinSeq` is private to another module [&argument] |
+| `mobs::render_model` | 3806 | - | excluded | `dyn Trait` values cannot cross the data ABI; external type `glam::f32::sse2::mat4::Mat4` (crate not loaded) |
 | `mobs::take_mob_pushes` | 2456 | - | handle-required | a reference nested inside another type needs a handle [&mut argument] |
 
 ## Fields
@@ -349,7 +349,7 @@
 | `mobs::Extra.spectator` | get + set |
 | `mobs::Extra.elytra` | get + set |
 | `mobs::Extra.swim` | get + set |
-| `mobs::Extra.avatar` | no accessor: external type `horizon_client_render::camera::AvatarBob` (crate not loaded) |
+| `mobs::Extra.avatar` | get + set |
 | `mobs::Extra.swing_right_arm` | get + set |
 | `mobs::Extra.swing_stab` | get + set |
 | `mobs::Extra.flag` | get + set |
@@ -367,7 +367,7 @@
 | `mobs::Extra.effects` | no accessor: a reference nested inside another type needs a handle |
 | `mobs::Extra.hidden_effects` | no accessor: a reference nested inside another type needs a handle |
 | `mobs::Extra.ambient_effects` | no accessor: a reference nested inside another type needs a handle |
-| `mobs::Extra.effect_particles` | no accessor: external type `horizon_client_render::particles::ParticleOptions` (crate not loaded) |
+| `mobs::Extra.effect_particles` | get + set |
 | `mobs::Extra.effect_ambient` | get + set |
 | `mobs::Extra.illusions` | get + set |
 | `mobs::Extra.bed` | get + set |
@@ -380,7 +380,7 @@
 | `mobs::Extra.scratch` | get + set |
 | `mobs::Extra.positions` | get + set |
 | `mobs::Extra.warden` | no accessor: field `suspects` of `AngerManagement` is private to another module |
-| `mobs::Extra.allay` | no accessor: external type `horizon_client_render::chunk::block_entity::Data` (crate not loaded) |
+| `mobs::Extra.allay` | no accessor: a reference nested inside another type needs a handle |
 | `mobs::Extra.raider` | get + set |
 | `mobs::Extra.villager` | no accessor: field `map` of `Gossips` is private to another module |
 | `mobs::Extra.animal_brain` | no accessor: generic type `Slot` requires a listed instantiation |

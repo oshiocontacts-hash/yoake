@@ -44,7 +44,7 @@ impl Game<'_> {
                 .then(|| riding::free_seat(m, RiderKind::Player, player_aboard, &aboard))
                 .flatten()
         };
-        let hand = if self.hand == Hand::Off { interact::Hand::Off } else { interact::Hand::Main };
+        let hand = if self.hand == Hand::Off { interact::ClickHand::Off } else { interact::ClickHand::Main };
         let outcome = {
             let tags = &self.res.items().item_tags;
             let matches = |pattern: &str, item: &str| match pattern.strip_prefix('#') {

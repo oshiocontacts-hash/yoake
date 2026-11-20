@@ -2158,7 +2158,7 @@ pub mod yoake_glue {
     }
 
     /// `motion::PlayerMotion.status#get`
-    fn call_1521(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2539(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         Decoder::new(args).finish()?;
         enc_horizon_client_render__effects__StatusFlags(&recv.status, out);
         Ok(())
@@ -2168,7 +2168,7 @@ pub mod yoake_glue {
     // read-only: the id is reserved, the dispatcher refuses the call
 
     /// `motion::PlayerMotion::powder_snow_subject`
-    fn call_1523(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+    fn call_2541(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
         let d = &mut dec;
         d.finish()?;
@@ -2576,9 +2576,9 @@ pub mod yoake_glue {
         (1512, "motion::fly_into_wall_damage"),
         (1513, "motion::horizontal_collision_minor"),
         (1514, "motion::native_living_jump"),
-        (1521, "motion::PlayerMotion.status#get"),
-        (1522, "motion::PlayerMotion.status#set"),
-        (1523, "motion::PlayerMotion::powder_snow_subject"),
+        (2539, "motion::PlayerMotion.status#get"),
+        (2540, "motion::PlayerMotion.status#set"),
+        (2541, "motion::PlayerMotion::powder_snow_subject"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -2807,9 +2807,9 @@ pub mod yoake_glue {
             1512 => call_1512(args, out),
             1513 => call_1513(args, out),
             1514 => call_1514(args, out),
-            1521 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1521(recv, args, out)).map_err(CallError::from).and_then(|r| r),
-            1522 => Err(CallError::ReadOnly(id)),
-            1523 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_1523(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2539 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_2539(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2540 => Err(CallError::ReadOnly(id)),
+            2541 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_2541(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {
