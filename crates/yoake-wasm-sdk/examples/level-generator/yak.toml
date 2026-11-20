@@ -15,5 +15,4 @@ required_on_join = false
 
 [wasm]
 interface = "1.0"
-world = "server-full"
 server = "bin/wasm/level-generator-server.wasm"
