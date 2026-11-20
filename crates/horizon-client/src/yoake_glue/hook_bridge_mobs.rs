@@ -47,13 +47,13 @@ pub mod hook_bridge {
         p0: &Polygon,
         p1: ModelNormals,
     ) -> [i8; 4] {
-        let mut p1_h = ::core::option::Option::Some(p1);
+        let p1_h = p1;
         let mut result: Option<[i8; 4]> = None;
-        let _ = yoake_slice::runtime::dispatch_n_id(411, yoake_slice::activation::ArgSet::new().shared(p0, &crate::mobs::yoake_glue::REF_FIELDS_crate__mobs__Polygon).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.shared::<Polygon>(0).expect("yoake: bridged argument 0 of hook 411"), match view.opaque_mut::<::core::option::Option<ModelNormals>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(411, yoake_slice::activation::ArgSet::new().shared(p0, &crate::mobs::yoake_glue::REF_FIELDS_crate__mobs__Polygon).opaque_shared(&p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.shared::<Polygon>(0).expect("yoake: bridged argument 0 of hook 411"), *view.opaque_shared::<ModelNormals>(1).expect("yoake: bridged argument 1 of hook 411"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0, p1_h.take().expect("only an original call moves it, and none ran")),
+            None => original(p0, p1),
         }
     }
 
@@ -85,13 +85,13 @@ pub mod hook_bridge {
         original: &mut dyn FnMut(&[u8]) -> HashMap<String, HashMap<String, f64>>,
         p0: &[u8],
     ) -> HashMap<String, HashMap<String, f64>> {
-        let mut p0_h = ::core::option::Option::Some(p0);
+        let p0_h = p0;
         let mut result: Option<HashMap<String, HashMap<String, f64>>> = None;
-        let _ = yoake_slice::runtime::dispatch_n_id(414, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<&[u8]>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(414, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&[u8]>(0).expect("yoake: bridged argument 0 of hook 414"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+            None => original(p0),
         }
     }
 
@@ -175,13 +175,13 @@ pub mod hook_bridge {
         original: &mut dyn FnMut(DamageKind) -> Damage,
         p0: DamageKind,
     ) -> Damage {
-        let mut p0_h = ::core::option::Option::Some(p0);
+        let p0_h = p0;
         let mut result: Option<Damage> = None;
-        let _ = yoake_slice::runtime::dispatch_n_id(420, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<DamageKind>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(420, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<DamageKind>(0).expect("yoake: bridged argument 0 of hook 420"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+            None => original(p0),
         }
     }
 
@@ -189,13 +189,13 @@ pub mod hook_bridge {
         original: &mut dyn FnMut([f64; 3]) -> Damage,
         p0: [f64; 3],
     ) -> Damage {
-        let mut p0_h = ::core::option::Option::Some(p0);
+        let p0_h = p0;
         let mut result: Option<Damage> = None;
-        let _ = yoake_slice::runtime::dispatch_n_id(421, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<[f64; 3]>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(421, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<[f64; 3]>(0).expect("yoake: bridged argument 0 of hook 421"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+            None => original(p0),
         }
     }
 
@@ -203,13 +203,13 @@ pub mod hook_bridge {
         original: &mut dyn FnMut([f64; 3]) -> Damage,
         p0: [f64; 3],
     ) -> Damage {
-        let mut p0_h = ::core::option::Option::Some(p0);
+        let p0_h = p0;
         let mut result: Option<Damage> = None;
-        let _ = yoake_slice::runtime::dispatch_n_id(422, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<[f64; 3]>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(422, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<[f64; 3]>(0).expect("yoake: bridged argument 0 of hook 422"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+            None => original(p0),
         }
     }
 
@@ -217,13 +217,13 @@ pub mod hook_bridge {
         original: &mut dyn FnMut([f64; 3]) -> Damage,
         p0: [f64; 3],
     ) -> Damage {
-        let mut p0_h = ::core::option::Option::Some(p0);
+        let p0_h = p0;
         let mut result: Option<Damage> = None;
-        let _ = yoake_slice::runtime::dispatch_n_id(423, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<[f64; 3]>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(423, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<[f64; 3]>(0).expect("yoake: bridged argument 0 of hook 423"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+            None => original(p0),
         }
     }
 
@@ -233,13 +233,13 @@ pub mod hook_bridge {
         p1: [f64; 3],
     ) -> Damage {
         let mut p0_h = ::core::option::Option::Some(p0);
-        let mut p1_h = ::core::option::Option::Some(p1);
+        let p1_h = p1;
         let mut result: Option<Damage> = None;
-        let _ = yoake_slice::runtime::dispatch_n_id(424, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<Option<Who>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<[f64; 3]>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(424, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_shared(&p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<Option<Who>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, *view.opaque_shared::<[f64; 3]>(1).expect("yoake: bridged argument 1 of hook 424"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1),
         }
     }
 
@@ -249,13 +249,13 @@ pub mod hook_bridge {
         p1: [f64; 3],
     ) -> Damage {
         let mut p0_h = ::core::option::Option::Some(p0);
-        let mut p1_h = ::core::option::Option::Some(p1);
+        let p1_h = p1;
         let mut result: Option<Damage> = None;
-        let _ = yoake_slice::runtime::dispatch_n_id(425, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<Option<Who>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<[f64; 3]>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(425, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h).opaque_shared(&p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<Option<Who>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, *view.opaque_shared::<[f64; 3]>(1).expect("yoake: bridged argument 1 of hook 425"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1_h.take().expect("only an original call moves it, and none ran")),
+            None => original(p0_h.take().expect("only an original call moves it, and none ran"), p1),
         }
     }
 
@@ -264,13 +264,13 @@ pub mod hook_bridge {
         p0: u32,
         p1: [f64; 3],
     ) -> Damage {
-        let mut p1_h = ::core::option::Option::Some(p1);
+        let p1_h = p1;
         let mut result: Option<Damage> = None;
-        let _ = yoake_slice::runtime::dispatch_n_id(426, yoake_slice::activation::ArgSet::new().value(yoake_slice::bridge::encode::int(p0)).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.value(0).and_then(yoake_slice::bridge::decode::int::<u32>).unwrap_or(p0), match view.opaque_mut::<::core::option::Option<[f64; 3]>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(426, yoake_slice::activation::ArgSet::new().value(yoake_slice::bridge::encode::int(p0)).opaque_shared(&p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.value(0).and_then(yoake_slice::bridge::decode::int::<u32>).unwrap_or(p0), *view.opaque_shared::<[f64; 3]>(1).expect("yoake: bridged argument 1 of hook 426"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0, p1_h.take().expect("only an original call moves it, and none ran")),
+            None => original(p0, p1),
         }
     }
 
@@ -469,13 +469,13 @@ pub mod hook_bridge {
         original: &mut dyn FnMut(Option<&horizon_world::nbt::Tag>) -> MannequinDescription,
         p0: Option<&horizon_world::nbt::Tag>,
     ) -> MannequinDescription {
-        let mut p0_h = ::core::option::Option::Some(p0);
+        let p0_h = p0;
         let mut result: Option<MannequinDescription> = None;
-        let _ = yoake_slice::runtime::dispatch_n_id(438, yoake_slice::activation::ArgSet::new().opaque_mut(&mut p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(match view.opaque_mut::<::core::option::Option<Option<&horizon_world::nbt::Tag>>>(0).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(438, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<Option<&horizon_world::nbt::Tag>>(0).expect("yoake: bridged argument 0 of hook 438"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0_h.take().expect("only an original call moves it, and none ran")),
+            None => original(p0),
         }
     }
 
@@ -594,13 +594,13 @@ pub mod hook_bridge {
         p0: &Mob,
         p1: Option<[i32; 4]>,
     ) -> Seen {
-        let mut p1_h = ::core::option::Option::Some(p1);
+        let p1_h = p1;
         let mut result: Option<Seen> = None;
-        let _ = yoake_slice::runtime::dispatch_n_id(447, yoake_slice::activation::ArgSet::new().shared(p0, &crate::mobs::yoake_glue::REF_FIELDS_crate__mobs__Mob).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.shared::<Mob>(0).expect("yoake: bridged argument 0 of hook 447"), match view.opaque_mut::<::core::option::Option<Option<[i32; 4]>>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(447, yoake_slice::activation::ArgSet::new().shared(p0, &crate::mobs::yoake_glue::REF_FIELDS_crate__mobs__Mob).opaque_shared(&p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(view.shared::<Mob>(0).expect("yoake: bridged argument 0 of hook 447"), *view.opaque_shared::<Option<[i32; 4]>>(1).expect("yoake: bridged argument 1 of hook 447"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0, p1_h.take().expect("only an original call moves it, and none ran")),
+            None => original(p0, p1),
         }
     }
 
@@ -664,8 +664,8 @@ pub mod hook_bridge {
         p0: &mut Mob,
         p1: &[[i32; 3]],
     ) {
-        let mut p1_h = ::core::option::Option::Some(p1);
-        let _ = yoake_slice::runtime::dispatch_n_id(452, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 452"), match view.opaque_mut::<::core::option::Option<&[[i32; 3]]>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
+        let p1_h = p1;
+        let _ = yoake_slice::runtime::dispatch_n_id(452, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).opaque_shared(&p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 452"), *view.opaque_shared::<&[[i32; 3]]>(1).expect("yoake: bridged argument 1 of hook 452")); 0 });
     }
 
     fn __bridge_453(
@@ -674,13 +674,13 @@ pub mod hook_bridge {
         p1: &[((i32, i32, i32), u32, u32)],
     ) -> Vec<[i32; 3]> {
         let p0_h = p0;
-        let mut p1_h = ::core::option::Option::Some(p1);
+        let p1_h = p1;
         let mut result: Option<Vec<[i32; 3]>> = None;
-        let _ = yoake_slice::runtime::dispatch_n_id(453, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&MobWorld>(0).expect("yoake: bridged argument 0 of hook 453"), match view.opaque_mut::<::core::option::Option<&[((i32, i32, i32), u32, u32)]>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 })); } 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(453, yoake_slice::activation::ArgSet::new().opaque_shared(&p0_h).opaque_shared(&p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { if result.is_none() { result = Some(original(*view.opaque_shared::<&MobWorld>(0).expect("yoake: bridged argument 0 of hook 453"), *view.opaque_shared::<&[((i32, i32, i32), u32, u32)]>(1).expect("yoake: bridged argument 1 of hook 453"))); } 0 });
         match result {
             Some(value) => value,
             // The guest did not call `original`: the result cannot be produced by the guest, so the original runs.
-            None => original(p0, p1_h.take().expect("only an original call moves it, and none ran")),
+            None => original(p0, p1),
         }
     }
 
@@ -805,8 +805,8 @@ pub mod hook_bridge {
         p1: Damage,
         p2: f32,
     ) {
-        let mut p1_h = ::core::option::Option::Some(p1);
-        let _ = yoake_slice::runtime::dispatch_n_id(462, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).opaque_mut(&mut p1_h).value(yoake_slice::bridge::encode::f32(p2)), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 462"), match view.opaque_mut::<::core::option::Option<Damage>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(2).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p2)); 0 });
+        let p1_h = p1;
+        let _ = yoake_slice::runtime::dispatch_n_id(462, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).opaque_shared(&p1_h).value(yoake_slice::bridge::encode::f32(p2)), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 462"), *view.opaque_shared::<Damage>(1).expect("yoake: bridged argument 1 of hook 462"), view.value(2).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p2)); 0 });
     }
 
     fn __bridge_463(
@@ -889,10 +889,10 @@ pub mod hook_bridge {
         p2: Option<[f64; 3]>,
         p3: &mut LegacyRandom,
     ) -> bool {
-        let mut p2_h = ::core::option::Option::Some(p2);
+        let p2_h = p2;
         let mut p3_h = ::core::option::Option::Some(p3);
         let mut last: Option<bool> = None;
-        let value = yoake_slice::runtime::dispatch_n_id(467, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f32(p1)).opaque_mut(&mut p2_h).opaque_mut(&mut p3_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 467"), view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), match view.opaque_mut::<::core::option::Option<Option<[f64; 3]>>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<&mut LegacyRandom>>(3).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        let value = yoake_slice::runtime::dispatch_n_id(467, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f32(p1)).opaque_shared(&p2_h).opaque_mut(&mut p3_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 467"), view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), *view.opaque_shared::<Option<[f64; 3]>>(2).expect("yoake: bridged argument 2 of hook 467"), match view.opaque_mut::<::core::option::Option<&mut LegacyRandom>>(3).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
             None => match last {
@@ -901,7 +901,7 @@ pub mod hook_bridge {
                 _ => {
                     yoake_slice::bridge::note_out_of_range(467, value);
                     // the last original result if the original ran, else run it now (the rest of the chain is skipped)
-                    match last { Some(r) => r, None => original(&mut *p0, p1, p2_h.take().expect("only an original call moves it, and none ran"), p3_h.take().expect("only an original call moves it, and none ran")) }
+                    match last { Some(r) => r, None => original(&mut *p0, p1, p2, p3_h.take().expect("only an original call moves it, and none ran")) }
                 }
             },
         }
@@ -927,10 +927,10 @@ pub mod hook_bridge {
         p2: Damage,
         p3: Option<Aim>,
     ) -> bool {
-        let mut p2_h = ::core::option::Option::Some(p2);
-        let mut p3_h = ::core::option::Option::Some(p3);
+        let p2_h = p2;
+        let p3_h = p3;
         let mut last: Option<bool> = None;
-        let value = yoake_slice::runtime::dispatch_n_id(469, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f32(p1)).opaque_mut(&mut p2_h).opaque_mut(&mut p3_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 469"), view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), match view.opaque_mut::<::core::option::Option<Damage>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Option<Aim>>>(3).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        let value = yoake_slice::runtime::dispatch_n_id(469, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f32(p1)).opaque_shared(&p2_h).opaque_shared(&p3_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 469"), view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), *view.opaque_shared::<Damage>(2).expect("yoake: bridged argument 2 of hook 469"), *view.opaque_shared::<Option<Aim>>(3).expect("yoake: bridged argument 3 of hook 469")); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
             None => match last {
@@ -939,7 +939,7 @@ pub mod hook_bridge {
                 _ => {
                     yoake_slice::bridge::note_out_of_range(469, value);
                     // the last original result if the original ran, else run it now (the rest of the chain is skipped)
-                    match last { Some(r) => r, None => original(&mut *p0, p1, p2_h.take().expect("only an original call moves it, and none ran"), p3_h.take().expect("only an original call moves it, and none ran")) }
+                    match last { Some(r) => r, None => original(&mut *p0, p1, p2, p3) }
                 }
             },
         }
@@ -953,11 +953,11 @@ pub mod hook_bridge {
         p3: Option<Aim>,
         p4: [f64; 2],
     ) -> bool {
-        let mut p2_h = ::core::option::Option::Some(p2);
-        let mut p3_h = ::core::option::Option::Some(p3);
-        let mut p4_h = ::core::option::Option::Some(p4);
+        let p2_h = p2;
+        let p3_h = p3;
+        let p4_h = p4;
         let mut last: Option<bool> = None;
-        let value = yoake_slice::runtime::dispatch_n_id(470, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f32(p1)).opaque_mut(&mut p2_h).opaque_mut(&mut p3_h).opaque_mut(&mut p4_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 470"), view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), match view.opaque_mut::<::core::option::Option<Damage>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Option<Aim>>>(3).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<[f64; 2]>>(4).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        let value = yoake_slice::runtime::dispatch_n_id(470, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f32(p1)).opaque_shared(&p2_h).opaque_shared(&p3_h).opaque_shared(&p4_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 470"), view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), *view.opaque_shared::<Damage>(2).expect("yoake: bridged argument 2 of hook 470"), *view.opaque_shared::<Option<Aim>>(3).expect("yoake: bridged argument 3 of hook 470"), *view.opaque_shared::<[f64; 2]>(4).expect("yoake: bridged argument 4 of hook 470")); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
             None => match last {
@@ -966,7 +966,7 @@ pub mod hook_bridge {
                 _ => {
                     yoake_slice::bridge::note_out_of_range(470, value);
                     // the last original result if the original ran, else run it now (the rest of the chain is skipped)
-                    match last { Some(r) => r, None => original(&mut *p0, p1, p2_h.take().expect("only an original call moves it, and none ran"), p3_h.take().expect("only an original call moves it, and none ran"), p4_h.take().expect("only an original call moves it, and none ran")) }
+                    match last { Some(r) => r, None => original(&mut *p0, p1, p2, p3, p4) }
                 }
             },
         }
@@ -978,9 +978,9 @@ pub mod hook_bridge {
         p1: f32,
         p2: Damage,
     ) -> bool {
-        let mut p2_h = ::core::option::Option::Some(p2);
+        let p2_h = p2;
         let mut last: Option<bool> = None;
-        let value = yoake_slice::runtime::dispatch_n_id(471, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f32(p1)).opaque_mut(&mut p2_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 471"), view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), match view.opaque_mut::<::core::option::Option<Damage>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        let value = yoake_slice::runtime::dispatch_n_id(471, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f32(p1)).opaque_shared(&p2_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 471"), view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), *view.opaque_shared::<Damage>(2).expect("yoake: bridged argument 2 of hook 471")); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
             None => match last {
@@ -989,7 +989,7 @@ pub mod hook_bridge {
                 _ => {
                     yoake_slice::bridge::note_out_of_range(471, value);
                     // the last original result if the original ran, else run it now (the rest of the chain is skipped)
-                    match last { Some(r) => r, None => original(&mut *p0, p1, p2_h.take().expect("only an original call moves it, and none ran")) }
+                    match last { Some(r) => r, None => original(&mut *p0, p1, p2) }
                 }
             },
         }
@@ -1024,10 +1024,10 @@ pub mod hook_bridge {
         p2: Damage,
         p3: Option<&mut dyn FnMut (f32) -> f32>,
     ) -> bool {
-        let mut p2_h = ::core::option::Option::Some(p2);
+        let p2_h = p2;
         let mut p3_h = ::core::option::Option::Some(p3);
         let mut last: Option<bool> = None;
-        let value = yoake_slice::runtime::dispatch_n_id(473, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f32(p1)).opaque_mut(&mut p2_h).opaque_mut(&mut p3_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 473"), view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), match view.opaque_mut::<::core::option::Option<Damage>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<Option<&mut dyn FnMut (f32) -> f32>>>(3).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); last = Some(r); yoake_slice::bridge::encode::bool(r) });
+        let value = yoake_slice::runtime::dispatch_n_id(473, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f32(p1)).opaque_shared(&p2_h).opaque_mut(&mut p3_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { let r = original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 473"), view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), *view.opaque_shared::<Damage>(2).expect("yoake: bridged argument 2 of hook 473"), match view.opaque_mut::<::core::option::Option<Option<&mut dyn FnMut (f32) -> f32>>>(3).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); last = Some(r); yoake_slice::bridge::encode::bool(r) });
         match yoake_slice::bridge::decode::bool(value) {
             Some(r) => r,
             None => match last {
@@ -1036,7 +1036,7 @@ pub mod hook_bridge {
                 _ => {
                     yoake_slice::bridge::note_out_of_range(473, value);
                     // the last original result if the original ran, else run it now (the rest of the chain is skipped)
-                    match last { Some(r) => r, None => original(&mut *p0, p1, p2_h.take().expect("only an original call moves it, and none ran"), p3_h.take().expect("only an original call moves it, and none ran")) }
+                    match last { Some(r) => r, None => original(&mut *p0, p1, p2, p3_h.take().expect("only an original call moves it, and none ran")) }
                 }
             },
         }
@@ -1135,8 +1135,8 @@ pub mod hook_bridge {
         p5: Option<f32>,
     ) {
         let p4_h = p4;
-        let mut p5_h = ::core::option::Option::Some(p5);
-        let _ = yoake_slice::runtime::dispatch_n_id(480, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f64(p1)).value(yoake_slice::bridge::encode::f64(p2)).value(yoake_slice::bridge::encode::f64(p3)).opaque_shared(&p4_h).opaque_mut(&mut p5_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 480"), view.value(1).map_or(p1, yoake_slice::bridge::decode::f64), view.value(2).map_or(p2, yoake_slice::bridge::decode::f64), view.value(3).map_or(p3, yoake_slice::bridge::decode::f64), *view.opaque_shared::<&Damage>(4).expect("yoake: bridged argument 4 of hook 480"), match view.opaque_mut::<::core::option::Option<Option<f32>>>(5).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
+        let p5_h = p5;
+        let _ = yoake_slice::runtime::dispatch_n_id(480, yoake_slice::activation::ArgSet::new().mut_ref(&mut *p0, &crate::mobs::yoake_glue::FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f64(p1)).value(yoake_slice::bridge::encode::f64(p2)).value(yoake_slice::bridge::encode::f64(p3)).opaque_shared(&p4_h).opaque_shared(&p5_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(view.mut_ref::<Mob>(0).expect("yoake: bridged argument 0 of hook 480"), view.value(1).map_or(p1, yoake_slice::bridge::decode::f64), view.value(2).map_or(p2, yoake_slice::bridge::decode::f64), view.value(3).map_or(p3, yoake_slice::bridge::decode::f64), *view.opaque_shared::<&Damage>(4).expect("yoake: bridged argument 4 of hook 480"), *view.opaque_shared::<Option<f32>>(5).expect("yoake: bridged argument 5 of hook 480")); 0 });
     }
 
     fn __bridge_481(
@@ -1177,8 +1177,8 @@ pub mod hook_bridge {
         p0: &Mob,
         p1: [f64; 3],
     ) -> f64 {
-        let mut p1_h = ::core::option::Option::Some(p1);
-        yoake_slice::bridge::decode::f64(yoake_slice::runtime::dispatch_n_id(483, yoake_slice::activation::ArgSet::new().shared(p0, &crate::mobs::yoake_glue::REF_FIELDS_crate__mobs__Mob).opaque_mut(&mut p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| yoake_slice::bridge::encode::f64(original(view.shared::<Mob>(0).expect("yoake: bridged argument 0 of hook 483"), match view.opaque_mut::<::core::option::Option<[f64; 3]>>(1).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }))))
+        let p1_h = p1;
+        yoake_slice::bridge::decode::f64(yoake_slice::runtime::dispatch_n_id(483, yoake_slice::activation::ArgSet::new().shared(p0, &crate::mobs::yoake_glue::REF_FIELDS_crate__mobs__Mob).opaque_shared(&p1_h), &mut |view: &yoake_slice::activation::ArgView<'_>| yoake_slice::bridge::encode::f64(original(view.shared::<Mob>(0).expect("yoake: bridged argument 0 of hook 483"), *view.opaque_shared::<[f64; 3]>(1).expect("yoake: bridged argument 1 of hook 483")))))
     }
 
     fn __bridge_484(
@@ -1437,9 +1437,9 @@ pub mod hook_bridge {
         p5: &mut Vec<Vertex>,
     ) {
         let mut p2_h = ::core::option::Option::Some(p2);
-        let mut p3_h = ::core::option::Option::Some(p3);
+        let p3_h = p3;
         let mut p5_h = ::core::option::Option::Some(p5);
-        let _ = yoake_slice::runtime::dispatch_n_id(501, yoake_slice::activation::ArgSet::new().shared(p0, &crate::mobs::yoake_glue::REF_FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f32(p1)).opaque_mut(&mut p2_h).opaque_mut(&mut p3_h).value(yoake_slice::bridge::encode::int(p4)).opaque_mut(&mut p5_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(view.shared::<Mob>(0).expect("yoake: bridged argument 0 of hook 501"), view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), match view.opaque_mut::<::core::option::Option<glam::DVec3>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, match view.opaque_mut::<::core::option::Option<[f32; 4]>>(3).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, view.value(4).and_then(yoake_slice::bridge::decode::int::<u32>).unwrap_or(p4), match view.opaque_mut::<::core::option::Option<&mut Vec<Vertex>>>(5).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
+        let _ = yoake_slice::runtime::dispatch_n_id(501, yoake_slice::activation::ArgSet::new().shared(p0, &crate::mobs::yoake_glue::REF_FIELDS_crate__mobs__Mob).value(yoake_slice::bridge::encode::f32(p1)).opaque_mut(&mut p2_h).opaque_shared(&p3_h).value(yoake_slice::bridge::encode::int(p4)).opaque_mut(&mut p5_h), &mut |view: &yoake_slice::activation::ArgView<'_>| { original(view.shared::<Mob>(0).expect("yoake: bridged argument 0 of hook 501"), view.value(1).and_then(yoake_slice::bridge::decode::f32).unwrap_or(p1), match view.opaque_mut::<::core::option::Option<glam::DVec3>>(2).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }, *view.opaque_shared::<[f32; 4]>(3).expect("yoake: bridged argument 3 of hook 501"), view.value(4).and_then(yoake_slice::bridge::decode::int::<u32>).unwrap_or(p4), match view.opaque_mut::<::core::option::Option<&mut Vec<Vertex>>>(5).and_then(|o| o.take()) { ::core::option::Option::Some(v) => v, ::core::option::Option::None => return 0 }); 0 });
     }
 
     fn __bridge_502(

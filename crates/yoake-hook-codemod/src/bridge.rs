@@ -1187,6 +1187,8 @@ fn classify_nary(
             }
             other => match scalar_name(other) {
                 Some(name) => NaryKind::Scalar(name),
+                // a `Copy` value goes to every `original` call (the copy is held for the guest's handle)
+                None if is_known_copy(other) => NaryKind::HeldRef,
                 None => NaryKind::Held,
             },
         };
