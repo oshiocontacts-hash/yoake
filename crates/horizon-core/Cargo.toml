@@ -7,10 +7,15 @@ rust-version.workspace = true
 description = "Horizon simulation foundations for the pinned vanilla Java Edition target"
 
 [features]
+# W10: the generated hook bridges (the stamping overlay adds them) need the slice runtime
+yoake2-slice = ["dep:yoake-slice"]
 # Records the call sites of LegacyRandom draws (mob AI parity debugging).
 rng-trace = []
 
 [dependencies]
+yoake-hook-macro = { path = "../yoake-hook-macro" }
+yoake-hook-rt = { path = "../yoake-hook-rt" }
+yoake-slice = { path = "../yoake-slice", optional = true }
 libm = "=0.2.16"
 yoake-value = { path = "../yoake-value" }
 
@@ -37,6 +42,9 @@ path = "src/bin/density_parity.rs"
 [[bin]]
 name = "horizon-float-log-parity"
 path = "src/bin/float_log_parity.rs"
+
+[build-dependencies]
+yoake-hook-ledger = { path = "../yoake-hook-ledger" }
 
 [lints]
 workspace = true

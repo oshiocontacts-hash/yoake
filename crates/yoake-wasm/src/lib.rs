@@ -23,6 +23,7 @@ mod full_hook_names;
 mod gpu_services;
 mod hook_names;
 mod host;
+mod media_services;
 pub mod host_services;
 pub mod inject;
 pub mod package_services;
@@ -45,6 +46,7 @@ pub use full::{ClientFullMod, SERVER_SERVICES, ServerFullMod, ServerHost, server
 pub use full_hook_names::{FULL_HOOKS as FULL_HOOK_LIST, HookSide};
 pub use gpu_services::{GpuServices, gpu_types};
 pub use host::{ClientContext, ClientHost};
+pub use media_services::{BROWSER_PERMISSION, MediaServices, media_types};
 pub use subscriptions::FullWorld;
 
 pub use subscriptions::Subscriptions;
@@ -483,6 +485,7 @@ impl CompiledComponent {
                 strikes: 0,
             },
             skipped: 0,
+            aggregate_exempt: false,
             _runtime: self.runtime,
         })
     }
@@ -497,6 +500,9 @@ pub struct ModInstance<T: 'static> {
     fuel: u64,
     window: Window,
     skipped: u64,
+    /// The calls being made do not count against the aggregate budget (still against the per-call one):
+    /// the engine's chunk generator calls, which a module cannot choose to make fewer of (F3-8).
+    aggregate_exempt: bool,
     _runtime: Arc<RuntimeEngine>,
 }
 
@@ -540,6 +546,11 @@ impl<T: 'static> ModInstance<T> {
     /// Sets the per-call and aggregate time limits (a server module gets the server's).
     pub fn set_limits(&mut self, limits: TimeLimits) {
         self.limits = limits;
+    }
+
+    /// Calls made while this is on are neither skipped for the aggregate budget nor counted in it.
+    pub fn set_aggregate_exempt(&mut self, exempt: bool) {
+        self.aggregate_exempt = exempt;
     }
 
     /// How many calls were skipped because the module had used its aggregate budget.
@@ -594,8 +605,8 @@ impl<T: 'static> ModInstance<T> {
             return Ok(None);
         }
         let began = Instant::now();
-        let over_aggregate = self.over_aggregate(began);
-        if self.window.strikes >= AGGREGATE_STRIKES {
+        let over_aggregate = !self.aggregate_exempt && self.over_aggregate(began);
+        if self.window.strikes >= AGGREGATE_STRIKES && !self.aggregate_exempt {
             self.disabled = true;
             let id = self.id.replace(['\r', '\n'], " ");
             eprintln!(
@@ -636,7 +647,9 @@ impl<T: 'static> ModInstance<T> {
         self.window.exceeded |=
             STORAGE_THROTTLED.with(|throttled| throttled.replace(outer_storage_throttled));
         COUNTED_HOST_TIME.with(|time| time.set(outer_counted_host_time));
-        self.window.spent += began.elapsed().saturating_sub(host_time);
+        if !self.aggregate_exempt {
+            self.window.spent += began.elapsed().saturating_sub(host_time);
+        }
         match result {
             Ok(value) => Ok(Some(value)),
             Err(error) => {
@@ -682,6 +695,34 @@ mod tests {
             .unwrap()
             .encode()
             .unwrap()
+    }
+
+    /// F3-8: calls made exempt from the aggregate budget (the chunk generator's) are neither skipped for it nor
+    /// counted in it; the same calls not exempt are skipped once the window's budget is used.
+    #[test]
+    fn exempt_calls_are_not_counted_against_the_aggregate_budget() {
+        let mut runtime = Sandbox::new();
+        let mut module = runtime
+            .compile(&tick_component())
+            .unwrap()
+            .instantiate("exempt-clock", (), |_| Ok(()))
+            .unwrap();
+        module.set_limits(TimeLimits { call: Duration::from_millis(500), aggregate: Duration::from_millis(5) });
+        let slow = |module: &mut ModInstance<()>| {
+            module.call("tick", |_, _| {
+                std::thread::sleep(Duration::from_millis(20));
+                Ok(())
+            })
+        };
+        module.set_aggregate_exempt(true);
+        for _ in 0..4 {
+            assert_eq!(slow(&mut module), Some(()), "exempt calls always run");
+        }
+        assert_eq!(module.skipped_calls(), 0);
+        module.set_aggregate_exempt(false);
+        assert_eq!(slow(&mut module), Some(()), "the first counted call runs");
+        assert_eq!(slow(&mut module), None, "and uses the window's budget, so the next is skipped");
+        assert_eq!(module.skipped_calls(), 1);
     }
 
     #[test]

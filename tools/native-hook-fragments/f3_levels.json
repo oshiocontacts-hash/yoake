@@ -1,0 +1,14 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "levels_register", "target": "horizon_client::game::native_levels::Game<'_>::native_levels_register"},
+    {"name": "levels_create", "target": "horizon_client::game::native_levels::Game<'_>::native_levels_create"},
+    {"name": "levels_delete", "target": "horizon_client::game::native_levels::Game<'_>::native_levels_delete"},
+    {"name": "levels_unload", "target": "horizon_client::game::native_levels::Game<'_>::native_levels_unload"},
+    {"name": "levels_regenerate", "target": "horizon_client::game::native_levels::Game<'_>::native_levels_regenerate"},
+    {"name": "levels_list", "target": "horizon_client::game::native_levels::Game<'_>::native_levels_list"},
+    {"name": "levels_generator", "target": "horizon_client::game::native_levels::Game<'_>::native_levels_generator"}
+  ],
+  "rust_summary": "level services for mods: register a level and a chunk generator before the world ticks, create, delete, unload and regenerate levels while it runs, list the levels.",
+  "doc_summary": "`native_levels_register(id, stem_json)` registers a level stem (a JSON object: `type`, `generator`) and `native_levels_generator(id, mod_id)` makes package `mod_id` the generator of levels whose stem is `{\"type\":\"yoake:mod\",\"id\":id}`, both before the world's first tick. `native_levels_create(id, persistent, stem_json)` creates a level while the server runs (persistent ones are listed in `data/yoake_levels.json`). `native_levels_delete(id)` deletes a created level that nobody is in. `native_levels_unload(id)` saves and closes a level at the next tick boundary; it opens again when entered. `native_levels_regenerate(id, seed)` throws a level's terrain away. `native_levels_list()` lists the level ids. Nothing changes unless a mod calls them. Bundles need fragment @API:f3_levels@."
+}

@@ -737,7 +737,7 @@ pub const BRIDGE_MODULES: [BridgeModule; 4] = [
 /// rustc wrapper; docs/yoake2/reports/FR-F1-W9b.md). Each crate exports a root function that chains its modules'
 /// bridges; their ids are all ledger ids, disjoint from the hand-wired modules above (the overlay leaves those alone).
 #[cfg(yoake_stamped)]
-pub const STAMPED_BRIDGES: [BridgeModule; 3] = [
+pub const STAMPED_BRIDGES: [BridgeModule; 8] = [
     BridgeModule {
         name: "stamped horizon-world",
         bridged: &[],
@@ -755,6 +755,36 @@ pub const STAMPED_BRIDGES: [BridgeModule; 3] = [
         bridged: &[],
         mode: crate::__yoake_bridge_mode,
         install: crate::__yoake_install_bridges,
+    },
+    BridgeModule {
+        name: "stamped horizon-client-render",
+        bridged: &[],
+        mode: horizon_client_render::__yoake_bridge_mode,
+        install: horizon_client_render::__yoake_install_bridges,
+    },
+    BridgeModule {
+        name: "stamped horizon-core",
+        bridged: &[],
+        mode: horizon_core::__yoake_bridge_mode,
+        install: horizon_core::__yoake_install_bridges,
+    },
+    BridgeModule {
+        name: "stamped horizon-protocol",
+        bridged: &[],
+        mode: horizon_protocol::__yoake_bridge_mode,
+        install: horizon_protocol::__yoake_install_bridges,
+    },
+    BridgeModule {
+        name: "stamped horizon-items",
+        bridged: &[],
+        mode: horizon_items::__yoake_bridge_mode,
+        install: horizon_items::__yoake_install_bridges,
+    },
+    BridgeModule {
+        name: "stamped horizon-command",
+        bridged: &[],
+        mode: horizon_command::__yoake_bridge_mode,
+        install: horizon_command::__yoake_install_bridges,
     },
 ];
 #[cfg(not(yoake_stamped))]

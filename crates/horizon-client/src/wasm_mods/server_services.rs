@@ -19,7 +19,7 @@ use yoake_wasm::full_bindings::client::yoake::mods::engine_types as et;
 use yoake_wasm::{ServerFullMod, ServerHost, server_types as st};
 
 /// Largest value of a storage write, a `mod-call` payload and its answer.
-const MAX_BLOB: usize = 1 << 20;
+pub(super) const MAX_BLOB: usize = 1 << 20;
 /// Most items or slots in a list a guest passes.
 const MAX_LIST: usize = 512;
 /// Nested `mod-call`s, the outer one included.
@@ -98,6 +98,23 @@ fn command_word(word: &str, what: &str) -> Result<(), String> {
     if ok { Ok(()) } else { Err(format!("not a valid {what}")) }
 }
 
+/// A level or generator id a guest passes: `namespace:path`, usable as a folder name.
+fn level_id(id: &str) -> Result<(), String> {
+    horizon_client::level_registry::check_level_id(id).map_err(|reason| format!("id `{id:.64}`: {reason}"))
+}
+
+/// A JSON object a guest passes (a level stem, a dimension type): at most 64 KiB.
+fn level_json(what: &str, text: &str) -> Result<serde_json::Value, String> {
+    if text.len() > 1 << 16 {
+        return Err(format!("the {what} is larger than 64 KiB"));
+    }
+    match serde_json::from_str::<serde_json::Value>(text) {
+        Ok(v @ serde_json::Value::Object(_)) => Ok(v),
+        Ok(_) => Err(format!("the {what} is not a JSON object")),
+        Err(e) => Err(format!("the {what}: {e}")),
+    }
+}
+
 fn vitals_float(value: f32) -> f32 {
     if value.is_finite() { value } else { 0.0 }
 }
@@ -133,7 +150,7 @@ pub(super) fn endpoints() -> Vec<Arc<ServerSlot>> {
     endpoints.iter().filter_map(|(_, weak)| weak.upgrade()).collect()
 }
 
-fn endpoint(id: &str) -> Option<Arc<ServerSlot>> {
+pub(super) fn endpoint(id: &str) -> Option<Arc<ServerSlot>> {
     let endpoints = ENDPOINTS.lock().unwrap_or_else(|error| error.into_inner());
     endpoints.iter().find(|(name, _)| name == id).and_then(|(_, weak)| weak.upgrade())
 }
@@ -330,6 +347,72 @@ impl ServerHost for GameServerHost {
             return Err("food is 0 to 20 and saturation is not negative".into());
         }
         server_service(|host| host.player_set_food(uuid, food, saturation))
+    }
+
+    // ---- levels and generators (F3-8) ---------------------------------------------------------
+    // The registering ones run from `init`, before any world exists: they stage what they are
+    // given for every world (`horizon_client::mod_generator`). In a hook, with a world up, they
+    // reach the world's registry directly (and are refused once it has ticked). The others need
+    // the server's hook.
+
+    fn level_register_type(&mut self, id: String, type_json: String) -> Result<(), String> {
+        level_id(&id)?;
+        horizon_client::mod_generator::stage_type(&id, level_json("dimension type", &type_json)?)
+    }
+
+    fn level_register(&mut self, id: String, stem_json: String) -> Result<(), String> {
+        level_id(&id)?;
+        let stem = level_json("level stem", &stem_json)?;
+        if super::full::initializing_server(&self.id) {
+            horizon_client::mod_generator::stage_level_replacing(&id, stem)
+        } else {
+            server_service(|host| host.levels_register(&id, &stem_json))
+        }
+    }
+
+    fn generator_register(&mut self, id: String) -> Result<(), String> {
+        level_id(&id)?;
+        if super::full::initializing_server(&self.id) {
+            horizon_client::mod_generator::stage_generator_replacing(&id, super::level_services::generator_factory(&self.id))
+        } else {
+            server_service(|host| host.levels_generator(&id, &self.id))
+        }
+    }
+
+    fn level_create(&mut self, id: String, persistent: bool, stem_json: String) -> Result<(), String> {
+        level_id(&id)?;
+        level_json("level stem", &stem_json)?;
+        server_service(|host| host.levels_create(&id, persistent, &stem_json))
+    }
+
+    fn level_delete(&mut self, id: String) -> Result<(), String> {
+        level_id(&id)?;
+        server_service(|host| host.levels_delete(&id))
+    }
+
+    fn level_unload(&mut self, id: String) -> Result<(), String> {
+        level_id(&id)?;
+        server_service(|host| host.levels_unload(&id))
+    }
+
+    fn level_regenerate(&mut self, id: String, seed: Option<i64>) -> Result<(), String> {
+        level_id(&id)?;
+        server_service(|host| host.levels_regenerate(&id, seed))
+    }
+
+    fn current_level(&mut self, player: String) -> Result<String, String> {
+        let uuid = parse_uuid(&player)?;
+        read_service(|host| {
+            host.server_players()
+                .into_iter()
+                .find(|p| p.uuid == uuid)
+                .map(|p| p.dimension)
+                .ok_or_else(|| "the player is not here".to_owned())
+        })
+    }
+
+    fn level_list(&mut self) -> Result<Vec<String>, String> {
+        read_service(|host| Ok(host.levels_list()))
     }
 
     fn player_stacks(&mut self, player: String) -> Result<Vec<st::PlayerInventorySlot>, String> {

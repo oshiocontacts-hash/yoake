@@ -805,7 +805,7 @@ thread_local! {
 }
 
 /// The types the scanned files derive `Copy` for (structs and enums, inline modules included).
-fn collect_copy_types(files: &[modules::ScannedFile]) -> BTreeSet<String> {
+pub(crate) fn collect_copy_types(files: &[modules::ScannedFile]) -> BTreeSet<String> {
     fn visit(items: &[syn::Item], out: &mut BTreeSet<String>) {
         for item in items {
             let (attrs, ident) = match item {
@@ -1172,6 +1172,10 @@ fn classify_nary(
             }
             FnArg::Typed(pt) => replace_self(&pt.ty),
         };
+        // F1 W12: an `impl Fn` argument is hookable natively (dyn shim) but a guest cannot name or call it
+        if type_has_impl_trait_or_never(&ty) {
+            return Err("impl Trait argument".to_string());
+        }
         let inner = unwrap_type_parens(&ty).clone();
         let kind = match &inner {
             Type::Reference(r) if !matches!(&*r.elem, Type::Slice(_) | Type::TraitObject(_) | Type::ImplTrait(_)) => {
@@ -1219,6 +1223,14 @@ fn classify_hook_old(
     }
     if hook.sig.inputs.is_empty() {
         return Err("no parameters".to_string());
+    }
+    // F1 W12: an `impl Fn` argument is hookable natively (dyn shim) but a guest cannot name or call it
+    for arg in &hook.sig.inputs {
+        if let FnArg::Typed(pt) = arg
+            && type_has_impl_trait_or_never(&pt.ty)
+        {
+            return Err("impl Trait argument".to_string());
+        }
     }
 
     let effective_self_ty = hook.hook_self_ty.as_ref().or(hook.self_ty.as_ref());

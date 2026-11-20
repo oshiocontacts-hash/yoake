@@ -2187,6 +2187,15 @@ interface server-services {
     mob-despawn: func(entity: u32) -> result<bool, string>;
     mob-claim-control: func(claim: bool, entity: u32) -> result<_, string>;
     mob-impulse: func(entity: u32, velocity: vec3) -> result<_, string>;
+    level-register-type: func(id: string, type-json: string) -> result<_, string>;
+    level-register: func(id: string, stem-json: string) -> result<_, string>;
+    level-create: func(id: string, persistent: bool, stem-json: string) -> result<_, string>;
+    level-delete: func(id: string) -> result<_, string>;
+    level-unload: func(id: string) -> result<_, string>;
+    level-regenerate: func(id: string, seed: option<s64>) -> result<_, string>;
+    level-list: func() -> result<list<string>, string>;
+    generator-register: func(id: string) -> result<_, string>;
+    current-level: func(player: string) -> result<string, string>;
 }
 
 interface client-types {
@@ -2512,6 +2521,109 @@ interface gpu-services {
     frame: func() -> result<frame-info, string>;
     shader-file: func(path: string, source: string) -> result<u32, shader-error>;
     draw-region-call: func(desc: draw-desc, region: draw-region, stage: stage, target: draw-target) -> result<_, string>;
+}
+
+interface media-types {
+    enum audio-status {
+        off,
+        starting,
+        capturing,
+        failed,
+    }
+
+    enum browser-status {
+        starting,
+        ready,
+        failed,
+        closed,
+    }
+
+    enum history-action {
+        back,
+        forward,
+        reload,
+    }
+
+    enum input-kind {
+        move,
+        down,
+        up,
+        wheel,
+        key-down,
+        key-up,
+        text,
+        insert,
+    }
+
+    enum mouse-button {
+        none,
+        left,
+        right,
+        middle,
+    }
+
+    record browser-options {
+        allow: list<string>,
+        audio: bool,
+        jpeg-quality: u8,
+        max-message: u32,
+        transparent: bool,
+        window: bool,
+    }
+
+    record eval-answer {
+        done: bool,
+        ok: bool,
+        value: string,
+    }
+
+    record input-event {
+        button: mouse-button,
+        buttons: u32,
+        clicks: u32,
+        dx: f64,
+        dy: f64,
+        kind: input-kind,
+        mods: u32,
+        text: string,
+        x: f64,
+        y: f64,
+    }
+
+    record page-state {
+        audio: audio-status,
+        error: option<string>,
+        frames: u64,
+        height: u32,
+        loading: bool,
+        status: browser-status,
+        title: string,
+        url: string,
+        width: u32,
+    }
+}
+
+/// Services listed in `abi-subset-media.json`.
+interface media-services {
+    use media-types.{audio-status, browser-status, history-action, input-kind, mouse-button, browser-options, eval-answer, input-event, page-state};
+
+    use hud.{gui-texture};
+
+    browser-open: func(height: u32, options: browser-options, scale: f32, url: string, width: u32) -> result<u32, string>;
+    browser-close: func(handle: u32) -> result<_, string>;
+    browser-set-visible: func(handle: u32, visible: bool) -> result<_, string>;
+    browser-navigate: func(handle: u32, url: string) -> result<_, string>;
+    browser-history: func(action: history-action, handle: u32) -> result<_, string>;
+    browser-input: func(event: input-event, handle: u32) -> result<_, string>;
+    browser-state: func(handle: u32) -> result<page-state, string>;
+    browser-frame-to-texture: func(handle: u32, texture: borrow<gui-texture>) -> result<option<u64>, string>;
+    browser-frame-jpeg: func(handle: u32, quality: u8) -> result<option<tuple<u64, list<u8>>>, string>;
+    jpeg-to-texture: func(bytes: list<u8>, texture: borrow<gui-texture>) -> result<tuple<u32, u32>, string>;
+    browser-audio-pcm: func(handle: u32) -> result<list<s16>, string>;
+    browser-eval: func(expression: string, handle: u32) -> result<u64, string>;
+    browser-eval-result: func(ticket: u64) -> result<eval-answer, string>;
+    browser-post: func(handle: u32, json: string) -> result<_, string>;
+    browser-messages: func(handle: u32) -> result<list<string>, string>;
 }
 
 /// Hooks that run in the client.
@@ -7173,6 +7285,8 @@ world client-full {
     import client-services;
     import gpu-types;
     import gpu-services;
+    import media-types;
+    import media-services;
     export client-hooks;
     /// Returns catalog hook names with underscores, such as `net_frames_listened`.
     export init: func() -> list<string>;

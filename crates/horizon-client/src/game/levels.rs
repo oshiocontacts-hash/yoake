@@ -345,7 +345,10 @@ impl Game<'_> {
         if target != self.dim {
             let (mut p, opened) = match self.levels.parked.remove(&target) {
                 Some(p) => (p, false),
-                None => (self.open_level(target)?, true),
+                None => {
+                    self.level_before_open(target.id());
+                    (self.open_level(target)?, true)
+                }
             };
             p.world.game_time = self.world.game_time;
             p.world.day_time = self.world.day_time;
@@ -374,6 +377,7 @@ impl Game<'_> {
                 // The new streaming's radius and meshing options.
                 self.apply_settings();
                 self.native_level_opened(target);
+                self.level_after_open(target.id());
             }
         }
         let host = match host {
@@ -444,6 +448,7 @@ impl Game<'_> {
     pub(super) fn tick_server(&mut self, paused: bool) -> Result<()> {
         // The world's levels are fixed once it ticks (F3-6 adds run-time creation).
         self.level_registry.freeze();
+        self.run_pending_level_ops();
         self.native_drain_permission_refresh();
         self.native_server_ops_tick_start()?;
         // `tickRateManager.tick()` once per server tick, before any level
@@ -743,6 +748,26 @@ impl Game<'_> {
             self.native_level_closed(dim);
         }
         Ok(())
+    }
+
+    /// Mods hear a level is about to open (F3-8b): before its generator and folders are read. Nothing
+    /// changes unless a mod subscribes.
+    #[yoake_inject_macro::yoake_inject(id = "level::before_open", side = "server")]
+    fn level_before_open(&mut self, level: &str) {
+        let _ = level;
+    }
+
+    /// Mods hear a level has opened and is in the registry of open levels (F3-8b).
+    #[yoake_inject_macro::yoake_inject(id = "level::after_open", side = "server")]
+    fn level_after_open(&mut self, level: &str) {
+        let _ = level;
+    }
+
+    /// Mods hear a level is about to close for good or for a while (unload, delete, regenerate) while
+    /// its chunks and files are still there (F3-8b).
+    #[yoake_inject_macro::yoake_inject(id = "level::before_close", side = "server")]
+    pub(super) fn level_before_close(&mut self, level: &str) {
+        let _ = level;
     }
 
     /// The mods hear `dim`'s level open (`LevelEvent.Load`), on a server.

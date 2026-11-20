@@ -2,7 +2,7 @@
 // Regenerate: cargo run -p yoake-bindgen -- --config crates/yoake-bindgen/bindgen.json
 // Module `game_items` of crate `horizon_client`; ids come from crates/yoake-bindgen/ids.lock.json.
 // Included inside the module so private items are reachable. `#![forbid(unsafe_code)]` below.
-#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, clippy::all)]
+#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, private_interfaces, private_bounds, clippy::all)]
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]
@@ -157,6 +157,26 @@ pub mod yoake_glue {
         Ok(())
     }
 
+    /// `game_items::Game.settings#handle`
+    fn call_2533(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        d.finish()?;
+        let handle = activation::open_path(root, vec![Accessor::Field(10)]).map_err(CallError::from)?;
+        Encode::encode(&handle, out);
+        Ok(())
+    }
+
+    /// `game_items::Game.world#handle`
+    fn call_2534(root: u64, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        d.finish()?;
+        let handle = activation::open_path(root, vec![Accessor::Field(9)]).map_err(CallError::from)?;
+        Encode::encode(&handle, out);
+        Ok(())
+    }
+
     /// Paths a guest may reach from the `Game` root (see `game_paths` in bindgen.json).
     impl PathRoot for crate::game::Game<'_> {
         fn resolve(&mut self, path: &[Accessor], f: &mut dyn FnMut(&mut dyn std::any::Any)) -> Result<(), Status> {
@@ -221,6 +241,14 @@ pub mod yoake_glue {
                     }
                     None => Err(Status::Stale),
                 },
+                [Accessor::Field(9)] => {
+                    f(&mut self.world);
+                    Ok(())
+                }
+                [Accessor::Field(10)] => {
+                    f(&mut self.settings);
+                    Ok(())
+                }
                 _ => Err(Status::BadField),
             }
         }
@@ -290,6 +318,14 @@ pub mod yoake_glue {
                     }
                     None => Err(Status::Stale),
                 },
+                [Accessor::Field(9)] => {
+                    f(&self.world);
+                    Ok(())
+                }
+                [Accessor::Field(10)] => {
+                    f(&self.settings);
+                    Ok(())
+                }
                 _ => Err(Status::BadField),
             }
         }
@@ -311,6 +347,8 @@ pub mod yoake_glue {
         (461, "game_items::Game::yoake2_world_start_hook"),
         (462, "game_items::Game.mob#handle"),
         (463, "game_items::Game.player_motion#handle"),
+        (2533, "game_items::Game.settings#handle"),
+        (2534, "game_items::Game.world#handle"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -327,6 +365,8 @@ pub mod yoake_glue {
             459 => call_459(handle, args, out),
             462 => call_462(handle, args, out),
             463 => call_463(handle, args, out),
+            2533 => call_2533(handle, args, out),
+            2534 => call_2534(handle, args, out),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {

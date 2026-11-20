@@ -2,7 +2,7 @@
 // Regenerate: cargo run -p yoake-bindgen -- --config crates/yoake-bindgen/bindgen.json
 // Module `motion` of crate `horizon_client_lib`; ids come from crates/yoake-bindgen/ids.lock.json.
 // Included inside the module so private items are reachable. `#![forbid(unsafe_code)]` below.
-#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, clippy::all)]
+#[allow(dead_code, unused_mut, unused_variables, unused_parens, unused_imports, non_snake_case, non_upper_case_globals, private_interfaces, private_bounds, clippy::all)]
 pub mod yoake_glue {
     // The compiler, not a grep, guarantees the glue has no unsafe code.
     #![forbid(unsafe_code)]
@@ -204,6 +204,109 @@ pub mod yoake_glue {
             trigger_time: <i32 as Decode>::decode(d)?,
             previous_forward: <bool as Decode>::decode(d)?,
             previous_shift: <bool as Decode>::decode(d)?,
+        })
+    }
+
+    fn enc_horizon_client_render__collisions__PowderSnowSubject(v: &horizon_client_render::collisions::PowderSnowSubject, out: &mut Vec<u8>) {
+        Encode::encode(&v.fall_distance, out);
+        Encode::encode(&v.falling_block, out);
+        Encode::encode(&v.leather_boots, out);
+        Encode::encode(&v.walkable_type, out);
+        Encode::encode(&v.lava_walker, out);
+    }
+    fn dec_horizon_client_render__collisions__PowderSnowSubject(d: &mut Decoder<'_>) -> Result<horizon_client_render::collisions::PowderSnowSubject, CallError> {
+        d.enter()?;
+        let r = dec_horizon_client_render__collisions__PowderSnowSubject_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_client_render__collisions__PowderSnowSubject_body(d: &mut Decoder<'_>) -> Result<horizon_client_render::collisions::PowderSnowSubject, CallError> {
+        Ok(horizon_client_render::collisions::PowderSnowSubject {
+            fall_distance: <f64 as Decode>::decode(d)?,
+            falling_block: <bool as Decode>::decode(d)?,
+            leather_boots: <bool as Decode>::decode(d)?,
+            walkable_type: <bool as Decode>::decode(d)?,
+            lava_walker: <bool as Decode>::decode(d)?,
+        })
+    }
+
+    fn enc_horizon_client_render__effects__StatusFlags(v: &horizon_client_render::effects::StatusFlags, out: &mut Vec<u8>) {
+        match &v.jump_boost {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        Encode::encode(&v.slow_falling, out);
+        match &v.levitation {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        match &v.resistance {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        Encode::encode(&v.fire_resistance, out);
+        Encode::encode(&v.dolphins_grace, out);
+        Encode::encode(&v.weaving, out);
+        Encode::encode(&v.water_breathing, out);
+        Encode::encode(&v.breath_of_the_nautilus, out);
+        {
+            let s0 = &v.protection;
+            codec::enc_len(s0.len(), out);
+            for e0 in s0.iter() {
+                {
+                    let t1 = e0;
+                    Encode::encode(&t1.0, out);
+                    Encode::encode(&t1.1, out);
+                }
+            }
+        }
+    }
+    fn dec_horizon_client_render__effects__StatusFlags(d: &mut Decoder<'_>) -> Result<horizon_client_render::effects::StatusFlags, CallError> {
+        d.enter()?;
+        let r = dec_horizon_client_render__effects__StatusFlags_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_client_render__effects__StatusFlags_body(d: &mut Decoder<'_>) -> Result<horizon_client_render::effects::StatusFlags, CallError> {
+        Ok(horizon_client_render::effects::StatusFlags {
+            jump_boost: match d.tag()? {
+                0 => None,
+                1 => Some(<i32 as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            slow_falling: <bool as Decode>::decode(d)?,
+            levitation: match d.tag()? {
+                0 => None,
+                1 => Some(<i32 as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            resistance: match d.tag()? {
+                0 => None,
+                1 => Some(<i32 as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            fire_resistance: <bool as Decode>::decode(d)?,
+            dolphins_grace: <bool as Decode>::decode(d)?,
+            weaving: <bool as Decode>::decode(d)?,
+            water_breathing: <bool as Decode>::decode(d)?,
+            breath_of_the_nautilus: <bool as Decode>::decode(d)?,
+            protection: {
+                let n0 = d.vec_len()?;
+                let mut v0 = Decoder::vec_with(n0);
+                for _ in 0..n0 {
+                    v0.push((<String as Decode>::decode(d)?, <f32 as Decode>::decode(d)?,));
+                }
+                v0
+            },
         })
     }
 
@@ -2054,6 +2157,26 @@ pub mod yoake_glue {
         Ok(())
     }
 
+    /// `motion::PlayerMotion.status#get`
+    fn call_2539(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        enc_horizon_client_render__effects__StatusFlags(&recv.status, out);
+        Ok(())
+    }
+
+    /// `motion::PlayerMotion.status#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
+    /// `motion::PlayerMotion::powder_snow_subject`
+    fn call_2541(recv: &crate::motion::PlayerMotion, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        d.finish()?;
+        let r = <crate::motion::PlayerMotion>::powder_snow_subject(recv);
+        enc_horizon_client_render__collisions__PowderSnowSubject(&r, out);
+        Ok(())
+    }
+
     /// Scalar fields of `crate::motion::LocationEffects` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__motion__LocationEffects: FieldTable<crate::motion::LocationEffects> = FieldTable {
         get: |t, f| match f {
@@ -2453,6 +2576,9 @@ pub mod yoake_glue {
         (1512, "motion::fly_into_wall_damage"),
         (1513, "motion::horizontal_collision_minor"),
         (1514, "motion::native_living_jump"),
+        (2539, "motion::PlayerMotion.status#get"),
+        (2540, "motion::PlayerMotion.status#set"),
+        (2541, "motion::PlayerMotion::powder_snow_subject"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -2681,6 +2807,9 @@ pub mod yoake_glue {
             1512 => call_1512(args, out),
             1513 => call_1513(args, out),
             1514 => call_1514(args, out),
+            2539 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_2539(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2540 => Err(CallError::ReadOnly(id)),
+            2541 => activation::with_arg_shared::<crate::motion::PlayerMotion, _>(handle, |recv| call_2541(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {

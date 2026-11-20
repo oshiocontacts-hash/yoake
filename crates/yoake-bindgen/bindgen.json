@@ -5,7 +5,8 @@
     "target/doc/horizon_items.json",
     "target/doc/horizon_core.json",
     "target/doc/horizon_world.json",
-    "target/doc/horizon_client_core.json"
+    "target/doc/horizon_client_core.json",
+    "target/doc/horizon_client_render.json"
   ],
   "lock": "crates/yoake-bindgen/ids.lock.json",
   "report_dir": "docs/yoake2/bindgen",
@@ -218,6 +219,20 @@
             "player"
           ],
           "optional": true
+        },
+        {
+          "name": "world",
+          "ty": "horizon_client_render::world::World",
+          "path": [
+            "world"
+          ]
+        },
+        {
+          "name": "settings",
+          "ty": "horizon_client_render::settings::Settings",
+          "path": [
+            "settings"
+          ]
         }
       ],
       "guest_stubs": "crates/yoake-guest-sdk/src/stubs/game_items.rs"
@@ -230,6 +245,29 @@
       "roots": [
         "Game"
       ]
+    },
+    {
+      "name": "render_world",
+      "crate_name": "horizon_client_render",
+      "source": "horizon-client-render/src/world.rs",
+      "glue": "crates/horizon-client-render/src/yoake_glue/world.rs",
+      "writable": {},
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/render_world.rs"
+    },
+    {
+      "name": "render_settings",
+      "crate_name": "horizon_client_render",
+      "source": "horizon-client-render/src/settings.rs",
+      "glue": "crates/horizon-client-render/src/yoake_glue/settings.rs",
+      "writable": {},
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/render_settings.rs"
+    },
+    {
+      "name": "mod_generator",
+      "crate_name": "horizon_client_lib",
+      "source": "horizon-client/src/mod_generator.rs",
+      "glue": "crates/horizon-client/src/yoake_glue/mod_generator.rs",
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/mod_generator.rs"
     }
   ],
   "frozen_files": [

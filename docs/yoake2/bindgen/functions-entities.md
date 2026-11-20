@@ -53,7 +53,7 @@
 | `entities::ArmorStand::__yoake_trait_entity_rules_is_no_gravity` | 273 | &self | excluded | hook machinery (`__yoake_*`): not an engine function |
 | `entities::ArmorStand::__yoake_trait_entity_rules_is_pushed_by_fluid` | 297 | &self | excluded | hook machinery (`__yoake_*`): not an engine function |
 | `entities::ArmorStand::bounds` | 2227 | &self | handle-required | field `min` of `Aabb` is private to another module [return value] |
-| `entities::ArmorStand::environment_tick` | 2165 | &mut self | handle-required | external type `horizon_client_render::world::World` (crate not loaded) [&argument]; field `states` of `BlockRegistry` is private to another module [&argument] |
+| `entities::ArmorStand::environment_tick` | 2165 | &mut self | handle-required | field `entries` of `Attachments` is private to another module [&argument]; field `states` of `BlockRegistry` is private to another module [&argument] |
 | `entities::ArmorStand::feet_are_leather_boots` | 2245 | &self | bound (a) | - |
 | `entities::ArmorStand::filter_flag` | 2123 | - | bound (b, mechanical) | - |
 | `entities::ArmorStand::interpolate` | 2039 | &mut self | bound (b, mechanical) | - |
@@ -86,9 +86,9 @@
 | `entities::ExperienceOrb::can_merge` | 1247 | &self | bound (a) | - |
 | `entities::ExperienceOrb::hurt` | 1168 | &mut self | bound (a) | - |
 | `entities::ExperienceOrb::icon` | 1274 | &self | bound (a) | - |
-| `entities::ExperienceOrb::move_towards_closest_space` | 1440 | &mut self | handle-required | external type `horizon_client_render::world::World` (crate not loaded) [&argument] |
+| `entities::ExperienceOrb::move_towards_closest_space` | 1440 | &mut self | handle-required | field `entries` of `Attachments` is private to another module [&argument] |
 | `entities::ExperienceOrb::split` | 1259 | - | bound (a) | - |
-| `entities::ExperienceOrb::tick` | 1297 | &mut self | excluded | `dyn Trait` values cannot cross the data ABI; external type `horizon_client_render::world::World` (crate not loaded) [&argument]; field `center` of `BorderGeometry` is private to another module [Option<&> argument]; field `states` of `FluidResources` is private to another module [&argument]; lifetime-carrying type `BlockCollisionRegistry` |
+| `entities::ExperienceOrb::tick` | 1297 | &mut self | excluded | `dyn Trait` values cannot cross the data ABI; field `center` of `BorderGeometry` is private to another module [Option<&> argument]; field `entries` of `Attachments` is private to another module [&argument]; field `states` of `FluidResources` is private to another module [&argument]; lifetime-carrying type `BlockCollisionRegistry` |
 | `entities::ExperienceOrb::unstuck` | 1211 | - | excluded | `impl Trait` requires a listed instantiation; closure argument (`impl Fn*`): guest callback handles are not built |
 | `entities::ItemCells::add` | 1013 | &mut self | bound (b, mechanical) | - |
 | `entities::ItemCells::cell` | 1006 | - | bound (b, mechanical) | - |
@@ -98,20 +98,20 @@
 | `entities::ItemCells::remove` | 1020 | &mut self | bound (b, mechanical) | - |
 | `entities::ItemEntity::__yoake_trait_entity_rules_get_default_gravity` | 210 | &self | excluded | hook machinery (`__yoake_*`): not an engine function |
 | `entities::ItemEntity::__yoake_trait_entity_rules_is_no_gravity` | 198 | &self | excluded | hook machinery (`__yoake_*`): not an engine function |
-| `entities::ItemEntity::apply_honey_slide` | 804 | &mut self | handle-required | external type `horizon_client_render::world::World` (crate not loaded) [&argument] |
+| `entities::ItemEntity::apply_honey_slide` | 804 | &mut self | handle-required | field `entries` of `Attachments` is private to another module [&argument] |
 | `entities::ItemEntity::bounds` | 357 | &self | handle-required | field `min` of `Aabb` is private to another module [return value] |
-| `entities::ItemEntity::environment_tick` | 376 | &mut self | excluded | external type `horizon_client_render::world::World` (crate not loaded) [&argument]; field `0` of `Wire` is private to another module [return value]; field `states` of `BlockRegistry` is private to another module [&argument]; generic type `horizon_world::consumable::Consumable` requires a listed instantiation |
+| `entities::ItemEntity::environment_tick` | 376 | &mut self | excluded | field `0` of `Wire` is private to another module [return value]; field `entries` of `Attachments` is private to another module [&argument]; field `states` of `BlockRegistry` is private to another module [&argument]; generic type `horizon_world::consumable::Consumable` requires a listed instantiation |
 | `entities::ItemEntity::has_infinite_pickup_delay` | 863 | &self | bound (a) | - |
 | `entities::ItemEntity::honey_block_inside` | 830 | &mut self | bound (a) | - |
 | `entities::ItemEntity::hurt` | 447 | &mut self | handle-required | field `0` of `Wire` is private to another module [return value] |
-| `entities::ItemEntity::inside_block` | 471 | &self | excluded | external type `horizon_client_render::world::World` (crate not loaded) [&argument]; lifetime-carrying type `BlockCollisionRegistry` |
+| `entities::ItemEntity::inside_block` | 471 | &self | excluded | field `entries` of `Attachments` is private to another module [&argument]; lifetime-carrying type `BlockCollisionRegistry` |
 | `entities::ItemEntity::mergeable` | 876 | &self | bound (a) | - |
-| `entities::ItemEntity::move_towards_closest_space` | 492 | &mut self | handle-required | external type `horizon_client_render::world::World` (crate not loaded) [&argument] |
+| `entities::ItemEntity::move_towards_closest_space` | 492 | &mut self | handle-required | field `entries` of `Attachments` is private to another module [&argument] |
 | `entities::ItemEntity::piston_slime_bounce` | 787 | &mut self | bound (b, mechanical) | - |
-| `entities::ItemEntity::slime_step_on` | 757 | &mut self | handle-required | external type `horizon_client_render::world::World` (crate not loaded) [&argument] |
-| `entities::ItemEntity::stuck_multiplier` | 726 | &self | handle-required | external type `horizon_client_render::world::World` (crate not loaded) [&argument] |
-| `entities::ItemEntity::tick_move` | 513 | &mut self | excluded | external type `horizon_client_render::world::World` (crate not loaded) [&argument]; field `center` of `BorderGeometry` is private to another module [Option<&> argument]; field `min` of `Aabb` is private to another module; lifetime-carrying type `BlockCollisionRegistry` |
-| `entities::ItemEntity::tick_settle` | 643 | &mut self | handle-required | external type `horizon_client_render::world::World` (crate not loaded) [&argument] |
+| `entities::ItemEntity::slime_step_on` | 757 | &mut self | handle-required | field `entries` of `Attachments` is private to another module [&argument] |
+| `entities::ItemEntity::stuck_multiplier` | 726 | &self | handle-required | field `entries` of `Attachments` is private to another module [&argument] |
+| `entities::ItemEntity::tick_move` | 513 | &mut self | excluded | field `center` of `BorderGeometry` is private to another module [Option<&> argument]; field `entries` of `Attachments` is private to another module [&argument]; field `min` of `Aabb` is private to another module; lifetime-carrying type `BlockCollisionRegistry` |
+| `entities::ItemEntity::tick_settle` | 643 | &mut self | handle-required | field `entries` of `Attachments` is private to another module [&argument] |
 | `entities::ItemEnvironmentTick::should_play_lava_hurt_sound` | 176 | &self | bound (a) | - |
 | `entities::ItemFrame::bounds` | 1796 | &self | bound (b, mechanical) | - |
 | `entities::ItemFrame::kind` | 1784 | &self | bound (b, mechanical) | - |
@@ -124,7 +124,7 @@
 | `entities::Painting::left` | 1624 | &self | bound (a) | - |
 | `entities::Painting::step` | 1616 | &self | bound (a) | - |
 | `entities::StandMedium::from_heights` | 1881 | - | bound (b, mechanical) | - |
-| `entities::__yoake_cs_207` | 4168 | - | excluded | external type `horizon_client_render::world::World` (crate not loaded) [&argument]; hook machinery (`__yoake_*`): not an engine function |
+| `entities::__yoake_cs_207` | 4168 | - | excluded | field `entries` of `Attachments` is private to another module [&argument]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_211` | 4178 | - | excluded | hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_212` | 4186 | - | excluded | field `0` of `Wire` is private to another module [&argument]; generic type `horizon_world::consumable::Consumable` requires a listed instantiation; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_213` | 4195 | - | excluded | field `0` of `Wire` is private to another module [&argument]; generic type `horizon_world::consumable::Consumable` requires a listed instantiation; hook machinery (`__yoake_*`): not an engine function |
@@ -143,24 +143,24 @@
 | `entities::__yoake_cs_268` | 4290 | - | excluded | field `min` of `Aabb` is private to another module; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_269` | 4295 | - | excluded | field `min` of `Aabb` is private to another module; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_276` | 4300 | - | excluded | hook machinery (`__yoake_*`): not an engine function |
-| `entities::__yoake_cs_277` | 4308 | - | excluded | external type `horizon_client_render::world::World` (crate not loaded) [&argument]; hook machinery (`__yoake_*`): not an engine function |
+| `entities::__yoake_cs_277` | 4308 | - | excluded | field `entries` of `Attachments` is private to another module [&argument]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_278` | 4318 | - | excluded | field `0` of `JoinSeq` is private to another module [&mut argument]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_281` | 4323 | - | excluded | field `0` of `JoinSeq` is private to another module [&argument]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_303` | 4328 | - | excluded | hook machinery (`__yoake_*`): not an engine function |
-| `entities::__yoake_cs_322` | 4337 | - | excluded | external type `horizon_client_render::world::World` (crate not loaded) [&argument]; hook machinery (`__yoake_*`): not an engine function |
+| `entities::__yoake_cs_322` | 4337 | - | excluded | field `entries` of `Attachments` is private to another module [&argument]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_326` | 4347 | - | excluded | field `0` of `JoinSeq` is private to another module [&argument]; field `min` of `Aabb` is private to another module [return value]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_327` | 4352 | - | excluded | hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_329` | 4360 | - | excluded | field `0` of `JoinSeq` is private to another module [&argument]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_330` | 4365 | - | excluded | hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_333` | 4373 | - | excluded | field `min` of `Aabb` is private to another module; field `min` of `Aabb` is private to another module [return value]; hook machinery (`__yoake_*`): not an engine function |
-| `entities::__yoake_cs_334` | 4381 | - | excluded | external type `horizon_client_render::world::World` (crate not loaded) [&argument]; field `0` of `JoinSeq` is private to another module [&mut argument]; hook machinery (`__yoake_*`): not an engine function |
-| `entities::__yoake_cs_337` | 4391 | - | excluded | external type `horizon_client_render::world::World` (crate not loaded) [&argument]; hook machinery (`__yoake_*`): not an engine function |
+| `entities::__yoake_cs_334` | 4381 | - | excluded | field `0` of `JoinSeq` is private to another module [&mut argument]; field `entries` of `Attachments` is private to another module [&argument]; hook machinery (`__yoake_*`): not an engine function |
+| `entities::__yoake_cs_337` | 4391 | - | excluded | field `entries` of `Attachments` is private to another module [&argument]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_341` | 4401 | - | excluded | hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_342` | 4409 | - | excluded | field `0` of `JoinSeq` is private to another module [&argument]; field `min` of `Aabb` is private to another module [return value]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_343` | 4414 | - | excluded | field `min` of `Aabb` is private to another module; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_344` | 4419 | - | excluded | field `min` of `Aabb` is private to another module; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_348` | 4424 | - | excluded | hook machinery (`__yoake_*`): not an engine function |
-| `entities::__yoake_cs_349` | 4432 | - | excluded | external type `horizon_client_render::world::World` (crate not loaded) [&argument]; hook machinery (`__yoake_*`): not an engine function |
+| `entities::__yoake_cs_349` | 4432 | - | excluded | field `entries` of `Attachments` is private to another module [&argument]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_350` | 4442 | - | excluded | hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_356` | 4447 | - | excluded | hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_357` | 4452 | - | excluded | hook machinery (`__yoake_*`): not an engine function |
@@ -171,22 +171,22 @@
 | `entities::__yoake_cs_369` | 4479 | - | excluded | field `0` of `JoinSeq` is private to another module [&argument]; field `min` of `Aabb` is private to another module [return value]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_370` | 4484 | - | excluded | field `min` of `Aabb` is private to another module; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_377` | 4489 | - | excluded | hook machinery (`__yoake_*`): not an engine function |
-| `entities::__yoake_cs_378` | 4497 | - | excluded | external type `horizon_client_render::world::World` (crate not loaded) [&argument]; hook machinery (`__yoake_*`): not an engine function |
+| `entities::__yoake_cs_378` | 4497 | - | excluded | field `entries` of `Attachments` is private to another module [&argument]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_380` | 4507 | - | excluded | field `0` of `JoinSeq` is private to another module [&argument]; field `min` of `Aabb` is private to another module [return value]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_382` | 4512 | - | excluded | field `0` of `JoinSeq` is private to another module [&argument]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_387` | 4517 | - | excluded | field `0` of `JoinSeq` is private to another module [&argument]; hook machinery (`__yoake_*`): not an engine function |
-| `entities::__yoake_cs_388` | 4522 | - | excluded | external type `horizon_client_render::world::World` (crate not loaded) [&argument]; hook machinery (`__yoake_*`): not an engine function |
+| `entities::__yoake_cs_388` | 4522 | - | excluded | field `entries` of `Attachments` is private to another module [&argument]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_392` | 4532 | - | excluded | hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_397` | 4540 | - | excluded | field `0` of `JoinSeq` is private to another module [&argument]; field `min` of `Aabb` is private to another module [return value]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::__yoake_cs_398` | 4545 | - | excluded | field `0` of `JoinSeq` is private to another module [&argument]; field `min` of `Aabb` is private to another module [return value]; hook machinery (`__yoake_*`): not an engine function |
 | `entities::dye_index` | 1672 | - | bound (a) | - |
-| `entities::item_support_is_slime` | 95 | - | handle-required | external type `horizon_client_render::world::World` (crate not loaded) [&argument] |
+| `entities::item_support_is_slime` | 95 | - | handle-required | field `entries` of `Attachments` is private to another module [&argument] |
 | `entities::merge_with_neighbours` | 1078 | - | excluded | `dyn Trait` values cannot cross the data ABI; field `0` of `JoinSeq` is private to another module |
 | `entities::move_applies` | 64 | - | bound (b, mechanical) | - |
-| `entities::slime_at` | 108 | - | handle-required | external type `horizon_client_render::world::World` (crate not loaded) [&argument] |
+| `entities::slime_at` | 108 | - | handle-required | field `entries` of `Attachments` is private to another module [&argument] |
 | `entities::slime_step_on_scale` | 75 | - | bound (b, mechanical) | - |
 | `entities::slime_support_name` | 84 | - | bound (b, mechanical) | - |
-| `entities::towards_closest_space` | 1464 | - | handle-required | external type `horizon_client_render::world::World` (crate not loaded) [&argument]; field `min` of `Aabb` is private to another module |
+| `entities::towards_closest_space` | 1464 | - | handle-required | field `entries` of `Attachments` is private to another module [&argument]; field `min` of `Aabb` is private to another module |
 | `entities::vertical_collision_velocity` | 38 | - | bound (a) | - |
 
 ## Fields

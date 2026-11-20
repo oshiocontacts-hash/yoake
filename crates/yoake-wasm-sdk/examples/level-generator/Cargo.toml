@@ -1,0 +1,21 @@
+[package]
+name = "yoake-wasm-level-generator"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+description = "A server mod that registers a level with its own chunk generator (F3-8)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+yoake-wasm-sdk = { path = "../..", features = ["full"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+panic = "abort"
+
+[workspace]

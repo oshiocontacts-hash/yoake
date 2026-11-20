@@ -465,3 +465,66 @@ fn destructuring_and_wildcard_parameters_are_hookable() {
     assert_eq!(destructured((1, 2), 0, Wrapper { inner: 3 }), 213, "the hook swapped the tuple");
     assert_eq!(wildcard(9, 4), 5);
 }
+
+// F1 W12: a by-value `self` of a Copy type, `impl Fn` / `impl FnMut` arguments (dyn shim), `'static` generics.
+#[derive(Clone, Copy)]
+struct Meters(f32);
+
+impl Meters {
+    #[yoake_hook(method, test_id = 46)]
+    fn doubled(self, extra: f32) -> f32 {
+        self.0 * 2.0 + extra
+    }
+
+    #[yoake_hook(method, test_id = 47)]
+    fn consume(mut self, add: f32) -> f32 {
+        self.0 += add;
+        self.0
+    }
+}
+
+#[test]
+fn a_by_value_self_of_a_copy_type_is_hookable() {
+    assert_eq!(Meters(2.0).doubled(1.0), 5.0);
+    Meters::__yoake_register_doubled(|original, this, extra| original(Meters(this.0 + 10.0), extra), Order::default()).unwrap();
+    assert_eq!(Meters(2.0).doubled(1.0), 25.0);
+    Meters::__yoake_register_consume(|original, this, add| original(this, add) + 100.0, Order::default()).unwrap();
+    assert_eq!(Meters(1.0).consume(2.0), 103.0);
+}
+
+#[yoake_hook(test_id = 48)]
+fn apply(value: u32, f: impl Fn(u32) -> u32) -> u32 {
+    f(value) + 1
+}
+
+#[yoake_hook(test_id = 49)]
+fn apply_mut(value: u32, mut f: impl FnMut(u32) -> u32) -> u32 {
+    f(value) + f(value)
+}
+
+#[test]
+fn impl_fn_arguments_go_through_a_dyn_shim() {
+    assert_eq!(apply(3, |v| v * 2), 7);
+    __yoake_register_apply(|original, value, f| original(value + f(1), f), Order::default()).unwrap();
+    // the hook calls the real closure through `&dyn Fn` and forwards it on
+    assert_eq!(apply(3, |v| v * 2), 11);
+
+    let mut calls = 0;
+    assert_eq!(apply_mut(1, |v| { calls += 1; v + calls }), 2 + 3);
+    __yoake_register_apply_mut(|original, value, f| { let first = f(0); original(value + first, f) }, Order::default()).unwrap();
+    let mut calls = 0;
+    // f(0) = 1 (calls = 1), then original(2, f): f(2) = 4, f(2) = 5 -> 9
+    assert_eq!(apply_mut(1, |v| { calls += 1; v + calls }), 9);
+}
+
+#[yoake_hook(test_id = 50)]
+fn pick<Value: 'static + Copy>(first: Value, _second: Value) -> Value {
+    first
+}
+
+#[test]
+fn static_generics_hook_per_instantiation() {
+    __yoake_register_pick::<u8>(|original, a, b| original(b, a), Order::default()).unwrap();
+    assert_eq!(pick(1_u8, 2_u8), 2);
+    assert_eq!(pick(1_u16, 2_u16), 1, "another instantiation is untouched");
+}

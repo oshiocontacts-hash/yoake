@@ -69,6 +69,27 @@ pub mod types {
         pub previous_shift: bool,
     }
     #[derive(Clone, Debug, PartialEq)]
+    pub struct PowderSnowSubject {
+        pub fall_distance: f64,
+        pub falling_block: bool,
+        pub leather_boots: bool,
+        pub walkable_type: bool,
+        pub lava_walker: bool,
+    }
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct StatusFlags {
+        pub jump_boost: Option<i32>,
+        pub slow_falling: bool,
+        pub levitation: Option<i32>,
+        pub resistance: Option<i32>,
+        pub fire_resistance: bool,
+        pub dolphins_grace: bool,
+        pub weaving: bool,
+        pub water_breathing: bool,
+        pub breath_of_the_nautilus: bool,
+        pub protection: Vec<(String, f32,)>,
+    }
+    #[derive(Clone, Debug, PartialEq)]
     pub struct Vec3 {
         pub x: f64,
         pub y: f64,
@@ -327,6 +348,109 @@ pub mod types {
             trigger_time: <i32 as Decode>::decode(d)?,
             previous_forward: <bool as Decode>::decode(d)?,
             previous_shift: <bool as Decode>::decode(d)?,
+        })
+    }
+
+    fn enc_horizon_client_render__collisions__PowderSnowSubject(v: &types::PowderSnowSubject, out: &mut Vec<u8>) {
+        Encode::encode(&v.fall_distance, out);
+        Encode::encode(&v.falling_block, out);
+        Encode::encode(&v.leather_boots, out);
+        Encode::encode(&v.walkable_type, out);
+        Encode::encode(&v.lava_walker, out);
+    }
+    fn dec_horizon_client_render__collisions__PowderSnowSubject(d: &mut Decoder<'_>) -> Result<types::PowderSnowSubject, CallError> {
+        d.enter()?;
+        let r = dec_horizon_client_render__collisions__PowderSnowSubject_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_client_render__collisions__PowderSnowSubject_body(d: &mut Decoder<'_>) -> Result<types::PowderSnowSubject, CallError> {
+        Ok(types::PowderSnowSubject {
+            fall_distance: <f64 as Decode>::decode(d)?,
+            falling_block: <bool as Decode>::decode(d)?,
+            leather_boots: <bool as Decode>::decode(d)?,
+            walkable_type: <bool as Decode>::decode(d)?,
+            lava_walker: <bool as Decode>::decode(d)?,
+        })
+    }
+
+    fn enc_horizon_client_render__effects__StatusFlags(v: &types::StatusFlags, out: &mut Vec<u8>) {
+        match &v.jump_boost {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        Encode::encode(&v.slow_falling, out);
+        match &v.levitation {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        match &v.resistance {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        Encode::encode(&v.fire_resistance, out);
+        Encode::encode(&v.dolphins_grace, out);
+        Encode::encode(&v.weaving, out);
+        Encode::encode(&v.water_breathing, out);
+        Encode::encode(&v.breath_of_the_nautilus, out);
+        {
+            let s0 = &v.protection;
+            codec::enc_len(s0.len(), out);
+            for e0 in s0.iter() {
+                {
+                    let t1 = e0;
+                    Encode::encode(&t1.0, out);
+                    Encode::encode(&t1.1, out);
+                }
+            }
+        }
+    }
+    fn dec_horizon_client_render__effects__StatusFlags(d: &mut Decoder<'_>) -> Result<types::StatusFlags, CallError> {
+        d.enter()?;
+        let r = dec_horizon_client_render__effects__StatusFlags_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_client_render__effects__StatusFlags_body(d: &mut Decoder<'_>) -> Result<types::StatusFlags, CallError> {
+        Ok(types::StatusFlags {
+            jump_boost: match d.tag()? {
+                0 => None,
+                1 => Some(<i32 as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            slow_falling: <bool as Decode>::decode(d)?,
+            levitation: match d.tag()? {
+                0 => None,
+                1 => Some(<i32 as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            resistance: match d.tag()? {
+                0 => None,
+                1 => Some(<i32 as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            fire_resistance: <bool as Decode>::decode(d)?,
+            dolphins_grace: <bool as Decode>::decode(d)?,
+            weaving: <bool as Decode>::decode(d)?,
+            water_breathing: <bool as Decode>::decode(d)?,
+            breath_of_the_nautilus: <bool as Decode>::decode(d)?,
+            protection: {
+                let n0 = d.vec_len()?;
+                let mut v0 = Decoder::vec_with(n0);
+                for _ in 0..n0 {
+                    v0.push((<String as Decode>::decode(d)?, <f32 as Decode>::decode(d)?,));
+                }
+                v0
+            },
         })
     }
 
@@ -2779,6 +2903,36 @@ pub fn motion_native_living_jump(a0: u32, a1: &str) -> Result<(), Error> {
     let value = (|| -> Result<(), CallError> {
         let d = &mut dec;
         let value = ();
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `motion::PlayerMotion.status#get`
+pub fn motion_playermotion_status_get(h: Handle) -> Result<types::StatusFlags, Error> {
+    let result = call(h, 2539, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<types::StatusFlags, CallError> {
+        let d = &mut dec;
+        let value = dec_horizon_client_render__effects__StatusFlags(d)?;
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `motion::PlayerMotion::powder_snow_subject`
+pub fn motion_playermotion_powder_snow_subject(h: Handle) -> Result<types::PowderSnowSubject, Error> {
+    let mut args: Vec<u8> = Vec::new();
+    {
+        let out = &mut args;
+    }
+    let result = call(h, 2541, &args)?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<types::PowderSnowSubject, CallError> {
+        let d = &mut dec;
+        let value = dec_horizon_client_render__collisions__PowderSnowSubject(d)?;
         d.finish()?;
         Ok(value)
     })()?;

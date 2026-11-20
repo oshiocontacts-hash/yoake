@@ -1,0 +1,4618 @@
+{
+  "crate": "horizon_core",
+  "entries": [
+    {
+      "id": 9985,
+      "key": "horizon_core::biome::BiomeZoom::select_corner",
+      "sig": "41af86b34e23fbf8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9986,
+      "key": "horizon_core::biome::seed_hash::hash",
+      "sig": "12ac97214a8ceb30",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9987,
+      "key": "horizon_core::carving::<CarvingMaskError as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9988,
+      "key": "horizon_core::carving::CarvingMask::carve",
+      "sig": "99f7b734e7883c6f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9989,
+      "key": "horizon_core::carving::CarvingMask::next_set",
+      "sig": "df3af3e6dc15fff0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9990,
+      "key": "horizon_core::carving::Cursor::next",
+      "sig": "ee6caba57f8e6d6b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9991,
+      "key": "horizon_core::carving::ellipsoid::<CarvingMask as CarverOutput>::min_y",
+      "sig": "0bda04adf271c1b3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9992,
+      "key": "horizon_core::carving::ellipsoid::<CarvingMask as CarverOutput>::max_y",
+      "sig": "8658265e74e3d721",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9993,
+      "key": "horizon_core::carving::ellipsoid::can_reach",
+      "sig": "d0cba9219fd399bb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9994,
+      "key": "horizon_core::density::<SampleError as From<DensityError>>::from",
+      "sig": "9b4a1b5da0c0766e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9995,
+      "key": "horizon_core::density::<ConstantSampler as DensitySampler>::sample_value",
+      "sig": "2f7f78f32184d970",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9996,
+      "key": "horizon_core::density::<ConstantSampler as DensitySampler>::sample_volume",
+      "sig": "cef57c5928ea2277",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9997,
+      "key": "horizon_core::density::<GradientSampler as DensitySampler>::sample_value",
+      "sig": "452cc9001b4b376c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9998,
+      "key": "horizon_core::density::<GradientSampler as DensitySampler>::sample_volume",
+      "sig": "cef57c5928ea2277",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 9999,
+      "key": "horizon_core::density::<NoiseSampler as DensitySampler>::sample_value",
+      "sig": "7332800a834f7e78",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10000,
+      "key": "horizon_core::density::<NoiseSampler as DensitySampler>::sample_volume",
+      "sig": "cef57c5928ea2277",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10001,
+      "key": "horizon_core::density::<ShiftedNoiseSampler as DensitySampler>::sample_value",
+      "sig": "c1d2eea715152cae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10002,
+      "key": "horizon_core::density::<ShiftedNoiseSampler as DensitySampler>::sample_volume",
+      "sig": "4e50fe7a236ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10003,
+      "key": "horizon_core::density::beardifier::TerrainKernel::new",
+      "sig": "6106843d29648c1b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10004,
+      "key": "horizon_core::density::beardifier::TerrainKernel::factor",
+      "sig": "fd35ad8fed6569f1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10005,
+      "key": "horizon_core::density::beardifier::Beardifier::sample_unchecked",
+      "sig": "27a905b83117961a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10006,
+      "key": "horizon_core::density::beardifier::<Beardifier as DensitySampler>::sample_value",
+      "sig": "452cc9001b4b376c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10007,
+      "key": "horizon_core::density::beardifier::<Beardifier as DensitySampler>::sample_volume",
+      "sig": "cef57c5928ea2277",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10008,
+      "key": "horizon_core::density::beardifier::beard",
+      "sig": "4ec4606b2ff7ae50",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10009,
+      "key": "horizon_core::density::beardifier::fast_inverse_sqrt",
+      "sig": "9cbee44cc21ff5d8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10010,
+      "key": "horizon_core::density::cache::<CacheCell as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10011,
+      "key": "horizon_core::density::cache::SamplerContext::prepare_cache",
+      "sig": "df41383c824a12b5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10012,
+      "key": "horizon_core::density::cache::<CachingDensitySampler as DensitySampler>::sample_value",
+      "sig": "c1d2eea715152cae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10013,
+      "key": "horizon_core::density::cache::<CachingDensitySampler as DensitySampler>::sample_volume",
+      "sig": "4e50fe7a236ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10014,
+      "key": "horizon_core::density::world_fields::<EmptyBlender as DensityBlender>::is_empty",
+      "sig": "1500d9879b00e7d7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10015,
+      "key": "horizon_core::density::world_fields::<EmptyBlender as DensityBlender>::blend_density",
+      "sig": "ae933fd4ce535b06",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10016,
+      "key": "horizon_core::density::world_fields::<ContextBoundSampler as DensitySampler>::sample_value",
+      "sig": "c1d2eea715152cae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10017,
+      "key": "horizon_core::density::world_fields::<ContextBoundSampler as DensitySampler>::sample_volume",
+      "sig": "4e50fe7a236ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10018,
+      "key": "horizon_core::density::world_fields::<BlendDensitySampler as DensitySampler>::sample_value",
+      "sig": "c1d2eea715152cae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10019,
+      "key": "horizon_core::density::world_fields::<BlendDensitySampler as DensitySampler>::sample_volume",
+      "sig": "4e50fe7a236ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10020,
+      "key": "horizon_core::density::end_islands::EndIslandSampler::height",
+      "sig": "51261d8a75893523",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10021,
+      "key": "horizon_core::density::end_islands::EndIslandSampler::volume_islands",
+      "sig": "d4fffbb402b2b65d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10022,
+      "key": "horizon_core::density::end_islands::EndIslandSampler::density_from_islands",
+      "sig": "47e2ed8f2991192c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10023,
+      "key": "horizon_core::density::end_islands::<EndIslandSampler as DensitySampler>::sample_value",
+      "sig": "452cc9001b4b376c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10024,
+      "key": "horizon_core::density::end_islands::<EndIslandSampler as DensitySampler>::sample_volume",
+      "sig": "cef57c5928ea2277",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10025,
+      "key": "horizon_core::density::graph::GraphNode::key",
+      "sig": "caa3e8d0958ebef1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10026,
+      "key": "horizon_core::density::graph::<CompileError as From<IntervalError>>::from",
+      "sig": "f83bc06d0b687165",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10027,
+      "key": "horizon_core::density::graph::<CompileError as From<SampleError>>::from",
+      "sig": "478c046038be8236",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10028,
+      "key": "horizon_core::density::graph::<CompileError as From<SplineError>>::from",
+      "sig": "410064db5a3ba289",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10029,
+      "key": "horizon_core::density::graph::<CompileError as From<crate::noise::NoiseBuildError>>::from",
+      "sig": "34589deb0170884d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10030,
+      "key": "horizon_core::density::graph::<CompileError as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10031,
+      "key": "horizon_core::density::graph::DensityGraph::insert",
+      "sig": "d17df96c9687db6d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10032,
+      "key": "horizon_core::density::graph::DensityGraph::bind",
+      "sig": "3ddd4fabbeb88f74",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10033,
+      "key": "horizon_core::density::graph::DensityGraph::register_noise",
+      "sig": "22205ec1155f9945",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10034,
+      "key": "horizon_core::density::graph::DensityGraph::register_function",
+      "sig": "c2f9c3bf23128675",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10035,
+      "key": "horizon_core::density::graph::DensityGraph::domain_axes",
+      "sig": "f837790b32524268",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10036,
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::get_sampler",
+      "sig": "fe06ff5c84440b37",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10037,
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::slice_uniform_axes",
+      "sig": "9c5f0b3e108650d2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10038,
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::compile_binary",
+      "sig": "d68a734fb9072283",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10039,
+      "key": "horizon_core::density::graph::seeded::SeededContext::noise",
+      "sig": "7605a2d18b00d1e8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10040,
+      "key": "horizon_core::density::arithmetic::<UnarySampler as DensitySampler>::sample_value",
+      "sig": "c1d2eea715152cae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10041,
+      "key": "horizon_core::density::arithmetic::<UnarySampler as DensitySampler>::sample_volume",
+      "sig": "4e50fe7a236ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10042,
+      "key": "horizon_core::density::arithmetic::<BinarySampler as DensitySampler>::sample_value",
+      "sig": "c1d2eea715152cae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10043,
+      "key": "horizon_core::density::arithmetic::<BinarySampler as DensitySampler>::sample_volume",
+      "sig": "4e50fe7a236ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10044,
+      "key": "horizon_core::density::interpolation::InterpolatedSampler::sample_block_volume",
+      "sig": "3b34650d65440df0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10045,
+      "key": "horizon_core::density::interpolation::InterpolatedSampler::fill_cell",
+      "sig": "31fc0d7ea0d1ac4a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10046,
+      "key": "horizon_core::density::interpolation::<InterpolatedSampler as DensitySampler>::sample_value",
+      "sig": "c1d2eea715152cae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10047,
+      "key": "horizon_core::density::interpolation::<InterpolatedSampler as DensitySampler>::sample_volume",
+      "sig": "016b4f66304e3062",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10048,
+      "key": "horizon_core::density::interval::<IntervalError as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10049,
+      "key": "horizon_core::density::interval::<Interval as PartialEq>::eq",
+      "sig": "80b1e3a9ef698711",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10050,
+      "key": "horizon_core::density::interval::Interval::encapsulating",
+      "sig": "3abd668d08f69877",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10051,
+      "key": "horizon_core::density::interval::Interval::power_base",
+      "sig": "36127c64de0f294b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10052,
+      "key": "horizon_core::density::rounding::<RoundSampler as DensitySampler>::sample_value",
+      "sig": "c1d2eea715152cae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10053,
+      "key": "horizon_core::density::rounding::<RoundSampler as DensitySampler>::sample_volume",
+      "sig": "4e50fe7a236ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10054,
+      "key": "horizon_core::density::selection::<RangeChoiceSampler as DensitySampler>::sample_value",
+      "sig": "c1d2eea715152cae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10055,
+      "key": "horizon_core::density::selection::<RangeChoiceSampler as DensitySampler>::sample_volume",
+      "sig": "4e50fe7a236ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10056,
+      "key": "horizon_core::density::selection::<LerpSampler as DensitySampler>::sample_value",
+      "sig": "c1d2eea715152cae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10057,
+      "key": "horizon_core::density::selection::<LerpSampler as DensitySampler>::sample_volume",
+      "sig": "4e50fe7a236ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10058,
+      "key": "horizon_core::density::selection::<InvalidIntervals as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10059,
+      "key": "horizon_core::density::selection::<IntervalSelectSampler as DensitySampler>::sample_value",
+      "sig": "c1d2eea715152cae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10060,
+      "key": "horizon_core::density::selection::<IntervalSelectSampler as DensitySampler>::sample_volume",
+      "sig": "4e50fe7a236ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10061,
+      "key": "horizon_core::density::power::<PowerSampler as DensitySampler>::sample_value",
+      "sig": "c1d2eea715152cae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10062,
+      "key": "horizon_core::density::power::<PowerSampler as DensitySampler>::sample_volume",
+      "sig": "4e50fe7a236ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10063,
+      "key": "horizon_core::density::slice::<SliceSampler as DensitySampler>::sample_value",
+      "sig": "a88efd2ee6a0ecac",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10064,
+      "key": "horizon_core::density::slice::<SliceSampler as DensitySampler>::sample_volume",
+      "sig": "4e50fe7a236ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10065,
+      "key": "horizon_core::density::spline::<SplineError as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10066,
+      "key": "horizon_core::density::spline::SplineSampler::new",
+      "sig": "3ac2c8de0e019727",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10067,
+      "key": "horizon_core::density::spline::<SplineSampler as DensitySampler>::sample_value",
+      "sig": "c1d2eea715152cae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10068,
+      "key": "horizon_core::density::spline::<SplineSampler as DensitySampler>::sample_volume",
+      "sig": "016b4f66304e3062",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10069,
+      "key": "horizon_core::density::surface::FindTopSurfaceSampler::find_surface_from",
+      "sig": "962586e7be95a287",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10070,
+      "key": "horizon_core::density::surface::<FindTopSurfaceSampler as DensitySampler>::sample_value",
+      "sig": "19d3fb3052bb5eae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10071,
+      "key": "horizon_core::density::surface::<FindTopSurfaceSampler as DensitySampler>::sample_volume",
+      "sig": "016b4f66304e3062",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10072,
+      "key": "horizon_core::density::terrain_noise::<ShiftBSampler as DensitySampler>::sample_value",
+      "sig": "bdcb90b8a5e7f432",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10073,
+      "key": "horizon_core::density::terrain_noise::<ShiftBSampler as DensitySampler>::sample_volume",
+      "sig": "4e50fe7a236ab829",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10074,
+      "key": "horizon_core::density::terrain_noise::BlendedNoise::range",
+      "sig": "834cf5ea5302039b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10075,
+      "key": "horizon_core::density::terrain_noise::<DistanceToPointSampler as DensitySampler>::sample_value",
+      "sig": "452cc9001b4b376c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10076,
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write",
+      "sig": "f5da6765f8063cf7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10077,
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u8",
+      "sig": "0db724f1f8e9d44f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10078,
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u16",
+      "sig": "df9e379f2f0cf52d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10079,
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u32",
+      "sig": "8319767abf7270e9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10080,
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u64",
+      "sig": "aee62d565905b6bb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10081,
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_usize",
+      "sig": "6183af3dbe0a70a5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10082,
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_i32",
+      "sig": "0a9743a99b9efa91",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10083,
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::finish",
+      "sig": "dfd4ea0f8a45f47f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10084,
+      "key": "horizon_core::geometry::Direction::approximate_nearest",
+      "sig": "ef63bedee92e4f34",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10085,
+      "key": "horizon_core::geometry::<Vec3 as PartialEq>::eq",
+      "sig": "80b1e3a9ef698711",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10086,
+      "key": "horizon_core::geometry::Vec3::direction_from_rotation",
+      "sig": "994a08a61fc4e985",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10087,
+      "key": "horizon_core::geometry::border::<BorderError as From<ShapeError>>::from",
+      "sig": "5324ec87d9545035",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10088,
+      "key": "horizon_core::geometry::border::BorderGeometry::set_center",
+      "sig": "b74fb2c6c734225b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10089,
+      "key": "horizon_core::geometry::border::BorderGeometry::set_absolute_max",
+      "sig": "f480127842595069",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10090,
+      "key": "horizon_core::geometry::border::BorderGeometry::lerp_size_between",
+      "sig": "871b99bf94f48241",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10091,
+      "key": "horizon_core::geometry::shape::<ShapeError as Display>::fmt",
+      "sig": "8dd7587632612893",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10092,
+      "key": "horizon_core::geometry::shape::VoxelShape::from_cube",
+      "sig": "355ab9b153d48c3f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10093,
+      "key": "horizon_core::geometry::shape::VoxelShape::build",
+      "sig": "764ff0ab14f48f01",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10094,
+      "key": "horizon_core::geometry::shape::VoxelShape::column_position",
+      "sig": "321142d00005fcb7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10095,
+      "key": "horizon_core::geometry::shape::VoxelShape::moved",
+      "sig": "d035c25bf63cdecc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10096,
+      "key": "horizon_core::geometry::shape::VoxelShape::find_index",
+      "sig": "100e509f8028f41e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10097,
+      "key": "horizon_core::geometry::shape::VoxelShape::collide",
+      "sig": "1c13b4199da2970f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10098,
+      "key": "horizon_core::geometry::shape::VoxelShape::clip",
+      "sig": "6231ff1e246065ff",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10099,
+      "key": "horizon_core::geometry::shape::VoxelShape::decompose",
+      "sig": "9033b429a930f40c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10100,
+      "key": "horizon_core::geometry::shape::create::VoxelShape::from_box",
+      "sig": "d934181a5c2e23a9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10101,
+      "key": "horizon_core::geometry::shape::face::VoxelShape::calculate_face",
+      "sig": "a883444a20ce39e9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10102,
+      "key": "horizon_core::geometry::shape::join::VoxelShape::join_unoptimized",
+      "sig": "d31c87d35f833777",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10103,
+      "key": "horizon_core::geometry::shape::join::VoxelShape::join_is_not_empty",
+      "sig": "21cecfc8c59d5679",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10104,
+      "key": "horizon_core::geometry::shape::join::VoxelShape::mergers",
+      "sig": "9131ec2a6a7bb1fe",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10105,
+      "key": "horizon_core::geometry::shape::join::merge",
+      "sig": "409f1ea4e0224410",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10106,
+      "key": "horizon_core::geometry::shape::join::disjoint",
+      "sig": "0c648551f5589035",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10107,
+      "key": "horizon_core::geometry::traversal::<TraversalError as Display>::fmt",
+      "sig": "8dd7587632612893",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10108,
+      "key": "horizon_core::geometry::trig::atan2",
+      "sig": "bc15138c024b69f8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10109,
+      "key": "horizon_core::geometry::trig::fdlibm_asin",
+      "sig": "63c99ce1b29978e1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10110,
+      "key": "horizon_core::geometry::trig::fdlibm_atan",
+      "sig": "c1a777ddc0b41dc6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10111,
+      "key": "horizon_core::geometry::trig::fdlibm_atan2",
+      "sig": "3023cf23e486ad13",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10112,
+      "key": "horizon_core::jmath::round_f32",
+      "sig": "07b8ef0b477e68a3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10113,
+      "key": "horizon_core::jmath::fdlibm::log",
+      "sig": "70cda0176d3f8f7b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10114,
+      "key": "horizon_core::jmath::fdlibm::log10",
+      "sig": "a29dd61d763b567c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10115,
+      "key": "horizon_core::jmath::fdlibm::cbrt",
+      "sig": "ba0d2b56a02a7dce",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10116,
+      "key": "horizon_core::jmath::fdlibm::hypot",
+      "sig": "5f06cc884c739f1e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10117,
+      "key": "horizon_core::jmath::aarch64::kernel_sin",
+      "sig": "ead1495d604aeb26",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10118,
+      "key": "horizon_core::jmath::aarch64::kernel_cos",
+      "sig": "56e2ff10f87299fc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10119,
+      "key": "horizon_core::jmath::aarch64::rem_pio2",
+      "sig": "cdcd6af0ebf6a67b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10120,
+      "key": "horizon_core::jmath::aarch64::sin_cos",
+      "sig": "17e1a356f9db26e3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10121,
+      "key": "horizon_core::no_ai::set",
+      "sig": "b2aab0ee7dde7228",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10122,
+      "key": "horizon_core::noise::<NanRange as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10123,
+      "key": "horizon_core::noise::normal::<NoiseBuildError as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10124,
+      "key": "horizon_core::noise::normal::<NoiseBuildError as From<NanRange>>::from",
+      "sig": "90787961934f081e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10125,
+      "key": "horizon_core::noise::normal::NormalNoise::create_parity",
+      "sig": "6cac0b4f36d560be",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10126,
+      "key": "horizon_core::noise::normal::<NormalNoiseBuilder as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10127,
+      "key": "horizon_core::noise::normal::NormalNoiseBuilder::build",
+      "sig": "75f1a7f357d73227",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10128,
+      "key": "horizon_core::noise::normal::build_octaves",
+      "sig": "af8f9e3c94274c19",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10129,
+      "key": "horizon_core::noise::normal::sum_abs",
+      "sig": "9b169df6cac19a32",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10130,
+      "key": "horizon_core::noise::normal::normalization_factor",
+      "sig": "2d7ed294293b1758",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10131,
+      "key": "horizon_core::noise::normal::parity_factor",
+      "sig": "bdc59ecba63e0814",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10132,
+      "key": "horizon_core::noise::perlin::PerlinNoise::gradients_at",
+      "sig": "6a92958276e6838c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10133,
+      "key": "horizon_core::noise::perlin::PerlinNoise::noise_with_derivative",
+      "sig": "2d14a37d929b6b54",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10134,
+      "key": "horizon_core::noise::perlin::add_four",
+      "sig": "5591fe37232b8937",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10135,
+      "key": "horizon_core::noise::simplex::SimplexNoise::get2",
+      "sig": "ab287867a302c793",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10136,
+      "key": "horizon_core::noise::simplex::SimplexNoise::get3",
+      "sig": "63ad4b8ec5d93da6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10137,
+      "key": "horizon_core::noise::stack::<NoiseStack as Noise>::range",
+      "sig": "bd8807d9cf14b63b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10138,
+      "key": "horizon_core::noise::stack::<NoiseStack as Noise>::get2",
+      "sig": "7299c71ff8e1cc24",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10139,
+      "key": "horizon_core::noise::stack::<NoiseStack as Noise>::get3",
+      "sig": "63ad4b8ec5d93da6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10140,
+      "key": "horizon_core::noise::stack::<NoiseStack as Noise>::add_to_volume",
+      "sig": "6523e7516b3a20e5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10141,
+      "key": "horizon_core::noise::volume::<DensityError as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10142,
+      "key": "horizon_core::noise::volume::DensityVolume::new",
+      "sig": "9bdeaaa4229f3e71",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10143,
+      "key": "horizon_core::paletted::<PaletteError as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10144,
+      "key": "horizon_core::paletted::palette_ids",
+      "sig": "f23390893956ff3c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10145,
+      "key": "horizon_core::paletted::PalettedContainer::all_equal",
+      "sig": "801c2eb902cf2fea",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10146,
+      "key": "horizon_core::paletted::PalettedContainer::resize",
+      "sig": "47ef6c51cf21f3e4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10147,
+      "key": "horizon_core::paletted::PalettedContainer::from_wire",
+      "sig": "51c958402313e1f1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10148,
+      "key": "horizon_core::paletted::PalettedContainer::check_indices",
+      "sig": "79bfe3e51d89ad2c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10149,
+      "key": "horizon_core::paletted::PalettedContainer::pack",
+      "sig": "f1cba2040d4ac8c4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10150,
+      "key": "horizon_core::paletted::PalettedContainer::from_packed",
+      "sig": "b1866e787bfcf683",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10151,
+      "key": "horizon_core::paletted::<PalettedContainer as PartialEq>::eq",
+      "sig": "80b1e3a9ef698711",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10152,
+      "key": "horizon_core::position::iter::<BlockIterationTooLarge as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10153,
+      "key": "horizon_core::position::iter::BlockBoxIter::new",
+      "sig": "1efc876969ed2887",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10154,
+      "key": "horizon_core::position::iter::<BlockBoxIter as Iterator>::size_hint",
+      "sig": "4da1290d615ab7ae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10155,
+      "key": "horizon_core::prepared_files::PreparedFiles::read_head",
+      "sig": "5645271fbbd8417a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10156,
+      "key": "horizon_core::prepared_files::PreparedFiles::open",
+      "sig": "c713c15556256c14",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10157,
+      "key": "horizon_core::prepared_files::open",
+      "sig": "9e03368e4f7bf265",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10158,
+      "key": "horizon_core::prepared_files::write",
+      "sig": "ac5247611a5d7599",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10159,
+      "key": "horizon_core::prepared_files::read_at[cfg(not(any(unix,windows)))]",
+      "sig": "8adcc0ee40f5ecb1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10160,
+      "key": "horizon_core::random::trace::record[cfg(feature=\"rng-trace\")]",
+      "sig": "c5e87511920df454",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10161,
+      "key": "horizon_core::random::<InvalidBound as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10162,
+      "key": "horizon_core::random::LegacyRandom::bits",
+      "sig": "da86fc3ff2cadd4a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10163,
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::set_seed",
+      "sig": "d8be0044ae4493d8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10164,
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_int",
+      "sig": "585d585a02bf4f6e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10165,
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_int_bound",
+      "sig": "68b430f61f1c9cff",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10166,
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_long",
+      "sig": "926508327a2dce72",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10167,
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_boolean",
+      "sig": "540d82bceb799fed",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10168,
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_float",
+      "sig": "ef21a971ddebec1a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10169,
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_double",
+      "sig": "7d8c1d2461face6e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10170,
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_gaussian",
+      "sig": "702ee437a14f9800",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10171,
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::fork",
+      "sig": "239966e63bf59e51",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10172,
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::set_seed",
+      "sig": "d8be0044ae4493d8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10173,
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_int",
+      "sig": "585d585a02bf4f6e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10174,
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_int_bound",
+      "sig": "68b430f61f1c9cff",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10175,
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_long",
+      "sig": "926508327a2dce72",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10176,
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_boolean",
+      "sig": "540d82bceb799fed",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10177,
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_float",
+      "sig": "ef21a971ddebec1a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10178,
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_double",
+      "sig": "7d8c1d2461face6e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10179,
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_gaussian",
+      "sig": "702ee437a14f9800",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10180,
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::fork",
+      "sig": "239966e63bf59e51",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10181,
+      "key": "horizon_core::random::hash::Md5::block",
+      "sig": "47adcf0ca037cf9c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10182,
+      "key": "horizon_core::random::hash::Md5::update",
+      "sig": "0756a191c88838dc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10183,
+      "key": "horizon_core::random::worldgen::<LegacyRandom as WorldgenSource>::worldgen_bits",
+      "sig": "0268042e94dbde09",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10184,
+      "key": "horizon_core::random::worldgen::<XoroshiroRandom as WorldgenSource>::worldgen_bits",
+      "sig": "0268042e94dbde09",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10185,
+      "key": "horizon_core::storage::<StorageError as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10186,
+      "key": "horizon_core::storage::PackedStorage::from_words",
+      "sig": "0d9569d67d9fc4c5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10187,
+      "key": "horizon_core::storage::PackedStorage::write",
+      "sig": "c9aa534a7f54c207",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10188,
+      "key": "horizon_core::storage::PackedStorage::set",
+      "sig": "f6a7b66638e2e406",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10189,
+      "key": "horizon_core::storage::PackedStorage::fill",
+      "sig": "2b404ebd098ceee0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10190,
+      "key": "horizon_core::text::parse_java_integer",
+      "sig": "940530649918aa4b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10191,
+      "key": "horizon_core::ticks::ChunkTicks::pack",
+      "sig": "f3f783af43e7c4a3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10192,
+      "key": "horizon_core::ticks::<TickError as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10193,
+      "key": "horizon_core::ticks::LevelTicks::add_chunk",
+      "sig": "63115e8c157dcc31",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10194,
+      "key": "horizon_core::ticks::LevelTicks::schedule",
+      "sig": "f0b8becd176ac257",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10195,
+      "key": "horizon_core::ticks::LevelTicks::next_tick",
+      "sig": "093d4d77fd8c229f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10196,
+      "key": "horizon_core::ticks::LevelTicks::finish_tick",
+      "sig": "4c1fbbeff7021d07",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10197,
+      "key": "horizon_core::ticks::LevelTicks::chunks_in_area",
+      "sig": "8043473bc073c6d1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10198,
+      "key": "horizon_core::ticks::index::<DeadlineIndex as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10199,
+      "key": "horizon_core::ticks::index::DeadlineIndex::find",
+      "sig": "e97c6edd18803226",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10200,
+      "key": "horizon_core::ticks::index::DeadlineIndex::put",
+      "sig": "53ada941e9f0da87",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10201,
+      "key": "horizon_core::ticks::index::DeadlineIndex::rehash",
+      "sig": "e1b1a93a37724bd3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10202,
+      "key": "horizon_core::ticks::index::DeadlineIndex::remove",
+      "sig": "412c92709fb6ff80",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10738,
+      "key": "horizon_core::biome::BiomeZoom::quart_at_block",
+      "sig": "0af3cedea811931a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10739,
+      "key": "horizon_core::biome::BiomeZoom::corner_jitter",
+      "sig": "5fcafb835b4c1257",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10740,
+      "key": "horizon_core::density::visit",
+      "sig": "a596e5d58b409d86",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10741,
+      "key": "horizon_core::density::arithmetic::UnaryOp::apply_bulk",
+      "sig": "703534052fd7a8aa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10742,
+      "key": "horizon_core::density::interval::Interval::multiply_range",
+      "sig": "8895d16674f4f973",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10743,
+      "key": "horizon_core::density::interval::Interval::power",
+      "sig": "e8a087ebef800c2f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10744,
+      "key": "horizon_core::density::interval::Interval::even_bounds",
+      "sig": "1951212eb79203a7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10745,
+      "key": "horizon_core::density::interval::Interval::map_monotonic",
+      "sig": "84b10f1d0dab07dc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10746,
+      "key": "horizon_core::density::interval::Interval::lerp_values",
+      "sig": "fbb280ff5523dc69",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10747,
+      "key": "horizon_core::geometry::Vec3::distance_squared",
+      "sig": "2f3da8d0876a9cfc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10748,
+      "key": "horizon_core::geometry::Aabb::change_extent",
+      "sig": "a813a7f70979f7fd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10749,
+      "key": "horizon_core::geometry::Aabb::collided_along_vector",
+      "sig": "6cd51c72e3472128",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10750,
+      "key": "horizon_core::geometry::sweep::sweep_intersected_blocks",
+      "sig": "56b8ff78548cb952",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10751,
+      "key": "horizon_core::paletted::PalettedContainer::has",
+      "sig": "ca8f2612e99f20b6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10752,
+      "key": "horizon_core::ticks::LevelTicks::begin_tick",
+      "sig": "56a07290f0b9a4ad",
+      "status": "live",
+      "kind": "fn"
+    }
+  ],
+  "excluded": [
+    {
+      "key": "horizon_core::biome::BiomeZoom::new",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::biome::fiddle",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::biome::noise_quart_at_block",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::biome::noise_quart_at_position",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::biome::obfuscate_seed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::CarvingMask::columns",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::CarvingMask::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::CarvingMask::max_y",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::CarvingMask::min_y",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::CarvingMask::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::CarvingMask::next_clear",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::CarvingMask::try_visit_mut",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::ellipsoid::<CarveError<E> as Display>::fmt",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::ellipsoid::<CarvingMask as CarverOutput>::carve",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::ellipsoid::carve_ellipsoid",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::ellipsoid::carve_ellipsoid_with_budget",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::<SampleError as Display>::fmt",
+      "reason": "calls trait method without trait in scope",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::GradientSampler::compute",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::GradientSampler::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::SamplerContext::clear_scratch",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::SamplerContext::reset",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::SamplerContext::with_buffer",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::ShiftedNoiseSampler::sample_shifted_volume",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::arithmetic::BinaryOp::apply",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::arithmetic::BinaryOp::apply_bulk",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::arithmetic::UnaryOp::apply",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::arithmetic::clamp",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::arithmetic::java_max",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::arithmetic::java_min",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::arithmetic::java_power",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::beardifier::Beardifier::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::beardifier::Beardifier::with_kernels",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::beardifier::StructureBounds::contains",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::beardifier::StructureBounds::intersects",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::beardifier::StructureBounds::maximum",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::beardifier::StructureBounds::minimum",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::beardifier::StructureBounds::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::beardifier::TerrainKernel::is_none",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::beardifier::TerrainKernel::radius",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::beardifier::bury",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::beardifier::kernel",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::cache::CachingDensitySampler::id",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::cache::CachingDensitySampler::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::cache::SamplerContext::cached",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::cache::SamplerContext::clear_caches",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::cache::SamplerContext::sparse",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::cache::SamplerContext::with_planes",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::check_buffer",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::check_exact_buffer",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::end_islands::EndIslandSampler::density",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::end_islands::EndIslandSampler::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::DensityGraph::entry",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::DensityGraph::function",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::DensityGraph::java_equals",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::DensityGraph::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::DensityGraph::noise_entry",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::DensityGraph::range",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::GraphNode::children_mut",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::GraphUnary::operation",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::cache_count",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::compile_raw",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::constant",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::get_noise_sampler",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::graph",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::graph_mut",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::new_seeded",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::optimize",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::prepare",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::compiler::DensityCompiler::rewrite_children",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::seeded::SeededContext::blended",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::seeded::SeededContext::end_islands",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::seeded::SeededContext::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interpolation::InterpolatedSampler::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interpolation::lerp",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::abs",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::add_range",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::arithmetic_bounds",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::clamp",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::contains",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::divide_range",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::encapsulating_values",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::exact",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::including_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::intersects",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::is_nai",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::java_hash_code",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::lerp_ranges",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::log",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::max",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::maximum",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::min",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::minimum",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::reciprocal",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::sign",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::square",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::subtract_range",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::Interval::symmetric",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::java_power",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::lerp_infinite_bound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interval::mul_bound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::power::compile_constant_exponent",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::rounding::RoundMode::apply",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::rounding::RoundMode::integer",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::selection::DensityValue::sample_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::selection::DensityValue::with_volume",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::selection::IntervalSelectSampler::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::selection::IntervalSelectSampler::select",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::selection::RangeChoiceSampler::contains",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::selection::Values::get",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::selection::interpolate",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::slice::SliceAxes::coordinates",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::slice::spread",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::spline::CubicSpline::compile",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::spline::CubicSpline<C>::coordinates_mut",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::spline::CubicSpline<C>::multipoint",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::spline::CubicSpline<C>::range",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::spline::CubicSpline<C>::sample",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::spline::CubicSpline<C>::try_map_coordinates",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::spline::CubicSpline<C>::try_range",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::spline::SplineSampler::coordinate_count",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::surface::FindTopSurfaceSampler::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::surface::compile_surface_search",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::terrain_noise::BlendedNoise::compile",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::terrain_noise::BlendedNoise::create_fbm_set",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::terrain_noise::DistanceMetric::compute2",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::terrain_noise::DistanceMetric::compute3",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::terrain_noise::compile_shift_noise",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::terrain_noise::create_blended_fbm",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::world_fields::ContextBoundSampler::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::world_fields::ContextBoundSampler::resolve",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::world_fields::ContextBoundSampler::with_fallback",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::world_fields::SamplerContext::with_world_fields",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::world_fields::WorldField::domain_axes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::world_fields::WorldField::fallback",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::world_fields::WorldField::range",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::world_fields::WorldFields::with_blender",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::world_fields::WorldFields::with_field",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::fast_hash::FxHasher::add",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::<Vec3 as InjectValue>::from_inject_value",
+      "reason": "calls trait method without trait in scope",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::<Vec3 as InjectValue>::into_inject_value",
+      "reason": "calls trait method without trait in scope",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::average_size",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::block",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::bottom_center",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::center",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::clip",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::clip_boxes",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::clip_direction",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::contains",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::contract",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::deflate",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::distance_squared_to_box",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::distance_squared_to_point",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::encapsulating_blocks",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::expand_towards",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::has_nan",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::inflate",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::intersect",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::intersects",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::intersects_corners",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::max",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::max_position",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::min",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::min_position",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::move_by",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::next_deflated",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::of_size",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::size",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::union_bounds",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::unit_cube",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::with_max",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::with_min",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Axis::step_order",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Direction::normal",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Direction::opposite",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::add_vector",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::align",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::closer_than",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::component",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::components",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::cross",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::distance",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::dot",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::from_block",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::horizontal",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::horizontal_distance",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::horizontal_distance_squared",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::is_finite",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::length",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::length_squared",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::lerp",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::multiply",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::new",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::normalize",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::projected_on",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::relative",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::reverse",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::rotate_clockwise_90",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::rotate_x",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::rotate_y",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::rotate_z",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::rotation",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::scale",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::subtract",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::vector_to",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::with_component",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::<BorderError as Display>::fmt",
+      "reason": "calls trait method without trait in scope",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::absolute_max",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::bounds",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::center",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::collision_shape",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::distance_to_border",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::extent_bounds",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::is_inside_close_to_border",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::is_within_bounds",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::lerp_speed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::lerp_target",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::lerp_time",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::moving_size",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::set_size",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::shape_for",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::size",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::stationary",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::status",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::border::BorderGeometry::tick",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::canonical_bits",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::clamp",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::floor_i32",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::java_max",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::java_min",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::lerp",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::movement::block_floor_height",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::movement::borrowed_step_heights",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::movement::candidate_step_heights",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::movement::entity_collision_bounds",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::movement::resolve_borrowed_shape_movement",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::movement::resolve_shape_movement",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::movement::resolve_step_movement",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::movement::try_resolve_step_movement",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::next_down",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::next_up",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::block",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::block_ref",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::bounds",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::boxes",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::closest_point",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::collide_all",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::coordinates",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::cube_coordinate_axes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::discrete_bounds",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::empty_ref",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::fresh_identity",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::from_grid",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::from_mixed_grid",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::is_block",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::is_cube",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::is_empty_identity",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::is_full",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::max",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::max_at",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::min",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::min_at",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::same_identity",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::sizes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::with_discrete_bounds",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::clear_strip",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::create::VoxelShape::join",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::create::VoxelShape::optimized",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::create::find_bits",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::create::round_small",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::face::VoxelShape::cube_like_along",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::face::VoxelShape::face_shape",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::face::VoxelShape::face_shape_transient",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::face::face_axis",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::full",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::index",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::join::ShapeOp::apply",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::join::ShapeOp::from_truth_table",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::join::ShapeOp::validate",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::join::gcd",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::strip_full",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::volume",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::sweep::Sweep<V>::spend",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::sweep::Sweep<V>::visit",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::sweep::furthest_corner",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::traversal::traverse_blocks",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::trig::<f32 as Mth>::mcos",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::trig::<f32 as Mth>::msin",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::trig::atan2_degrees",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::trig::cos",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::trig::sin",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::trig::sine_table",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::aarch64::cos",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::aarch64::sin",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::acos",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::asin",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::atan",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::atan2",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::cbrt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::cos",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::exp",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::hi",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::hypot",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::log",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::log10",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::pow",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::round",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::sin",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::tan",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::jmath::with_hi",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::no_ai::check",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::no_ai::is_on",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::no_ai::parse",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::no_ai::with",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::GradientTable::gradient",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::GradientTable::new",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::GradientTable::offsets",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::GradientTable::permutations",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::GradientTable::permute",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::dot",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::lerp",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::lerp2",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::lerp3",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::NormalNoise::builder",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::NormalNoise::create",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::NormalNoise::create_for_legacy_nether_biome",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::NormalNoise::normalization_factor",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::NormalNoise::octaves",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::NormalNoise::range",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::NormalNoiseBuilder::set_amplitude_modifier",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::NormalNoiseBuilder::set_base_amplitude",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::NormalNoiseBuilder::set_base_octave",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::NormalNoiseBuilder::set_normalization",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::NormalNoiseBuilder::set_octave_count",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::OctaveInfo::seed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::create_legacy_fbm",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::modifier",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::normal::power_of_two",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::PerlinNoise::add_to_volume",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::PerlinNoise::add_volume",
+      "reason": "const generics",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::PerlinNoise::coordinates",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::PerlinNoise::corner_values",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::PerlinNoise::get2",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::PerlinNoise::get3",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::PerlinNoise::gradients",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::PerlinNoise::new",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::PerlinNoise::range",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::PerlinNoise::sample",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::PerlinNoise::table",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::SmearedPerlinNoise::add_to_volume",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::SmearedPerlinNoise::get2",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::SmearedPerlinNoise::get3",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::SmearedPerlinNoise::new",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::SmearedPerlinNoise::noise_with_derivative",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::SmearedPerlinNoise::range",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::SmearedPerlinNoise::table",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::perlin::compute_fudge_y",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::simplex::SimplexNoise::corner",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::simplex::SimplexNoise::new",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::simplex::SimplexNoise::range",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::simplex::SimplexNoise::table",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::simplex::SimplexNoise::with_skipped_offsets",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::smoothstep",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::smoothstep_derivative",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::<PerlinNoise as Noise>::add_to_volume",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::<PerlinNoise as Noise>::get2",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::<PerlinNoise as Noise>::get3",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::<PerlinNoise as Noise>::range",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::<SimplexNoise as Noise>::get2",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::<SimplexNoise as Noise>::get3",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::<SimplexNoise as Noise>::range",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::<SmearedPerlinNoise as Noise>::add_to_volume",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::<SmearedPerlinNoise as Noise>::get2",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::<SmearedPerlinNoise as Noise>::get3",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::<SmearedPerlinNoise as Noise>::range",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::NoiseStack::builder",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::NoiseStack::get_layer",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::NoiseStack::layers",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::NoiseStackBuilder::add",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::NoiseStackBuilder::add_stack",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::NoiseStackBuilder::build",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::volume::DensityVolume::block",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::volume::DensityVolume::coordinate",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::volume::DensityVolume::index",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::volume::DensityVolume::index_of_block",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::volume::DensityVolume::maximum",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::volume::DensityVolume::minimum",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::volume::DensityVolume::size",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::volume::DensityVolume::sizes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::volume::DensityVolume::steps",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::wrap",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::bits",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::build",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::from_values",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::get",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::get_run",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::heap_bytes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::id_for",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::is_global",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::is_uniform",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::maybe_has",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::palette_len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::raw",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::same_storage",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::set",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::strategy",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::to_wire",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::uniform",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::unpack",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::unpack_ids",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::Strategy::biomes",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::Strategy::blocks",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::Strategy::config",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::Strategy::entries",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::Strategy::storage_bits",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::Strategy::wire_has_palette",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::ceil_log2",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::pack_words",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::storage_len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::<BlockPos as InjectValue>::from_inject_value",
+      "reason": "calls trait method without trait in scope",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::<BlockPos as InjectValue>::into_inject_value",
+      "reason": "calls trait method without trait in scope",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::BlockPos::chunk",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::BlockPos::new",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::BlockPos::offset",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::BlockPos::pack",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::BlockPos::section",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::BlockPos::section_index",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::BlockPos::section_relative",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::BlockPos::unpack",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::ChunkPos::new",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::ChunkPos::pack",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::ChunkPos::region",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::ChunkPos::region_local",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::ChunkPos::unpack",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::SectionPos::new",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::SectionPos::pack",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::SectionPos::relative_to_block",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::SectionPos::unpack",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::iter::<BlockBoxIter as Iterator>::next",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::iter::BlockPos::between_box_corners_in_direction",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::iter::BlockPos::between_closed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::iter::BlockPos::between_closed_box",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::iter::BlockPos::between_corners_in_direction",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::position::iter::BlockPos::containing",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::PreparedFiles::list",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::PreparedFiles::name",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::PreparedFiles::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::files_under",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::find",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::holds_file",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::holds_folder",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::pad",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::read_at[cfg(unix)]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::read_at[cfg(windows)]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::read_head",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::read_to_string",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::walk",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::prepared_files::write_padded",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::fork_positional",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::fork_positional",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::LegacyRandom::from_state",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::LegacyRandom::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::LegacyRandom::state",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::XoroshiroRandom::from_state",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::XoroshiroRandom::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::XoroshiroRandom::state_words",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::hash::Md5::finish",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::hash::Md5::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::hash::seed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::hash::seed_from_hash",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::hash::seed_from_hash_utf16",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::marsaglia_polar",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::mix_stafford13",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::positional::<LegacyPositionalRandom as PositionalRandom>::at",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::positional::<LegacyPositionalRandom as PositionalRandom>::from_hash_of",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::positional::<LegacyPositionalRandom as PositionalRandom>::from_hash_of_utf16",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::positional::<LegacyPositionalRandom as PositionalRandom>::from_seed",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::positional::<XoroshiroPositionalRandom as PositionalRandom>::at",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::positional::<XoroshiroPositionalRandom as PositionalRandom>::from_hash_of",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::positional::<XoroshiroPositionalRandom as PositionalRandom>::from_hash_of_utf16",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::positional::<XoroshiroPositionalRandom as PositionalRandom>::from_seed",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::positional::LegacyPositionalRandom::new",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::positional::XoroshiroPositionalRandom::new",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::positional::java_string_hash",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::positional::position_seed",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::trace::set[cfg(feature=\"rng-trace\")]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::trace::take[cfg(feature=\"rng-trace\")]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenPositional<P> as PositionalRandom>::at",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenPositional<P> as PositionalRandom>::from_hash_of",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenPositional<P> as PositionalRandom>::from_hash_of_utf16",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenPositional<P> as PositionalRandom>::from_seed",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenRandom<R> as RandomSource>::fork",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenRandom<R> as RandomSource>::fork_positional",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenRandom<R> as RandomSource>::next_boolean",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenRandom<R> as RandomSource>::next_double",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenRandom<R> as RandomSource>::next_float",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenRandom<R> as RandomSource>::next_gaussian",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenRandom<R> as RandomSource>::next_int",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenRandom<R> as RandomSource>::next_int_bound",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenRandom<R> as RandomSource>::next_long",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenRandom<R> as RandomSource>::set_seed",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::<WorldgenRandom<R> as WorldgenSource>::worldgen_bits",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::WorldgenRandom<R>::count",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::WorldgenRandom<R>::new",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::WorldgenRandom<R>::next_bits",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::WorldgenRandom<R>::plain",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::WorldgenRandom<R>::set_decoration_seed",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::WorldgenRandom<R>::set_feature_seed",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::WorldgenRandom<R>::set_large_feature_seed",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::WorldgenRandom<R>::set_large_feature_with_salt",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::worldgen::slime_chunk_random",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::release::label",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::release::nightly_label",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::release::nightly_version",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::bits",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::get",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::heap_bytes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::location",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::per_word",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::slot",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::unpack",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::unpack_into",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::words",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::locate",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::mask",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::ChunkTicks::count",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::ChunkTicks::from_saved",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::ChunkTicks::has_scheduled",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::ChunkTicks::peek",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::ChunkTicks::poll",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::ChunkTicks::queued",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::ChunkTicks::remove_if",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::ChunkTicks::schedule",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::ChunkTicks::unpack",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::LevelTicks::area_ticks",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::LevelTicks::chunk",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::LevelTicks::clear_area",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::LevelTicks::copy_area",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::LevelTicks::count",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::LevelTicks::has_scheduled",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::LevelTicks::remove_chunk",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::LevelTicks::schedule_copy",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::LevelTicks::tick",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::LevelTicks::unpack_chunk",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::LevelTicks::will_tick_this_tick",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::SavedTick::unpack",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::ScheduledTick::drain_cmp",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::ScheduledTick::intra_cmp",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::ScheduledTick::key",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::ScheduledTick::saved",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::TickArea::contains",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::TickArea::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::TickPriority::by_value",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::<ChunkTicks as TickContainerAccess>::has_scheduled",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::<ChunkTicks as TickContainerAccess>::schedule",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::<ProtoChunkTicks as TickContainerAccess>::has_scheduled",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::<ProtoChunkTicks as TickContainerAccess>::schedule",
+      "reason": "uses trait Self:: item",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::ProtoChunkTicks::count",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::ProtoChunkTicks::from_saved",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::ProtoChunkTicks::has_scheduled",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::ProtoChunkTicks::pack",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::ProtoChunkTicks::schedule",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::ProtoChunkTicks::schedule_saved",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::ProtoChunkTicks::scheduled_ticks",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::WorldGenTickAccess<C>::containers",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::WorldGenTickAccess<C>::containers_mut",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::WorldGenTickAccess<C>::count",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::WorldGenTickAccess<C>::has_scheduled",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::WorldGenTickAccess<C>::new",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::WorldGenTickAccess<C>::schedule",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::generation::WorldGenTickAccess<C>::will_tick_this_tick",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::heap::<Heap<T> as Default>::default",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::heap::Heap<T>::down",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::heap::Heap<T>::peek",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::heap::Heap<T>::pop",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::heap::Heap<T>::push",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::heap::Heap<T>::remove_at",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::heap::Heap<T>::remove_if",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::heap::Heap<T>::up",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::index::DeadlineIndex::capacity",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::index::DeadlineIndex::shift_keys",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::index::DeadlineIndex::visit",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::index::mix",
+      "reason": "small body",
+      "kind": "fn"
+    }
+  ]
+}

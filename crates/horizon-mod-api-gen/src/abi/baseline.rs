@@ -201,7 +201,7 @@ fn current_wit(root: &Path) -> String {
 
 fn current_ids(root: &Path) -> IdTables {
     let mut tables = IdTables { services: BTreeMap::new(), hooks: BTreeMap::new(), capabilities: BTreeSet::new(), manifest_permissions: BTreeSet::new() };
-    for catalog in ["abi-subset.json", "abi-subset-server.json", "abi-subset-client.json", "abi-subset-gpu.json"] {
+    for catalog in ["abi-subset.json", "abi-subset-server.json", "abi-subset-client.json", "abi-subset-gpu.json", "abi-subset-media.json"] {
         let catalog: Value = serde_json::from_str(&fs::read_to_string(root.join("crates/horizon-mod-api-gen").join(catalog)).unwrap()).unwrap();
         for (kind, table) in [("services", &mut tables.services), ("hooks", &mut tables.hooks)] {
             for entry in catalog[kind].as_array().unwrap().iter().filter(|entry| entry["abi"] == true) {

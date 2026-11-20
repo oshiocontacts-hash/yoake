@@ -452,6 +452,15 @@ server_services! {
     mob_despawn(entity: u32) -> Result<bool, String> = unsupported();
     mob_claim_control(claim: bool, entity: u32) -> Result<(), String> = unsupported();
     mob_impulse(entity: u32, velocity: st::Vec3) -> Result<(), String> = unsupported();
+    level_register_type(id: String, type_json: String) -> Result<(), String> = unsupported();
+    level_register(id: String, stem_json: String) -> Result<(), String> = unsupported();
+    level_create(id: String, persistent: bool, stem_json: String) -> Result<(), String> = unsupported();
+    level_delete(id: String) -> Result<(), String> = unsupported();
+    level_unload(id: String) -> Result<(), String> = unsupported();
+    level_regenerate(id: String, seed: Option<i64>) -> Result<(), String> = unsupported();
+    level_list() -> Result<Vec<String>, String> = unsupported();
+    current_level(player: String) -> Result<String, String> = unsupported();
+    generator_register(id: String) -> Result<(), String> = unsupported();
     container_slots(dimension: String, position: st::BlockPos) -> Result<Vec<Option<st::ItemStack>>, String> = unsupported();
     container_set_slots(dimension: String, position: st::BlockPos, slots: Vec<Option<st::ItemStack>>) -> Result<(), String> = unsupported();
     containers_in(center: st::Vec3, dimension: String, radius: f64) -> Result<Vec<st::ContainerRef>, String> = unsupported();
@@ -745,6 +754,20 @@ impl ServerFullMod {
 
     pub fn is_disabled(&self) -> bool {
         self.raw.is_disabled()
+    }
+
+    /// `handle_call` for the engine's chunk generator calls (F3-8): they are not counted in the module's aggregate
+    /// budget, so generating many chunks in a tick cannot starve its hooks (each call keeps the per-call limit).
+    pub fn handle_generator_call(
+        &mut self,
+        caller: &str,
+        method: &str,
+        payload: &[u8],
+    ) -> Option<Result<Vec<u8>, String>> {
+        self.raw.set_aggregate_exempt(true);
+        let answer = self.handle_call(caller, method, payload);
+        self.raw.set_aggregate_exempt(false);
+        answer
     }
 
     /// Calls the module's `handle-call` export (another package's `mod-call`). `None` when the

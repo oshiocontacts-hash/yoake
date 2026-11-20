@@ -7,9 +7,14 @@ rust-version.workspace = true
 description = "Horizon's Minecraft Java Edition 26.3 network protocol (version 777)"
 
 [features]
+# W10: the generated hook bridges (the stamping overlay adds them) need the slice runtime
+yoake2-slice = ["dep:yoake-slice"]
 dev-capture = []
 
 [dependencies]
+yoake-hook-macro = { path = "../yoake-hook-macro" }
+yoake-hook-rt = { path = "../yoake-hook-rt" }
+yoake-slice = { path = "../yoake-slice", optional = true }
 horizon-core = { path = "../horizon-core" }
 horizon-world = { path = "../horizon-world" }
 horizon-friends = { path = "../horizon-friends" }
@@ -36,6 +41,9 @@ path = "examples/probe.rs"
 [[example]]
 name = "item_wire_probe"
 path = "examples/item_wire_probe.rs"
+
+[build-dependencies]
+yoake-hook-ledger = { path = "../yoake-hook-ledger" }
 
 [lints]
 workspace = true

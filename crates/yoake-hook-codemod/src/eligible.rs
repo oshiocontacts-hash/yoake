@@ -7,7 +7,63 @@ use syn::{
     Lifetime, Path, Signature, StmtMacro, Type,
 };
 
+/// F1 W12: what the caller knows that the signature does not say.
+#[derive(Clone, Copy, Default)]
+pub struct FnContext {
+    /// The impl's self type derives `Copy`: a by-value `self` is then an ordinary by-value argument.
+    pub self_copy: bool,
+}
+
 pub fn check_fn(attrs: &[Attribute], sig: &Signature) -> Result<(), &'static str> {
+    check_fn_in(attrs, sig, FnContext::default())
+}
+
+/// F1 W12: `impl Fn(..)`/`impl FnMut(..)` with that one bound (and nothing else): the hook macro hands the guest side
+/// a `&dyn Fn`/`&mut dyn FnMut` and forwards the real closure to the original.
+pub fn is_dyn_shimmable(ty: &Type) -> bool {
+    let Type::ImplTrait(imp) = ty else { return false };
+    if imp.bounds.len() != 1 {
+        return false;
+    }
+    let syn::TypeParamBound::Trait(bound) = &imp.bounds[0] else { return false };
+    if bound.lifetimes.is_some() || !matches!(bound.modifier, syn::TraitBoundModifier::None) {
+        return false;
+    }
+    let Some(last) = bound.path.segments.last() else { return false };
+    if !(last.ident == "Fn" || last.ident == "FnMut") || !matches!(last.arguments, syn::PathArguments::Parenthesized(_)) {
+        return false;
+    }
+    // A closure that takes or returns a borrow (`impl FnMut(&mut X)`) would need `for<'a>` binders inside the
+    // shim's `&dyn`: the macro refuses those ("nested callable borrows"), so they stay skipped.
+    let text = quote::ToTokens::to_token_stream(&last.arguments).to_string();
+    !text.contains('&') && !text.contains(char::from(39u8))
+}
+
+/// F1 W12: every type parameter says `'static` (inline or in the where clause), as the typed slot registration needs;
+/// no const parameters. Such a function is hookable natively (typed registration per instantiation); the wasm
+/// bridge leaves it alone (a guest cannot name `T`).
+fn static_type_params(generics: &Generics) -> bool {
+    use syn::{GenericParam, TypeParamBound, WherePredicate};
+    let is_static = |bounds: &syn::punctuated::Punctuated<TypeParamBound, syn::Token![+]>| {
+        bounds.iter().any(|b| matches!(b, TypeParamBound::Lifetime(l) if l.ident == "static"))
+    };
+    generics.params.iter().all(|param| match param {
+        GenericParam::Type(t) => {
+            t.default.is_none()
+                && (is_static(&t.bounds)
+                    || generics.where_clause.as_ref().is_some_and(|w| {
+                        w.predicates.iter().any(|p| {
+                            matches!(p, WherePredicate::Type(pt)
+                                if matches!(&pt.bounded_ty, Type::Path(tp) if tp.path.is_ident(&t.ident)) && is_static(&pt.bounds))
+                        })
+                    }))
+        }
+        GenericParam::Lifetime(_) => true,
+        GenericParam::Const(_) => false,
+    })
+}
+
+pub fn check_fn_in(attrs: &[Attribute], sig: &Signature, context: FnContext) -> Result<(), &'static str> {
     if sig.asyncness.is_some() {
         return Err("async fn");
     }
@@ -23,7 +79,7 @@ pub fn check_fn(attrs: &[Attribute], sig: &Signature) -> Result<(), &'static str
     if sig.variadic.is_some() {
         return Err("variadic fn");
     }
-    if sig.generics.type_params().next().is_some() {
+    if sig.generics.type_params().next().is_some() && !static_type_params(&sig.generics) {
         return Err("generic type params");
     }
     if sig.generics.const_params().next().is_some() {
@@ -64,7 +120,7 @@ pub fn check_fn(attrs: &[Attribute], sig: &Signature) -> Result<(), &'static str
     for arg in &sig.inputs {
         match arg {
             FnArg::Receiver(receiver) => {
-                if receiver.reference.is_none() || receiver.colon_token.is_some() {
+                if receiver.colon_token.is_some() || (receiver.reference.is_none() && !context.self_copy) {
                     return Err("by-value or typed self");
                 }
             }
@@ -75,7 +131,9 @@ pub fn check_fn(attrs: &[Attribute], sig: &Signature) -> Result<(), &'static str
                 }
                 // F1 W4: destructuring, `_`, `ref` and `@` patterns are fine (the macro names them).
                 let mut input_check = Unsupported::default();
-                input_check.visit_type(&pat_type.ty);
+                if !is_dyn_shimmable(&pat_type.ty) {
+                    input_check.visit_type(&pat_type.ty);
+                }
                 if input_check.impl_trait {
                     return Err("impl Trait argument");
                 }
@@ -368,7 +426,7 @@ impl<'ast> Visit<'ast> for TraitDependencyScan<'ast> {
 
 #[cfg(test)]
 mod inject_tests {
-    use super::check_fn;
+    use super::{check_fn, check_fn_in, FnContext};
 
     #[test]
     fn a_parameter_with_an_attribute_is_not_hooked() {
@@ -387,6 +445,37 @@ mod inject_tests {
         assert_eq!(check_fn(&f.attrs, &f.sig), Err("wrapped by yoake_inject"));
         let g: syn::ItemFn = syn::parse_quote! { pub fn plain(&mut self, sprinting: bool) {} };
         assert_eq!(check_fn(&g.attrs, &g.sig), Ok(()));
+    }
+
+    #[test]
+    fn w12_by_value_self_impl_fn_and_static_generics() {
+        let by_value: syn::ItemFn = syn::parse_quote! { pub fn len(self, scale: f32) -> f32 { 1.0 } };
+        assert_eq!(check_fn(&by_value.attrs, &by_value.sig), Err("by-value or typed self"));
+        assert_eq!(check_fn_in(&by_value.attrs, &by_value.sig, FnContext { self_copy: true }), Ok(()));
+        let typed: syn::ItemFn = syn::parse_quote! { pub fn take(self: Box<Self>) {} };
+        assert_eq!(check_fn_in(&typed.attrs, &typed.sig, FnContext { self_copy: true }), Err("by-value or typed self"));
+
+        let closure: syn::ItemFn = syn::parse_quote! { pub fn each(n: u32, f: impl Fn(u32) -> u32) -> u32 { f(n) } };
+        assert_eq!(check_fn(&closure.attrs, &closure.sig), Ok(()));
+        let closure_mut: syn::ItemFn = syn::parse_quote! { pub fn each(n: u32, f: impl FnMut(u32)) {} };
+        assert_eq!(check_fn(&closure_mut.attrs, &closure_mut.sig), Ok(()));
+        let other_trait: syn::ItemFn = syn::parse_quote! { pub fn each(n: u32, f: impl Into<u32>) {} };
+        assert_eq!(check_fn(&other_trait.attrs, &other_trait.sig), Err("impl Trait argument"));
+        let extra_bound: syn::ItemFn = syn::parse_quote! { pub fn each(n: u32, f: impl Fn(u32) + Send) {} };
+        assert_eq!(check_fn(&extra_bound.attrs, &extra_bound.sig), Err("impl Trait argument"));
+        let borrowing: syn::ItemFn = syn::parse_quote! { pub fn each(n: u32, f: impl FnMut(&mut u32)) {} };
+        assert_eq!(check_fn(&borrowing.attrs, &borrowing.sig), Err("impl Trait argument"));
+        let once: syn::ItemFn = syn::parse_quote! { pub fn each(n: u32, f: impl FnOnce(u32)) {} };
+        assert_eq!(check_fn(&once.attrs, &once.sig), Err("impl Trait argument"));
+
+        let plain_generic: syn::ItemFn = syn::parse_quote! { pub fn id<T>(t: T) -> T { t } };
+        assert_eq!(check_fn(&plain_generic.attrs, &plain_generic.sig), Err("generic type params"));
+        let inline_static: syn::ItemFn = syn::parse_quote! { pub fn id<T: Copy + 'static>(t: T) -> T { t } };
+        assert_eq!(check_fn(&inline_static.attrs, &inline_static.sig), Ok(()));
+        let where_static: syn::ItemFn = syn::parse_quote! { pub fn id<T>(t: T) -> T where T: 'static { t } };
+        assert_eq!(check_fn(&where_static.attrs, &where_static.sig), Ok(()));
+        let const_generic: syn::ItemFn = syn::parse_quote! { pub fn id<const N: usize>() {} };
+        assert_eq!(check_fn(&const_generic.attrs, &const_generic.sig), Err("const generics"));
     }
 }
 

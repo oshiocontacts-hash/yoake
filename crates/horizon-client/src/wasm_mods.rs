@@ -24,12 +24,16 @@ mod gpu_services;
 mod mob_services;
 #[path = "wasm_mods/mob_runtime.rs"]
 mod mob_runtime;
+#[path = "wasm_mods/media_services.rs"]
+mod media_services;
 #[path = "wasm_mods/package.rs"]
 pub(crate) mod package;
 #[path = "wasm_mods/package_ui.rs"]
 pub(crate) mod package_ui;
 #[path = "wasm_mods/resources.rs"]
 mod resources;
+#[path = "wasm_mods/level_services.rs"]
+mod level_services;
 #[path = "wasm_mods/server_services.rs"]
 mod server_services;
 // Test mode only (`--yoake-test`): the operations of the engine test driver (`yoake_test.rs`).
@@ -43,6 +47,16 @@ use horizon_protocol::{
     buf::{Codec, Writer},
     item::Slot,
 };
+pub(crate) use level_services::generator_factory;
+
+/// A server module of a test guest, loaded as a world start loads it (its `init` runs, so what it registers is staged)
+/// and reachable by `handle-call` under `id` for as long as the answer lives.
+#[cfg(test)]
+pub(crate) fn test_server_guest(id: &str, bytes: &[u8]) -> Result<Box<dyn std::any::Any>, String> {
+    let source = full::ServerSource::new(id, bytes.to_vec(), false);
+    let module = full::load_server(&source.module())?;
+    Ok(Box::new(full::FullMod::new(id.to_owned(), None, Some(module))))
+}
 pub(crate) use server_services::{attachment_registry, prepare_attachments, reset_attachments};
 use std::{
     cell::Cell,
@@ -466,6 +480,11 @@ pub(super) fn extend(
             if source.permissions.iter().any(|p| p == "service.mobs") {
                 mob_services::grant(&source.id);
             }
+            // FR-MEDIA1: the browser services answer only packages that asked for them.
+            media_services::grant(
+                &source.id,
+                source.permissions.iter().any(|permission| permission == "service.browser"),
+            );
             let reload = source.watch.as_ref().map(|path| {
                 Arc::new(Reload {
                     shaders: source
@@ -1293,6 +1312,8 @@ struct GameHost {
     gpu_recording_fault: Option<fn(&wgpu::Device)>,
     dev_shaders: Option<Arc<Mutex<dev_shaders::DevShaders>>>,
     resources: resources::Registration,
+    /// FR-MEDIA1: the package's browsers, made when it opens the first one.
+    browsers: Option<media_services::Browsers>,
 }
 
 impl GameHost {
@@ -1312,6 +1333,7 @@ impl GameHost {
             gpu_recording_fault: None,
             dev_shaders: None,
             resources: resources::Registration::new(native_id, native_index),
+            browsers: None,
         }
     }
 
@@ -1361,6 +1383,9 @@ impl ClientHost for GameHost {
         package::services(&self.id, horizon_mods::yak::ConfigRuntimeSide::Client)
     }
     fn release_resources(&mut self) {
+        if let Some(mut browsers) = self.browsers.take() {
+            browsers.close_all();
+        }
         for texture in self.textures.keys() {
             client_services::unregister_named_texture(&client_services::named_texture_id(&self.id, *texture));
         }
@@ -1376,6 +1401,10 @@ impl ClientHost for GameHost {
 
     fn gpu_services(&mut self) -> Option<&mut dyn yoake_wasm::GpuServices> {
         if self.gpu_enabled { Some(self) } else { None }
+    }
+
+    fn media_services(&mut self) -> Option<&mut dyn yoake_wasm::MediaServices> {
+        if media_services::granted(&self.id) { Some(self) } else { None }
     }
     fn log(&mut self, target: &str, message: &str) -> Result<(), w::HostError> {
         let clean = |text: &str| -> String {

@@ -27557,6 +27557,90 @@
       "sig": "d550a001edaaf537",
       "status": "live",
       "kind": "fn"
+    },
+    {
+      "id": 10668,
+      "key": "horizon_client::game::agent::navigation::find_path",
+      "sig": "44da397bd1e920ab",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10669,
+      "key": "horizon_client::game::block_edits::column_height",
+      "sig": "bd81f39374d9b037",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10670,
+      "key": "horizon_client::game::block_edits::column_blocks",
+      "sig": "a33d49589e464223",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10671,
+      "key": "horizon_client::game::block_edits::resolve_runs",
+      "sig": "9c2c735fc019bbbc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10672,
+      "key": "horizon_client::game::dragon::Dragon::explosion_hits",
+      "sig": "5f05a31106cd8885",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10673,
+      "key": "horizon_client::game::explosion::blast_cause",
+      "sig": "8e0d5ee93aac6234",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10674,
+      "key": "horizon_client::game::lan_actions::visible_aim_point",
+      "sig": "6bdce821ad591b26",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10675,
+      "key": "horizon_client::game::native_client_map::scan_columns",
+      "sig": "bf4eb5523d1faaaa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10676,
+      "key": "horizon_client::game::native_entity_query::Sphere::intersects",
+      "sig": "7fd728477d218fda",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10677,
+      "key": "horizon_client::game::native_hooks::screen_text_hooked",
+      "sig": "8a34358bc21624b1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10678,
+      "key": "horizon_client::game::natural_spawning::Game::generation_creatures",
+      "sig": "470241b012aa5cce",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10679,
+      "key": "horizon_client::game::remote_projectiles::Game::tick_remote_projectiles",
+      "sig": "cf19008efddccdd7",
+      "status": "live",
+      "kind": "fn"
     }
   ],
   "excluded": [
@@ -28962,7 +29046,7 @@
     },
     {
       "key": "horizon_client::game::Dim::id",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -28982,7 +29066,7 @@
     },
     {
       "key": "horizon_client::game::Dim::shape",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -28992,7 +29076,7 @@
     },
     {
       "key": "horizon_client::game::FallingBlock::model_origin",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -29872,7 +29956,7 @@
     },
     {
       "key": "horizon_client::game::Screen::id",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -30441,11 +30525,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client::game::agent::navigation::find_path",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client::game::agent::navigation::horizontal_distance",
       "reason": "small body",
       "kind": "fn"
@@ -30841,18 +30920,8 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client::game::block_edits::column_blocks",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client::game::block_edits::column_height",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client::game::block_edits::loaded_heights",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -30867,11 +30936,6 @@
     },
     {
       "key": "horizon_client::game::block_edits::replace_block_entities",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client::game::block_edits::resolve_runs",
       "reason": "impl Trait argument",
       "kind": "fn"
     },
@@ -32907,7 +32971,7 @@
     },
     {
       "key": "horizon_client::game::commands::players::Target::is_player",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -34662,7 +34726,7 @@
     },
     {
       "key": "horizon_client::game::dispenser::Slot::armor_index",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -34672,7 +34736,7 @@
     },
     {
       "key": "horizon_client::game::dispenser::Slot::stand_index",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -34793,11 +34857,6 @@
     {
       "key": "horizon_client::game::dragon::Dragon::down",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client::game::dragon::Dragon::explosion_hits",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -35127,7 +35186,7 @@
     },
     {
       "key": "horizon_client::game::dragon::Respawn::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -35467,7 +35526,7 @@
     },
     {
       "key": "horizon_client::game::end::GatewayJob::source_chunk",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -36022,12 +36081,12 @@
     },
     {
       "key": "horizon_client::game::execution_role::ExecutionRole::is_client",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::execution_role::ExecutionRole::writes_singleplayer_player",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -36073,11 +36132,6 @@
     {
       "key": "horizon_client::game::explosion::affected_blocks",
       "reason": "wrapped by yoake_inject",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client::game::explosion::blast_cause",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -36977,7 +37031,7 @@
     },
     {
       "key": "horizon_client::game::game_tests::verify_batches",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -37192,7 +37246,7 @@
     },
     {
       "key": "horizon_client::game::hand::reach_pick",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -37332,12 +37386,12 @@
     },
     {
       "key": "horizon_client::game::input_trace::InputOrigin::index",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::input_trace::InputOrigin::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -37482,7 +37536,7 @@
     },
     {
       "key": "horizon_client::game::integrated::Integrated::call",
-      "reason": "generic type params",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -38032,7 +38086,7 @@
     },
     {
       "key": "horizon_client::game::lan::LanSettings::bind_address",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -38341,11 +38395,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client::game::lan_actions::visible_aim_point",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client::game::lan_attributes::Game::attribute_default",
       "reason": "small body",
       "kind": "fn"
@@ -38637,7 +38686,7 @@
     },
     {
       "key": "horizon_client::game::lan_particles::send_native_nearby",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -38707,7 +38756,7 @@
     },
     {
       "key": "horizon_client::game::lan_pvp::Victim::conn",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -39852,7 +39901,7 @@
     },
     {
       "key": "horizon_client::game::maps::MapData::check_banners",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -39907,7 +39956,7 @@
     },
     {
       "key": "horizon_client::game::maps::MapFrame::to_nbt",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -40017,22 +40066,22 @@
     },
     {
       "key": "horizon_client::game::minecarts::CartKind::id",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::minecarts::CartKind::interact_passes",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::minecarts::CartKind::item",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::minecarts::CartKind::slots",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -40197,12 +40246,12 @@
     },
     {
       "key": "horizon_client::game::minecarts::Shape::exits",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::minecarts::Shape::is_slope",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -40862,7 +40911,7 @@
     },
     {
       "key": "horizon_client::game::native_account::NativeSessionJoins::start_with",
-      "reason": "generic type params",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -40982,12 +41031,12 @@
     },
     {
       "key": "horizon_client::game::native_avatar_equipment::NativeEquipmentOverlay::code",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::native_avatar_equipment::NativeHumanoidPart::name",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -41511,11 +41560,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client::game::native_client_map::scan_columns",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client::game::native_client_map::visible_to",
       "reason": "small body",
       "kind": "fn"
@@ -41562,7 +41606,7 @@
     },
     {
       "key": "horizon_client::game::native_client_state::NativeSoundCategory::source",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -41692,12 +41736,12 @@
     },
     {
       "key": "horizon_client::game::native_damage::NativeDamageKind::damage_type",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::native_damage::NativeDamageKind::mob_kind",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -41807,7 +41851,7 @@
     },
     {
       "key": "horizon_client::game::native_deferred::DeferredRequests::complete_lan",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -41927,7 +41971,7 @@
     },
     {
       "key": "horizon_client::game::native_entities::root_id",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -42056,11 +42100,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client::game::native_entity_query::Sphere::intersects",
-      "reason": "by-value or typed self",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client::game::native_entity_query::Sphere::new",
       "reason": "small body",
       "kind": "fn"
@@ -42142,7 +42181,7 @@
     },
     {
       "key": "horizon_client::game::native_explosions::NativeBlast::interaction",
-      "reason": "by-value or typed self",
+      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -45442,7 +45481,7 @@
     },
     {
       "key": "horizon_client::game::native_hooks::chars_to_type",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -45551,11 +45590,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client::game::native_hooks::screen_text_hooked",
-      "reason": "impl Trait argument",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client::game::native_hooks::shake_pose",
       "reason": "small body",
       "kind": "fn"
@@ -45607,7 +45641,7 @@
     },
     {
       "key": "horizon_client::game::native_inventories::NativeInventoryKind::size",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -46492,22 +46526,22 @@
     },
     {
       "key": "horizon_client::game::native_mouse_buttons::MouseButtonsFrame::attack_clicks",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::native_mouse_buttons::MouseButtonsFrame::attack_down",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::native_mouse_buttons::MouseButtonsFrame::use_clicks",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::native_mouse_buttons::MouseButtonsFrame::use_down",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -46817,7 +46851,7 @@
     },
     {
       "key": "horizon_client::game::native_player_ops::Operation::index",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -47302,7 +47336,7 @@
     },
     {
       "key": "horizon_client::game::native_server_physics::Operation::index",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -47397,7 +47431,7 @@
     },
     {
       "key": "horizon_client::game::native_session::RequestContext::accepts",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -47857,7 +47891,7 @@
     },
     {
       "key": "horizon_client::game::native_world_draw::PostKind::sprite",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -47953,11 +47987,6 @@
     {
       "key": "horizon_client::game::natural_spawning::Game::alive_player_near",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client::game::natural_spawning::Game::generation_creatures",
-      "reason": "generic type params",
       "kind": "fn"
     },
     {
@@ -49132,7 +49161,7 @@
     },
     {
       "key": "horizon_client::game::persist::parent_vehicle_root",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -49142,7 +49171,7 @@
     },
     {
       "key": "horizon_client::game::persist::root_vehicle",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -49177,12 +49206,12 @@
     },
     {
       "key": "horizon_client::game::perspective::CameraType::cycle",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::perspective::CameraType::first_person",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -50612,7 +50641,7 @@
     },
     {
       "key": "horizon_client::game::remote::MovePacket::snaps",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -50822,7 +50851,7 @@
     },
     {
       "key": "horizon_client::game::remote::synced_local_use",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -51063,11 +51092,6 @@
     {
       "key": "horizon_client::game::remote_projectiles::Game::tick_remote_clouds",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client::game::remote_projectiles::Game::tick_remote_projectiles",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -51682,7 +51706,7 @@
     },
     {
       "key": "horizon_client::game::scoreboard::root_owner",
-      "reason": "impl Trait argument",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -51757,7 +51781,7 @@
     },
     {
       "key": "horizon_client::game::screens::Screen::blurs_background",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -53352,37 +53376,37 @@
     },
     {
       "key": "horizon_client::game::stations::Kind::has_result",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::stations::Kind::input_pos",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::stations::Kind::inputs",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::stations::Kind::result_pos",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::stations::Kind::texture",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::stations::Kind::title_key",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::stations::Kind::title_pos",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -53972,7 +53996,7 @@
     },
     {
       "key": "horizon_client::game::test_environments::WeatherType::parameters",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -54962,12 +54986,12 @@
     },
     {
       "key": "horizon_client::mod_api::EntityRef::epoch",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::mod_api::EntityRef::id",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -54977,12 +55001,12 @@
     },
     {
       "key": "horizon_client::mod_api::LevelRef::dimension",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::mod_api::LevelRef::epoch",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -54992,12 +55016,12 @@
     },
     {
       "key": "horizon_client::mod_api::LivingRef::entity",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::mod_api::LivingRef::id",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -55022,7 +55046,7 @@
     },
     {
       "key": "horizon_client::mod_api::NativeTickId::get",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -55032,7 +55056,7 @@
     },
     {
       "key": "horizon_client::mod_api::NativeWorldEpoch::get",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -55297,17 +55321,17 @@
     },
     {
       "key": "horizon_client::yoake2_mods::ThreadSide::index[cfg(feature=\"yoake2-slice\")]",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::yoake2_mods::ThreadSide::other[cfg(feature=\"yoake2-slice\")]",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::yoake2_mods::ThreadSide::runs[cfg(feature=\"yoake2-slice\")]",
-      "reason": "by-value or typed self",
+      "reason": "small body",
       "kind": "fn"
     },
     {

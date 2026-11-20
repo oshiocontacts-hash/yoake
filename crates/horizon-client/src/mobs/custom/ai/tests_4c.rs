@@ -2,7 +2,7 @@
 //! Fox fixture (the real loaders over its model) and the flat resource-free world.
 use super::{
     breed::{self, BABY_AGE, Fed},
-    interact::{self, Action, ClickHand as Hand, Context, Hook, Outcome, Reply},
+    interact::{self, Action, Context, ClickHand, Hook, Outcome, Reply},
     riding::{self, Controls, RiderKind},
     tame,
     test_support::*,
@@ -49,7 +49,7 @@ fn eq(p: &str, i: &str) -> bool {
 }
 
 fn click<'a>(item: Option<&'a str>, player: [i32; 4]) -> Context<'a> {
-    Context { player, hand: Hand::Main, item, sneaking: false, matches: &eq, ride_seat: None }
+    Context { player, hand: ClickHand::Main, item, sneaking: false, matches: &eq, ride_seat: None }
 }
 
 const BERRIES: &str = "minecraft:sweet_berries";
@@ -732,7 +732,7 @@ fn a_click_on_a_rideable_mob_boards_it_unless_sneaking() {
 struct Double(Reply, std::sync::Mutex<Vec<(Option<String>, bool)>>);
 impl Hook for Double {
     fn mob_interact(&self, _: &mut Mob, ctx: &Context) -> Reply {
-        self.1.lock().unwrap().push((ctx.item.map(str::to_owned), ctx.hand == Hand::Off));
+        self.1.lock().unwrap().push((ctx.item.map(str::to_owned), ctx.hand == ClickHand::Off));
         self.0
     }
 }
@@ -745,7 +745,7 @@ fn the_hook_decides_first_and_pass_goes_on_to_the_data_shortcuts() {
         let hook = Double(reply, Default::default());
         let mut m = plain(&t, 0.5, 0.5);
         let mut c = click(Some(BERRIES), OWNER);
-        c.hand = Hand::Off;
+        c.hand = ClickHand::Off;
         let o = interact::dispatch(&mut m, &c, Some(&hook));
         assert_eq!((o.reply, o.actions.len()), (reply, 0));
         assert!(!m.extra.tame, "the berry did not tame it: the hook handled the click");

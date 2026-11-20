@@ -404,7 +404,7 @@ impl horizon_client::mod_generator::ModGeneratorFactory for FloorFactory {
     }
 }
 impl horizon_client::mod_generator::ModColumnSource for Floor {
-    fn generate(&self, chunk: &mut horizon_client::mod_generator::ModChunk<'_>) {
+    fn generate(&self, chunk: &mut horizon_client::mod_generator::ModChunk) {
         let floor = chunk.shape.min_y;
         for y in floor..floor + self.depth {
             chunk.fill_layer(y, self.stone);
@@ -762,4 +762,83 @@ fn levels_take_their_own_seed_unload_and_regenerate() {
         game.enter_level(None, Dim::Overworld).unwrap();
         assert_eq!(game.level_facts(), super::level_facts::LevelFacts::OVERWORLD);
     });
+}
+
+thread_local! {
+    /// The test guests of the test in progress, alive until it ends.
+    static GUESTS: std::cell::RefCell<Vec<Box<dyn std::any::Any>>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// The sample mod's terrain (`crates/yoake-wasm-sdk/examples/level-generator`): the first free y of a column.
+fn terrace_surface(x: i32, z: i32, step: i32, seed: i64) -> i32 {
+    8 + 4 * (x.div_euclid(step) + z.div_euclid(step)).rem_euclid(4) + (seed & 1) as i32
+}
+
+/// F3-8: a WebAssembly mod registers a dimension type, a generator and a level in its `init`; the world that opens has the
+/// level, its chunks are the guest's (blocks and biome), they save under the level's own folder, and a generator whose
+/// package is not running leaves its level unopenable with a message.
+#[test]
+#[ignore = "needs HORIZON_TEST_RESOURCES and the wasm32-wasip2 target"]
+fn a_wasm_mod_generates_the_chunks_of_its_level_and_they_save() {
+    use yoake_wasm::test_guests::{LEVEL_GENERATOR, load};
+    let Some(bytes) = load(&LEVEL_GENERATOR) else {
+        panic!("the level-generator guest could not be built or found");
+    };
+    with_world_options(
+        |world| {
+            write_moon_pack(world);
+            horizon_client::mod_generator::clear_staged();
+            // What the package's `init` registers is staged by loading it, as a world start loads it.
+            let guest = crate::entry::wasm_mods::test_server_guest("level-generator", &bytes).expect("the guest loads");
+            GUESTS.with(|g| g.borrow_mut().push(guest));
+            // A generator of a package that is not running.
+            horizon_client::mod_generator::stage_generator_replacing("ghost:gen", crate::entry::wasm_mods::generator_factory("ghost"))
+                .unwrap();
+            horizon_client::mod_generator::stage_level(
+                "mypack:ghost",
+                serde_json::json!({"type": "minecraft:overworld", "generator": {"type": "yoake:mod", "id": "ghost:gen"}}),
+            )
+            .unwrap();
+        },
+        |_| {},
+        |game, world| {
+            let level = game.level_dim("levelgen:terraces").expect("the package's level is registered at load");
+            let entry = game.level_registry.get("levelgen:terraces").unwrap();
+            assert_eq!((entry.shape.min_y, entry.shape.height), (0, 64), "its own dimension type");
+            assert!((entry.dimension_type.ambient_light - 0.2).abs() < 1e-6);
+            game.enter_level(None, level).unwrap();
+            let seed = game.level.seed;
+            let bedrock = game.pack.assets.registry.default_state("minecraft:bedrock").unwrap().0;
+            let stone = game.pack.assets.registry.default_state("minecraft:stone").unwrap().0;
+            let grass = game.pack.assets.registry.default_state("minecraft:grass_block").unwrap().0;
+            let plains = game.res.biomes().id("minecraft:plains");
+            for (cx, cz) in [(0, 0), (1, -1)] {
+                let chunk = generated_chunk(game, cx, cz);
+                for (x, z) in [(0, 0), (7, 3), (15, 15), (9, 12)] {
+                    let top = terrace_surface(cx * 16 + x, cz * 16 + z, 8, seed);
+                    assert_eq!(chunk.get(x, 0, z), bedrock, "bedrock under {x} {z}");
+                    assert_eq!(chunk.get(x, 1, z), stone);
+                    assert_eq!(chunk.get(x, top - 1, z), grass, "the top of {x} {z} in chunk {cx} {cz}");
+                    assert_eq!(chunk.get(x, top, z), 0, "air above it");
+                }
+                assert_eq!(chunk.biome(0, 20, 0), plains);
+            }
+            // An edit and a save: the chunks are in the level's own folder.
+            game.level_set([3, 60, 3], horizon_world::registry::BlockStateId(stone)).unwrap();
+            game.save_level(true).unwrap();
+            let region = game.level_registry.save_dir(world, "levelgen:terraces").join("region");
+            assert!(std::fs::read_dir(&region).unwrap().count() > 0, "no region file in {}", region.display());
+            assert_eq!(game.level_registry.save_dir(world, "levelgen:terraces"), world.join("dimensions/levelgen/terraces"));
+            game.enter_level(None, Dim::Overworld).unwrap();
+            // The generator of a package that is not running: the level is registered and does not open.
+            let ghost = game.level_dim("mypack:ghost").expect("registered");
+            let error = game.enter_level(None, ghost).unwrap_err().to_string();
+            assert!(error.contains("ghost:gen") && error.contains("no running server module"), "{error}");
+            assert_eq!(game.dim, Dim::Overworld);
+            // The vanilla levels beside them are unchanged.
+            assert_eq!(game.level_facts(), super::level_facts::LevelFacts::OVERWORLD);
+            horizon_client::mod_generator::clear_staged();
+            GUESTS.with(|g| g.borrow_mut().clear());
+        },
+    );
 }

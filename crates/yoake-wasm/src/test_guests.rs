@@ -94,6 +94,13 @@ pub const FOX_AI_SPIN: Guest = Guest {
     artifact: "yoake_wasm_fox_ai.wasm",
 };
 
+/// F3-8: a server mod that registers a level with a chunk generator of its own.
+pub const LEVEL_GENERATOR: Guest = Guest {
+    name: "level-generator",
+    example: "level-generator",
+    features: "",
+    artifact: "yoake_wasm_level_generator.wasm",
+};
 pub const CLIENT_SERVICES_DEMO: Guest = Guest {
     name: "client-services-demo",
     example: "client-services-demo",

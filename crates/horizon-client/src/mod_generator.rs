@@ -18,14 +18,20 @@ use serde_json::Value;
 use std::{collections::BTreeMap, sync::Arc};
 
 /// What a source writes into: one chunk of the level, `min_y..min_y + height` tall.
-pub struct ModChunk<'a> {
-    chunk: &'a mut Chunk,
+pub struct ModChunk {
+    chunk: Chunk,
     pub chunk_x: i32,
     pub chunk_z: i32,
     pub shape: LevelShape,
-    biome_of: &'a dyn Fn(&str) -> Option<u16>,
+    biome_of: Arc<dyn Fn(&str) -> Option<u16> + Send + Sync>,
+    failed: bool,
 }
-impl ModChunk<'_> {
+impl ModChunk {
+    /// Says the generator could not fill this chunk (it ran over its limits, say). What it wrote stays,
+    /// but the chunk is not saved while nobody edits it, so it generates again when it next loads.
+    pub fn mark_failed(&mut self) {
+        self.failed = true;
+    }
     /// Block `state` (a state id from [`ModGeneratorContext::block`]) at the
     /// chunk-local column `x`, `z` (0..16) and world height `y`. Positions
     /// outside the level's height are ignored.
@@ -64,7 +70,7 @@ impl ModChunk<'_> {
 
 /// A generator of chunks: given the position of a chunk, fills it.
 pub trait ModColumnSource: Send + Sync + 'static {
-    fn generate(&self, chunk: &mut ModChunk<'_>);
+    fn generate(&self, chunk: &mut ModChunk);
 }
 
 /// What a factory is given when its level opens.
@@ -74,6 +80,8 @@ pub struct ModGeneratorContext {
     /// The world's seed (every level has it, as in vanilla).
     pub seed: i64,
     pub shape: LevelShape,
+    /// The generator id the stem names (`yoake:mod`'s `id`).
+    pub generator: String,
     /// The stem's `generator.settings` object.
     pub settings: Value,
     assets: Arc<Assets>,
@@ -82,6 +90,11 @@ impl ModGeneratorContext {
     /// The default state id of a block (`minecraft:stone`).
     pub fn block(&self, name: &str) -> Option<u32> {
         self.assets.registry.default_state(name).map(|s| s.0)
+    }
+    /// The same lookup, to keep and call from the generating threads.
+    pub fn block_lookup(&self) -> Arc<dyn Fn(&str) -> Option<u32> + Send + Sync> {
+        let assets = self.assets.clone();
+        Arc::new(move |name| assets.registry.default_state(name).map(|s| s.0))
     }
 }
 
@@ -138,6 +151,7 @@ impl ModGenerators {
             )
         })?;
         let context = ModGeneratorContext {
+            generator: id.to_owned(),
             level: level.to_owned(),
             seed,
             shape,
@@ -149,6 +163,7 @@ impl ModGenerators {
             .map_err(|e| format!("generator `{id}` for level {level}: {e}"))?;
         let plains = biomes.id("minecraft:plains");
         Ok(ModTerrain {
+            level: level.to_owned(),
             source,
             shape,
             plains,
@@ -157,8 +172,18 @@ impl ModGenerators {
     }
 }
 
+/// A chunk of a level made by a mod's generator is about to be filled (F3-8b). A mod's hook here sees
+/// the empty chunk first and may write into it through the `ModChunk` bindings (`set_block`,
+/// `fill_layer`, `block`, `set_biome`); the level's generator then fills it. Only levels of mod
+/// generators, so the vanilla terrain is untouched. About one call per chunk.
+#[yoake_inject_macro::yoake_inject(id = "worldgen::generate_chunk", side = "server")]
+fn generate_chunk(level: &str, cx: i32, cz: i32, chunk: &mut ModChunk) {
+    let _ = (level, cx, cz, chunk);
+}
+
 /// A [`ModColumnSource`] as the engine's chunk generator.
 pub struct ModTerrain {
+    level: String,
     source: Arc<dyn ModColumnSource>,
     shape: LevelShape,
     plains: u16,
@@ -179,16 +204,22 @@ impl ChunkGenerator for ModTerrain {
         let biome_of = move |name: &str| {
             biomes.contains(name).then(|| biomes.id(name))
         };
-        self.source.generate(&mut ModChunk {
-            chunk: &mut chunk,
+        let mut mod_chunk = ModChunk {
+            chunk,
             chunk_x: cx,
             chunk_z: cz,
             shape: self.shape,
-            biome_of: &biome_of,
-        });
+            biome_of: Arc::new(biome_of),
+            failed: false,
+        };
+        generate_chunk(&self.level, cx, cz, &mut mod_chunk);
+        self.source.generate(&mut mod_chunk);
+        let failed = mod_chunk.failed;
+        let mut chunk = mod_chunk.chunk;
         for s in &mut chunk.sections {
             Arc::make_mut(s).compact();
         }
+        chunk.not_generated = failed;
         Box::new(chunk)
     }
     fn finish(&self, proto: Proto) -> Chunk {
@@ -203,6 +234,8 @@ impl ChunkGenerator for ModTerrain {
 #[derive(Default)]
 struct Staged {
     levels: Vec<(String, Value)>,
+    /// Dimension types mods register (`id`, the type's JSON), before any level that names them.
+    types: Vec<(String, Value)>,
     generators: ModGenerators,
 }
 static STAGED: std::sync::Mutex<Option<Staged>> = std::sync::Mutex::new(None);
@@ -220,6 +253,38 @@ pub fn stage_level(id: &str, stem: Value) -> Result<(), String> {
     }
     staged.levels.push((id.to_owned(), stem));
     Ok(())
+}
+/// Registers a level stem like `stage_level`, replacing the one a package registered before under the same id (a
+/// WebAssembly package's `init` runs again at each world start and registers again).
+pub fn stage_level_replacing(id: &str, stem: Value) -> Result<(), String> {
+    crate::level_registry::check_level_id(id).map_err(|r| format!("level id `{id}`: {r}"))?;
+    let mut staged = staged_lock();
+    let staged = staged.get_or_insert_with(Staged::default);
+    staged.levels.retain(|(l, _)| l != id);
+    staged.levels.push((id.to_owned(), stem));
+    Ok(())
+}
+/// Registers a dimension type (its JSON, as a data pack's file) for every world opened from now on; a later
+/// registration of the same id replaces it.
+pub fn stage_type(id: &str, json: Value) -> Result<(), String> {
+    crate::level_registry::check_level_id(id).map_err(|r| format!("type id `{id}`: {r}"))?;
+    horizon_world::dimension::DimensionType::from_value(&json).map_err(|e| format!("type `{id}`: {e}"))?;
+    let mut staged = staged_lock();
+    let staged = staged.get_or_insert_with(Staged::default);
+    staged.types.retain(|(t, _)| t != id);
+    staged.types.push((id.to_owned(), json));
+    Ok(())
+}
+/// The types staged so far.
+pub fn staged_types() -> Vec<(String, Value)> {
+    staged_lock().as_ref().map_or_else(Vec::new, |s| s.types.clone())
+}
+/// Registers a chunk generator like `stage_generator`, replacing the one registered under the same id.
+pub fn stage_generator_replacing(id: &str, factory: Arc<dyn ModGeneratorFactory>) -> Result<(), String> {
+    let mut staged = staged_lock();
+    let staged = staged.get_or_insert_with(Staged::default);
+    staged.generators.factories.remove(id);
+    staged.generators.register(id, factory)
 }
 /// Registers a chunk generator for every world opened from now on.
 pub fn stage_generator(id: &str, factory: Arc<dyn ModGeneratorFactory>) -> Result<(), String> {
@@ -268,3 +333,7 @@ mod tests {
 pub fn clear_staged() {
     *staged_lock() = None;
 }
+
+// F3-8b: binding glue for `ModChunk`, generated by yoake-bindgen; compiled only with the feature.
+#[cfg(feature = "yoake2-slice")]
+include!("yoake_glue/mod_generator.rs");

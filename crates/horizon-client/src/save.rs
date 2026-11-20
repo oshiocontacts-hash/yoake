@@ -2872,6 +2872,7 @@ impl SaveDir {
         let tables = self.tables.get().map(|t| &**t);
         let records = chunks
             .iter()
+            .filter(|c| !c.not_generated)
             .map(|c| {
                 (
                     (c.x, c.z),
@@ -2909,6 +2910,7 @@ impl SaveDir {
         });
         let records = chunks
             .iter()
+            .filter(|c| !c.not_generated)
             .map(|c| ((c.x, c.z), Record::Chunk(c.clone(), encoding.clone())))
             .collect();
         self.queue(Folder::Region, records, false)?;
@@ -5440,6 +5442,30 @@ mod tests {
         assert_eq!(short.sections.len(), SECTIONS);
         assert_eq!(short.get(0, 2000, 0), 0);
         assert_eq!(short.get(0, -64, 0), stone.0);
+    }
+
+    #[test]
+    fn a_chunk_filled_by_a_failed_generator_is_not_saved() {
+        let Some(root) = std::env::var_os("HORIZON_TEST_RESOURCES") else {
+            return;
+        };
+        let root = PathBuf::from(root);
+        let assets = crate::assets::Assets::load(&root).expect("assets");
+        let biomes = Biomes::load(&root).expect("biomes");
+        let dir = std::env::temp_dir().join(format!("horizon-not-generated-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let saves = SaveDir::new(dir.clone(), LevelShape::OVERWORLD);
+        let stone = assets.registry.default_state("minecraft:stone").unwrap();
+        let mut good = Chunk::empty(0, 0);
+        good.set(1, 1, 1, stone.0);
+        let mut failed = Chunk::empty(1, 0);
+        failed.not_generated = true;
+        saves
+            .save(&[Arc::new(good), Arc::new(failed)], assets.registry, &biomes)
+            .expect("saves");
+        assert!(saves.load(0, 0, assets.registry, &biomes).is_some(), "a generated chunk is saved");
+        assert!(saves.load(1, 0, assets.registry, &biomes).is_none(), "a failed one generates again");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

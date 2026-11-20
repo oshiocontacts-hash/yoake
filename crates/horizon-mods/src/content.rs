@@ -828,6 +828,50 @@ pub fn clash(a: (&str, &[String]), b: (&str, &[String])) -> Option<String> {
     ))
 }
 
+/// Shape checks for the level data a mod ships: `data/<ns>/dimension/*.json` (a level: `type` and
+/// `generator`), `dimension_type/*.json` (`min_y`/`height` multiples of 16, `height` at most 4064,
+/// `logical_height` within it) and `worldgen/**` (objects only). Errors carry the file path.
+fn check_level_json(name: &str, value: &serde_json::Value) -> Result<(), String> {
+    let rest = name.splitn(3, '/').nth(2).unwrap_or("");
+    let Some(object) = value.as_object() else {
+        return Err(format!("{name}: expected a JSON object"));
+    };
+    if rest.starts_with("dimension/") {
+        match object.get("type") {
+            Some(serde_json::Value::String(_)) | Some(serde_json::Value::Object(_)) => {}
+            _ => return Err(format!("{name}: a dimension needs \"type\" (a dimension type id)")),
+        }
+        if !object.get("generator").is_some_and(|g| g.is_object()) {
+            return Err(format!("{name}: a dimension needs a \"generator\" object"));
+        }
+    } else if rest.starts_with("dimension_type/") {
+        let int = |key: &str| -> Result<Option<i64>, String> {
+            match object.get(key) {
+                None => Ok(None),
+                Some(v) => v
+                    .as_i64()
+                    .map(Some)
+                    .ok_or_else(|| format!("{name}: {key} is a whole number")),
+            }
+        };
+        let (min_y, height, logical) = (int("min_y")?, int("height")?, int("logical_height")?);
+        for (key, v) in [("min_y", min_y), ("height", height)] {
+            if v.is_some_and(|v| v % 16 != 0) {
+                return Err(format!("{name}: {key} is a multiple of 16"));
+            }
+        }
+        if height.is_some_and(|h| !(16..=4064).contains(&h)) {
+            return Err(format!("{name}: height is between 16 and 4064"));
+        }
+        if let (Some(l), Some(h)) = (logical, height) {
+            if l < 0 || l > h {
+                return Err(format!("{name}: logical_height is within height"));
+            }
+        }
+    }
+    Ok(())
+}
+
 impl Content {
     /// The content of the mod at `path` (a `.hmod` or a mod folder).
     pub fn read(path: &Path, manifest: &Manifest) -> Result<Content, String> {
@@ -1047,7 +1091,11 @@ impl Content {
             }
             if top == "data"
                 && owned
-                && (rest.starts_with("recipe/") || rest.starts_with("loot_table/"))
+                && (rest.starts_with("recipe/")
+                    || rest.starts_with("loot_table/")
+                    || rest.starts_with("dimension/")
+                    || rest.starts_with("dimension_type/")
+                    || rest.starts_with("worldgen/"))
                 && rest.ends_with(".json")
             {
                 data_json.push(name.clone());
@@ -1096,6 +1144,7 @@ impl Content {
                 if !value.is_object() {
                     return Err(format!("{name}: expected a JSON object"));
                 }
+                check_level_json(&name, &value)?;
             }
         }
         let mut ids = BTreeSet::new();
@@ -2930,6 +2979,28 @@ capabilities = ["registries"]
             let error = hmod("invalid-data-json", &manifest, &[(path, bytes)]).unwrap_err();
             assert!(error.contains(path), "{error}");
             assert!(error.contains(reason), "{error}");
+        }
+    }
+
+    #[test]
+    fn level_json_is_checked_with_its_path() {
+        let valid: &[(&str, &[u8])] = &[
+            ("data/ruby/dimension_type/t.json", br#"{"min_y":-64,"height":384,"logical_height":384}"#),
+            ("data/ruby/dimension/terraces.json", br#"{"type":"ruby:t","generator":{"type":"minecraft:flat"}}"#),
+            ("data/ruby/worldgen/biome/b.json", b"{}"),
+        ];
+        assert!(hmod("level-valid", MANIFEST_TEXT, valid).is_ok());
+        let invalid: &[(&str, &[u8], &str)] = &[
+            ("data/ruby/dimension/a.json", br#"{"generator":{}}"#, "needs \"type\""),
+            ("data/ruby/dimension/a.json", br#"{"type":"x:y"}"#, "\"generator\" object"),
+            ("data/ruby/dimension_type/a.json", br#"{"min_y":-60}"#, "multiple of 16"),
+            ("data/ruby/dimension_type/a.json", br#"{"height":4080}"#, "between 16 and 4064"),
+            ("data/ruby/dimension_type/a.json", br#"{"height":64,"logical_height":80}"#, "within height"),
+            ("data/ruby/worldgen/noise/a.json", b"[1]", "expected a JSON object"),
+        ];
+        for &(path, bytes, reason) in invalid {
+            let e = hmod("level-invalid", MANIFEST_TEXT, &[(path, bytes)]).unwrap_err();
+            assert!(e.contains(path) && e.contains(reason), "{e}");
         }
     }
 
