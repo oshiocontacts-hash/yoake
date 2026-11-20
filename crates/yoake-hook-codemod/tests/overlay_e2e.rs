@@ -18,7 +18,7 @@ fn write(path: &Path, text: &str) {
     std::fs::write(path, text).unwrap();
 }
 
-fn fixture(dir: &Path) {
+fn fixture(dir: &Path, with_conflict: bool) {
     let repo = fwd(&repo_root());
     write(
         &dir.join("Cargo.toml"),
@@ -42,6 +42,27 @@ fn fixture(dir: &Path) {
         &dir.join("crates/demo/src/a.rs"),
         "pub fn where_am_i() -> &'static str {\n    let a = file!();\n    let b = a;\n    b\n}\n\npub fn boom_line() -> u32 {\n    let r = std::panic::catch_unwind(|| {\n        panic!(\"boom\");\n    });\n    let _ = r;\n    line!()\n}\n\npub struct Counter(pub u32);\n\nimpl Counter {\n    pub fn bump(&mut self, by: u32) -> u32 {\n        let before = self.0;\n        self.0 += by;\n        before + by\n    }\n}\n",
     );
+    if with_conflict {
+        // compiles unstamped; stamped, the generated `__yoake_orig_foo` is a second definition of this one
+        let a = std::fs::read_to_string(dir.join("crates/demo/src/a.rs")).unwrap();
+        write(
+            &dir.join("crates/demo/src/a.rs"),
+            &format!("{a}
+impl Counter {{
+    #[allow(dead_code)]
+    fn __yoake_orig_foo(&self) -> u32 {{
+        0
+    }}
+
+    pub fn foo(&self) -> u32 {{
+        let a = self.0;
+        let b = a;
+        a + b
+    }}
+}}
+"),
+        );
+    }
     write(&dir.join("crates/other/Cargo.toml"), "[package]\nname = \"other\"\nversion = \"0.1.0\"\nedition = \"2024\"\n");
     write(&dir.join("crates/other/src/lib.rs"), "pub fn n() -> u32 {\n    1\n}\n");
     write(
@@ -120,7 +141,7 @@ fn the_overlay_stamps_without_touching_the_tree_and_keeps_paths_ids_and_fingerpr
     let tmp = std::env::temp_dir().join(format!("yoake-overlay-e2e-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
     let ws = tmp.join("ws");
-    fixture(&ws);
+    fixture(&ws, false);
     let (t_plain, t_a, t_b) = (tmp.join("t-plain"), tmp.join("t-a"), tmp.join("t-b"));
     let exe = env!("CARGO_BIN_EXE_yoake-hook-codemod");
     let source_before = std::fs::read_to_string(ws.join("crates/demo/src/a.rs")).unwrap();
@@ -183,5 +204,38 @@ fn the_overlay_stamps_without_touching_the_tree_and_keeps_paths_ids_and_fingerpr
     write(&ws.join("hook-ledger/demo.json"), &ledger_edit);
     let after_ledger = ok(&cargo(&ws, &t_a, true, &["build", "--offline", "-v"]));
     assert!(compiled(&after_ledger, "demo"), "a ledger change rebuilds the stamped crate:\n{after_ledger}");
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+#[ignore = "slow: compiles the hook crates"]
+fn verify_through_the_overlay_withdraws_a_rejected_stamp_and_leaves_the_tree_alone() {
+    let tmp = std::env::temp_dir().join(format!("yoake-overlay-verify-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    let ws = tmp.join("ws");
+    fixture(&ws, true);
+    let target = tmp.join("t");
+    let source_before = std::fs::read_to_string(ws.join("crates/demo/src/a.rs")).unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_yoake-hook-codemod"))
+        .current_dir(&ws)
+        .env("YOAKE_STAMP_TARGET", &target)
+        .env("CARGO_INCREMENTAL", "0")
+        .args([
+            "apply", "--stamp-config", "hook-ledger/stamp-config.txt", "--crate-root", "crates/demo", "--crate-name", "demo",
+            "--ledger", "hook-ledger", "--verify", "--overlay", "--verify-dir", ".", "--verify-arg", "build", "--verify-arg", "--offline",
+        ])
+        .output()
+        .unwrap();
+    let text = ok(&out);
+    assert!(text.contains("build clean after 2 round"), "{text}");
+    assert_eq!(std::fs::read_to_string(ws.join("crates/demo/src/a.rs")).unwrap(), source_before, "tree untouched");
+    let ledger: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(ws.join("hook-ledger/demo.json")).unwrap()).unwrap();
+    let status = |key: &str| {
+        ledger["entries"].as_array().unwrap().iter().find(|e| e["key"] == key).map(|e| e["status"].as_str().unwrap().to_string())
+    };
+    assert_eq!(status("demo::a::Counter::foo").as_deref(), Some("tombstone"), "{ledger}");
+    assert_eq!(status("demo::a::Counter::bump").as_deref(), Some("live"), "{ledger}");
+    let overlay = std::fs::read_to_string(target.join("yoake-stamp/root/crates/demo/src/a.rs")).unwrap();
+    assert!(overlay.contains("Counter::bump") && !overlay.contains("Counter::foo\""), "{overlay}");
     let _ = std::fs::remove_dir_all(&tmp);
 }

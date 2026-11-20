@@ -40,7 +40,7 @@ pub struct OverlayResult {
     pub overlay_files: Vec<PathBuf>,
 }
 
-fn canon(path: &Path) -> Result<PathBuf, String> {
+pub(crate) fn canon(path: &Path) -> Result<PathBuf, String> {
     let c = path.canonicalize().map_err(|e| format!("cannot resolve {}: {e}", path.display()))?;
     Ok(PathBuf::from(c.to_string_lossy().trim_start_matches("\\\\?\\").to_string()))
 }

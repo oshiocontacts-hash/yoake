@@ -213,7 +213,17 @@ fn normalize(path: &Path) -> PathBuf {
     PathBuf::from(path.to_string_lossy().trim_start_matches("\\\\?\\").replace('\\', "/").to_lowercase())
 }
 
+/// W7: verify through the overlay: the tree stays unstamped, ids and exclusions go to the real ledger.
+#[derive(Clone)]
+pub struct OverlayVerify {
+    pub workspace_root: PathBuf,
+    /// `<target>/yoake-stamp`; `<target>` is also the cargo target dir of the build.
+    pub stamp_dir: PathBuf,
+    pub stamp_config: PathBuf,
+}
+
 pub struct VerifyOptions {
+    pub overlay: Option<OverlayVerify>,
     pub cargo_args: Vec<String>,
     pub dir: PathBuf,
     pub rounds: usize,
@@ -230,9 +240,17 @@ fn run_cargo(options: &VerifyOptions) -> Result<BuildOutcome, String> {
         options.cargo_args.clone()
     };
     args.push("--message-format=json".into());
-    let output = Command::new(cargo)
-        .args(&args)
-        .current_dir(&options.dir)
+    let mut command = Command::new(cargo);
+    command.args(&args).current_dir(&options.dir);
+    if let Some(overlay) = &options.overlay {
+        command
+            .env("RUSTC_WORKSPACE_WRAPPER", std::env::current_exe().map_err(|e| e.to_string())?)
+            .env("YOAKE_STAMP", "1")
+            .env("YOAKE_STAMP_DIR", &overlay.stamp_dir)
+            .env("YOAKE_WORKSPACE", &overlay.workspace_root)
+            .env("CARGO_TARGET_DIR", overlay.stamp_dir.parent().unwrap_or(&overlay.stamp_dir));
+    }
+    let output = command
         .output()
         .map_err(|e| format!("failed to run cargo: {e}"))?;
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -242,7 +260,21 @@ fn run_cargo(options: &VerifyOptions) -> Result<BuildOutcome, String> {
 }
 
 /// The files of the scanned modules, as the compiler will name them (normalized for comparison).
-fn scanned_files(config: &Config) -> Result<BTreeSet<PathBuf>, String> {
+fn scanned_files(config: &Config, options: &VerifyOptions) -> Result<BTreeSet<PathBuf>, String> {
+    if let Some(overlay) = &options.overlay {
+        let (_, files) = crate::overlay::source_closure(&config.crate_root, &config.crate_name)?;
+        let workspace = crate::overlay::canon(&overlay.workspace_root)?;
+        let mut out = BTreeSet::new();
+        for f in files {
+            let f = crate::overlay::canon(&f)?;
+            if let Ok(rel) = f.strip_prefix(&workspace)
+                && let Ok(c) = overlay.stamp_dir.join("root").join(rel).canonicalize()
+            {
+                out.insert(normalize(&c));
+            }
+        }
+        return Ok(out);
+    }
     let module_args = crate::modules::expand_star_modules(
         &config.crate_root,
         &config.crate_name,
@@ -288,6 +320,24 @@ pub fn read_excludes(ledger: &Path) -> BTreeMap<String, String> {
     out
 }
 
+/// One stamping step: in place (`execute`) or into the ledger only (overlay mode: ids and exclusions are
+/// written, the sources are not).
+fn stamp_round(config: &Config, options: &VerifyOptions) -> Result<(), String> {
+    match &options.overlay {
+        None => crate::run::execute(config).map(|_| ()),
+        Some(overlay) => crate::overlay::build_overlay(&crate::overlay::OverlayArgs {
+            workspace_root: overlay.workspace_root.clone(),
+            overlay_root: overlay.stamp_dir.join("root"),
+            crate_root: config.crate_root.clone(),
+            crate_name: config.crate_name.clone(),
+            ledger: config.ledger.clone(),
+            stamp_config: overlay.stamp_config.clone(),
+            frozen: false,
+        })
+        .map(|_| ()),
+    }
+}
+
 /// The loop, with the build injected (tests pass a closure).
 pub fn run_with(
     config: &Config,
@@ -296,15 +346,19 @@ pub fn run_with(
 ) -> Result<bool, String> {
     let mut withdrawn_total = 0usize;
     for round in 1..=options.rounds.max(1) {
-        crate::run::execute(config)?;
+        stamp_round(config, options)?;
         let outcome = build()?;
         if outcome.success {
             let _ = std::fs::remove_file(config.ledger.join(EXCLUDE_FILE));
             println!("verify: build clean after {round} round(s); {withdrawn_total} stamp(s) withdrawn");
             return Ok(true);
         }
-        let scanned = scanned_files(config)?;
-        let keys = keys_for_errors(&outcome.errors, &options.dir, &scanned);
+        let scanned = scanned_files(config, options)?;
+        let base = options
+            .overlay
+            .as_ref()
+            .map_or_else(|| options.dir.clone(), |o| o.stamp_dir.join("root"));
+        let keys = keys_for_errors(&outcome.errors, &base, &scanned);
         let known = read_excludes(&config.ledger);
         let new: BTreeMap<String, String> =
             keys.into_iter().filter(|(k, _)| !known.contains_key(k)).collect();
@@ -485,7 +539,7 @@ pub fn bad(x: u32) -> u32 {
             frozen_ledger: false,
             overlay: false,
         };
-        let options = VerifyOptions { cargo_args: vec![], dir: dir.clone(), rounds: 4, max_withdraw_per_round: 300 };
+        let options = VerifyOptions { overlay: None, cargo_args: vec![], dir: dir.clone(), rounds: 4, max_withdraw_per_round: 300 };
         let alpha = dir.join("src/alpha.rs");
         let mut round = 0;
         let result = run_with(&config, &options, || {
@@ -576,7 +630,7 @@ pub fn b(x: u32) -> u32 {
 ").unwrap();
         let mut config = config_clone_for(&dir);
         config.verify = true;
-        let options = VerifyOptions { cargo_args: vec![], dir: dir.clone(), rounds: 4, max_withdraw_per_round: 1 };
+        let options = VerifyOptions { overlay: None, cargo_args: vec![], dir: dir.clone(), rounds: 4, max_withdraw_per_round: 1 };
         let alpha = dir.join("src/alpha.rs");
         let result = run_with(&config, &options, || {
             Ok(BuildOutcome {

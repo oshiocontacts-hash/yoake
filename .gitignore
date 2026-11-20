@@ -36,3 +36,5 @@
 
 # Release-only compiled original exporter bundle.
 /exporters/
+/target-stamped/
+/target-tools/

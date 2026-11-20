@@ -297,6 +297,9 @@ fn parse_args() -> Result<Option<Command>, String> {
     if modules.is_empty() {
         return Err(format!("at least one --module is required\n{}", usage()));
     }
+    if overlay && !verify {
+        return Err("--overlay applies to --verify".to_string());
+    }
     if verify && (mode != Mode::Apply || callsites) {
         return Err("--verify applies to `apply` without --callsites".to_string());
     }
@@ -609,7 +612,18 @@ fn main() -> ExitCode {
 
     let result = match command {
         Command::Run(config) if config.verify && config.mode == Mode::Apply => {
+            let overlay = config.overlay.then(|| {
+                let target = std::env::var_os("YOAKE_STAMP_TARGET")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| config.verify_dir.join("target-stamped"));
+                verify::OverlayVerify {
+                    workspace_root: config.verify_dir.clone(),
+                    stamp_dir: target.join("yoake-stamp"),
+                    stamp_config: config.verify_dir.join("hook-ledger").join("stamp-config.txt"),
+                }
+            });
             let options = verify::VerifyOptions {
+                overlay,
                 cargo_args: config.verify_args.clone(),
                 dir: config.verify_dir.clone(),
                 rounds: config.verify_rounds,
