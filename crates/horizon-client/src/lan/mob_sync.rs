@@ -20,7 +20,10 @@
 //!   A value changed again before its turn is sent once, as its latest value (merged).
 //! * Only the players who track the entity get anything (the tracking range is the distance gate),
 //!   only Horizon clients ([`reads_mob_sync`]), and nothing at all when no custom type is loaded.
-//! * Values with `sync` of `none` or `owner` are not sent (the owner state is F4M-4c).
+//! * Values with `sync` of `none` are never sent. A value with `sync: owner` goes to the owner only
+//!   (F4M-4c): to the player whose uuid is the mob's saved owner, in its snapshot and in a delta of its
+//!   own; while the mob has no owner it is sent to nobody and stays pending, and the taming marks every
+//!   owner value pending again so the new owner is told what it holds.
 use super::guest::Guest;
 use horizon_protocol::packets::{configuration::CustomPayload, play};
 use crate::mobs::{
@@ -83,13 +86,22 @@ pub fn from_wire(def: &SyncedDef, v: &Value) -> Option<SyncedValue> {
     def.coerce(v)
 }
 
-/// The slots whose values go to the clients.
+/// The slots whose values go to every client that tracks the mob.
 pub fn announced_mask(t: &CustomType) -> u32 {
+    mask_of(t, Sync::All)
+}
+
+/// The slots with `sync: owner`: their values go to the mob's owner only.
+pub fn owner_mask(t: &CustomType) -> u32 {
+    mask_of(t, Sync::Owner)
+}
+
+fn mask_of(t: &CustomType, sync: Sync) -> u32 {
     t.synced
         .iter()
         .take(wire::MAX_VALUES)
         .enumerate()
-        .filter(|(_, d)| d.sync == Sync::All)
+        .filter(|(_, d)| d.sync == sync)
         .fold(0, |m, (i, _)| m | 1 << i)
 }
 
@@ -110,15 +122,24 @@ pub struct Collected {
     pub entity: i32,
     pub triggers: Vec<TriggerStart>,
     pub delta: Option<Delta>,
+    /// The `sync: owner` values that changed (a delta with nothing else), for the owner only.
+    pub owner_delta: Option<Delta>,
+    /// The mob's owner when this was collected.
+    pub owner: Option<[i32; 4]>,
 }
 
 impl Collected {
+    /// What every viewer that tracks the mob gets.
     pub fn messages(&self) -> impl Iterator<Item = Message> + '_ {
         self.triggers
             .iter()
             .copied()
             .map(Message::Trigger)
             .chain(self.delta.clone().map(Message::Delta))
+    }
+    /// What only the owner gets besides [`messages`](Self::messages).
+    pub fn owner_messages(&self) -> impl Iterator<Item = Message> + '_ {
+        self.owner_delta.clone().map(Message::Delta).into_iter()
     }
 }
 
@@ -128,10 +149,13 @@ impl Collected {
 pub fn collect(m: &mut Mob, now: i64) -> Option<Collected> {
     let t = m.kind.custom.clone()?;
     let entity = m.id as i32;
+    let owner = m.extra.owner.filter(|_| m.extra.tame);
     let state = m.extra.custom.as_mut()?;
     let announced = announced_mask(&t);
-    // What nobody is told is not pending.
-    state.synced_dirty &= announced;
+    let owned = owner_mask(&t);
+    // What nobody is told is not pending: not a value of `sync: none`, and not an owner value while
+    // there is no owner to tell (it stays pending until there is one).
+    state.synced_dirty &= announced | owned;
     let triggers: Vec<TriggerStart> = state
         .anim
         .as_mut()
@@ -145,6 +169,9 @@ pub fn collect(m: &mut Mob, now: i64) -> Option<Collected> {
     let mut rate = 0;
     for (slot, def) in t.synced.iter().enumerate().take(wire::MAX_VALUES) {
         let bit = 1 << slot;
+        if owner.is_none() && owned & bit != 0 {
+            continue;
+        }
         if state.synced_dirty & bit != 0 && now - state.sync_out.last_value[slot] >= interval(def.rate) {
             ready |= bit;
             rate = rate.max(def.rate);
@@ -157,7 +184,7 @@ pub fn collect(m: &mut Mob, now: i64) -> Option<Collected> {
     if anchors_pending || state.hitbox_dirty {
         rate = rate.max(wire::DEFAULT_SYNC_RATE);
     }
-    let mut out = Collected { entity, triggers, delta: None };
+    let mut out = Collected { entity, triggers, delta: None, owner_delta: None, owner };
     if rate == 0 || now - state.sync_out.last_delta < interval(rate) {
         return (!out.triggers.is_empty()).then_some(out);
     }
@@ -165,7 +192,8 @@ pub fn collect(m: &mut Mob, now: i64) -> Option<Collected> {
         Some(a) => a.take_anchor_changes(anim_sync::ANCHOR_TOLERANCE),
         None => Vec::new(),
     };
-    let values = (ready != 0).then(|| value_set(&t, state, ready));
+    let values = (ready & announced != 0).then(|| value_set(&t, state, ready & announced));
+    let owner_values = (ready & owned != 0).then(|| value_set(&t, state, ready & owned));
     let hitbox_mask = state.hitbox_dirty.then_some(state.hitbox_mask);
     state.synced_dirty &= !ready;
     state.hitbox_dirty = false;
@@ -175,15 +203,23 @@ pub fn collect(m: &mut Mob, now: i64) -> Option<Collected> {
     }
     let delta = Delta { entity, values, anchors, hitbox_mask };
     out.delta = (!delta.is_empty()).then_some(delta);
-    (out.delta.is_some() || !out.triggers.is_empty()).then_some(out)
+    out.owner_delta = owner_values.map(|v| Delta { entity, values: Some(v), anchors: Vec::new(), hitbox_mask: None });
+    (out.delta.is_some() || out.owner_delta.is_some() || !out.triggers.is_empty()).then_some(out)
 }
 
 /// The whole state of custom mob `m`, for a player that starts tracking it: every announced
 /// value, the anchors of every layer, the triggers still playing and the hitbox mask. `None` for
 /// a mob that is not a custom one.
 pub fn snapshot(m: &Mob) -> Option<Snapshot> {
+    snapshot_for(m, None)
+}
+
+/// [`snapshot`] for the player with uuid `viewer`: the owner's also carries the `sync: owner` values.
+pub fn snapshot_for(m: &Mob, viewer: Option<[i32; 4]>) -> Option<Snapshot> {
     let t = m.kind.custom.as_ref()?;
     let state = m.extra.custom.as_ref()?;
+    let is_owner = viewer.is_some() && m.extra.tame && m.extra.owner == viewer;
+    let mask = announced_mask(t) | if is_owner { owner_mask(t) } else { 0 };
     let (anchors, triggers) = match (&state.anim, &t.anim) {
         (Some(a), Some(ta)) => (a.anchors().to_vec(), a.recent_triggers(ta)),
         _ => (Vec::new(), Vec::new()),
@@ -191,7 +227,7 @@ pub fn snapshot(m: &Mob) -> Option<Snapshot> {
     Some(Snapshot {
         entity: m.id as i32,
         type_version: t.sync_version,
-        values: value_set(t, state, announced_mask(t)),
+        values: value_set(t, state, mask),
         anchors,
         triggers,
         hitbox_mask: state.hitbox_mask,
@@ -244,10 +280,23 @@ pub fn for_viewer(
     collected: &[Collected],
     snap: impl Fn(i32) -> Option<Snapshot>,
 ) -> Vec<Message> {
+    for_viewer_as(None, tracking, starts, collected, |entity, _| snap(entity))
+}
+
+/// [`for_viewer`] for the player with uuid `viewer` (as the engine saves one, four ints), who also gets
+/// the `sync: owner` values of the mobs it owns: in the snapshot (`snap` is told the viewer) and in the
+/// mob's owner delta.
+pub fn for_viewer_as(
+    viewer: Option<[i32; 4]>,
+    tracking: impl Fn(i32) -> bool,
+    starts: &[i32],
+    collected: &[Collected],
+    snap: impl Fn(i32, Option<[i32; 4]>) -> Option<Snapshot>,
+) -> Vec<Message> {
     let mut out = Vec::new();
     for &entity in starts {
         if tracking(entity)
-            && let Some(s) = snap(entity)
+            && let Some(s) = snap(entity, viewer)
         {
             out.push(Message::Snapshot(s));
         }
@@ -255,6 +304,9 @@ pub fn for_viewer(
     for c in collected {
         if tracking(c.entity) && !starts.contains(&c.entity) {
             out.extend(c.messages());
+            if viewer.is_some() && c.owner == viewer {
+                out.extend(c.owner_messages());
+            }
         }
     }
     out

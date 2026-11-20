@@ -878,7 +878,11 @@ impl Plan<'_> {
     /// spawner checks and the commands' entity type list, `reg.entity_types`).
     /// The rows are appended as text: parsed and written back, a float such as
     /// a zombie's `movement_speed` can come back one ulp off.
-    fn entity_types_json(&self, bytes: &[u8]) -> std::result::Result<Vec<u8>, String> {
+    fn entity_types_json(
+        &self,
+        bytes: &[u8],
+        registry: &BTreeMap<String, f64>,
+    ) -> std::result::Result<Vec<u8>, String> {
         use serde_json::value::RawValue;
         let rows: BTreeMap<String, Box<RawValue>> =
             serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
@@ -903,7 +907,7 @@ impl Plan<'_> {
         }
         // A fully custom mob's row is made from its file (it has no template): its box and eyes,
         // its category and its attribute defaults.
-        let defaults = vanilla_mob_attributes(&rows);
+        let defaults = vanilla_mob_attributes(&rows, registry);
         for c in &self.custom_mobs {
             if rows.contains_key(&c.id) {
                 continue;
@@ -933,18 +937,39 @@ impl Plan<'_> {
     }
 }
 
-/// The attributes every vanilla living mob row carries, with the base value most rows give each:
-/// the keys that all rows of the base `entity-types.json` that have attributes and are not `misc`
-/// (so not the player or an armor stand) share. That is the default set (`LivingEntity` and `Mob`
-/// suppliers) a custom mob's row starts from. The values stay the base file's own text, so a float
-/// is not rounded. Empty when the base has no such rows (the file's own attributes are all a row
-/// gets then).
+/// The default value of every registered attribute (`minecraft:tempt_range` -> 28...), read from the
+/// base root's `attributes.json` (the engine's attribute registry export). Empty when the file is
+/// missing or unreadable.
+fn attribute_registry_defaults(base: &Path) -> BTreeMap<String, f64> {
+    let Ok(bytes) = fs::read(base.join("attributes.json")) else {
+        return BTreeMap::new();
+    };
+    let Ok(json) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+        return BTreeMap::new();
+    };
+    match horizon_world::attributes::entity::Catalog::from_json(&json) {
+        Ok(c) => c
+            .attributes()
+            .map(|(_, a)| (a.name.clone(), a.definition.default_value()))
+            .collect(),
+        Err(_) => BTreeMap::new(),
+    }
+}
+
+/// The attributes a vanilla living mob row can carry, as the default set a custom mob's row starts
+/// from: the **union** of the keys of every row of the base `entity-types.json` that has attributes
+/// and is not `misc` (so not the player or an armor stand): `LivingEntity` and `Mob` suppliers differ
+/// per type (a bat has no `tempt_range`), and a custom mob must have all of them. The value of a key
+/// is the attribute registry's default (`registry`, from `attributes.json`), as a number; a key the
+/// registry does not know gets the most common value among the rows that have it (the smallest text
+/// among equals), as the base file spells it. Empty when the base has no such rows.
 fn vanilla_mob_attributes(
     rows: &BTreeMap<String, Box<serde_json::value::RawValue>>,
+    registry: &BTreeMap<String, f64>,
 ) -> BTreeMap<String, Box<serde_json::value::RawValue>> {
     use serde_json::value::RawValue;
     type Raw = BTreeMap<String, Box<RawValue>>;
-    let mut shared: Option<Vec<(String, Vec<String>)>> = None;
+    let mut seen: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for row in rows.values() {
         let Ok(row) = serde_json::from_str::<Raw>(row.get()) else {
             continue;
@@ -961,26 +986,17 @@ fn vanilla_mob_attributes(
         else {
             continue;
         };
-        shared = Some(match shared {
-            None => attributes
-                .into_iter()
-                .map(|(k, v)| (k, vec![v.get().trim().to_owned()]))
-                .collect(),
-            Some(old) => old
-                .into_iter()
-                .filter_map(|(k, mut values)| {
-                    let v = attributes.get(&k)?;
-                    values.push(v.get().trim().to_owned());
-                    Some((k, values))
-                })
-                .collect(),
-        });
+        for (k, v) in attributes {
+            seen.entry(k).or_default().push(v.get().trim().to_owned());
+        }
     }
-    shared
-        .unwrap_or_default()
-        .into_iter()
+    seen.into_iter()
         .filter_map(|(k, values)| {
-            // The most common value; the smallest text among equals.
+            if let Some(d) = registry.get(&k)
+                && let Ok(raw) = serde_json::value::to_raw_value(d)
+            {
+                return Some((k, raw));
+            }
             let mut counts: BTreeMap<&String, usize> = BTreeMap::new();
             for v in &values {
                 *counts.entry(v).or_default() += 1;
@@ -2484,7 +2500,7 @@ fn tables(base: &Path, plan: &Plan, overlay: &Overlay<'_>) -> Result<()> {
     let table = |name: &str| -> Result<()> {
         let path = base.join(name);
         let bytes = if name == "entity-types.json" {
-            plan.entity_types_json(&fs::read(&path)?)
+            plan.entity_types_json(&fs::read(&path)?, &attribute_registry_defaults(base))
                 .map_err(|e| format!("{name}: {e}"))?
         } else if JSON_TABLES.contains(&name) {
             let mut doc = read_json(&path)?;

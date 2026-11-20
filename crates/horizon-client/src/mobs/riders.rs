@@ -52,6 +52,8 @@ fn base_attachment(v: &Mob) -> [f64; 3] {
         Species::Hoglin => [0.0, 1.49375, 0.0],
         Species::Nautilus | Species::ZombieNautilus => [0.0, 1.1375, 0.0],
         Species::Camel | Species::CamelHusk => super::camel::passenger_attachment(v),
+        // A custom mob's first seat (F4M-4c): the static server offset.
+        Species::Custom => super::custom::ai::riding::attachment(v),
         // The default attachments: the top of the bounding box, before
         // `passenger_attachment`'s scale — `height()` carries
         // `minecraft:scale` since `getDimensions` grew every living entity's

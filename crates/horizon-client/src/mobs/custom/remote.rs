@@ -44,8 +44,14 @@ use horizon_protocol::mob_sync::{
 };
 use std::{collections::HashMap, sync::Arc};
 
-/// How old a trigger may be when the client first hears of it and still get its first events
-/// (seconds of its own clock).
+/// **Fresh trigger window**: how old a trigger (seconds of its own clock, from its `start_tick`) may be
+/// when the client first hears of it and still count as "fresh", so its first events (a time-0 roar
+/// included) fire. A trigger message always arrives at or after the tick it started in, so the literal
+/// "received at or before the anchor tick" rule of F4M-9 would drop them; 0.25 s (5 ticks) covers
+/// network latency and a late frame but is shorter than any one-shot worth replaying. An older
+/// trigger is `joined` (nothing before the moment it was heard fires). The cursors' high-water marks
+/// guarantee that an event fires once whatever happens after (a re-anchor, a repeated message).
+/// Reviewer decision on F4M-5b.
 pub const FRESH_TRIGGER_SECONDS: f64 = 0.25;
 
 /// A tracked value changed on the client (the `synced-changed` notification: the script hook and the

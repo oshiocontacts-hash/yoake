@@ -38,9 +38,10 @@
 //!   fades the weight in. With blend 0 the switch is instant.
 //! * At most [`MAX_STATE_ANIMS`] animations per state, [`MAX_STATES`] states and [`MAX_LAYERS`] layers.
 
+use crate::anim::{load_err, map_key, Ctx, LoadError, OrderedMap, Scalar, Warning};
 use crate::clock::AnimClock;
-use crate::anim::{load_err, Ctx, LoadError, OrderedMap, Scalar, Warning};
 use crate::expr::{Expr, ExprInputs, Query, Symbols};
+use crate::model::{at, check_json_nesting, key, MAX_JSON_NESTING};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -134,54 +135,60 @@ struct RawLayer {
     extra: serde_json::Map<String, Value>,
 }
 
-/// Parse a controller file. Layers come out in file order; pass several files' results to `Rig::new` in the order
-/// the layers should stack.
-pub fn parse_controllers(json: &str, syms: &mut Symbols) -> Result<ParsedControllers, LoadError> {
-    let file: CtrlFile = serde_json::from_str(json).map_err(|e| load_err("", format!("invalid JSON: {e}")))?;
-    let Some(OrderedMap(layers)) = file.controllers else {
-        return Err(load_err("", "no \"controllers\" object"));
+/// Parse a controller file. `file` is used in error messages. Layers come out in file order; pass several files'
+/// results to `Rig::new` in the order the layers should stack.
+pub fn parse_controllers(file: &str, json: &str, syms: &mut Symbols) -> Result<ParsedControllers, LoadError> {
+    let raw = json.as_bytes().strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(json.as_bytes());
+    if check_json_nesting(raw, MAX_JSON_NESTING).is_err() {
+        return Err(load_err(file, "json", format!("JSON nested deeper than {MAX_JSON_NESTING} levels")));
+    }
+    let parsed: CtrlFile = serde_json::from_str(json).map_err(|e| load_err(file, "", format!("invalid JSON: {e}")))?;
+    let Some(OrderedMap(layers)) = parsed.controllers else {
+        return Err(load_err(file, "controllers", "no \"controllers\" object"));
     };
     if layers.len() > MAX_LAYERS {
-        return Err(load_err("", format!("more than {MAX_LAYERS} controllers")));
+        return Err(load_err(file, "controllers", format!("more than {MAX_LAYERS} controllers")));
     }
     let mut out = ParsedControllers::default();
     for (name, raw) in layers {
-        let mut ctx = Ctx { syms, warnings: &mut out.warnings, context: name.clone() };
-        let c = parse_layer(&name, raw, &mut ctx)?;
+        let base = map_key("controllers", &name);
+        let mut ctx = Ctx { syms, warnings: &mut out.warnings, file, context: name.clone() };
+        let c = parse_layer(&name, &base, raw, &mut ctx)?;
         out.controllers.push(c);
     }
     Ok(out)
 }
 
-fn blend_seconds(v: &Value, what: &str, ctx: &Ctx) -> Result<f32, LoadError> {
+fn blend_seconds(v: &Value, path: &str, ctx: &Ctx) -> Result<f32, LoadError> {
     match v.as_f64() {
-        Some(b) if b.is_finite() && b >= 0.0 => Ok(b as f32),
-        _ => Err(ctx.err(format!("{what} must be a number of seconds >= 0"))),
+        Some(b) if b.is_finite() && b >= 0.0 && (b as f32).is_finite() => Ok(b as f32),
+        _ => Err(ctx.err(path, "blend must be a finite number of seconds >= 0")),
     }
 }
 
-fn parse_layer(name: &str, raw: RawLayer, ctx: &mut Ctx) -> Result<Controller, LoadError> {
+fn parse_layer(name: &str, base: &str, raw: RawLayer, ctx: &mut Ctx) -> Result<Controller, LoadError> {
     for k in raw.extra.keys() {
         ctx.warn(format!("unsupported field '{k}' (ignored)"));
     }
     let mode = match raw.mode.as_deref() {
         None | Some("override") => LayerMode::Override,
         Some("add") => LayerMode::Add,
-        Some(other) => return Err(ctx.err(format!("mode must be \"override\" or \"add\", got '{other}'"))),
+        Some(other) => return Err(ctx.err(&key(base, "mode"), format!("mode must be \"override\" or \"add\", got '{other}'"))),
     };
     let weight = match &raw.weight {
-        Some(v) => ctx.scalar(v, "weight")?,
+        Some(v) => ctx.scalar(v, &key(base, "weight"))?,
         None => Scalar::Const(1.0),
     };
     // Pass 1: state names, so transitions can point forward.
+    let states_path = key(base, "states");
     let state_list: Vec<(String, Value)> = raw.states.map_or_else(Vec::new, |m| m.0);
     if state_list.len() > MAX_STATES {
-        return Err(ctx.err(format!("more than {MAX_STATES} states")));
+        return Err(ctx.err(&states_path, format!("more than {MAX_STATES} states")));
     }
     let names: Vec<&str> = state_list.iter().map(|(n, _)| n.as_str()).collect();
     let mut states = Vec::new();
     for (sname, sv) in &state_list {
-        states.push(parse_state(sname, sv, &names, ctx)?);
+        states.push(parse_state(sname, &map_key(&states_path, sname), sv, &names, ctx)?);
     }
     if states.is_empty() {
         states.push(State {
@@ -198,14 +205,15 @@ fn parse_layer(name: &str, raw: RawLayer, ctx: &mut Ctx) -> Result<Controller, L
         None => 0,
         Some(n) => match states.iter().position(|s| s.name == *n) {
             Some(i) => i,
-            None => return Err(ctx.err(format!("initial state '{n}' does not exist"))),
+            None => return Err(ctx.err(&key(base, "initial"), format!("initial state '{n}' does not exist"))),
         },
     };
     let mut triggers = Vec::new();
     if let Some(OrderedMap(list)) = raw.triggers {
+        let tp = key(base, "triggers");
         for (tname, tv) in list {
             let Some(anim) = tv.as_str() else {
-                return Err(ctx.err(format!("trigger '{tname}' must name an animation")));
+                return Err(ctx.err(&map_key(&tp, &tname), format!("trigger '{tname}' must name an animation")));
             };
             triggers.push(TriggerDef { name: tname, animation: anim.to_string(), index: usize::MAX });
         }
@@ -222,8 +230,8 @@ fn parse_layer(name: &str, raw: RawLayer, ctx: &mut Ctx) -> Result<Controller, L
     })
 }
 
-fn parse_state(name: &str, v: &Value, names: &[&str], ctx: &mut Ctx) -> Result<State, LoadError> {
-    let Some(obj) = v.as_object() else { return Err(ctx.err(format!("state '{name}' must be an object"))) };
+fn parse_state(name: &str, sp: &str, v: &Value, names: &[&str], ctx: &mut Ctx) -> Result<State, LoadError> {
+    let Some(obj) = v.as_object() else { return Err(ctx.err(sp, format!("state '{name}' must be an object"))) };
     let mut st = State {
         name: name.to_string(),
         animations: Vec::new(),
@@ -233,50 +241,57 @@ fn parse_state(name: &str, v: &Value, names: &[&str], ctx: &mut Ctx) -> Result<S
         on_enter: Vec::new(),
         inactive: false,
     };
-    for (key, val) in obj {
-        let what = format!("state '{name}' {key}");
-        match key.as_str() {
+    for (k, val) in obj {
+        let fp = key(sp, k);
+        match k.as_str() {
             "animations" => {
-                let Some(list) = val.as_array() else { return Err(ctx.err(format!("{what} must be an array"))) };
+                let Some(list) = val.as_array() else { return Err(ctx.err(&fp, "animations must be an array")) };
                 if list.len() > MAX_STATE_ANIMS {
-                    return Err(ctx.err(format!("state '{name}' has more than {MAX_STATE_ANIMS} animations")));
+                    return Err(ctx.err(&fp, format!("state '{name}' has more than {MAX_STATE_ANIMS} animations")));
                 }
-                for item in list {
-                    st.animations.push(parse_state_anim(item, &what, ctx)?);
+                for (i, item) in list.iter().enumerate() {
+                    st.animations.push(parse_state_anim(item, &at(&fp, i), ctx)?);
                 }
             }
             "transitions" => {
-                let Some(list) = val.as_array() else { return Err(ctx.err(format!("{what} must be an array"))) };
-                for item in list {
-                    st.transitions.push(parse_transition(item, name, names, ctx)?);
+                let Some(list) = val.as_array() else { return Err(ctx.err(&fp, "transitions must be an array")) };
+                for (i, item) in list.iter().enumerate() {
+                    st.transitions.push(parse_transition(item, &at(&fp, i), names, ctx)?);
                 }
             }
             "inactive" => match val.as_bool() {
                 Some(b) => st.inactive = b,
-                None => return Err(ctx.err(format!("{what} must be true or false"))),
+                None => return Err(ctx.err(&fp, "inactive must be true or false")),
             },
-            "blend" | "blend_transition" => st.blend = blend_seconds(val, &what, ctx)?,
-            "speed" => st.speed = Some(ctx.scalar(val, &what)?),
+            "blend" | "blend_transition" => st.blend = blend_seconds(val, &fp, ctx)?,
+            "speed" => st.speed = Some(ctx.scalar(val, &fp)?),
             "on_enter" => {
-                let Some(map) = val.as_object() else { return Err(ctx.err(format!("{what} must be an object"))) };
+                let Some(map) = val.as_object() else { return Err(ctx.err(&fp, "on_enter must be an object")) };
                 for (var, ev) in map {
+                    let vp = map_key(&fp, var);
                     let bare = var
                         .strip_prefix("variable.")
                         .or_else(|| var.strip_prefix("v."))
                         .unwrap_or(var.as_str());
                     let src = match ev {
                         Value::String(s) => s.clone(),
-                        Value::Number(n) => n.to_string(),
+                        Value::Number(n) => {
+                            let x = n.as_f64().map(|x| x as f32).filter(|x| x.is_finite());
+                            if x.is_none() {
+                                return Err(ctx.err(&vp, "number out of range for f32"));
+                            }
+                            n.to_string()
+                        }
                         Value::Bool(b) => (if *b { "1" } else { "0" }).to_string(),
-                        _ => return Err(ctx.err(format!("{what}: '{var}' needs a number or an expression"))),
+                        _ => return Err(ctx.err(&vp, format!("'{var}' needs a number or an expression"))),
                     };
                     // Interning through a throwaway expression keeps the slot rules in one place.
-                    let slot_expr = ctx.compile(&format!("v.{bare}"), &what)?;
+                    let slot_expr = ctx.compile(&format!("v.{bare}"), &vp)?;
                     let slot = match slot_expr.ops().first() {
                         Some(crate::expr::Op::Var(i)) if slot_expr.len() == 1 => *i as usize,
-                        _ => return Err(ctx.err(format!("{what}: '{var}' is not a variable name"))),
+                        _ => return Err(ctx.err(&vp, format!("'{var}' is not a variable name"))),
                     };
-                    let e = ctx.compile(&src, &format!("{what}.{var}"))?;
+                    let e = ctx.compile(&src, &vp)?;
                     st.on_enter.push((slot, e));
                 }
             }
@@ -286,48 +301,50 @@ fn parse_state(name: &str, v: &Value, names: &[&str], ctx: &mut Ctx) -> Result<S
     Ok(st)
 }
 
-fn parse_state_anim(v: &Value, what: &str, ctx: &mut Ctx) -> Result<StateAnim, LoadError> {
+fn parse_state_anim(v: &Value, ap: &str, ctx: &mut Ctx) -> Result<StateAnim, LoadError> {
     match v {
         Value::String(s) => Ok(StateAnim { name: s.clone(), index: usize::MAX, speed: None, weight: None }),
         Value::Object(o) => {
             let Some(name) = o.get("name").and_then(Value::as_str) else {
-                return Err(ctx.err(format!("{what}: an animation entry needs a \"name\"")));
+                return Err(ctx.err(&key(ap, "name"), "an animation entry needs a \"name\""));
             };
             let mut a = StateAnim { name: name.to_string(), index: usize::MAX, speed: None, weight: None };
             for (k, val) in o {
+                let fp = key(ap, k);
                 match k.as_str() {
                     "name" => {}
-                    "speed" => a.speed = Some(ctx.scalar(val, &format!("{what} '{name}' speed"))?),
-                    "weight" => a.weight = Some(ctx.scalar(val, &format!("{what} '{name}' weight"))?),
-                    other => ctx.warn(format!("{what} '{name}': unsupported field '{other}' (ignored)")),
+                    "speed" => a.speed = Some(ctx.scalar(val, &fp)?),
+                    "weight" => a.weight = Some(ctx.scalar(val, &fp)?),
+                    other => ctx.warn(format!("{ap} '{name}': unsupported field '{other}' (ignored)")),
                 }
             }
             Ok(a)
         }
-        _ => Err(ctx.err(format!("{what}: an animation entry is a name or an object"))),
+        _ => Err(ctx.err(ap, "an animation entry is a name or an object")),
     }
 }
 
-fn parse_transition(v: &Value, from: &str, names: &[&str], ctx: &mut Ctx) -> Result<Transition, LoadError> {
-    let what = format!("state '{from}' transition");
-    let Some(o) = v.as_object() else { return Err(ctx.err(format!("{what} must be an object"))) };
+fn parse_transition(v: &Value, tp: &str, names: &[&str], ctx: &mut Ctx) -> Result<Transition, LoadError> {
+    let Some(o) = v.as_object() else { return Err(ctx.err(tp, "transition must be an object")) };
     let Some(to_name) = o.get("to").and_then(Value::as_str) else {
-        return Err(ctx.err(format!("{what} needs a \"to\" state")));
+        return Err(ctx.err(&key(tp, "to"), "transition needs a \"to\" state"));
     };
     let Some(to) = names.iter().position(|n| *n == to_name) else {
-        return Err(ctx.err(format!("{what} goes to unknown state '{to_name}'")));
+        return Err(ctx.err(&key(tp, "to"), format!("transition goes to unknown state '{to_name}'")));
     };
-    let Some(when) = o.get("when") else { return Err(ctx.err(format!("{what} to '{to_name}' needs a \"when\""))) };
-    let when = match ctx.scalar(when, &format!("{what} to '{to_name}' when"))? {
+    let when_path = key(tp, "when");
+    let Some(when) = o.get("when") else { return Err(ctx.err(&when_path, format!("transition to '{to_name}' needs a \"when\""))) };
+    let when = match ctx.scalar(when, &when_path)? {
         Scalar::Const(c) => Expr::constant(c),
         Scalar::Expr(e) => e,
     };
     let mut blend = None;
     for (k, val) in o {
+        let fp = key(tp, k);
         match k.as_str() {
             "to" | "when" => {}
-            "blend" | "blend_transition" => blend = Some(blend_seconds(val, &format!("{what} blend"), ctx)?),
-            other => ctx.warn(format!("{what}: unsupported field '{other}' (ignored)")),
+            "blend" | "blend_transition" => blend = Some(blend_seconds(val, &fp, ctx)?),
+            other => ctx.warn(format!("{tp}: unsupported field '{other}' (ignored)")),
         }
     }
     Ok(Transition { to, when, blend })
@@ -529,7 +546,7 @@ mod tests {
 
     fn load() -> (Vec<Controller>, Symbols) {
         let mut s = Symbols::new(&[]);
-        (parse_controllers(FILE, &mut s).unwrap().controllers, s)
+        (parse_controllers("test.json", FILE, &mut s).unwrap().controllers, s)
     }
 
     fn noop() -> impl FnMut(usize, usize, f32, f32) {
@@ -732,7 +749,7 @@ mod tests {
 
     #[test]
     fn errors_and_warnings() {
-        let bad = |s: &str| parse_controllers(s, &mut Symbols::new(&[]));
+        let bad = |s: &str| parse_controllers("test.json", s, &mut Symbols::new(&[]));
         assert!(bad("{}").is_err());
         assert!(bad(r#"{"controllers":{"a":{"initial":"nope","states":{"x":{}}}}}"#).is_err());
         assert!(bad(r#"{"controllers":{"a":{"states":{"x":{"transitions":[{"to":"y","when":"1"}]}}}}}"#).is_err());

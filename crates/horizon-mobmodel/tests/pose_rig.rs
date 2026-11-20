@@ -37,10 +37,10 @@ const ANIMS: &str = r#"{"animations":{
 fn rig(ctrl: &str) -> Rig {
     let mut syms = Symbols::new(&[]);
     let mut lib = AnimationLibrary::new();
-    for a in parse_animation_file(ANIMS, &mut syms).unwrap().animations {
+    for a in parse_animation_file("anims.json", ANIMS, &mut syms).unwrap().animations {
         lib.add(a).unwrap();
     }
-    let c = parse_controllers(ctrl, &mut syms).unwrap().controllers;
+    let c = parse_controllers("ctrl.json", ctrl, &mut syms).unwrap().controllers;
     Rig::new(skeleton(), lib, c).unwrap().0
 }
 
@@ -87,7 +87,7 @@ fn bbmodel_rotation_needs_no_conversion() {
     .unwrap();
     let mut syms = Symbols::new(&[]);
     let mut lib = AnimationLibrary::new();
-    for a in animations_from_bbmodel(&v, &mut syms).unwrap().animations {
+    for a in animations_from_bbmodel("test.bbmodel", &v, &mut syms).unwrap().animations {
         lib.add(a).unwrap();
     }
     let (r, _) = Rig::new(skeleton(), lib, vec![]).unwrap();
@@ -257,6 +257,7 @@ fn binding_errors_and_warnings() {
     let mut syms = Symbols::new(&[]);
     let mut lib = AnimationLibrary::new();
     for a in parse_animation_file(
+        "anims.json",
         r#"{"animations":{"a":{"bones":{"tail":{"rotation":[1,2,3]},"arm":{"rotation":[1,2,3]}}}}}"#,
         &mut syms,
     )
@@ -265,11 +266,11 @@ fn binding_errors_and_warnings() {
     {
         lib.add(a).unwrap();
     }
-    let bad = parse_controllers(r#"{"controllers":{"c":{"states":{"s":{"animations":["nope"]}}}}}"#, &mut syms).unwrap();
+    let bad = parse_controllers("ctrl.json", r#"{"controllers":{"c":{"states":{"s":{"animations":["nope"]}}}}}"#, &mut syms).unwrap();
     assert!(Rig::new(skeleton(), lib.clone(), bad.controllers).unwrap_err().message.contains("nope"));
-    let bad = parse_controllers(r#"{"controllers":{"c":{"triggers":{"t":"nope"}}}}"#, &mut syms).unwrap();
+    let bad = parse_controllers("ctrl.json", r#"{"controllers":{"c":{"triggers":{"t":"nope"}}}}"#, &mut syms).unwrap();
     assert!(Rig::new(skeleton(), lib.clone(), bad.controllers).is_err());
-    let ok = parse_controllers(r#"{"controllers":{"c":{"bones_mask":["ghost"]}}}"#, &mut syms).unwrap();
+    let ok = parse_controllers("ctrl.json", r#"{"controllers":{"c":{"bones_mask":["ghost"]}}}"#, &mut syms).unwrap();
     let (_, w) = Rig::new(skeleton(), lib, ok.controllers).unwrap();
     let w: Vec<_> = w.iter().map(|w| w.to_string()).collect();
     assert!(w.iter().any(|m| m.contains("tail")), "{w:?}");
@@ -361,7 +362,7 @@ fn inactive_switch_with_blend_zero_is_instant() {
 
 fn bb_anim(v: &str) -> horizon_mobmodel::anim::Animation {
     let v: serde_json::Value = serde_json::from_str(v).unwrap();
-    animations_from_bbmodel(&v, &mut Symbols::new(&[])).unwrap().animations.remove(0)
+    animations_from_bbmodel("test.bbmodel", &v, &mut Symbols::new(&[])).unwrap().animations.remove(0)
 }
 
 fn rot_x(a: &horizon_mobmodel::anim::Animation, t: f32) -> f32 {
@@ -402,6 +403,7 @@ fn bbmodel_keyframe_easing_shapes_the_segment_ending_at_the_key() {
 fn same_time_events_have_one_order_in_both_formats() {
     use horizon_mobmodel::anim::EventKind::*;
     let bed = parse_animation_file(
+        "bed.animation.json",
         r#"{"animations":{"a":{"animation_length":1,
         "particle_effects":{"0.5":[{"effect":"p1"},{"effect":"p2"}]},
         "sound_effects":{"0.5":{"effect":"s"},"0.2":{"effect":"s0"}},

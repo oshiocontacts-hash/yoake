@@ -265,6 +265,8 @@ pub fn controlled(m: &Mob) -> bool {
         Species::Pig | Species::Strider => m.extra.saddled && r.steer,
         Species::HappyGhast => super::happy_ghast::controlled(m),
         Species::Nautilus | Species::ZombieNautilus => super::nautilus::controlled(m),
+        // A custom mob: a seat of the type that controls, with the saddle on (F4M-4c).
+        Species::Custom => super::custom::ai::riding::controlled(m),
         // AbstractHorse.getControllingPassenger: saddled with a player on it. A
         // tamed skeleton horse (SkeletonTrapGoal only tames it) needs the saddle too.
         _ => m.extra.saddled,

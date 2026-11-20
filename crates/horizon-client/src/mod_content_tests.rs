@@ -4388,17 +4388,39 @@ fn a_custom_mobs_row_has_the_vanilla_default_attribute_set_then_its_own() {
         "minecraft:marker": {"width":0.0,"height":0.0,"eye_height":0.0,"category":"misc","fire_immune":false}
     }"#;
     let rows: BTreeMap<String, Box<serde_json::value::RawValue>> = serde_json::from_slice(base).unwrap();
-    let defaults = super::vanilla_mob_attributes(&rows);
-    // Only what every non-misc row with attributes has (no attack damage, no luck), the most
-    // common value (the smallest text when none is), as the base file spells it.
+    let registry: BTreeMap<String, f64> = [
+        ("minecraft:max_health", 20.0),
+        ("minecraft:movement_speed", 0.7),
+        ("minecraft:follow_range", 32.0),
+        ("minecraft:armor", 0.0),
+        ("minecraft:attack_damage", 2.0),
+        ("minecraft:tempt_range", 10.0),
+    ]
+    .into_iter()
+    .map(|(k, v)| (k.to_owned(), v))
+    .collect();
+    let defaults = super::vanilla_mob_attributes(&rows, &registry);
+    // The union of the keys of the non-misc rows with attributes (attack damage, which only the zombie
+    // has, is in; luck, which only the player has, is not), with the registry's default values.
     let keys: Vec<&str> = defaults.keys().map(String::as_str).collect();
     assert_eq!(
         keys,
-        ["minecraft:armor", "minecraft:follow_range", "minecraft:max_health", "minecraft:movement_speed"]
+        [
+            "minecraft:armor",
+            "minecraft:attack_damage",
+            "minecraft:follow_range",
+            "minecraft:max_health",
+            "minecraft:movement_speed"
+        ]
     );
-    assert_eq!(defaults["minecraft:max_health"].get(), "10.0");
-    assert_eq!(defaults["minecraft:movement_speed"].get(), "0.2");
-    assert!(super::vanilla_mob_attributes(&BTreeMap::new()).is_empty(), "no base rows: no defaults");
+    assert_eq!(defaults["minecraft:max_health"].get(), "20.0");
+    assert_eq!(defaults["minecraft:movement_speed"].get(), "0.7", "the registry's, not the commonest row value 0.2");
+    assert_eq!(defaults["minecraft:attack_damage"].get(), "2.0");
+    // A key the registry does not know takes the most common row value, as the base spells it.
+    let none = super::vanilla_mob_attributes(&rows, &BTreeMap::new());
+    assert_eq!(none["minecraft:max_health"].get(), "10.0");
+    assert_eq!(none["minecraft:movement_speed"].get(), "0.2");
+    assert!(super::vanilla_mob_attributes(&BTreeMap::new(), &registry).is_empty(), "no base rows: no defaults");
 
     let file = horizon_mods::custom_mob::CustomMobFile::parse(
         "demo:thing",
@@ -4412,11 +4434,12 @@ fn a_custom_mobs_row_has_the_vanilla_default_attribute_set_then_its_own() {
     let attrs = row["attributes"].as_object().unwrap();
     assert_eq!(attrs["minecraft:max_health"], 30.0, "its own value wins");
     assert_eq!(attrs["minecraft:movement_speed"], 0.5);
-    assert_eq!(attrs["minecraft:follow_range"], 16.0, "the rest is the default set");
+    assert_eq!(attrs["minecraft:follow_range"], 32.0, "the rest is the default set");
     assert_eq!(attrs["minecraft:armor"], 0.0);
     assert_eq!(attrs["yoake:water_slowdown"], 0.9);
     assert_eq!(attrs["demo:warmth"], 3.0);
-    assert!(!attrs.contains_key("minecraft:luck") && !attrs.contains_key("minecraft:attack_damage"));
+    assert!(!attrs.contains_key("minecraft:luck"));
+    assert_eq!(attrs["minecraft:attack_damage"], 2.0, "a key only some rows have is in the set");
     // With no base to take defaults from, the row holds what the file sets, as before.
     let bare: serde_json::Value =
         serde_json::from_slice(&super::custom_row(&file, &BTreeMap::new()).unwrap()).unwrap();

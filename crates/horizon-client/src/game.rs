@@ -349,6 +349,7 @@ mod remote_camera;
 mod remote_chat;
 mod remote_chunks;
 mod remote_custom_mob;
+mod custom_mob_interact;
 mod remote_mob_data;
 mod remote_mob_particles;
 mod remote_mob_use;

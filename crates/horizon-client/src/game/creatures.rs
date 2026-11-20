@@ -3068,7 +3068,7 @@ impl Game<'_> {
     }
     /// `Animal.finalizeSpawnChildFromBreeding`'s experience orb: only when the
     /// `mob_drops` game rule is on.
-    fn spawn_breeding_orb(&mut self, at: [f64; 3], amount: u32) {
+    pub(super) fn spawn_breeding_orb(&mut self, at: [f64; 3], amount: u32) {
         if self.ui.rules.bool("mob_drops") {
             self.spawn_orbs(at, amount);
         }
@@ -3191,6 +3191,11 @@ impl Game<'_> {
         let q = self.mobs.iter().find(|m| m.id == partner).cloned();
         // Animal.finalizeSpawnChildFromBreeding: entity event 18 for the parent.
         self.mob_event_particles(parent, 18);
+        // F4M-4c: a custom mob's baby is of its type's `offspring` and its data decides the rest.
+        if p.kind.custom.is_some() {
+            self.custom_breed(parent, partner);
+            return;
+        }
         // Sniffer.spawnChildFromBreeding: an egg instead of a baby.
         if p.species() == Species::Sniffer {
             self.lay_sniffer_egg(&p);
@@ -5437,6 +5442,10 @@ impl Game<'_> {
                 self.swing_arm();
                 return Ok(true);
             }
+        }
+        // F4M-4c: a custom mob's `mob-interact` (hook, then the data shortcuts).
+        if self.mobs[index].kind.custom.is_some() && self.interact_custom_mob(index) {
+            return Ok(true);
         }
         let held = self.held().cloned();
         let item = held

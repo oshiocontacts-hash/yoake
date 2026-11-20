@@ -10,6 +10,9 @@
 //!   `area_attack`.
 //! * [`targets`]: `target_player`, `nearest_target`/`nearest_attackable`, `hurt_by`,
 //!   `call_for_help`.
+//! * [`tame`], [`breed`], [`riding`], [`interact`] (F4M-4c): taming and the owner goals (`follow_owner`,
+//!   `sit`, `owner_hurt_target`, `owner_hurt_by`, `owner_target`), breeding (`breed`, `follow_parent`),
+//!   seats and saddle, and the `mob-interact` dispatch.
 //!
 //! Control flags and their conflicts are the engine's: each goal reports its own `MOVE`, `LOOK`,
 //! `JUMP` and `TARGET` flags and the `GoalSelector` resolves them as vanilla's does (a goal with
@@ -26,11 +29,15 @@ use horizon_mods::custom_mob::{CustomMobFile, Goal as GoalDef};
 
 pub mod attacks;
 pub mod blocks;
+pub mod breed;
 pub mod budget;
 pub mod expr;
-pub mod rest;
 pub mod goals;
+pub mod interact;
 pub mod nav_select;
+pub mod rest;
+pub mod riding;
+pub mod tame;
 pub mod targets;
 
 /// What this version does with a goal type of the schema.
@@ -56,10 +63,8 @@ pub fn support(kind: &str) -> Support {
         | "eat_block" => Goal,
         "target_player" | "hurt_by_target" | "hurt_by" | "call_for_help" | "nearest_target"
         | "nearest_attackable" => Target,
-        "follow_owner" | "sit" | "owner_hurt_target" | "owner_hurt_by" | "owner_target" => {
-            Deferred("F4M-4c: needs the tameable owner state")
-        }
-        "breed" | "follow_parent" => Deferred("F4M-4c: needs the breedable data and offspring"),
+        "follow_owner" | "sit" | "breed" | "follow_parent" => Goal,
+        "owner_hurt_target" | "owner_hurt_by" | "owner_target" => Target,
         "script" => Deferred("F4M-10: script goals"),
         _ => Deferred("unknown goal type"),
     }
@@ -84,8 +89,15 @@ pub fn unsupported(file: &CustomMobFile) -> Vec<(String, &'static str)> {
 pub fn attach(m: &mut Mob, t: &CustomType) {
     nav_select::apply(m, &t.file.ai.navigator);
     for g in t.file.ai.goals.iter().chain(&t.file.ai.targets) {
-        let _ = goals::add(m, g) || attacks::add(m, g) || rest::add(m, t, g) || blocks::add(m, g) || targets::add(m, g);
+        let _ = goals::add(m, g)
+            || attacks::add(m, g)
+            || rest::add(m, t, g)
+            || blocks::add(m, g)
+            || tame::add(m, g)
+            || breed::add(m, t, g)
+            || targets::add(m, g);
     }
+    tame::add_defaults(m, t);
 }
 
 /// Reads the free parameters of a goal row (`{"type": "...", "range": 8}`), with the engine's
@@ -203,3 +215,5 @@ pub fn type_list(ids: &[String], what: &str) -> TypeList {
 pub(crate) mod test_support;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_4c;

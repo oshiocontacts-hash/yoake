@@ -524,6 +524,19 @@ impl Game<'_> {
                 m.position.z + z * yaw.cos(),
             );
         }
+        // A custom mob's seat (F4M-4c): the server's static offset of the player's seat, less the
+        // player's own vehicle attachment, turned with the mob; the seat's `yaw_lock` turns the
+        // player with it. F4M-6 passes the smooth, locator-driven seat of the animated pose here.
+        if m.kind.custom.is_some()
+            && let Some((seat, _)) = horizon_client::mobs::custom::ai::riding::player_seat(m)
+            && let Some(d) = m.kind.custom.as_deref().map(|t| &t.ride)
+        {
+            at = horizon_client::mobs::custom::ai::riding::seat_position(d, seat, m.position, m.yaw, None);
+            at.y -= 0.6;
+            if let Some(yaw) = horizon_client::mobs::custom::ai::riding::locked_yaw(m) {
+                self.yaw = yaw;
+            }
+        }
         // AbstractHorse.getPassengerAttachmentPoint: the rider slides back and
         // up while the horse rears.
         let rear = equine::rear_offset(m);

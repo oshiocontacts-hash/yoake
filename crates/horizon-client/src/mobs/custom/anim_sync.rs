@@ -48,8 +48,13 @@ use std::cell::RefCell;
 
 /// Seconds of animation time per game tick.
 pub const TICK_SECONDS: f32 = 0.05;
-/// How far (seconds) a client extrapolating from the last anchor may be from the server's clock
-/// before a new anchor is sent.
+/// **Re-anchor extrapolation tolerance**: how far (seconds of animation time) a client that keeps
+/// extrapolating from the last anchor may be from the server's clock before the server sends a new
+/// anchor (`needs_anchor`). 20 ms is less than half a tick (50 ms), so a client is never visibly
+/// off, and it stops a walking mob whose `q.ground_speed * 4` jitters by a hair every tick from
+/// sending a message every tick (about 10 anchors a second, over the per-player budget with a
+/// couple of dozen mobs). A state change always re-anchors at once, and `0.0` means "whenever the
+/// speed changes at all" (tests pin both). Reviewer decision on F4M-5b.
 pub const ANCHOR_TOLERANCE: f64 = 0.02;
 /// Ticks added to an animation's length to make the safety deadline of a damage frame.
 const FRAME_SLACK_TICKS: i64 = 4;
