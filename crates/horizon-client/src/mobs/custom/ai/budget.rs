@@ -259,8 +259,59 @@ impl PathBudget {
     }
 }
 
+/// What one custom type's mobs did with the budget (a debug view reads this).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct TypeSearchStats {
+    /// Searches let through.
+    pub granted: u64,
+    /// Searches put off to a later tick.
+    pub waited: u64,
+    /// Requests refused while the mob was put off by its jittered delay.
+    pub backed_off: u64,
+    /// Nodes the granted searches visited.
+    pub nodes: u64,
+}
+
 thread_local! {
     static BUDGET: RefCell<PathBudget> = RefCell::new(PathBudget::default());
+    static BY_TYPE: RefCell<std::collections::BTreeMap<String, TypeSearchStats>> = const { RefCell::new(std::collections::BTreeMap::new()) };
+}
+
+fn add_to_type(kind: &str, f: impl FnOnce(&mut TypeSearchStats)) {
+    BY_TYPE.with(|m| {
+        let mut m = m.borrow_mut();
+        if let Some(s) = m.get_mut(kind) {
+            f(s);
+        } else {
+            let mut s = TypeSearchStats::default();
+            f(&mut s);
+            m.insert(kind.to_owned(), s);
+        }
+    });
+}
+
+/// [`request`] for a mob of custom type `kind`, counted for that type too.
+pub fn request_for(kind: &str, id: u32, tick: i64, cap: i32) -> bool {
+    let before = stats();
+    let ok = request(id, tick, cap);
+    let after = stats();
+    add_to_type(kind, |s| {
+        s.granted += after.granted - before.granted;
+        s.waited += after.waited - before.waited;
+        s.backed_off += after.backed_off - before.backed_off;
+    });
+    ok
+}
+
+/// [`charge`] for a mob of custom type `kind`, counted for that type too.
+pub fn charge_for(kind: &str, nodes: i32) {
+    charge(nodes);
+    add_to_type(kind, |s| s.nodes += nodes.max(0) as u64);
+}
+
+/// This thread's counters by custom type id.
+pub fn stats_by_type() -> std::collections::BTreeMap<String, TypeSearchStats> {
+    BY_TYPE.with(|m| m.borrow().clone())
 }
 
 /// [`PathBudget::request`] on this thread's budget.
@@ -285,6 +336,7 @@ pub fn set_retry_jitter(max: u32) {
 
 /// Gives this thread a fresh budget of its own size (tests; the server uses the setting).
 pub fn reset_for_thread(own_limit: Option<i32>) {
+    BY_TYPE.with(|m| m.borrow_mut().clear());
     BUDGET.with(|b| {
         *b.borrow_mut() = own_limit.map_or_else(PathBudget::default, PathBudget::new);
     });

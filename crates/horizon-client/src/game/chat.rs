@@ -587,6 +587,11 @@ impl Game<'_> {
         summonable.sort();
         summonable.dedup();
         reg.summonable = summonable;
+        // The loaded custom mob types, for `/horizon custommobs stats <type>`.
+        reg.by_registry
+            .entry(horizon_client::command::vanilla::CUSTOM_MOB_REGISTRY.to_owned())
+            .or_default()
+            .ids = horizon_client::mobs::custom::ids();
         let mut types = ids.entity_types.clone();
         if types.is_empty() {
             types = reg.summonable.clone();

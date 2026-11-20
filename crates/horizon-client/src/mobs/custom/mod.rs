@@ -16,6 +16,7 @@ pub mod hitbox;
 pub mod persist;
 pub mod registry;
 pub mod spawn;
+pub mod stats;
 
 pub use registry::{CustomRegistry, get, ids, registry};
 
