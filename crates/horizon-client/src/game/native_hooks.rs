@@ -8401,6 +8401,8 @@ pub(super) fn viewer_changes(
     changes
 }
 
+/// The vanilla id of a mod-API dimension value.
+#[allow(dead_code)]
 fn dimension_id(dimension: LevelDimension) -> &'static str {
     match dimension {
         LevelDimension::Overworld => "minecraft:overworld",
@@ -8441,7 +8443,7 @@ impl GameLevel<'_> {
             return false;
         }
         self.native_sounds.push(super::creatures::NativeSound {
-            dimension: dimension_id(self.dimension),
+            dimension: self.level_id,
             sound: sound.to_owned(),
             at,
             source: source as i32,
@@ -8505,7 +8507,7 @@ impl GameLevel<'_> {
         }
         self.native_particles
             .push(super::lan_particles::QueuedParticle {
-                dimension: dimension_id(self.dimension),
+                dimension: self.level_id,
                 options: options.clone(),
                 state,
                 at,

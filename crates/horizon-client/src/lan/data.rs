@@ -110,6 +110,17 @@ pub struct SyncData {
     /// The world's levels after the vanilla three (F3-4): their dimension
     /// type entry and shape, for the hub's login, respawn and chunk packets.
     pub levels: Vec<NetLevel>,
+    /// Levels created (and their dimension types) after the server started (F3-6): shared with
+    /// the connections that send registries to new joiners.
+    runtime: std::sync::Mutex<RuntimeLevels>,
+}
+
+/// The levels a running server added, after the ones `add_levels` was given.
+#[derive(Clone, Default)]
+struct RuntimeLevels {
+    levels: Vec<NetLevel>,
+    /// Dimension types no entry of the registry has, in the order they were added.
+    types: Vec<(String, Value)>,
 }
 
 use crate::crafting::qualified;
@@ -221,6 +232,7 @@ impl SyncData {
             ),
             content_identity: None,
             levels: Vec::new(),
+            runtime: Default::default(),
         }
     }
     pub fn load(
@@ -319,6 +331,7 @@ impl SyncData {
         };
         let mut sync = Self {
             levels: Vec::new(),
+            runtime: Default::default(),
             content_identity,
             builtin,
             dynamic,
@@ -403,8 +416,48 @@ impl SyncData {
         self.levels = levels;
     }
     /// The level `id` when it is one of the levels past the vanilla three.
-    pub fn level(&self, id: &str) -> Option<&NetLevel> {
-        self.levels.iter().find(|l| l.id == id)
+    pub fn level(&self, id: &str) -> Option<NetLevel> {
+        let runtime = self.runtime.lock().unwrap_or_else(|e| e.into_inner());
+        runtime
+            .levels
+            .iter()
+            .chain(&self.levels)
+            .find(|l| l.id == id)
+            .cloned()
+    }
+    /// Every level past the vanilla three, the world's first, then the created ones.
+    pub fn all_levels(&self) -> Vec<NetLevel> {
+        let runtime = self.runtime.lock().unwrap_or_else(|e| e.into_inner());
+        self.levels
+            .iter()
+            .chain(&runtime.levels)
+            .cloned()
+            .collect()
+    }
+    /// How many `minecraft:dimension_type` entries a client joining now is sent.
+    pub fn dimension_type_count(&self) -> usize {
+        let runtime = self.runtime.lock().unwrap_or_else(|e| e.into_inner());
+        self.dynamic.len("minecraft:dimension_type") + runtime.types.len()
+    }
+    /// A level created while the server runs (F3-6). Its dimension type joins the registry new
+    /// joiners are sent when no entry has it; a client that joined earlier does not have it
+    /// (`dimension_type_count` tells), and can enter the level after it reconnects.
+    pub fn announce_level(&self, level: NetLevel) {
+        let known = self.id("minecraft:dimension_type", &level.type_name).is_some();
+        let mut runtime = self.runtime.lock().unwrap_or_else(|e| e.into_inner());
+        runtime.levels.retain(|l| l.id != level.id);
+        if !known && !runtime.types.iter().any(|(n, _)| *n == level.type_name) {
+            runtime
+                .types
+                .push((level.type_name.clone(), level.type_json.clone()));
+        }
+        runtime.levels.push(level);
+    }
+    /// A created level that no longer exists. Its type stays in the registry: indexes already
+    /// sent to clients keep their meaning.
+    pub fn withdraw_level(&self, id: &str) {
+        let mut runtime = self.runtime.lock().unwrap_or_else(|e| e.into_inner());
+        runtime.levels.retain(|l| l.id != id);
     }
     /// The shape of level `id`: the world's own for a level past the vanilla
     /// three, else what `vanilla` says.
@@ -413,8 +466,17 @@ impl SyncData {
     }
     /// The `minecraft:dimension_type` index a level's packets carry.
     pub fn level_type_id(&self, id: &str) -> i32 {
-        let name = self.level(id).map_or(id, |l| l.type_name.as_str());
-        self.id("minecraft:dimension_type", name).unwrap_or(0)
+        let level = self.level(id);
+        let name = level.as_ref().map_or(id, |l| l.type_name.as_str());
+        if let Some(index) = self.id("minecraft:dimension_type", name) {
+            return index;
+        }
+        let runtime = self.runtime.lock().unwrap_or_else(|e| e.into_inner());
+        runtime
+            .types
+            .iter()
+            .position(|(n, _)| n == name)
+            .map_or(0, |i| (self.dynamic.len("minecraft:dimension_type") + i) as i32)
     }
 
     /// MinecraftServer.reloadResources: `/reload` keeps the synchronized
@@ -466,6 +528,7 @@ impl SyncData {
     /// world's data packs changed (`levels`) even when it knows the vanilla
     /// pack.
     pub fn registry_packets(&self, known_pack: bool, levels: &LevelShapes) -> Vec<RegistryData> {
+        let runtime = self.runtime.lock().unwrap_or_else(|e| e.into_inner()).types.clone();
         self.registries
             .iter()
             .map(|(key, e)| RegistryData {
@@ -488,6 +551,15 @@ impl SyncData {
                             },
                         }
                     })
+                    .chain(
+                        runtime
+                            .iter()
+                            .filter(|_| key == "minecraft:dimension_type")
+                            .map(|(name, json)| RegistryEntry {
+                                id: name.clone(),
+                                data: Some(json_to_nbt(json)),
+                            }),
+                    )
                     .collect(),
             })
             .collect()
@@ -856,6 +928,45 @@ mod tests {
                 LevelShapes::VANILLA.get(level)
             );
         }
+    }
+
+    /// F3-6: a level created while the server runs: new joiners are sent its type and key; the
+    /// types already sent keep their places, and a withdrawn level leaves its type behind.
+    #[test]
+    fn a_created_level_reaches_new_joiners_and_keeps_old_indexes() {
+        let mut sync = SyncData::with_vanilla_dimension_types();
+        sync.add_levels(Vec::new());
+        let before = sync.dimension_type_count();
+        assert_eq!(before, 4);
+        let level = |id: &str, ty: &str| NetLevel {
+            id: id.into(),
+            type_name: ty.into(),
+            shape: crate::chunk::LevelShape::new(0, 64, 64, true, false).unwrap(),
+            sea_level: 40,
+            type_json: serde_json::json!({ "min_y": 0, "height": 64 }),
+        };
+        // A level of a type everyone has needs no new type.
+        sync.announce_level(level("x:a", "minecraft:overworld"));
+        assert_eq!(sync.dimension_type_count(), before);
+        assert_eq!(sync.level_type_id("x:a"), 0);
+        // A level with a type of its own adds it after every other.
+        sync.announce_level(level("x:b", "x:b_type"));
+        assert_eq!(sync.dimension_type_count(), before + 1);
+        assert_eq!(sync.level_type_id("x:b"), before as i32);
+        assert_eq!(sync.level("x:b").unwrap().sea_level, 40);
+        let packets = sync.registry_packets(true, &LevelShapes::VANILLA);
+        let types = &packets[0].entries;
+        assert_eq!(types.len(), before + 1);
+        assert_eq!(types[before].id, "x:b_type");
+        assert!(types[before].data.is_some());
+        assert!(types[..before].iter().all(|e| e.data.is_none()), "the vanilla ones stay known");
+        assert_eq!(sync.all_levels().iter().map(|l| l.id.as_str()).collect::<Vec<_>>(), ["x:a", "x:b"]);
+        // Announcing again does not add the type twice; withdrawing keeps the index meaning.
+        sync.announce_level(level("x:c", "x:b_type"));
+        assert_eq!(sync.dimension_type_count(), before + 1);
+        sync.withdraw_level("x:b");
+        assert!(sync.level("x:b").is_none());
+        assert_eq!(sync.level_type_id("x:c"), before as i32);
     }
 
     #[test]

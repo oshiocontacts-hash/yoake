@@ -128,6 +128,11 @@ pub(super) struct Levels {
 
 impl Levels {
     /// A parked level, without opening or loading it.
+    /// Closes the level `dim` not in place, if it is open, dropping its streaming and files.
+    pub(super) fn drop_parked(&mut self, dim: Dim) -> bool {
+        self.parked.remove(&dim).is_some()
+    }
+
     pub(super) fn parked_world(&self, dim: Dim) -> Option<&World> {
         self.parked.get(&dim).map(|level| &level.world)
     }
@@ -191,6 +196,7 @@ impl Game<'_> {
             self.level.seed,
             &self.level.enabled_features,
             &self.mod_generators,
+            self.level_registry.save_dir(&self.world_root, dim.id()),
         )?;
         // F3-4: a level past the vanilla three shades blocks as its type says.
         if !matches!(dim, Dim::Overworld | Dim::Nether | Dim::End) {

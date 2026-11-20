@@ -19,7 +19,7 @@ use horizon_protocol::packets::play::{self, Clientbound as C};
 /// chunks are loading around `target`.
 pub(super) struct Trip {
     conn: u32,
-    dim: Dim,
+    pub(super) dim: Dim,
     /// The level the player came from: the vehicle it rides waits there
     /// until the exit is found.
     source: Dim,
@@ -454,9 +454,12 @@ impl Game<'_> {
         let end = plan.is_none();
         // Coordinates scale by 8 between the Overworld and the Nether; an
         // End portal has fixed destinations.
+        let vanilla = |d: Dim| matches!(d, Dim::Overworld | Dim::Nether | Dim::End);
         let scale = match (source, target) {
             (Dim::Overworld, Dim::Nether) | (Dim::End, Dim::Nether) => 1.0 / 8.0,
             (Dim::Nether, Dim::Overworld) => 8.0,
+            // A level past the vanilla three: the ratio of the types' `coordinate_scale`.
+            (s, t) if !vanilla(s) || !vanilla(t) => self.travel_scale(s, t),
             _ => 1.0,
         };
         self.end_portal_travel = end;
