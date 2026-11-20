@@ -31,6 +31,7 @@ use types::{Carrier, Effect, ITEM_STACK_DOC, JSON_DOC, NBT_DOC, TABLE, TEXT_DOC,
 const SERVER_DRAFT: &str = include_str!("../../abi-subset-server.json");
 const CLIENT_DRAFT: &str = include_str!("../../abi-subset-client.json");
 const GPU_DRAFT: &str = include_str!("../../abi-subset-gpu.json");
+const MEDIA_DRAFT: &str = include_str!("../../abi-subset-media.json");
 
 /// Existing service interfaces the client world imports (they live in `yoake-mod.wit`).
 const CLIENT_IMPORTS: &[&str] = &[
@@ -2116,6 +2117,9 @@ fn draft_services(source: &str, side: &str) -> Result<String, String> {
         .ok_or("draft services missing")?
         .clone();
     let mut shared_names = Vec::new();
+    if side == "media" {
+        services.push_str("    use hud.{gui-texture};\n\n");
+    }
     if side == "client" {
         services.push_str("    use hud.{gui-texture};\n\n");
         let server_draft: serde_json::Value =
@@ -2285,6 +2289,7 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
     wit.push_str(&draft_services(SERVER_DRAFT, "server")?);
     wit.push_str(&draft_services(CLIENT_DRAFT, "client")?);
     wit.push_str(&draft_services(GPU_DRAFT, "gpu")?);
+    wit.push_str(&draft_services(MEDIA_DRAFT, "media")?);
 
     for (side, (text, uses), doc) in [
         ("client", &client, "Hooks that run in the client."),
@@ -2311,6 +2316,8 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
                 "client-services",
                 "gpu-types",
                 "gpu-services",
+                "media-types",
+                "media-services",
             ][..],
         ),
         (

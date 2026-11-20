@@ -1654,6 +1654,7 @@ dependencies = [
  "horizon-theme",
  "horizon-threads",
  "horizon-world",
+ "html-panel",
  "libloading",
  "log",
  "miniz_oxide 0.8.9",
@@ -2192,6 +2193,17 @@ dependencies = [
  "yoake-inject-rt",
  "yoake-state",
  "yoake-value",
+]
+
+[[package]]
+name = "html-panel"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "png",
+ "serde_json",
+ "windows 0.62.2",
+ "zune-jpeg",
 ]
 
 [[package]]

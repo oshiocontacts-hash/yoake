@@ -66,7 +66,7 @@ macro_rules! client_services {
 }
 
 impl ClientContext {
-    fn client_texture(&self, texture: &Resource<GuiTexture>) -> Result<u64, String> {
+    pub(crate) fn client_texture(&self, texture: &Resource<GuiTexture>) -> Result<u64, String> {
         self.textures
             .get(&texture.rep())
             .copied()

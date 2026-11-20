@@ -1,0 +1,37 @@
+{
+  "abi_version": 2,
+  "world": "client-full",
+  "interface_version": "1.0.0",
+  "status": "active",
+  "types": {
+    "browser-options": {"audio":"bool","window":"bool","transparent":"bool","allow":"list<string>","jpeg-quality":"u8","max-message":"u32"},
+    "input-event": {"kind":"input-kind","x":"f64","y":"f64","dx":"f64","dy":"f64","button":"mouse-button","buttons":"u32","clicks":"u32","mods":"u32","text":"string"},
+    "page-state": {"status":"browser-status","error":"option<string>","url":"string","title":"string","loading":"bool","frames":"u64","width":"u32","height":"u32","audio":"audio-status"},
+    "eval-answer": {"done":"bool","ok":"bool","value":"string"}
+  },
+  "enums": {
+    "input-kind":["move","down","up","wheel","key-down","key-up","text","insert"],
+    "mouse-button":["none","left","right","middle"],
+    "history-action":["back","forward","reload"],
+    "browser-status":["starting","ready","failed","closed"],
+    "audio-status":["off","starting","capturing","failed"]
+  },
+  "hooks": [],
+  "services": [
+    {"id":240,"abi":true,"name":"browser_open","arguments":{"url":"string","width":"u32","height":"u32","scale":"f32","options":"browser-options"},"result":"result<u32, string>","side":"client","capability":"service.browser"},
+    {"id":241,"abi":true,"name":"browser_close","arguments":{"handle":"u32"},"result":"result<_, string>","side":"client","capability":"service.browser"},
+    {"id":242,"abi":true,"name":"browser_set_visible","arguments":{"handle":"u32","visible":"bool"},"result":"result<_, string>","side":"client","capability":"service.browser"},
+    {"id":243,"abi":true,"name":"browser_navigate","arguments":{"handle":"u32","url":"string"},"result":"result<_, string>","side":"client","capability":"service.browser"},
+    {"id":244,"abi":true,"name":"browser_history","arguments":{"action":"history-action","handle":"u32"},"result":"result<_, string>","side":"client","capability":"service.browser"},
+    {"id":245,"abi":true,"name":"browser_input","arguments":{"event":"input-event","handle":"u32"},"result":"result<_, string>","side":"client","capability":"service.browser"},
+    {"id":246,"abi":true,"name":"browser_state","arguments":{"handle":"u32"},"result":"result<page-state, string>","side":"client","capability":"service.browser"},
+    {"id":247,"abi":true,"name":"browser_frame_to_texture","arguments":{"handle":"u32","texture":"borrow<gui-texture>"},"result":"result<option<u64>, string>","side":"client","capability":"service.browser"},
+    {"id":248,"abi":true,"name":"browser_frame_jpeg","arguments":{"handle":"u32","quality":"u8"},"result":"result<option<tuple<u64, list<u8>>>, string>","side":"client","capability":"service.browser"},
+    {"id":249,"abi":true,"name":"jpeg_to_texture","arguments":{"bytes":"list<u8>","texture":"borrow<gui-texture>"},"result":"result<tuple<u32, u32>, string>","side":"client","capability":"service.browser"},
+    {"id":250,"abi":true,"name":"browser_audio_pcm","arguments":{"handle":"u32"},"result":"result<list<s16>, string>","side":"client","capability":"service.browser"},
+    {"id":251,"abi":true,"name":"browser_eval","arguments":{"expression":"string","handle":"u32"},"result":"result<u64, string>","side":"client","capability":"service.browser"},
+    {"id":252,"abi":true,"name":"browser_eval_result","arguments":{"ticket":"u64"},"result":"result<eval-answer, string>","side":"client","capability":"service.browser"},
+    {"id":253,"abi":true,"name":"browser_post","arguments":{"handle":"u32","json":"string"},"result":"result<_, string>","side":"client","capability":"service.browser"},
+    {"id":254,"abi":true,"name":"browser_messages","arguments":{"handle":"u32"},"result":"result<list<string>, string>","side":"client","capability":"service.browser"}
+  ]
+}

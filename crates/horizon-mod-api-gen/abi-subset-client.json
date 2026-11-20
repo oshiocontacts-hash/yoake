@@ -1,7 +1,7 @@
 {
   "abi_version": 2,
   "world": "client-full",
-  "interface_version": "1.5.0",
+  "interface_version": "1.6.0",
   "status": "active",
   "types": {
     "vec2": {"x":"f32","y":"f32"},

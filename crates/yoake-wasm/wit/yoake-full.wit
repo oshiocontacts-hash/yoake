@@ -2381,6 +2381,109 @@ interface gpu-services {
     draw-region-call: func(desc: draw-desc, region: draw-region, stage: stage, target: draw-target) -> result<_, string>;
 }
 
+interface media-types {
+    enum audio-status {
+        off,
+        starting,
+        capturing,
+        failed,
+    }
+
+    enum browser-status {
+        starting,
+        ready,
+        failed,
+        closed,
+    }
+
+    enum history-action {
+        back,
+        forward,
+        reload,
+    }
+
+    enum input-kind {
+        move,
+        down,
+        up,
+        wheel,
+        key-down,
+        key-up,
+        text,
+        insert,
+    }
+
+    enum mouse-button {
+        none,
+        left,
+        right,
+        middle,
+    }
+
+    record browser-options {
+        allow: list<string>,
+        audio: bool,
+        jpeg-quality: u8,
+        max-message: u32,
+        transparent: bool,
+        window: bool,
+    }
+
+    record eval-answer {
+        done: bool,
+        ok: bool,
+        value: string,
+    }
+
+    record input-event {
+        button: mouse-button,
+        buttons: u32,
+        clicks: u32,
+        dx: f64,
+        dy: f64,
+        kind: input-kind,
+        mods: u32,
+        text: string,
+        x: f64,
+        y: f64,
+    }
+
+    record page-state {
+        audio: audio-status,
+        error: option<string>,
+        frames: u64,
+        height: u32,
+        loading: bool,
+        status: browser-status,
+        title: string,
+        url: string,
+        width: u32,
+    }
+}
+
+/// Services listed in `abi-subset-media.json`.
+interface media-services {
+    use media-types.{audio-status, browser-status, history-action, input-kind, mouse-button, browser-options, eval-answer, input-event, page-state};
+
+    use hud.{gui-texture};
+
+    browser-open: func(height: u32, options: browser-options, scale: f32, url: string, width: u32) -> result<u32, string>;
+    browser-close: func(handle: u32) -> result<_, string>;
+    browser-set-visible: func(handle: u32, visible: bool) -> result<_, string>;
+    browser-navigate: func(handle: u32, url: string) -> result<_, string>;
+    browser-history: func(action: history-action, handle: u32) -> result<_, string>;
+    browser-input: func(event: input-event, handle: u32) -> result<_, string>;
+    browser-state: func(handle: u32) -> result<page-state, string>;
+    browser-frame-to-texture: func(handle: u32, texture: borrow<gui-texture>) -> result<option<u64>, string>;
+    browser-frame-jpeg: func(handle: u32, quality: u8) -> result<option<tuple<u64, list<u8>>>, string>;
+    jpeg-to-texture: func(bytes: list<u8>, texture: borrow<gui-texture>) -> result<tuple<u32, u32>, string>;
+    browser-audio-pcm: func(handle: u32) -> result<list<s16>, string>;
+    browser-eval: func(expression: string, handle: u32) -> result<u64, string>;
+    browser-eval-result: func(ticket: u64) -> result<eval-answer, string>;
+    browser-post: func(handle: u32, json: string) -> result<_, string>;
+    browser-messages: func(handle: u32) -> result<list<string>, string>;
+}
+
 /// Hooks that run in the client.
 interface client-hooks {
     use engine-types.{apply-effect-tick-outcome, biome-colors-outcome, biome-colors-type, block-entity-tick-outcome, block-entity-ticks-outcome, camera-distance-outcome, camera-entity, camera-override-type, camera-shake-outcome, can-eat-outcome, compute-fog-color-outcome, compute-fov-modifier-outcome, compute-fov-outcome, corner-command, critical-hit-outcome, fixed-frame-type, fog-data, fog-type, fov-player, frame-advance, frame-command, framerate-limit-outcome, gui-draw, gui-layer-pre-outcome, hand, health-inputs, hud-command, hud-outcome, ingredient-test-outcome, interaction-key-outcome, inventory-background-pre-outcome, inventory-screen-layout-outcome, item-bar-outcome, item-energy-buffer-type, item-model-context, item-model-property-outcome, item-render-outcome, item-slot-cooldown-outcome, item-stack, json, key-event, living-entity-use-item-start-outcome, living-entity-use-item-tick-outcome, living-fall-outcome, living-heal-outcome, living-incoming-damage-outcome, living-knockback-outcome, menu-button-outcome, menu-button-v2-outcome, mob-submit-outcome, mod-block-entity-fields, mod-container, mod-fluid-tanks, model-command, mouse-buttons-outcome, mouse-buttons-type, movement-input-outcome, music-layer, music-outcome, music-type, name-tag-line, native-block-behavior, native-block-rim, native-capability-provider, native-colored-light, native-command, native-fluid-definition, native-inventory-layout, native-item-behavior, native-item-context, native-item-holder, native-item-render-context, native-lifecycle-context, native-loot-drops, native-map-decoration, native-map-info, native-menu-behavior, native-minimap, native-mob-render, native-mod, native-panel-event, native-player-render, native-recipe-type, native-screen, native-screen-view, native-server-player, native-shake, native-zoom, nbt, net-frame-received-type, net-frames-listened-outcome, player-submit-outcome, recipe-book-categories-outcome, recipe-book-category, release-using-outcome, render-fog-outcome, render-hand-pose-outcome, render-name-tag-outcome, render-name-tag-position-outcome, render-needs-type, server-tick-phase, shader-params-outcome, should-apply-effect-tick-this-tick-outcome, stack-view, text-json, tooltip-color-outcome, use-animation-outcome, use-animation-type, use-duration-outcome, visuals-outcome, world-phase};
@@ -6980,6 +7083,8 @@ world client-full {
     import client-services;
     import gpu-types;
     import gpu-services;
+    import media-types;
+    import media-services;
     export client-hooks;
     /// Returns catalog hook names with underscores, such as `net_frames_listened`.
     export init: func() -> list<string>;

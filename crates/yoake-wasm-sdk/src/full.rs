@@ -48,6 +48,10 @@ pub mod client {
     }
     pub use bindings::yoake::mods::{feedback, hud, logging, network, settings};
     pub use bindings::yoake::mods::{gpu_services as gpu_raw, gpu_types};
+    /// FR-MEDIA1: browsers driven by handle (needs `"service.browser"` in `[wasm] permissions`). The engine opens
+    /// an installed Edge or Chrome with this package's own profile; frames go to a `hud::GuiTexture` and tab sound
+    /// comes back as 48 kHz stereo PCM for an `audio-stream`.
+    pub use bindings::yoake::mods::{media_services as browser, media_types};
 
     /// Current scaled GUI width and height, in GUI pixels.
     pub fn gui_size() -> Result<types::Vec2, String> {

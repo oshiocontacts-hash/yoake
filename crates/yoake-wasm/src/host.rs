@@ -48,6 +48,11 @@ pub trait ClientHost: Send {
         None
     }
 
+    /// FR-MEDIA1: the browser services, or `None` when the package lacks `service.browser`.
+    fn media_services(&mut self) -> Option<&mut dyn crate::MediaServices> {
+        None
+    }
+
     host_methods! {
         fn log(&mut self, target: &str, message: &str) -> ();
         fn feedback(&mut self, text: &str) -> ();
