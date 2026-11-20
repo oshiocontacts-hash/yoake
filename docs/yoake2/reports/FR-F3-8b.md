@@ -1,29 +1,24 @@
-# FR-F3-8b: data route, current-level, safety, hooks (partly done)
+# FR-F3-8b: data route, current-level, generator safety, level and worldgen hooks
 
-Branch `yoake-free/f3-8b` (from f3-8). Stopped early: C: fell under 12 GB (11 GB, another agent building in horizon-f1) and my
-target dir had no `deps` left, so any build of horizon-client would need about 15 GB. Per the disk rule I paused builds.
+Branch `yoake-free/f3-8b` (f3-8, then `vps/yoake-free/merge@fed161c18` merged; two conflicts only, `game.rs` mod list and
+`ENGINE_CALL_ABI.md`, both kept as both sides; no generated file conflicted and the regenerated catalog was unchanged).
 
 ## Done and verified
-* F3-8a: `horizon-mods` checks `data/<ns>/dimension`, `dimension_type` and `worldgen/**` JSON in owned namespaces; errors start with
-  the file path (`check_level_json`, test `level_json_is_checked_with_its_path`); `cargo test -p horizon-mods`: 59 passed.
-  `docs/mods.md` section "Dimensions and world generation in a `.yak`". Committed.
-
-## Written, NOT built or run (needs a build with >= 15 GB free)
-* Item 2, `current_level(player) -> result<string,string>` (service 235, server-read): catalog row, `full.rs` trait line, impl in
-  `server_services.rs` (finds the player's `dimension` in `server_players()`), SDK `ext::current_level`, unit assertion in
-  `level_services.rs`. `YOAKE_UPDATE_WIT=1 cargo test -p horizon-mod-api-gen` ran and passed (46 tests), regenerating the WIT, adapters
-  and SDK bindings (these files are in the commit). The horizon-client side has not been compiled.
-* Item 4, generator safety: `WasmColumnSource::generate` retries a failed call once after 50 ms (not when the module is not running);
-  a final failure calls `ModChunk::mark_failed`, `ModTerrain::proto` sets the new `Chunk::not_generated`, `save`/`save_later` skip such
-  chunks, and the first block written clears the mark (test `an_edit_clears_the_not_generated_mark` in horizon-client-render).
-* Item 3 (part): injected hook points `level::before_open`, `level::after_open`, `level::before_close` (in `game/levels.rs`, called
-  from `enter_level` and the three drop sites in `level_manager.rs`) and `worldgen::generate_chunk(level, cx, cz, &mut ModChunk)` in
-  `mod_generator.rs` (runs before a mod generator fills the chunk; mod levels only, vanilla terrain untouched).
+* F3-8a: `horizon-mods` checks `data/<ns>/dimension`, `dimension_type`, `worldgen/**` JSON (errors start with the file path);
+  `docs/mods.md` section. `cargo test -p horizon-mods`: 59 passed.
+* Item 2: service 235 `current_level(player) -> result<string,string>` (server-read), SDK `ext::current_level`, WIT/adapters/SDK
+  regenerated; `horizon-mod-api-gen --lib`: 46 passed after the merge.
+* Item 4: a failed generator call is retried once after 50 ms; a second failure marks the chunk `not_generated`
+  (`ModChunk::mark_failed` -> `Chunk::not_generated`), `save`/`save_later` skip it, the first block written clears it.
+* Item 3 (hooks): `level::before_open`, `level::after_open`, `level::before_close`, `worldgen::generate_chunk` (mod-generator levels
+  only); catalog 56 to 60 sites, `site_policy` for the chunk coordinates, notes in `MOD-GUIDE.md` section 16 and `ENGINE_CALL_ABI.md`.
+* `cargo test -p horizon-client --lib`: 1231 passed, 0 failed, 51 ignored.
+* Ignored `level_registry_tests` with `HORIZON_TEST_RESOURCES` (vanilla chunk hashes, hub/registry parity, the WASM generator level
+  that saves): 11 passed.
 
 ## Not done
-* `inject-sites.json` / `yoake-inject-rt/src/catalog.rs` are not regenerated for the 4 new sites (run
-  `YOAKE_UPDATE_WIT=1 cargo test -p horizon-mod-api-gen --lib`; the test counting 56 sites in `inject_catalog.rs` becomes 60), nor
-  `site_policy` / `docs/yoake-mixin.md` counts.
-* `yoake-bindgen` target for `ModChunk` (`set_block`, `fill_layer`, `block`, `set_biome`), `ids.lock.json`, `regen.sh` (needs 15 GB),
-  `ENGINE_CALL_ABI.md` and `MOD-GUIDE.md` notes.
-* Item 5 (two-process e2e with the level-generator sample): needs the binaries built.
+* Suites of horizon-client-lib, horizon-world, yoake-wasm (`YOAKE_REQUIRE_GUESTS=1`), yoake-value, horizon-client-render: the run was
+  stopped twice because C: fell under 12 GB (down to 8.9 GB while other agents built), so no result.
+* `yoake-bindgen` target for `ModChunk` and `ids.lock.json` (`regen.sh` needs 15 GB free; the free space never held there).
+* F3-8d two-process e2e (needs the binaries built; not started).
+* No test of its own for the save skip of `not_generated` chunks (covered only by the flag-clearing unit test).
