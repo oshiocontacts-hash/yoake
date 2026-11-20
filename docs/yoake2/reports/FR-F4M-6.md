@@ -25,7 +25,7 @@ creatures.rs mob_geometry loop
   mod_mob_layer_geometry (native_mob_layer) still runs after it
   outline / equipment outlines / entity culler: the same epilogue as a mod-drawn mob
 shadow:  shadows.rs reads model.shadow {radius x model_scale, strength}
-name tag: unchanged (the hitbox height + 0.5 the engine uses for every mob)
+name tag: the hitbox height + 0.5 the engine uses for every mob, or `model.name_tag_height` (blocks above the feet x the mob's model scale) when the type sets it
 ```
 
 Per game tick (`tick_custom_mob_events`, after `tick_particles`, single player/host and remote client): the local mobs'
@@ -135,24 +135,45 @@ render (Yoake), parity golden C (Yoake). No test of `custom_mob_draw.rs` itself 
    `sound_effects` / `particle_effects` key at 0.35 to see the sound and particle at the mouth) fires in the same tick, once. On a LAN client the same through `horizon:mob_sync`.
 4. **Glow mask**: the explicit `glow` layer and (remove the layer row) the automatic `_glowmask` pick-up give the same picture.
 5. **LOD**: walk away: 24 blocks half rate (limbs step at 10 Hz of frames), 48 quarter, 64 the rest pose, never invisible; check the cull box (a 2x2 box) by turning the camera at the fox's feet.
-6. **Name tag**: `/summon` with `CustomName`: above the hitbox as for vanilla mobs. There is no `name_tag_height` field in the schema (open question).
-7. **Death**: kill it: red flash, falls on its side, removed after the engine's 20 ticks.
+6. **Name tag**: `/summon` with `CustomName`: above the hitbox as for vanilla mobs; with `model.name_tag_height` set in the type it hangs that many blocks above the feet.
+7. **Death**: a type with a `death` animation: no tilt, the animation plays once and holds its last pose, the mob is removed when it ends (its length in ticks, at most 60); red flash as before. Without the animation: falls on its side, removed after the engine's 20 ticks.
 8. **Held item**: give it an item in the main hand (`item_slots.mainhand` = `mouth`): it sits at the mouth locator in the ground display; check its orientation.
 9. **Hide a bone / script**: nothing calls `MobRender::writes` yet.
 
 ## Open questions
 
 1. **Goldens** are unverified against a real render (Yoake: in-game check 1 and parity golden C).
-2. `tint`: the layer's expression is read as a packed `0xRRGGBB` number. The design only says "tint expression". Alternatives: a 0..1 multiplier or an alpha. Needs a decision.
-3. `lod_min` bones: the design says "bones tagged `lod_min`" and the schema has no tag; I used the name suffix `_lod_min`.
-4. `half_rate` / `quarter_rate` hold the last pose instead of interpolating (see above). Interpolating poses needs one frame of latency.
-5. `death` animation that holds the entity until it ends (design section 4): only the engine's tilt and removal. Needs the engine to keep a dying custom mob alive.
-6. `look_at: owner` is not filled (`PoseCtx::owner` exists); `target` and `view` are.
-7. There is no `name_tag_height` in the schema; the tag hangs at the hitbox height + 0.5 like any mob.
-8. A mod particle id (not a vanilla `ParticleType`) is logged and skipped; sounds of any namespace play.
+2. `tint`: **recorded, OK** (reviewer): the expression is read as a packed `0xRRGGBB` number.
+3. `lod_min` bones: **decided** (reviewer): the `_lod_min` name suffix stays and `model.lod_min_bones` (a list of bone names, checked against the model when it loads: an unknown bone is a load error naming the type id and `model.lod_min_bones[i]`) is accepted too; `low_bones` skips the union.
+4. `half_rate` / `quarter_rate` hold the last pose: **recorded, OK** (reviewer).
+5. `death` animation: **done** (reviewer decision 2), see "Follow-up" below.
+6. `look_at: owner` is not filled: **recorded**: the owner comes with F4M-10; `target` and `view` are.
+7. `name_tag_height`: **done** (reviewer decision 3), `model.name_tag_height`; see "Follow-up" below.
+8. A mod particle id (not a vanilla `ParticleType`) is logged and skipped: **recorded, OK** (reviewer); sounds of any namespace play.
 9. Events are polled once per game tick (partial 0) and placed with the matrices of the last drawn frame (the rest pose for a mob never drawn). The event time inside the tick is not used.
 10. `variable.*` are not synced: the client's copy changes only through the controllers' `on_enter` it replays; an expression that depends on a script-written variable differs from the server's.
 11. Held item: the ground display at the locator, oriented by the bone; a type may want per-slot offsets/rotation (a `item_slots` object form).
 12. Emissive layers use the OptiFine emissive-overlay path (full bright, shaded normal). Mobs with HDR output do not get a tier for them (only `additive` does).
 13. The startup atlas (`UiResources::load`) also receives `embedded_textures()`, but custom types are normally registered only after it; a pack reload picks them up. Embedded textures are not checked against the atlas size limit.
 14. `FRESH_TRIGGER_SECONDS` / local mirror: the mirror sends a trigger as a delta message in the tick it first sees it, so a trigger asked for in tick N plays its 0 s keyframes in N+1.
+
+## Follow-up: reviewer decisions (commits after 34e1f5bd9)
+
+1. **LOD bones**: `model.lod_min_bones: [bone names]` in the type JSON (schema field `Model::lod_min_bones`, serde default empty). `CustomMobFile::validate_model` (run by `load_model`, so by the content check and by the game's type build) refuses a name the model lacks:
+   `<type id>: model.lod_min_bones[i]: the model has no bone "<name>"`. A name must also be a valid part name (`validate`). `TypeRender` marks the union of that list and the `_lod_min` suffix; `low_bones` skips it.
+   Tests: `lod_min_bones_must_exist_in_the_model_and_name_the_file_and_path` (horizon-mods), `model_lod_min_bones_and_the_name_suffix_are_both_skipped_by_low_bones`.
+2. **Death**: a custom type whose animation library has an animation named `death` (`Rig::find_animation`, a positive finite length) keeps a dying mob for `ceil(length / 0.05)` ticks (a 1e-3 tick tolerance for float
+   noise), at least 1 and **at most 60** (`TypeAnim::death_ticks`, `CustomType::death_ticks`). Server: the one place that decides the end of a dead body is `Mob::tick` returning false at `death_time >= creaking::death_limit(m)`
+   (kept mobs are removed by `game/creatures.rs` when `!kept` and `death_time >= removal_ticks(m)`); `death_limit` got a custom branch first, and the 20 in `creatures.rs` became `custom::removal_ticks(m)` (20 for every
+   mob that has no such type, so vanilla is the same number and the creaking tear-down branch is untouched). A type without the animation: 20 ticks as before. A death animation shorter than 20 ticks removes the mob when it ends.
+   Client: `MobRender` samples the `death` animation alone (`Rig::sample_animation`) at `(death_time - 1 + partial) / 20` seconds, held on the last pose (`death_clock`), over the controllers' pose; the engine's tilt is off for
+   such a type (`death_roll_for`: roll 0), the red hurt overlay stays. Everything else (vanilla mobs, custom mobs without the animation) is the old path. The mob's synced layers keep playing underneath until the override, as before.
+   Remote clients and the integrated server use the same code (the client counts `death_time` itself on both).
+   Tests: `a_dying_mob_stays_until_its_death_animation_ends_with_a_cap_of_60_ticks` (0.6 s -> 12, 1.5 s -> 30, 5 s -> 60, through real `Mob::tick`), `a_type_without_a_death_animation_is_removed_after_the_engines_20_ticks`,
+   `a_death_animation_replaces_the_tilt_and_holds_its_last_pose`.
+3. **Name tag**: `model.name_tag_height` (`Option<f64>`, 0 to 64, blocks above the feet; the schema's other draw options live in `model`, so it is there and not at the top level). Unset: the hitbox height + 0.5 with the unchanged
+   float expression. Set: `value x model_scale()` (so a baby or scaled mob follows its scale like its hitbox does). `game/names.rs::name_tag_at` reads `custom::name_tag_height(mob)`.
+   Tests: `name_tag_height_is_optional_and_a_height_in_blocks` (horizon-mods), `a_types_name_tag_height_is_blocks_above_the_feet_times_the_model_scale`.
+
+No bindgen-annotated struct or function changed (`CustomMobFile`/`Model`, `TypeAnim`, `CustomType` are not bindgen-annotated; `death_limit`, `name_tag_at`, `Mob::tick` signatures are unchanged).
+In-game checks 6 (name tag) and 7 (death) above are updated; a fox with a `death` clip is removed after 12 ticks (the fixture's clip is 0.6 s).
