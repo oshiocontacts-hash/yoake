@@ -15,7 +15,7 @@ const FOX: &str = include_str!(
     "../../../../../tools/fixtures/cinder_fox/data/sample_mobs/horizon/entity_type/cinder_fox.json"
 );
 
-fn root() -> std::path::PathBuf {
+pub(crate) fn root() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/fixtures/cinder_fox")
 }
 

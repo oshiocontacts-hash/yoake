@@ -152,3 +152,8 @@ deltas keep the client within the anchor tolerance of the server for 240 ticks, 
 6. A frame is not re-sent for a lost payload (the connection is reliable). If a future channel can drop payloads (a lossy transport), a periodic snapshot per mob will be needed; the client rules already accept it.
 7. The attack goal's `damage_delay` is now only a safety net when the animation has the frame: should the schema get a separate key for it?
 8. The client does not copy values into its own `Mob.extra.custom.synced` (F4M-6 reads the store); say if script code on the client needs that mirror.
+
+## Follow-up (reviewer decisions, F4M-4c step 0)
+
+* Both tolerances are now named, documented constants: `anim_sync::ANCHOR_TOLERANCE` (20 ms: the re-anchor extrapolation tolerance, under half a tick, so a client is never visibly off and a walking mob with a jittering `ground_speed` does not send an anchor every tick; 0 means "whenever the speed changes") and `remote::FRESH_TRIGGER_SECONDS` (0.25 s: a trigger message heard of within this long after its start counts as fresh, so its time-0 events fire; older is `joined`). The doc comments carry the reasons.
+* New test `a_late_trigger_then_a_re_anchor_fires_its_time_zero_event_once` (`mobs::custom::remote`): a `pounce` with a time-0 `roar` timeline event is heard of 0.1 s (2 ticks) after its start, then the same trigger message is repeated and a new anchor of the layer arrives; the time-0 event fires exactly once (the cursors' high-water marks leave no way to double fire) and the trigger ring still holds one run. The fixture animation is patched in the test (time-0 `roar` added); the fixture files are unchanged.

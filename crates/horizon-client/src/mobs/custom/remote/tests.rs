@@ -377,3 +377,92 @@ fn a_trigger_message_heard_in_time_is_fresh() {
     }
     assert_eq!(hits, [9]);
 }
+
+/// The fox with a time-0 `roar` event added to its `pounce` animation (the fixture has none: its only
+/// event is the `hit` keyframe at 0.35 s).
+fn roaring_fox() -> Arc<CustomType> {
+    use crate::mobs::custom::anim_sync::tests::root;
+    use horizon_mods::custom_mob::CustomMobFile;
+    let text = include_str!(
+        "../../../../../../tools/fixtures/cinder_fox/data/sample_mobs/horizon/entity_type/cinder_fox.json"
+    );
+    let mut v: serde_json::Value = serde_json::from_str(text).unwrap();
+    v["ai"] = idle_ai();
+    let file = CustomMobFile::parse("sample_mobs:cinder_fox", v.to_string().as_bytes()).unwrap();
+    let model = file
+        .load_model(&mut |p| {
+            let bytes = std::fs::read(root().join(p)).map_err(|e| e.to_string())?;
+            if !p.ends_with("animations/cinder_fox.animation.json") {
+                return Ok(bytes);
+            }
+            let mut a: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            a["animations"]["animation.cinder_fox.pounce"]["timeline"]["0.0"] = json!(["roar"]);
+            Ok(a.to_string().into_bytes())
+        })
+        .unwrap();
+    Arc::new(CustomType::new(file, Some(&model)).unwrap())
+}
+
+/// F4M-5b reviewer decision: a trigger heard of 0.1 s after its time-0 event (inside the 0.25 s fresh
+/// window), then a re-anchor (a repeated trigger message and a new layer anchor), fires the time-0
+/// event exactly once: the cursors' high-water marks leave no way to fire it twice.
+#[test]
+fn a_late_trigger_then_a_re_anchor_fires_its_time_zero_event_once() {
+    assert!((FRESH_TRIGGER_SECONDS - 0.25).abs() < 1e-9, "the documented window");
+    let kind = roaring_fox();
+    let mut s = Server::new();
+    s.kind = kind.clone();
+    s.mob = fox_mob(&kind, Vec3::new(0.5, 1.0, 0.5));
+    s.tick(0);
+    s.tick(1);
+    let k = kinds(&s);
+    let mut c = RemoteCustomMobs::default();
+    c.apply_payload(&s.snapshot_payload(1), &k).unwrap();
+    request_trigger(&mut s.mob, "pounce", 1.0);
+    let mut trigger_frame = None;
+    for now in 2..=30 {
+        s.tick(now);
+        for p in s.payloads(now) {
+            let f = wire::decode(&p).unwrap();
+            if f.messages.iter().any(|m| matches!(m, Message::Trigger(_))) {
+                trigger_frame = Some(f);
+            }
+        }
+    }
+    let trigger_frame = trigger_frame.expect("the trigger message");
+    assert_eq!(trigger_frame.game_time, 2, "started in tick 2, virtual start 1");
+
+    let ta = kind.clone();
+    let mut buf = EventBuf::with_capacity(32);
+    let mut roars = Vec::new();
+    let mut poll = |c: &mut RemoteCustomMobs, now: i64, roars: &mut Vec<i64>| {
+        buf.clear();
+        c.get_mut(ENTITY).unwrap().poll_events(now, 0.0, &mut buf);
+        roars.extend(buf.as_slice().iter().filter_map(|e| match e.kind {
+            MobEventKind::Custom { name, .. } if ta.anim.as_ref().unwrap().events.string(name) == "roar" => Some(now),
+            _ => None,
+        }));
+    };
+    // Its start is tick 1, so tick 3 is 0.1 s after the time-0 event.
+    poll(&mut c, 2, &mut roars);
+    c.apply_at(&trigger_frame, 3, &k);
+    poll(&mut c, 3, &mut roars);
+    assert_eq!(roars, [3], "the time-0 event fires when the late trigger is heard");
+    // The re-anchor: the same trigger message repeated, and a new anchor of the layer (same state,
+    // restarted at tick 4 with the clock at 0 as a server that restarted the state would send).
+    c.apply_at(&trigger_frame, 4, &k);
+    let state = c.get(ENTITY).unwrap().layers[0].as_ref().unwrap().state;
+    let mut f = wire::Frame::new(4);
+    f.messages.push(Message::Delta(wire::Delta {
+        entity: ENTITY,
+        values: None,
+        anchors: vec![wire::LayerAnchor { layer: 0, state, tick: 4, slots: vec![(0.0, 1.0)] }],
+        hitbox_mask: None,
+    }));
+    c.apply_at(&f, 4, &k);
+    for now in 4..=30 {
+        poll(&mut c, now, &mut roars);
+    }
+    assert_eq!(roars, [3], "never again after the re-anchor");
+    assert_eq!(c.get(ENTITY).unwrap().triggers.len(), 1, "one trigger run, not two");
+}
