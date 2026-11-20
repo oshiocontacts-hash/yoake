@@ -204,6 +204,9 @@ pub fn dimension_id(d: Dimension) -> &'static str {
         Dimension::Overworld => "minecraft:overworld",
         Dimension::Nether => "minecraft:the_nether",
         Dimension::End => "minecraft:the_end",
+        // A level added by a dimension type (F3-3/F3-4) has no id here (the trait does not carry it yet),
+        // so a rule's `dimensions` list never matches it.
+        Dimension::Level(_) => "",
     }
 }
 
