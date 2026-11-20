@@ -12,17 +12,11 @@ fn write(root: &std::path::Path, path: &str, text: &str) {
     std::fs::write(p, text).unwrap();
 }
 
-/// The `mypack:moon` level: a data pack stem with a type of its own (128 high from y 0, a fixed
-/// ambient light, its own sky and fog colours).
-fn with_moon_game(test: impl FnOnce(&mut Game<'_>, &std::path::Path)) {
-    let resources = PathBuf::from(
-        std::env::var_os("HORIZON_TEST_RESOURCES").expect("set HORIZON_TEST_RESOURCES"),
-    );
-    let world = std::env::temp_dir().join(format!("hz-f33-game-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&world);
-    write(&world, "datapacks/moon/pack.mcmeta", r#"{"pack":{"pack_format":1,"description":"x"}}"#);
+/// The pack with the `mypack:moon` and `mypack:hell` levels.
+fn write_moon_pack(world: &std::path::Path) {
+    write(world, "datapacks/moon/pack.mcmeta", r#"{"pack":{"pack_format":1,"description":"x"}}"#);
     write(
-        &world,
+        world,
         "datapacks/moon/data/mypack/dimension_type/moon_type.json",
         r##"{"min_y":0,"height":128,"logical_height":128,"has_skylight":true,"has_ceiling":false,
         "ambient_light":0.3,"coordinate_scale":1.0,"default_clock":"minecraft:overworld",
@@ -31,7 +25,7 @@ fn with_moon_game(test: impl FnOnce(&mut Game<'_>, &std::path::Path)) {
     );
     // A Nether-like type of its own: no sky, a ceiling, fixed time, the Nether's rules.
     write(
-        &world,
+        world,
         "datapacks/moon/data/mypack/dimension_type/hell_type.json",
         r##"{"min_y":0,"height":128,"logical_height":128,"has_skylight":false,"has_ceiling":true,
         "has_fixed_time":true,"ambient_light":0.1,"coordinate_scale":8.0,"skybox":"none",
@@ -44,20 +38,39 @@ fn with_moon_game(test: impl FnOnce(&mut Game<'_>, &std::path::Path)) {
         "minecraft:gameplay/straw_bed_rule":{"can_set_spawn":"never","can_sleep":"never","destroy_on_use":true}}}"##,
     );
     write(
-        &world,
+        world,
         "datapacks/moon/data/mypack/dimension/hell.json",
         r#"{"type":"mypack:hell_type","generator":{"type":"minecraft:noise",
         "settings":"minecraft:overworld","biome_source":{"type":"yoake:grid","cell_size":16,
         "width":1,"depth":1,"cells":["minecraft:plains"],"outside":"minecraft:plains"}}}"#,
     );
     write(
-        &world,
+        world,
         "datapacks/moon/data/mypack/dimension/moon.json",
         r#"{"type":"mypack:moon_type","generator":{"type":"minecraft:noise",
         "settings":"minecraft:overworld","biome_source":{"type":"yoake:grid","cell_size":16,
         "width":2,"depth":1,"cells":["minecraft:plains","minecraft:desert"],
         "outside":"minecraft:plains"}}}"#,
     );
+}
+
+/// The `mypack:moon` and `mypack:hell` levels: data pack stems with a type of its own (128 high from y 0, a fixed
+/// ambient light, its own sky and fog colours).
+fn with_moon_game(test: impl FnOnce(&mut Game<'_>, &std::path::Path)) {
+    with_world(write_moon_pack, test)
+}
+
+/// A world with the pack `write_pack` makes in it, opened as an integrated server.
+fn with_world(
+    write_pack: impl FnOnce(&std::path::Path),
+    test: impl FnOnce(&mut Game<'_>, &std::path::Path),
+) {
+    let resources = PathBuf::from(
+        std::env::var_os("HORIZON_TEST_RESOURCES").expect("set HORIZON_TEST_RESOURCES"),
+    );
+    let world = std::env::temp_dir().join(format!("hz-f33-game-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&world);
+    write_pack(&world);
     let settings = Settings::default();
     let loaded = load_resources(
         resources.clone(),
@@ -264,5 +277,59 @@ fn a_nether_like_pack_level_follows_its_rules() {
         game.enter_level(None, Dim::Overworld).unwrap();
         assert_eq!(game.level_facts(), LevelFacts::OVERWORLD);
         assert!(!game.anchor_works() && !game.beds_destroy_on_use());
+    });
+}
+
+/// Streams the level in place until the final chunk `(cx, cz)` is in, and hashes its blocks and
+/// biomes (FNV-1a over every block id and a biome sample per 4x4x4 cell).
+fn generated_chunk_hash(game: &mut Game<'_>, cx: i32, cz: i32) -> u64 {
+    game.streaming.forced.insert((cx, cz));
+    game.streaming.center = (cx, cz);
+    game.streaming.radius = 2;
+    let started = Instant::now();
+    while !game.world.chunks.contains_key(&(cx, cz)) {
+        let _ = game.streaming.update(&mut game.world);
+        assert!(started.elapsed().as_secs() < 240, "chunk {cx} {cz} never finished generating");
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    let chunk = game.world.chunks.get(&(cx, cz)).unwrap().clone();
+    let shape = game.world.shape;
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut put = |v: u64| {
+        h ^= v;
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    };
+    for y in shape.min_y..shape.min_y + shape.height {
+        for z in 0..16 {
+            for x in 0..16 {
+                put(u64::from(chunk.get(x, y, z)));
+                if x % 4 == 0 && y % 4 == 0 && z % 4 == 0 {
+                    put(u64::from(chunk.biome(x, y, z)) + 1);
+                }
+            }
+        }
+    }
+    h
+}
+
+/// Vanilla generation is unchanged by F3-5: the same fixed seed gives the same chunks in the three
+/// vanilla levels (hashes recorded before the generator work).
+#[test]
+#[ignore = "needs HORIZON_TEST_RESOURCES"]
+fn vanilla_chunks_hash_as_they_did_before_the_generator_work() {
+    with_moon_game(|game, _| {
+        let mut got = Vec::new();
+        for dim in [Dim::Overworld, Dim::Nether, Dim::End] {
+            game.enter_level(None, dim).unwrap();
+            got.push((dim.id(), generated_chunk_hash(game, 3, -2)));
+            game.enter_level(None, Dim::Overworld).unwrap();
+        }
+        eprintln!("VANILLA_HASHES {got:?}");
+        const EXPECTED: [(&str, u64); 3] = [
+            ("minecraft:overworld", 10844162340323160155),
+            ("minecraft:the_nether", 3948111228871227996),
+            ("minecraft:the_end", 2685422101413284537),
+        ];
+        assert_eq!(got, EXPECTED);
     });
 }
