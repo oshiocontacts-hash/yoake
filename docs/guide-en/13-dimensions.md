@@ -1,20 +1,17 @@
 # 13. Dimensions, levels and chunk generators
 
-Yoake manages dimensions (called **levels** inside the engine) the same way Minecraft 26.3 data packs do. You can add new dimensions with data-pack JSON alone, or use a `server-full` WebAssembly mod to create and delete levels at runtime and write your own chunk generator in Rust.
+Yoake manages dimensions (called **levels** inside the engine) the same way Minecraft 26.3 data packs do. You can ship dimension definitions as JSON in data packs or a mod's `.yak` / `.hmod` content, use a `server-full` WebAssembly mod to create and delete levels at runtime and write your own chunk generator in Rust, or subscribe to full-access (DLL) level and `ModChunk` hooks.
 
 > [!NOTE]
-> This chapter covers data-pack JSON and **sandboxed WebAssembly mods (`server-full`)**. When no mod or data pack is installed, the three vanilla dimensions (`minecraft:overworld`, `minecraft:the_nether`, and `minecraft:the_end`) behave identically to vanilla.
+> This chapter covers data-pack and mod-content JSON, **sandboxed WebAssembly mods (`server-full`)**, and **full-access (DLL) mods**. When no mod or data pack is installed, the three vanilla dimensions (`minecraft:overworld`, `minecraft:the_nether`, and `minecraft:the_end`) behave identically to vanilla.
 
 ---
 
-## 13-1. Adding a dimension with data-pack JSON alone
+## 13-1. Adding a dimension with data-pack or `.yak` JSON
 
-To add a dimension without writing code, place **`dimension_type`** and **`dimension`** (level stem) JSON files in a world's data pack (`<world>/datapacks/<pack>/`).
+To ship dimension data without writing code, place **`dimension_type`**, **`dimension`** (level stem), and optional **`worldgen/**`** JSON files in a world's data pack (`<world>/datapacks/<pack>/`) or inside a mod's `.yak` content (`content/data/<ns>/`).
 
-> [!IMPORTANT]
-> Content mods (`.hmod`) and `.yak` `content/` folders cannot declare `dimension` or `dimension_type` files yet. For a JSON-only dimension, put the files in a world's `datapacks/` folder, or register them from a WebAssembly mod via `register_type` and `register_level` (Section 13-4).
-
-### Folder layout and save location
+### Data-pack folder layout and save location
 
 For a dimension named `mypack:moon`, put the files in the data pack like this:
 
@@ -39,6 +36,40 @@ Chunks, entities, and POI data for the level are saved under the standard 26.3 p
 ```
 
 For `mypack:moon`, that is `<world>/dimensions/mypack/moon/`.
+
+### Shipping level data in a `.yak` (`content/data/<ns>/`)
+
+A content mod or a `.yak` package's `content/` directory can ship level and worldgen files under its own namespaces (see [docs/mods.md](../mods.md#dimensions-and-world-generation-in-a-yak)):
+
+```text
+my_mod/
+  yak.toml
+  content/
+    horizon-mod.toml               <- api = "0.2", capabilities = ["registries"]
+    data/
+      <ns>/                        <- mod id or a namespace listed in `namespaces`
+        dimension_type/
+          <name>.json              <- dimension type JSON
+        dimension/
+          <name>.json              <- level stem JSON
+        worldgen/
+          **.json                  <- biomes, noise settings, and other worldgen files
+```
+
+When content is read ([`crates/horizon-mods/src/content.rs`](../../crates/horizon-mods/src/content.rs)), the loader checks each file and **always prefixes error messages with the file path**:
+
+- **Namespace fence**: Files under `dimension/`, `dimension_type/`, and `worldgen/` must stay within the mod's own namespaces (`id` or `namespaces`). Files in another namespace (such as `minecraft`) are refused:
+  - Example: `data/minecraft/dimension/a.json: a mod adds files in its own namespaces (data/<id>/ and those listed in namespaces), to vanilla and convention (c) tags, or to vanilla's atlases`
+- **JSON object required**: Every `.json` file under `dimension/`, `dimension_type/`, and `worldgen/**` must parse as valid JSON and be a JSON object (`{...}`):
+  - Example: `data/ruby/worldgen/noise/a.json: expected a JSON object`
+- **`dimension/<name>.json`**: Must define `"type"` (a dimension type ID string or inline object) and `"generator"` (a JSON object):
+  - Example: `data/ruby/dimension/a.json: a dimension needs "type" (a dimension type id)`
+  - Example: `data/ruby/dimension/a.json: a dimension needs a "generator" object`
+- **`dimension_type/<name>.json`**: When present, `min_y`, `height`, and `logical_height` must be integers; `min_y` and `height` must be **multiples of 16**; `height` must be **16 to 4064**; and `logical_height` must be in **0 to `height`**:
+  - Example: `data/ruby/dimension_type/a.json: min_y is a whole number`
+  - Example: `data/ruby/dimension_type/a.json: min_y is a multiple of 16`
+  - Example: `data/ruby/dimension_type/a.json: height is between 16 and 4064`
+  - Example: `data/ruby/dimension_type/a.json: logical_height is within height`
 
 ### `dimension_type` example and what its attributes change
 
@@ -236,9 +267,11 @@ required_on_join = false
 
 [wasm]
 interface = "1.0"
-world = "server-full"
 server = "bin/wasm/level-generator-server.wasm"
 ```
+
+> [!NOTE]
+> A module declared with `server = "..."` under `[wasm]` is always loaded in the `server-full` world. Do not write `world = "server-full"`: the manifest loader only accepts `client-mod`, `client-full`, or `inject-mod` for `world` and refuses `world = "server-full"`.
 
 ### Registering in `init`
 
@@ -261,10 +294,19 @@ Inside server hooks you can manage levels while the server is running:
 | `ext::unload_level(id)` | Saves and closes an open non-vanilla level (freeing chunks and region files) while keeping it registered; it reopens from disk when someone enters it. Queued to run at the **start of the next server tick**. Refused if occupied or vanilla. |
 | `ext::regenerate_level(id, seed)` | Closes a non-vanilla level, removes its `region`, `entities`, and `poi` folders, and keeps it registered under the same ID. Passing `seed: Some(s)` updates the seed on `Created` levels (persisted in `yoake_levels.json`); passing `Some(_)` on pack/mod/saved levels is refused (`NotCreated`). Refused if occupied or vanilla. |
 | `ext::levels()` | Returns `Result<Vec<String>, String>` listing all registered level IDs (the three vanilla levels first). Also works in read-only server hooks. |
+| `ext::current_level(player)` | Takes a player's UUID string (hyphenated or compact 32-hex) and returns `Result<String, String>` with the real ID of the level that player is currently in (e.g. `"minecraft:overworld"` or `"levelgen:terraces"`), or `Err("the player is not here")` if offline (service 235, `server-read`). Works in read-only server hooks. |
+
+```rust
+// Read each online player's real level ID (string ID, not the frozen 3-value enum).
+for player in ext::server_players()? {
+    let level_id = ext::current_level(&player.uuid)?;
+    println!("{} is in {}", player.name, level_id);
+}
+```
 
 ### Walkthrough: the `level-generator` example
 
-[`crates/yoake-wasm-sdk/examples/level-generator/src/lib.rs`](../../crates/yoake-wasm-sdk/examples/level-generator/src/lib.rs) registers a custom type, generator, and level in `init`, then generates terraced hills in `handle_call`:
+[`crates/yoake-wasm-sdk/examples/level-generator/src/lib.rs`](../../crates/yoake-wasm-sdk/examples/level-generator/src/lib.rs) registers a custom type, generator, and level in `init`, then generates terraced hills in `handle_call` (verified end-to-end across two processes by [`tools/levelgen_wasm_e2e.py`](../../tools/levelgen_wasm_e2e.py)):
 
 ```rust
 use yoake_wasm_sdk::full::generator::{self, Fill, Request};
@@ -359,18 +401,36 @@ fn handle_call(&mut self, _caller: String, method: String, payload: Vec<u8>) -> 
 - **Time limits and failure behavior**:
   - Per-call limits are the standard **25 ms** wall-clock deadline and 10 million fuel units, **exempt from the 50 ms aggregate budget** so burst chunk generation at startup does not disable the mod (calls slower than 100 ms log a warning). A worker waits up to **2 seconds** if another hook holds the module mutex.
   - The host validates the entire `Fill` before writing any block (version `1`, flags, section bounds/duplicates, unknown block IDs, palette size `1..=4096` and index bounds, leftover bytes).
-  - Any validation failure, `Err`, timeout, trap, or disabled module leaves the chunk **all air** (saved as empty, no retry) and logs once per level at `error` (later chunks at `debug`). Traps and budget overruns disable the module just like any hook.
+  - **Retry and `not_generated` safety**: If the generator call fails (busy module, trap, per-call limit exceeded, etc. — except when no server module is running), the engine **waits 50 ms (about one server tick) and retries once**. If the second attempt also fails, or the `Fill` fails validation, the chunk is left empty (all air, or whatever hooks wrote), **marked `not_generated`** (`ModChunk::mark_failed` → `Chunk::not_generated`), and logged once per level at `error` (further chunks at `debug`). Both `save` and `save_later` **skip `not_generated` chunks**, so the chunk regenerates on the next load. As soon as any block in that chunk is changed to a different state (`Chunk::set`), the `not_generated` mark is cleared so edits are saved. Traps and budget overruns disable the module just like any hook.
 
 ---
 
-## 13-5. Limits and known gaps
+## 13-5. Full-access (DLL) hooks and `ModChunk` bindings
 
-1. **No decoration, structures, carvers, or LOD on `yoake:mod` generators**: `ModTerrain` writes final blocks and biomes directly with no feature/structure/carver/spawn pass on top and no far-terrain (LOD) sampler, so distant un-loaded chunks look empty. Generator callbacks also cannot query climate biomes or density functions yet.
+For full-access (DLL) mods, four injected server-side hook points ([`crates/yoake-wasm/wit/inject-sites.json`](../../crates/yoake-wasm/wit/inject-sites.json)) and `yoake-bindgen`-generated `ModChunk` bindings ([`crates/yoake-guest-sdk/src/stubs/mod_generator.rs`](../../crates/yoake-guest-sdk/src/stubs/mod_generator.rs)) are available. Every hook is a no-op unless a mod subscribes to it.
+
+| Hook ID | Arguments | When it runs |
+|---|---|---|
+| `level::before_open` | `&mut Game`, level ID (`&str`) | Before a level that is not open is read from its generator and folders |
+| `level::after_open` | `&mut Game`, level ID (`&str`) | After the level has opened, entered the open-levels registry, and mods heard `LevelEvent.Load` |
+| `level::before_close` | `&mut Game`, level ID (`&str`) | Before `unload`, `delete`, or `regenerate` drops the level, while its chunks and files are still present |
+| `worldgen::generate_chunk` | level ID (`&str`), `cx: i32`, `cz: i32`, `&mut ModChunk` | **Mod-generator (`yoake:mod`) levels only**, once per chunk before the mod generator fills it |
+
+- **`worldgen::generate_chunk` leaves vanilla terrain untouched**: It never runs for the three vanilla dimensions or for `minecraft:flat`, `minecraft:debug`, or `minecraft:noise` levels.
+- **Runs on a chunk-generating worker thread**: Keep `worldgen::generate_chunk` short; exceeding the module's per-call limit loses the chunk to the generator safety rule above (`not_generated`).
+- **`ModChunk` bindings**: The `&mut ModChunk` argument is a scoped handle valid only for that call, exposed via generated stubs in [`crates/yoake-guest-sdk/src/stubs/mod_generator.rs`](../../crates/yoake-guest-sdk/src/stubs/mod_generator.rs):
+  - Field getters: `mod_generator_modchunk_chunk_x_get`, `mod_generator_modchunk_chunk_z_get`, `mod_generator_modchunk_failed_get`
+  - Chunk operations: `mod_generator_modchunk_block(h, x, y, z)`, `mod_generator_modchunk_set_block(h, x, y, z, state)`, `mod_generator_modchunk_fill_layer(h, y, state)`, `mod_generator_modchunk_set_biome(h, name)`, `mod_generator_modchunk_mark_failed(h)`
+  - See [`docs/yoake2/MOD-GUIDE.md` section 16](../yoake2/MOD-GUIDE.md#16-levels-and-world-generation-f3-8b) and [`docs/yoake2/ENGINE_CALL_ABI.md`](../yoake2/ENGINE_CALL_ABI.md) for the full contract and ABI notes.
+
+---
+
+## 13-6. Limits and known gaps
+
+1. **No decoration, structures, carvers, or LOD on `yoake:mod` generators**: `ModTerrain` writes final blocks and biomes directly with no feature/structure/carver/spawn pass on top and no far-terrain (LOD) sampler, so distant unloaded chunks look empty. Generator callbacks also cannot query climate biomes or density functions yet.
 2. **No custom biomes**: Data packs cannot add new biome IDs that the game does not already know (they are dropped with a warning).
-3. **No `.hmod` data route**: Content mods (`.hmod`) cannot declare `dimension` or `dimension_type` files; use `<world>/datapacks/` or a WASM mod.
-4. **Frozen `level-dimension` WIT enum**: To preserve the 1.0 ABI baseline, hooks carrying `et::LevelDimension` still report `overworld` for non-vanilla levels. Use `levels()` and string payloads (sounds, particles, loot) for real level IDs (`current-level` is not added yet).
-5. **No full-access (DLL) bindings/hooks yet**: `yoake-bindgen` bindings and hook points such as `worldgen::generate_chunk` or `level::before_open` are not wired yet.
-6. **Shared border, clock, and some mob day checks**: Created levels have no separate world border and share parts of world time/weather state; hard-coded mob day-tick windows (fireflies, creaking, bees) do not yet read custom `timelines` tracks.
-7. **Deleted created types persist until restart**: A deleted created level's `dimension_type` stays in the registry sent to new joiners until the server restarts so existing type indexes keep their meaning.
-8. **No server-module hot reload**: `server-full` `init` runs at startup/world open; loading a server mod while a world is already open will not stage its `init` levels until the next world.
-9. **Client biome blending on custom seeds**: The client's biome zoom uses the world's hashed `SpawnInfo.seed`, so visual biome-edge blending in a level with its own `"seed"` can differ slightly from the server's exact biome edges (placed blocks and server biome checks use the level's seed).
+3. **Frozen `level-dimension` WIT enum**: To preserve the 1.0 ABI baseline, hooks carrying `et::LevelDimension` still report `overworld` for non-vanilla levels. Use **`ext::current_level(player)`** to look up which level a player is actually in, along with `ext::levels()` and string payloads (sounds, particles, loot).
+4. **Shared border, clock, and some mob day checks**: Created levels have no separate world border and share parts of world time/weather state; hard-coded mob day-tick windows (fireflies, creaking, bees) do not yet read custom `timelines` tracks.
+5. **Deleted created types persist until restart**: A deleted created level's `dimension_type` stays in the registry sent to new joiners until the server restarts so existing type indexes keep their meaning.
+6. **Late-loaded server mods (`init` only at world start)**: `server-full` `init` runs at startup/world open; loading a server mod while a world is already open will not stage its `init` levels until the next world.
+7. **Client biome blending on custom seeds**: The client's biome zoom uses the world's hashed `SpawnInfo.seed`, so visual biome-edge blending in a level with its own `"seed"` can differ slightly from the server's exact biome edges (placed blocks and server biome checks use the level's seed).

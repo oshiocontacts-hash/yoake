@@ -1,20 +1,17 @@
 # 13. ディメンション・レベル・チャンクジェネレーター
 
-Yoake は Minecraft 26.3 のデータパックと同じ仕組みでディメンション（エンジン内部では **レベル / level** と呼びます）を管理しています。データパックの JSON だけで新しいディメンションを増やせるほか、`server-full` の WebAssembly MOD から実行中にレベルを作ったり消したり、チャンクジェネレーター（地形を作る処理）を Rust で書いたりできます。
+Yoake は Minecraft 26.3 のデータパックと同じ仕組みでディメンション（エンジン内部では **レベル / level** と呼びます）を管理しています。データパックや MOD（`.yak` / `.hmod`）の JSON だけでディメンション定義を同梱できるほか、`server-full` の WebAssembly MOD から実行中にレベルを作ったり消したり、チャンクジェネレーター（地形を作る処理）を Rust で書いたりできます。さらに、フルアクセス（DLL）MOD 向けのレベル開閉フックや `ModChunk` バインディングも用意されています。
 
 > [!NOTE]
-> この章の対象は、データパックの JSON と **サンドボックス化された WebAssembly MOD（`server-full`）** です。MOD を入れていないときは、バニラの 3 ディメンション（`minecraft:overworld`、`minecraft:the_nether`、`minecraft:the_end`）の動きは一切変わりません。
+> この章の対象は、データパックおよび MOD コンテンツの JSON、**サンドボックス化された WebAssembly MOD（`server-full`）**、および **フルアクセス（DLL）MOD** です。MOD やデータパックを入れていないときは、バニラの 3 ディメンション（`minecraft:overworld`、`minecraft:the_nether`、`minecraft:the_end`）の動きは一切変わりません。
 
 ---
 
-## 13-1. データパックの JSON だけでディメンションを追加する
+## 13-1. データパックや `.yak` コンテンツの JSON でディメンションを追加する
 
-コードを書かずにディメンションを追加するには、ワールドのデータパック（`<ワールド>/datapacks/<パック名>/`）に **`dimension_type`（ディメンション型）** と **`dimension`（レベルステム）** の JSON を置きます。
+コードを書かずにディメンションデータを渡すには、ワールドのデータパック（`<ワールド>/datapacks/<パック名>/`）か、MOD の `.yak`（`content/data/<ns>/`）に **`dimension_type`（ディメンション型）** と **`dimension`（レベルステム）**、必要なら **`worldgen/**`** の JSON を置きます。
 
-> [!IMPORTANT]
-> 現在のところ、コンテンツ MOD（`.hmod`）や `.yak` 内の `content/` からは `dimension` や `dimension_type` を宣言できません。JSON のみで追加する場合はワールドの `datapacks/` を使うか、後述する WASM MOD の `register_type` / `register_level` を使ってください。
-
-### フォルダ構成と保存先
+### データパックのフォルダ構成と保存先
 
 たとえば `mypack:moon` というディメンションを追加する場合、データパック内のファイルは次の場所に置きます。
 
@@ -39,6 +36,40 @@ Yoake は Minecraft 26.3 のデータパックと同じ仕組みでディメン�
 ```
 
 `mypack:moon` なら `<ワールド>/dimensions/mypack/moon/` になります。
+
+### `.yak` コンテンツ内に同梱する場合（`content/data/<ns>/`）
+
+`.yak` パッケージのコンテンツフォルダ（`content/`）やコンテンツ MOD（`.hmod`）の中に、MOD 自身の名前空間でレベルデータを同梱できます（詳しくは [docs/mods.md](../mods.md#dimensions-and-world-generation-in-a-yak) を参照してください）。
+
+```text
+my_mod/
+  yak.toml
+  content/
+    horizon-mod.toml               <- api = "0.2", capabilities = ["registries"]
+    data/
+      <ns>/                        <- MOD の id または namespaces に列挙した名前空間
+        dimension_type/
+          <name>.json              <- ディメンション型定義
+        dimension/
+          <name>.json              <- レベルステム定義
+        worldgen/
+          **.json                  <- バイオーム・ノイズ設定などのワールド生成データ
+```
+
+コンテンツ読み込み時（[`crates/horizon-mods/src/content.rs`](../../crates/horizon-mods/src/content.rs)）に次の形式チェックが行われ、エラーメッセージは **必ずファイルパスから始まる形** で返されます。
+
+- **名前空間の制限**: `dimension/`・`dimension_type/`・`worldgen/` のファイルは MOD 自身の名前空間（`id` または `namespaces`）にのみ置けます。ほかの名前空間（`minecraft` など）に置くと拒否されます。
+  - 例: `data/minecraft/dimension/a.json: a mod adds files in its own namespaces (data/<id>/ and those listed in namespaces), to vanilla and convention (c) tags, or to vanilla's atlases`
+- **JSON オブジェクト必須**: `dimension/`・`dimension_type/`・`worldgen/**` のすべての `.json` は有効な JSON かつトップレベルがオブジェクト（`{...}`）でなければなりません。
+  - 例: `data/ruby/worldgen/noise/a.json: expected a JSON object`
+- **`dimension/<name>.json`**: `"type"`（ディメンション型 ID の文字列またはインラインオブジェクト）と `"generator"`（JSON オブジェクト）が必須です。
+  - 例: `data/ruby/dimension/a.json: a dimension needs "type" (a dimension type id)`
+  - 例: `data/ruby/dimension/a.json: a dimension needs a "generator" object`
+- **`dimension_type/<name>.json`**: 指定する場合、`min_y`・`height`・`logical_height` は整数、`min_y` と `height` は **16 の倍数**、`height` は **16〜4064**、`logical_height` は **0〜`height` の範囲内** である必要があります。
+  - 例: `data/ruby/dimension_type/a.json: min_y is a whole number`
+  - 例: `data/ruby/dimension_type/a.json: min_y is a multiple of 16`
+  - 例: `data/ruby/dimension_type/a.json: height is between 16 and 4064`
+  - 例: `data/ruby/dimension_type/a.json: logical_height is within height`
 
 ### `dimension_type`（ディメンション型）の例と各属性の働き
 
@@ -236,9 +267,11 @@ required_on_join = false
 
 [wasm]
 interface = "1.0"
-world = "server-full"
 server = "bin/wasm/level-generator-server.wasm"
 ```
+
+> [!NOTE]
+> `[wasm]` の `server = "..."` を指定したモジュールは常に `server-full` として扱われます。`world = "server-full"` は書かないでください（既知の `world` は `client-mod`・`client-full`・`inject-mod` のみで、`world = "server-full"` を書くとゲーム起動時に拒否されます）。
 
 ### `init` での登録（型・レベル・ジェネレーター）
 
@@ -261,10 +294,19 @@ server = "bin/wasm/level-generator-server.wasm"
 | `ext::unload_level(id)` | バニラ以外のレベルをセーブして閉じ（チャンクと region ファイルを解放）、登録状態だけは残します。次に誰かが入るとフォルダから開き直します。実際の解放は **次のサーバーティックの先頭** で実行されます。誰かがいる・向かっているレベルは拒否されます。 |
 | `ext::regenerate_level(id, seed)` | バニラ以外のレベルを閉じ、`region`・`entities`・`poi` フォルダを削除して同じ ID のまま作り直します。`create_level` で作ったレベルに `seed: Some(new_seed)` を渡すと、そのシード値を更新して `yoake_levels.json` にも保存します（パックや `register_level` のレベルには新しいシードを指定できません）。誰かがいるときは拒否されます。 |
 | `ext::levels()` | ワールド内の全レベル ID の一覧を返します（先頭 3 つがバニラのレベルです）。読み取り可能なサーバーフックからも呼べます。 |
+| `ext::current_level(player)` | 指定したプレイヤー（UUID 文字列、ハイフンあり／なし両対応）がいま居る実際のレベル ID（`"minecraft:overworld"` や `"levelgen:terraces"` など）を `Result<String, String>` で返します（サービス ID 235、`server-read`）。対象プレイヤーがサーバーに居ない場合はエラー（`"the player is not here"`）になります。読み取り可能なサーバーフックからも呼べます。 |
+
+```rust
+// プレイヤー UUID から、いま居る実際のレベル ID を取得する（3 値の enum ではなく文字列 ID が返ります）
+for player in ext::server_players()? {
+    let level_id = ext::current_level(&player.uuid)?;
+    println!("{} is in {}", player.name, level_id);
+}
+```
 
 ### サンプル `level-generator` を読む
 
-リポジトリ内のサンプル [`crates/yoake-wasm-sdk/examples/level-generator/src/lib.rs`](../../crates/yoake-wasm-sdk/examples/level-generator/src/lib.rs) は、`init` で型・ジェネレーター・レベルを登録し、`handle_call` で段々畑のような地形（`levelgen:terraces`）を生成します。
+リポジトリ内のサンプル [`crates/yoake-wasm-sdk/examples/level-generator/src/lib.rs`](../../crates/yoake-wasm-sdk/examples/level-generator/src/lib.rs) は、`init` で型・ジェネレーター・レベルを登録し、`handle_call` で段々畑のような地形（`levelgen:terraces`）を生成します（2 プロセス間の E2E テストは [`tools/levelgen_wasm_e2e.py`](../../tools/levelgen_wasm_e2e.py) にあります）。
 
 ```rust
 use yoake_wasm_sdk::full::generator::{self, Fill, Request};
@@ -359,20 +401,38 @@ fn handle_call(&mut self, _caller: String, method: String, payload: Vec<u8>) -> 
 - **時間制限と失敗時の挙動**:
   - 1 回の呼び出し上限は通常のサーバー呼び出しと同じ **25 ms**（および燃料 1000 万単位）です。ただし、ワールド開始時に多数のチャンクを一斉生成しても MOD が無効化されないよう、50 ms ごとの**累積時間制限（aggregate budget）からは免除**されています（100 ms を超えると警告ログが出ます）。別フックがモジュールを掴んでいる場合は最大 **2 秒**待ちます。
   - 返却データはブロックを 1 つも書き込む前に全体が検証されます（バージョン、セクション番号の範囲と重複、未知のブロック名、パレットサイズ `1..=4096` と範囲外インデックス、余分なバイト列など）。
-  - 検証エラー、`Err` の返却、時間切れ・トラップ・無効化が起きた場合、そのチャンクは**すべて空気（空チャンク）**になり、レベルごとに 1 回だけエラーログが出ます（再試行はされません。トラップや時間切れのときはその MOD 自体も無効化されます）。
+  - **再試行と未生成マーク（ジェネレーターの安全性）**: 呼び出しが失敗した場合（モジュールがビジー、トラップ、呼び出し上限超過など、サーバーモジュール自体が停止している場合を除く）、エンジンは **約 1 ティック（50 ms）待ってから 1 回だけ再試行**します。2 回目も失敗した場合や検証エラーが起きた場合、そのチャンクは空（空気、またはフックが書いた状態）のまま **`not_generated`（未生成）** とマークされ（`ModChunk::mark_failed` → `Chunk::not_generated`）、レベルごとに 1 回だけエラーログが出ます（以降のチャンクは `debug` レベル）。`not_generated` が付いたチャンクは **`save` / `save_later` で保存されないため、次に読み込まれたときに再生成されます**。その後、誰か／何かがそのチャンク内のブロックを別の状態に書き換えると（`Chunk::set`）、その時点で `not_generated` マークが解除され、変更内容が保存されるようになります（トラップや時間切れのときは MOD 自体も無効化されます）。
 
 ---
 
-## 13-5. 現在の制限と未実装の点
+## 13-5. フルアクセス（DLL）MOD 向けのフックと `ModChunk`
+
+フルアクセス（DLL）MOD 向けには、レベルの開閉とチャンク生成を扱う 4 つのサーバー側インジェクトフック（[`crates/yoake-wasm/wit/inject-sites.json`](../../crates/yoake-wasm/wit/inject-sites.json)）と、`yoake-bindgen` が生成した `ModChunk` バインディング（[`crates/yoake-guest-sdk/src/stubs/mod_generator.rs`](../../crates/yoake-guest-sdk/src/stubs/mod_generator.rs)）が用意されています。どのフックも、購読する MOD がなければノーオペレーションです。
+
+| フック名 | 引数 | 呼ばれるタイミング |
+|---|---|---|
+| `level::before_open` | `&mut Game`, レベル ID（`&str`） | まだ開いていないレベルを、ジェネレーターやフォルダから読み込む直前 |
+| `level::after_open` | `&mut Game`, レベル ID（`&str`） | レベルが開いてオープン中レベルの一覧に登録され、MOD が `LevelEvent.Load` を受け取ったあと |
+| `level::before_close` | `&mut Game`, レベル ID（`&str`） | `unload`・`delete`・`regenerate` でレベルを閉じる直前（チャンクやファイルはまだ残っている状態） |
+| `worldgen::generate_chunk` | レベル ID（`&str`）, `cx: i32`, `cz: i32`, `&mut ModChunk` | **`yoake:mod` ジェネレーターを使うレベルのみ**、モッドジェネレーターがチャンクを埋める直前にチャンクごとに 1 回 |
+
+- **`worldgen::generate_chunk` はバニラ地形に触れません**: バニラ 3 ディメンションや `minecraft:flat` / `minecraft:debug` / `minecraft:noise` のレベルでは一切呼ばれません。
+- **ワーカースレッド上で動きます**: `worldgen::generate_chunk` はチャンク生成ワーカースレッドから呼ばれます。フックが処理上限を超えると、前述のジェネレーター安全ルールによりそのチャンクは `not_generated` 扱いになります。
+- **`ModChunk` のバインディング**: フックの引数 `&mut ModChunk` はその呼び出し中だけ有効なスコープ付きハンドルで、[`crates/yoake-guest-sdk/src/stubs/mod_generator.rs`](../../crates/yoake-guest-sdk/src/stubs/mod_generator.rs) のスタブから操作できます。
+  - フィールド取得: `mod_generator_modchunk_chunk_x_get`、`mod_generator_modchunk_chunk_z_get`、`mod_generator_modchunk_failed_get`
+  - 読み書き・状態操作: `mod_generator_modchunk_block(h, x, y, z)`、`mod_generator_modchunk_set_block(h, x, y, z, state)`、`mod_generator_modchunk_fill_layer(h, y, state)`、`mod_generator_modchunk_set_biome(h, name)`、`mod_generator_modchunk_mark_failed(h)`
+  - 詳細なフック仕様や制約は [`docs/yoake2/MOD-GUIDE.md` セクション 16](../yoake2/MOD-GUIDE.md#16-levels-and-world-generation-f3-8b) および [`docs/yoake2/ENGINE_CALL_ABI.md`](../yoake2/ENGINE_CALL_ABI.md) を参照してください。
+
+---
+
+## 13-6. 現在の制限と未実装の点
 
 現時点では、次の制限や未対応の箇所があります。
 
 1. **`yoake:mod` ジェネレーターに装飾・構造物・遠景（LOD）はない**: `yoake:mod` の出力はそのまま最終的なブロックとバイオームになり、その上にバニラの洞窟カーバー・木や鉱石の配置（decoration）・構造物は乗りません。また遠景 LOD サンプラーがないため、読み込み範囲より外の遠景は空になります。気候やノイズを問い合わせるコールバックもまだありません。
 2. **カスタムバイオームの追加は未対応**: データパックでゲームが知らない新しいバイオーム ID を追加しても、警告を出して除外されます。
-3. **コンテンツ MOD（`.hmod`）からのディメンション宣言は未対応**: `dimension/` や `dimension_type/` はワールドの `datapacks/` か WASM MOD の API を使ってください。
-4. **WIT の `level-dimension` 列挙型は 3 種のまま**: 1.0 ABI の後方互換性を保つため、フック引数に含まれる `level-dimension` 列挙型はバニラ以外のレベルでも `overworld` を返します。実際のレベル ID を知りたいときは、`levels()` や、サウンド・パーティクル・ドロップなどの文字列ペイロードを使ってください（`current-level` サービスは未追加です）。
-5. **フルアクセス（DLL）向けのエンジンバインディング・フックは未公開**: `yoake-bindgen` 向けの `worldgen::generate_chunk` などのフックやバインディングはまだ用意されていません。
-6. **ワールドボーダー・時刻・天候の共有**: 作成したレベルは専用のワールドボーダーを持たず、時刻や天候などの一部状態はワールドと共有されます。また一部のモブの昼判定（ホタル・クリーキング・ハチなど）は固定ティック範囲を見ており、カスタムの `timelines` トラックは読みません。
-7. **削除した作成済みレベルの型は再起動まで残る**: 実行中に作成して削除したレベルの `dimension_type` は、既存の型インデックスがずれないようにサーバーを再起動するまで新規参加者向けレジストリに残ります。
-8. **サーバーモジュールのホットリロード非対応**: `server-full` モジュールの `init` は起動時／ワールド開始時に動くため、すでに開いているワールドへ後からロードした MOD の `init` 登録は次のワールドまで反映されません。
-9. **独自シード値レベルのクライアント側バイオームぼかし**: レベル固有の `"seed"` を設定したとき、クライアントのバイオーム境界のぼかし計算はワールド共通のハッシュシードを使うため、バイオームの境界付近の見た目がサーバーの実際のバイオーム判定とわずかにずれることがあります（置かれるブロックやサーバー側の判定自体はレベルのシード値どおりです）。
+3. **WIT の `level-dimension` 列挙型は 3 種のまま**: 1.0 ABI の後方互換性を保つため、フック引数に含まれる `level-dimension` 列挙型はバニラ以外のレベルでも `overworld` を返します。プレイヤーが居る実際のレベル ID を知りたいときは **`ext::current_level(player)`** を使い、そのほかも `ext::levels()` やサウンド・パーティクル・ドロップなどの文字列ペイロードを参照してください。
+4. **ワールドボーダー・時刻・天候の共有**: 作成したレベルは専用のワールドボーダーを持たず、時刻や天候などの一部状態はワールドと共有されます。また一部のモブの昼判定（ホタル・クリーキング・ハチなど）は固定ティック範囲を見ており、カスタムの `timelines` トラックは読みません。
+5. **削除した作成済みレベルの型は再起動まで残る**: 実行中に作成して削除したレベルの `dimension_type` は、既存の型インデックスがずれないようにサーバーを再起動するまで新規参加者向けレジストリに残ります。
+6. **サーバーモジュールの遅れた読み込み（ホットリロード）非対応**: `server-full` モジュールの `init` は起動時／ワールド開始時に動くため、すでに開いているワールドへ後からロードした MOD の `init` 登録は次のワールドまで反映されません。
+7. **独自シード値レベルのクライアント側バイオームぼかし**: レベル固有の `"seed"` を設定したとき、クライアントのバイオーム境界のぼかし計算はワールド共通のハッシュシードを使うため、バイオームの境界付近の見た目がサーバーの実際のバイオーム判定とわずかにずれることがあります（置かれるブロックやサーバー側の判定自体はレベルのシード値どおりです）。
