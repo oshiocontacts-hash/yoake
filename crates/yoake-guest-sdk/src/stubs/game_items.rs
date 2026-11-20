@@ -85,3 +85,17 @@ pub fn game_items_game_player_motion_handle(root: Handle) -> Result<Handle, Erro
     Ok(Handle(crate::decode::<u64>(&result)?))
 }
 
+/// `game_items::Game.settings#handle`: a path handle to the `horizon_client_render::settings::Settings`, valid inside this activation.
+pub fn game_items_game_settings_handle(root: Handle) -> Result<Handle, Error> {
+    let args: Vec<u8> = Vec::new();
+    let result = call(root, 1515, &args)?;
+    Ok(Handle(crate::decode::<u64>(&result)?))
+}
+
+/// `game_items::Game.world#handle`: a path handle to the `horizon_client_render::world::World`, valid inside this activation.
+pub fn game_items_game_world_handle(root: Handle) -> Result<Handle, Error> {
+    let args: Vec<u8> = Vec::new();
+    let result = call(root, 1516, &args)?;
+    Ok(Handle(crate::decode::<u64>(&result)?))
+}
+

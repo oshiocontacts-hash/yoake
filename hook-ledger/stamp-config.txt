@@ -8,3 +8,8 @@
 crates/horizon-client-lib horizon_client_lib * exclude=benchmark,inject_test_support,test_support min_stmts=3 private_types=true bridges=true
 crates/horizon-client horizon_client * exclude=test_support,inject_test_support min_stmts=3 private_types=true bridges=true
 crates/horizon-world horizon_world * exclude=test_support min_stmts=3 private_types=true bridges=true
+crates/horizon-client-render horizon_client_render * exclude=test_support min_stmts=3 private_types=true bridges=true
+crates/horizon-core horizon_core * exclude=test_support min_stmts=3 private_types=true bridges=true
+crates/horizon-protocol horizon_protocol * exclude=test_support min_stmts=3 private_types=true bridges=true
+crates/horizon-items horizon_items * exclude=test_support min_stmts=3 private_types=true bridges=true
+crates/horizon-command horizon_command * exclude=test_support min_stmts=3 private_types=true bridges=true

@@ -9199,6 +9199,1572 @@
       "path": "mobs::CustomLevel.spawn_light#set",
       "sig": "set spawn_light: crate::mobs::spawn_rules::LightRule",
       "status": "ReadOnly"
+    },
+    {
+      "id": 2533,
+      "path": "game_items::Game.settings#handle",
+      "sig": "handle horizon_client_render::settings::Settings at Game.settings",
+      "status": "bound"
+    },
+    {
+      "id": 2534,
+      "path": "game_items::Game.world#handle",
+      "sig": "handle horizon_client_render::world::World at Game.world",
+      "status": "bound"
+    },
+    {
+      "id": 2535,
+      "path": "mobs::Extra.avatar#get",
+      "sig": "get avatar: crate::camera::AvatarBob",
+      "status": "bound"
+    },
+    {
+      "id": 2536,
+      "path": "mobs::Extra.avatar#set",
+      "sig": "set avatar: crate::camera::AvatarBob",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2537,
+      "path": "mobs::Extra.effect_particles#get",
+      "sig": "get effect_particles: Vec<crate::particles::ParticleOptions>",
+      "status": "bound"
+    },
+    {
+      "id": 2538,
+      "path": "mobs::Extra.effect_particles#set",
+      "sig": "set effect_particles: Vec<crate::particles::ParticleOptions>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2539,
+      "path": "motion::PlayerMotion.status#get",
+      "sig": "get status: crate::effects::StatusFlags",
+      "status": "bound"
+    },
+    {
+      "id": 2540,
+      "path": "motion::PlayerMotion.status#set",
+      "sig": "set status: crate::effects::StatusFlags",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2541,
+      "path": "motion::PlayerMotion::powder_snow_subject",
+      "sig": "fn powder_snow_subject(&Self) -> crate::collisions::PowderSnowSubject",
+      "status": "bound"
+    },
+    {
+      "id": 2542,
+      "path": "render_settings::<Opt as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2543,
+      "path": "render_settings::<Opt as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2544,
+      "path": "render_settings::Settings.allow_cursor_changes#get",
+      "sig": "get allow_cursor_changes: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2545,
+      "path": "render_settings::Settings.allow_cursor_changes#set",
+      "sig": "set allow_cursor_changes: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2546,
+      "path": "render_settings::Settings.attack_indicator#get",
+      "sig": "get attack_indicator: u8",
+      "status": "bound"
+    },
+    {
+      "id": 2547,
+      "path": "render_settings::Settings.attack_indicator#set",
+      "sig": "set attack_indicator: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2548,
+      "path": "render_settings::Settings.auto_jump#get",
+      "sig": "get auto_jump: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2549,
+      "path": "render_settings::Settings.auto_jump#set",
+      "sig": "set auto_jump: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2550,
+      "path": "render_settings::Settings.auto_suggestions#get",
+      "sig": "get auto_suggestions: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2551,
+      "path": "render_settings::Settings.auto_suggestions#set",
+      "sig": "set auto_suggestions: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2552,
+      "path": "render_settings::Settings.autosave_indicator#get",
+      "sig": "get autosave_indicator: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2553,
+      "path": "render_settings::Settings.autosave_indicator#set",
+      "sig": "set autosave_indicator: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2554,
+      "path": "render_settings::Settings.biome_blend#get",
+      "sig": "get biome_blend: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2555,
+      "path": "render_settings::Settings.biome_blend#set",
+      "sig": "set biome_blend: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2556,
+      "path": "render_settings::Settings.chat_colors#get",
+      "sig": "get chat_colors: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2557,
+      "path": "render_settings::Settings.chat_colors#set",
+      "sig": "set chat_colors: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2558,
+      "path": "render_settings::Settings.chat_delay#get",
+      "sig": "get chat_delay: f64",
+      "status": "bound"
+    },
+    {
+      "id": 2559,
+      "path": "render_settings::Settings.chat_delay#set",
+      "sig": "set chat_delay: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2560,
+      "path": "render_settings::Settings.chat_height_focused#get",
+      "sig": "get chat_height_focused: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2561,
+      "path": "render_settings::Settings.chat_height_focused#set",
+      "sig": "set chat_height_focused: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2562,
+      "path": "render_settings::Settings.chat_height_unfocused#get",
+      "sig": "get chat_height_unfocused: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2563,
+      "path": "render_settings::Settings.chat_height_unfocused#set",
+      "sig": "set chat_height_unfocused: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2564,
+      "path": "render_settings::Settings.chat_line_spacing#get",
+      "sig": "get chat_line_spacing: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2565,
+      "path": "render_settings::Settings.chat_line_spacing#set",
+      "sig": "set chat_line_spacing: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2566,
+      "path": "render_settings::Settings.chat_links#get",
+      "sig": "get chat_links: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2567,
+      "path": "render_settings::Settings.chat_links#set",
+      "sig": "set chat_links: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2568,
+      "path": "render_settings::Settings.chat_links_prompt#get",
+      "sig": "get chat_links_prompt: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2569,
+      "path": "render_settings::Settings.chat_links_prompt#set",
+      "sig": "set chat_links_prompt: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2570,
+      "path": "render_settings::Settings.chat_opacity#get",
+      "sig": "get chat_opacity: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2571,
+      "path": "render_settings::Settings.chat_opacity#set",
+      "sig": "set chat_opacity: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2572,
+      "path": "render_settings::Settings.chat_scale#get",
+      "sig": "get chat_scale: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2573,
+      "path": "render_settings::Settings.chat_scale#set",
+      "sig": "set chat_scale: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2574,
+      "path": "render_settings::Settings.chat_visibility#get",
+      "sig": "get chat_visibility: u8",
+      "status": "bound"
+    },
+    {
+      "id": 2575,
+      "path": "render_settings::Settings.chat_visibility#set",
+      "sig": "set chat_visibility: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2576,
+      "path": "render_settings::Settings.chat_width#get",
+      "sig": "get chat_width: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2577,
+      "path": "render_settings::Settings.chat_width#set",
+      "sig": "set chat_width: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2578,
+      "path": "render_settings::Settings.chunk_fade#get",
+      "sig": "get chunk_fade: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2579,
+      "path": "render_settings::Settings.chunk_fade#set",
+      "sig": "set chunk_fade: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2580,
+      "path": "render_settings::Settings.cloud_range#get",
+      "sig": "get cloud_range: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2581,
+      "path": "render_settings::Settings.cloud_range#set",
+      "sig": "set cloud_range: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2582,
+      "path": "render_settings::Settings.clouds#get",
+      "sig": "get clouds: String",
+      "status": "bound"
+    },
+    {
+      "id": 2583,
+      "path": "render_settings::Settings.clouds#set",
+      "sig": "set clouds: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2584,
+      "path": "render_settings::Settings.ctrl_click_emulates_right_click#get",
+      "sig": "get ctrl_click_emulates_right_click: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2585,
+      "path": "render_settings::Settings.ctrl_click_emulates_right_click#set",
+      "sig": "set ctrl_click_emulates_right_click: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2586,
+      "path": "render_settings::Settings.cutout_leaves#get",
+      "sig": "get cutout_leaves: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2587,
+      "path": "render_settings::Settings.cutout_leaves#set",
+      "sig": "set cutout_leaves: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2588,
+      "path": "render_settings::Settings.discrete_scroll#get",
+      "sig": "get discrete_scroll: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2589,
+      "path": "render_settings::Settings.discrete_scroll#set",
+      "sig": "set discrete_scroll: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2590,
+      "path": "render_settings::Settings.entity_distance#get",
+      "sig": "get entity_distance: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2591,
+      "path": "render_settings::Settings.entity_distance#set",
+      "sig": "set entity_distance: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2592,
+      "path": "render_settings::Settings.entity_shadows#get",
+      "sig": "get entity_shadows: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2593,
+      "path": "render_settings::Settings.entity_shadows#set",
+      "sig": "set entity_shadows: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2594,
+      "path": "render_settings::Settings.force_unicode#get",
+      "sig": "get force_unicode: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2595,
+      "path": "render_settings::Settings.force_unicode#set",
+      "sig": "set force_unicode: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2596,
+      "path": "render_settings::Settings.fov#get",
+      "sig": "get fov: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2597,
+      "path": "render_settings::Settings.fov#set",
+      "sig": "set fov: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2598,
+      "path": "render_settings::Settings.fullscreen#get",
+      "sig": "get fullscreen: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2599,
+      "path": "render_settings::Settings.fullscreen#set",
+      "sig": "set fullscreen: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2600,
+      "path": "render_settings::Settings.gamma#get",
+      "sig": "get gamma: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2601,
+      "path": "render_settings::Settings.gamma#set",
+      "sig": "set gamma: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2602,
+      "path": "render_settings::Settings.graphics_preset#get",
+      "sig": "get graphics_preset: String",
+      "status": "bound"
+    },
+    {
+      "id": 2603,
+      "path": "render_settings::Settings.graphics_preset#set",
+      "sig": "set graphics_preset: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2604,
+      "path": "render_settings::Settings.gui_scale#get",
+      "sig": "get gui_scale: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2605,
+      "path": "render_settings::Settings.gui_scale#set",
+      "sig": "set gui_scale: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2606,
+      "path": "render_settings::Settings.high_contrast#get",
+      "sig": "get high_contrast: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2607,
+      "path": "render_settings::Settings.high_contrast#set",
+      "sig": "set high_contrast: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2608,
+      "path": "render_settings::Settings.horizon#get",
+      "sig": "get horizon: crate::graphics::Graphics",
+      "status": "bound"
+    },
+    {
+      "id": 2609,
+      "path": "render_settings::Settings.horizon#set",
+      "sig": "set horizon: crate::graphics::Graphics",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2610,
+      "path": "render_settings::Settings.improved_transparency#get",
+      "sig": "get improved_transparency: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2611,
+      "path": "render_settings::Settings.improved_transparency#set",
+      "sig": "set improved_transparency: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2612,
+      "path": "render_settings::Settings.inactivity_fps_limit#get",
+      "sig": "get inactivity_fps_limit: String",
+      "status": "bound"
+    },
+    {
+      "id": 2613,
+      "path": "render_settings::Settings.inactivity_fps_limit#set",
+      "sig": "set inactivity_fps_limit: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2614,
+      "path": "render_settings::Settings.invert_x#get",
+      "sig": "get invert_x: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2615,
+      "path": "render_settings::Settings.invert_x#set",
+      "sig": "set invert_x: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2616,
+      "path": "render_settings::Settings.invert_y#get",
+      "sig": "get invert_y: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2617,
+      "path": "render_settings::Settings.invert_y#set",
+      "sig": "set invert_y: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2618,
+      "path": "render_settings::Settings.japanese_glyphs#get",
+      "sig": "get japanese_glyphs: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2619,
+      "path": "render_settings::Settings.japanese_glyphs#set",
+      "sig": "set japanese_glyphs: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2620,
+      "path": "render_settings::Settings.language#get",
+      "sig": "get language: String",
+      "status": "bound"
+    },
+    {
+      "id": 2621,
+      "path": "render_settings::Settings.language#set",
+      "sig": "set language: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2622,
+      "path": "render_settings::Settings.main_hand_left#get",
+      "sig": "get main_hand_left: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2623,
+      "path": "render_settings::Settings.main_hand_left#set",
+      "sig": "set main_hand_left: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2624,
+      "path": "render_settings::Settings.master_volume#get",
+      "sig": "get master_volume: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2625,
+      "path": "render_settings::Settings.master_volume#set",
+      "sig": "set master_volume: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2626,
+      "path": "render_settings::Settings.max_fps#get",
+      "sig": "get max_fps: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2627,
+      "path": "render_settings::Settings.max_fps#set",
+      "sig": "set max_fps: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2628,
+      "path": "render_settings::Settings.menu_blur#get",
+      "sig": "get menu_blur: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2629,
+      "path": "render_settings::Settings.menu_blur#set",
+      "sig": "set menu_blur: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2630,
+      "path": "render_settings::Settings.mipmap_levels#get",
+      "sig": "get mipmap_levels: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2631,
+      "path": "render_settings::Settings.mipmap_levels#set",
+      "sig": "set mipmap_levels: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2632,
+      "path": "render_settings::Settings.mods#get",
+      "sig": "get mods: crate::mod_list::ModList",
+      "status": "bound"
+    },
+    {
+      "id": 2633,
+      "path": "render_settings::Settings.mods#set",
+      "sig": "set mods: crate::mod_list::ModList",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2634,
+      "path": "render_settings::Settings.mouse_wheel_sensitivity#get",
+      "sig": "get mouse_wheel_sensitivity: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2635,
+      "path": "render_settings::Settings.mouse_wheel_sensitivity#set",
+      "sig": "set mouse_wheel_sensitivity: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2636,
+      "path": "render_settings::Settings.notification_display_time#get",
+      "sig": "get notification_display_time: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2637,
+      "path": "render_settings::Settings.notification_display_time#set",
+      "sig": "set notification_display_time: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2638,
+      "path": "render_settings::Settings.operator_items_tab#get",
+      "sig": "get operator_items_tab: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2639,
+      "path": "render_settings::Settings.operator_items_tab#set",
+      "sig": "set operator_items_tab: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2640,
+      "path": "render_settings::Settings.particles#get",
+      "sig": "get particles: u8",
+      "status": "bound"
+    },
+    {
+      "id": 2641,
+      "path": "render_settings::Settings.particles#set",
+      "sig": "set particles: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2642,
+      "path": "render_settings::Settings.prioritize_chunk_updates#get",
+      "sig": "get prioritize_chunk_updates: u8",
+      "status": "bound"
+    },
+    {
+      "id": 2643,
+      "path": "render_settings::Settings.prioritize_chunk_updates#set",
+      "sig": "set prioritize_chunk_updates: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2644,
+      "path": "render_settings::Settings.quit_shortcuts#get",
+      "sig": "get quit_shortcuts: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2645,
+      "path": "render_settings::Settings.quit_shortcuts#set",
+      "sig": "set quit_shortcuts: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2646,
+      "path": "render_settings::Settings.reduced_debug_info#get",
+      "sig": "get reduced_debug_info: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2647,
+      "path": "render_settings::Settings.reduced_debug_info#set",
+      "sig": "set reduced_debug_info: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2648,
+      "path": "render_settings::Settings.render_distance#get",
+      "sig": "get render_distance: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2649,
+      "path": "render_settings::Settings.render_distance#set",
+      "sig": "set render_distance: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2650,
+      "path": "render_settings::Settings.resource_packs#get",
+      "sig": "get resource_packs: Vec<String>",
+      "status": "bound"
+    },
+    {
+      "id": 2651,
+      "path": "render_settings::Settings.resource_packs#set",
+      "sig": "set resource_packs: Vec<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2652,
+      "path": "render_settings::Settings.sensitivity#get",
+      "sig": "get sensitivity: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2653,
+      "path": "render_settings::Settings.sensitivity#set",
+      "sig": "set sensitivity: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2654,
+      "path": "render_settings::Settings.show_subtitles#get",
+      "sig": "get show_subtitles: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2655,
+      "path": "render_settings::Settings.show_subtitles#set",
+      "sig": "set show_subtitles: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2656,
+      "path": "render_settings::Settings.simulation_distance#get",
+      "sig": "get simulation_distance: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2657,
+      "path": "render_settings::Settings.simulation_distance#set",
+      "sig": "set simulation_distance: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2658,
+      "path": "render_settings::Settings.smooth_lighting#get",
+      "sig": "get smooth_lighting: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2659,
+      "path": "render_settings::Settings.smooth_lighting#set",
+      "sig": "set smooth_lighting: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2660,
+      "path": "render_settings::Settings.sound_device#get",
+      "sig": "get sound_device: String",
+      "status": "bound"
+    },
+    {
+      "id": 2661,
+      "path": "render_settings::Settings.sound_device#set",
+      "sig": "set sound_device: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2662,
+      "path": "render_settings::Settings.sprint_window#get",
+      "sig": "get sprint_window: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2663,
+      "path": "render_settings::Settings.sprint_window#set",
+      "sig": "set sprint_window: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2664,
+      "path": "render_settings::Settings.startup_api#get",
+      "sig": "get startup_api: crate::graphics::GraphicsApi",
+      "status": "bound"
+    },
+    {
+      "id": 2665,
+      "path": "render_settings::Settings.startup_api#set",
+      "sig": "set startup_api: crate::graphics::GraphicsApi",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2666,
+      "path": "render_settings::Settings.text_background_opacity#get",
+      "sig": "get text_background_opacity: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2667,
+      "path": "render_settings::Settings.text_background_opacity#set",
+      "sig": "set text_background_opacity: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2668,
+      "path": "render_settings::Settings.toggle_attack#get",
+      "sig": "get toggle_attack: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2669,
+      "path": "render_settings::Settings.toggle_attack#set",
+      "sig": "set toggle_attack: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2670,
+      "path": "render_settings::Settings.toggle_crouch#get",
+      "sig": "get toggle_crouch: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2671,
+      "path": "render_settings::Settings.toggle_crouch#set",
+      "sig": "set toggle_crouch: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2672,
+      "path": "render_settings::Settings.toggle_sprint#get",
+      "sig": "get toggle_sprint: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2673,
+      "path": "render_settings::Settings.toggle_sprint#set",
+      "sig": "set toggle_sprint: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2674,
+      "path": "render_settings::Settings.toggle_use#get",
+      "sig": "get toggle_use: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2675,
+      "path": "render_settings::Settings.toggle_use#set",
+      "sig": "set toggle_use: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2676,
+      "path": "render_settings::Settings.view_bobbing#get",
+      "sig": "get view_bobbing: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2677,
+      "path": "render_settings::Settings.view_bobbing#set",
+      "sig": "set view_bobbing: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2678,
+      "path": "render_settings::Settings.vignette#get",
+      "sig": "get vignette: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2679,
+      "path": "render_settings::Settings.vignette#set",
+      "sig": "set vignette: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2680,
+      "path": "render_settings::Settings.volumes#get",
+      "sig": "get volumes: [f32; 11]",
+      "status": "bound"
+    },
+    {
+      "id": 2681,
+      "path": "render_settings::Settings.volumes#set",
+      "sig": "set volumes: [f32; 11]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2682,
+      "path": "render_settings::Settings.vsync#get",
+      "sig": "get vsync: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2683,
+      "path": "render_settings::Settings.vsync#set",
+      "sig": "set vsync: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2684,
+      "path": "render_settings::Settings.weather_radius#get",
+      "sig": "get weather_radius: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2685,
+      "path": "render_settings::Settings.weather_radius#set",
+      "sig": "set weather_radius: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2686,
+      "path": "render_settings::Settings::chat_options",
+      "sig": "fn chat_options(&Self) -> crate::chat::ChatOptions",
+      "status": "bound"
+    },
+    {
+      "id": 2687,
+      "path": "render_settings::Settings::describe_for_crashes",
+      "sig": "fn describe_for_crashes(&Self) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 2688,
+      "path": "render_settings::Settings::final_volume",
+      "sig": "fn final_volume(&Self, &str) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 2689,
+      "path": "render_settings::Settings::serialize",
+      "sig": "fn serialize(&Self) -> String",
+      "status": "bound"
+    },
+    {
+      "id": 2690,
+      "path": "render_settings::Settings::text_background",
+      "sig": "fn text_background(&Self, f32) -> u32",
+      "status": "bound"
+    },
+    {
+      "id": 2691,
+      "path": "render_settings::Settings::video_mode_index",
+      "sig": "fn video_mode_index(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 2692,
+      "path": "render_settings::Settings::volume",
+      "sig": "fn volume(&Self, &str) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 2693,
+      "path": "render_settings::default_language",
+      "sig": "fn default_language() -> String",
+      "status": "bound"
+    },
+    {
+      "id": 2694,
+      "path": "render_settings::set_source_volumes",
+      "sig": "fn set_source_volumes([f32; 11]) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 2695,
+      "path": "render_settings::sound_source",
+      "sig": "fn sound_source(&str) -> usize",
+      "status": "bound"
+    },
+    {
+      "id": 2696,
+      "path": "render_settings::source_volume",
+      "sig": "fn source_volume(usize) -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 2697,
+      "path": "render_world::<HealthRules as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2698,
+      "path": "render_world::<HealthRules as Default>::default",
+      "sig": "fn default() -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2699,
+      "path": "render_world::<Weather as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2700,
+      "path": "render_world::<Weather as Default>::default",
+      "sig": "fn default() -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2701,
+      "path": "render_world::DirtySections::clear",
+      "sig": "fn clear(&mut Self) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 2702,
+      "path": "render_world::DirtySections::contains",
+      "sig": "fn contains(&Self, &(i32, i32, i32)) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2703,
+      "path": "render_world::DirtySections::insert",
+      "sig": "fn insert(&mut Self, (i32, i32, i32)) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 2704,
+      "path": "render_world::DirtySections::is_empty",
+      "sig": "fn is_empty(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2705,
+      "path": "render_world::DirtySections::len",
+      "sig": "fn len(&Self) -> usize",
+      "status": "bound"
+    },
+    {
+      "id": 2706,
+      "path": "render_world::HealthRules.difficulty#get",
+      "sig": "get difficulty: horizon_world::food::Difficulty",
+      "status": "bound"
+    },
+    {
+      "id": 2707,
+      "path": "render_world::HealthRules.difficulty#set",
+      "sig": "set difficulty: horizon_world::food::Difficulty",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2708,
+      "path": "render_world::HealthRules.drowning_damage#get",
+      "sig": "get drowning_damage: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2709,
+      "path": "render_world::HealthRules.drowning_damage#set",
+      "sig": "set drowning_damage: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2710,
+      "path": "render_world::HealthRules.fall_damage#get",
+      "sig": "get fall_damage: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2711,
+      "path": "render_world::HealthRules.fall_damage#set",
+      "sig": "set fall_damage: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2712,
+      "path": "render_world::HealthRules.fire_damage#get",
+      "sig": "get fire_damage: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2713,
+      "path": "render_world::HealthRules.fire_damage#set",
+      "sig": "set fire_damage: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2714,
+      "path": "render_world::HealthRules.freeze_damage#get",
+      "sig": "get freeze_damage: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2715,
+      "path": "render_world::HealthRules.freeze_damage#set",
+      "sig": "set freeze_damage: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2716,
+      "path": "render_world::HealthRules.natural_regeneration#get",
+      "sig": "get natural_regeneration: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2717,
+      "path": "render_world::HealthRules.natural_regeneration#set",
+      "sig": "set natural_regeneration: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2718,
+      "path": "render_world::Weather.clear_time#get",
+      "sig": "get clear_time: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2719,
+      "path": "render_world::Weather.clear_time#set",
+      "sig": "set clear_time: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2720,
+      "path": "render_world::Weather.rain_level#get",
+      "sig": "get rain_level: (f32, f32)",
+      "status": "bound"
+    },
+    {
+      "id": 2721,
+      "path": "render_world::Weather.rain_level#set",
+      "sig": "set rain_level: (f32, f32)",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2722,
+      "path": "render_world::Weather.rain_time#get",
+      "sig": "get rain_time: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2723,
+      "path": "render_world::Weather.rain_time#set",
+      "sig": "set rain_time: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2724,
+      "path": "render_world::Weather.raining#get",
+      "sig": "get raining: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2725,
+      "path": "render_world::Weather.raining#set",
+      "sig": "set raining: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2726,
+      "path": "render_world::Weather.thunder_level#get",
+      "sig": "get thunder_level: (f32, f32)",
+      "status": "bound"
+    },
+    {
+      "id": 2727,
+      "path": "render_world::Weather.thunder_level#set",
+      "sig": "set thunder_level: (f32, f32)",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2728,
+      "path": "render_world::Weather.thunder_time#get",
+      "sig": "get thunder_time: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2729,
+      "path": "render_world::Weather.thunder_time#set",
+      "sig": "set thunder_time: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2730,
+      "path": "render_world::Weather.thundering#get",
+      "sig": "get thundering: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2731,
+      "path": "render_world::Weather.thundering#set",
+      "sig": "set thundering: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2732,
+      "path": "render_world::Weather::after_sleep",
+      "sig": "fn after_sleep(&mut Self, bool) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 2733,
+      "path": "render_world::Weather::is_raining",
+      "sig": "fn is_raining(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2734,
+      "path": "render_world::Weather::is_thundering",
+      "sig": "fn is_thundering(&Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2735,
+      "path": "render_world::Weather::levels",
+      "sig": "fn levels(&Self, f32) -> (f32, f32)",
+      "status": "bound"
+    },
+    {
+      "id": 2736,
+      "path": "render_world::Weather::tick_levels",
+      "sig": "fn tick_levels(&mut Self) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 2737,
+      "path": "render_world::World.air#get",
+      "sig": "get air: horizon_world::registry::BlockStateId",
+      "status": "bound"
+    },
+    {
+      "id": 2738,
+      "path": "render_world::World.air#set",
+      "sig": "set air: horizon_world::registry::BlockStateId",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2739,
+      "path": "render_world::World.block_log#get",
+      "sig": "get block_log: Option<Vec<(i32, i32, i32)>>",
+      "status": "bound"
+    },
+    {
+      "id": 2740,
+      "path": "render_world::World.block_log#set",
+      "sig": "set block_log: Option<Vec<(i32, i32, i32)>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2741,
+      "path": "render_world::World.block_names#get",
+      "sig": "get block_names: crate::FxHashMap<(i32, i32, i32), String>",
+      "status": "bound"
+    },
+    {
+      "id": 2742,
+      "path": "render_world::World.block_names#set",
+      "sig": "set block_names: crate::FxHashMap<(i32, i32, i32), String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2743,
+      "path": "render_world::World.bulk_log#get",
+      "sig": "get bulk_log: crate::FxHashSet<(i32, i32)>",
+      "status": "bound"
+    },
+    {
+      "id": 2744,
+      "path": "render_world::World.bulk_log#set",
+      "sig": "set bulk_log: crate::FxHashSet<(i32, i32)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2745,
+      "path": "render_world::World.chest_openers#get",
+      "sig": "get chest_openers: crate::FxHashMap<(i32, i32, i32), (i32, f64)>",
+      "status": "bound"
+    },
+    {
+      "id": 2746,
+      "path": "render_world::World.chest_openers#set",
+      "sig": "set chest_openers: crate::FxHashMap<(i32, i32, i32), (i32, f64)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2747,
+      "path": "render_world::World.day_time#get",
+      "sig": "get day_time: i64",
+      "status": "bound"
+    },
+    {
+      "id": 2748,
+      "path": "render_world::World.day_time#set",
+      "sig": "set day_time: i64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2749,
+      "path": "render_world::World.dirty_light#get",
+      "sig": "get dirty_light: crate::fast_hash::FxHashSet<(i32, i32)>",
+      "status": "bound"
+    },
+    {
+      "id": 2750,
+      "path": "render_world::World.dirty_light#set",
+      "sig": "set dirty_light: crate::fast_hash::FxHashSet<(i32, i32)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2751,
+      "path": "render_world::World.fast_lava#get",
+      "sig": "get fast_lava: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2752,
+      "path": "render_world::World.fast_lava#set",
+      "sig": "set fast_lava: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2753,
+      "path": "render_world::World.game_time#get",
+      "sig": "get game_time: i64",
+      "status": "bound"
+    },
+    {
+      "id": 2754,
+      "path": "render_world::World.game_time#set",
+      "sig": "set game_time: i64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2755,
+      "path": "render_world::World.health_rules#get",
+      "sig": "get health_rules: HealthRules",
+      "status": "bound"
+    },
+    {
+      "id": 2756,
+      "path": "render_world::World.health_rules#set",
+      "sig": "set health_rules: HealthRules",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2757,
+      "path": "render_world::World.inhabited#get",
+      "sig": "get inhabited: crate::FxHashMap<(i32, i32), i64>",
+      "status": "bound"
+    },
+    {
+      "id": 2758,
+      "path": "render_world::World.inhabited#set",
+      "sig": "set inhabited: crate::FxHashMap<(i32, i32), i64>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2759,
+      "path": "render_world::World.light_edits#get",
+      "sig": "get light_edits: Vec<((i32, i32, i32), u32, u32)>",
+      "status": "bound"
+    },
+    {
+      "id": 2760,
+      "path": "render_world::World.light_edits#set",
+      "sig": "set light_edits: Vec<((i32, i32, i32), u32, u32)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2761,
+      "path": "render_world::World.loaded_chunks#get",
+      "sig": "get loaded_chunks: Vec<(i32, i32, bool)>",
+      "status": "bound"
+    },
+    {
+      "id": 2762,
+      "path": "render_world::World.loaded_chunks#set",
+      "sig": "set loaded_chunks: Vec<(i32, i32, bool)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2763,
+      "path": "render_world::World.loaded_entities#get",
+      "sig": "get loaded_entities: Vec<((i32, i32), Vec<horizon_world::nbt::Tag>)>",
+      "status": "bound"
+    },
+    {
+      "id": 2764,
+      "path": "render_world::World.loaded_entities#set",
+      "sig": "set loaded_entities: Vec<((i32, i32), Vec<horizon_world::nbt::Tag>)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2765,
+      "path": "render_world::World.modified#get",
+      "sig": "get modified: crate::FxHashSet<(i32, i32)>",
+      "status": "bound"
+    },
+    {
+      "id": 2766,
+      "path": "render_world::World.modified#set",
+      "sig": "set modified: crate::FxHashSet<(i32, i32)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2767,
+      "path": "render_world::World.moving_piston_fallback#get",
+      "sig": "get moving_piston_fallback: Vec<([i32; 3], horizon_world::piston_shape::MovingPistonState)>",
+      "status": "bound"
+    },
+    {
+      "id": 2768,
+      "path": "render_world::World.moving_piston_fallback#set",
+      "sig": "set moving_piston_fallback: Vec<([i32; 3], horizon_world::piston_shape::MovingPistonState)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2769,
+      "path": "render_world::World.moving_pistons#get",
+      "sig": "get moving_pistons: Vec<([i32; 3], horizon_world::piston_shape::MovingPistonState)>",
+      "status": "bound"
+    },
+    {
+      "id": 2770,
+      "path": "render_world::World.moving_pistons#set",
+      "sig": "set moving_pistons: Vec<([i32; 3], horizon_world::piston_shape::MovingPistonState)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2771,
+      "path": "render_world::World.path_writes#get",
+      "sig": "get path_writes: Option<Vec<((i32, i32, i32), u32, u32)>>",
+      "status": "bound"
+    },
+    {
+      "id": 2772,
+      "path": "render_world::World.path_writes#set",
+      "sig": "set path_writes: Option<Vec<((i32, i32, i32), u32, u32)>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2773,
+      "path": "render_world::World.revision#get",
+      "sig": "get revision: u64",
+      "status": "bound"
+    },
+    {
+      "id": 2774,
+      "path": "render_world::World.revision#set",
+      "sig": "set revision: u64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2775,
+      "path": "render_world::World.shape#get",
+      "sig": "get shape: crate::LevelShape",
+      "status": "bound"
+    },
+    {
+      "id": 2776,
+      "path": "render_world::World.shape#set",
+      "sig": "set shape: crate::LevelShape",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2777,
+      "path": "render_world::World.shulkers#get",
+      "sig": "get shulkers: crate::FxHashMap<[i32; 3], crate::block_entity_anim::Shulker>",
+      "status": "bound"
+    },
+    {
+      "id": 2778,
+      "path": "render_world::World.shulkers#set",
+      "sig": "set shulkers: crate::FxHashMap<[i32; 3], crate::block_entity_anim::Shulker>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2779,
+      "path": "render_world::World.watched#get",
+      "sig": "get watched: Vec<bool>",
+      "status": "bound"
+    },
+    {
+      "id": 2780,
+      "path": "render_world::World.watched#set",
+      "sig": "set watched: Vec<bool>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2781,
+      "path": "render_world::World.watched_writes#get",
+      "sig": "get watched_writes: Vec<((i32, i32, i32), u32, u32)>",
+      "status": "bound"
+    },
+    {
+      "id": 2782,
+      "path": "render_world::World.watched_writes#set",
+      "sig": "set watched_writes: Vec<((i32, i32, i32), u32, u32)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2783,
+      "path": "render_world::World.weather#get",
+      "sig": "get weather: Weather",
+      "status": "bound"
+    },
+    {
+      "id": 2784,
+      "path": "render_world::World.weather#set",
+      "sig": "set weather: Weather",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2785,
+      "path": "render_world::World::block",
+      "sig": "fn block(&Self, i32, i32, i32) -> BlockStateId",
+      "status": "bound"
+    },
+    {
+      "id": 2786,
+      "path": "render_world::World::block_entity_tickers",
+      "sig": "fn block_entity_tickers(&mut Self) -> std::sync::Arc<Vec<(crate::block_entities::Pos, u32)>>",
+      "status": "bound"
+    },
+    {
+      "id": 2787,
+      "path": "render_world::World::bottom_y",
+      "sig": "fn bottom_y(&Self) -> i32",
+      "status": "bound"
+    },
+    {
+      "id": 2788,
+      "path": "render_world::World::forget_block_entity_source",
+      "sig": "fn forget_block_entity_source(&mut Self, (i32, i32, i32)) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 2789,
+      "path": "render_world::World::is_air",
+      "sig": "fn is_air(&Self, BlockStateId) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2790,
+      "path": "render_world::World::light",
+      "sig": "fn light(&Self, i32, i32, i32) -> u8",
+      "status": "bound"
+    },
+    {
+      "id": 2791,
+      "path": "render_world::World::loaded",
+      "sig": "fn loaded(&Self, i32, i32) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2792,
+      "path": "render_world::World::set_block_lock",
+      "sig": "fn set_block_lock(&mut Self, (i32, i32, i32), &horizon_world::nbt::Tag) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 2793,
+      "path": "render_world::World::top_y",
+      "sig": "fn top_y(&Self) -> i32",
+      "status": "bound"
     }
   ]
 }

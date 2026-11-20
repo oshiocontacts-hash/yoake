@@ -1,0 +1,1656 @@
+{
+  "crate": "horizon_items",
+  "entries": [
+    {
+      "id": 10493,
+      "key": "horizon_items::blocks::<GameplayProjection as GameplayStateSource>::flag",
+      "sig": "519034b2d3c098d7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10494,
+      "key": "horizon_items::blocks::<GameplayProjection as GameplayStateSource>::unsigned",
+      "sig": "bb375df004d73311",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10495,
+      "key": "horizon_items::blocks::<GameplayProjection as GameplayStateSource>::number",
+      "sig": "f9f4f6da2ba5ac9e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10496,
+      "key": "horizon_items::blocks::<GameplayProjection as GameplayStateSource>::sound_number",
+      "sig": "9b748f27e0995ee2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10497,
+      "key": "horizon_items::blocks::decode::<ShapeKey as PartialEq>::eq",
+      "sig": "80b1e3a9ef698711",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10498,
+      "key": "horizon_items::bundle::destroyed",
+      "sig": "90041507ba805d82",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10499,
+      "key": "horizon_items::bundle::Contents::of",
+      "sig": "e588917186adc27a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10500,
+      "key": "horizon_items::bundle::Contents::try_insert",
+      "sig": "f59803ca2aa7d099",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10501,
+      "key": "horizon_items::bundle::Contents::remove_one",
+      "sig": "67e9b52a85b851be",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10502,
+      "key": "horizon_items::bundle::Contents::shown_count",
+      "sig": "6073a23f33f12684",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10503,
+      "key": "horizon_items::bundle::Contents::bar",
+      "sig": "d0dcf757966dd76e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10504,
+      "key": "horizon_items::bundle::toggle_selected",
+      "sig": "367d0b757288919d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10505,
+      "key": "horizon_items::bundle::tooltip_layout",
+      "sig": "a298ff6f00d35ef0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10506,
+      "key": "horizon_items::content_namespaces::tag_namespaces",
+      "sig": "81a66c6fa335db6c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10507,
+      "key": "horizon_items::cooldowns::UseCooldown::from_tag",
+      "sig": "2ef9f8e7e746b5b9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10508,
+      "key": "horizon_items::cooldowns::Cooldowns::percent",
+      "sig": "a28591f8c1816aff",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10509,
+      "key": "horizon_items::cooldowns::Cooldowns::remaining",
+      "sig": "3202704a515b5f63",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10510,
+      "key": "horizon_items::cooldowns::Cooldowns::remaining_ticks",
+      "sig": "5bea1a22a13279f0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10511,
+      "key": "horizon_items::cooldowns::Cooldowns::tick",
+      "sig": "485862f1e6487a27",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10512,
+      "key": "horizon_items::enchant::Enchantments::load_with",
+      "sig": "edf11df4ddb190b8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10513,
+      "key": "horizon_items::enchant::Enchantments::full_name_in",
+      "sig": "47bcd17aeb7f88cc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10514,
+      "key": "horizon_items::enchant::Enchantments::tooltip",
+      "sig": "08858bbd288aa41b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10515,
+      "key": "horizon_items::enchant::Enchantments::available_results",
+      "sig": "3d61f98588dff73f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10516,
+      "key": "horizon_items::enchant::Enchantments::modify_value",
+      "sig": "a1280dfe5afbbcfa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10517,
+      "key": "horizon_items::enchant::movement_matches",
+      "sig": "435b8d00dab3aba5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10518,
+      "key": "horizon_items::enchant::tests::sample[cfg(any(test,feature=\"test-support\"))]",
+      "sig": "d6b8087d389ff189",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10519,
+      "key": "horizon_items::enchant::tests::sample_items[cfg(any(test,feature=\"test-support\"))]",
+      "sig": "3cc49220027f1a5c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10520,
+      "key": "horizon_items::enchant::tests::level_based_values[cfg(any(test,feature=\"test-support\"))]",
+      "sig": "93ec78f9159a42cd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10521,
+      "key": "horizon_items::enchant::tests::selection_respects_costs_and_exclusivity[cfg(any(test,feature=\"test-support\"))]",
+      "sig": "db51620418bb7393",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10522,
+      "key": "horizon_items::enchant::tests::value_effects_and_requirements[cfg(any(test,feature=\"test-support\"))]",
+      "sig": "8b4eb40b8957ee1f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10523,
+      "key": "horizon_items::enchant::tests::names_and_tooltip_order[cfg(any(test,feature=\"test-support\"))]",
+      "sig": "1a0022cc09a703a7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10524,
+      "key": "horizon_items::enchant::tests::high_enchantment_names_keep_the_untranslated_key[cfg(any(test,feature=\"test-support\"))]",
+      "sig": "c0362ef7fcd71c11",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10525,
+      "key": "horizon_items::enchant::tests::names_follow_the_language[cfg(any(test,feature=\"test-support\"))]",
+      "sig": "b6881233c8563405",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10526,
+      "key": "horizon_items::item_data::<Wire as PartialEq>::eq",
+      "sig": "398ce4253199ec58",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10527,
+      "key": "horizon_items::item_data::<BundleSelected as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10528,
+      "key": "horizon_items::item_data::<BundleSelected as PartialEq>::eq",
+      "sig": "398ce4253199ec58",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10529,
+      "key": "horizon_items::item_data::destroyed_container",
+      "sig": "1b2f5dab0b40a842",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10530,
+      "key": "horizon_items::item_data::ItemStack::enchant",
+      "sig": "f71462208414844f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10531,
+      "key": "horizon_items::item_data::explosion_tag",
+      "sig": "4c3bef06eaf6e1c6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10532,
+      "key": "horizon_items::item_data::template_tag",
+      "sig": "f4609c2fc18dfebd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10533,
+      "key": "horizon_items::item_data::canon_tag",
+      "sig": "3ae5afcea0b67ce6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10534,
+      "key": "horizon_items::item_data::components_tag",
+      "sig": "f3102b666d6cc141",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10535,
+      "key": "horizon_items::item_data::decode_components",
+      "sig": "09488a80b7f38624",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10536,
+      "key": "horizon_items::item_data::command_components",
+      "sig": "6322713c01bc8485",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10537,
+      "key": "horizon_items::item_nbt::item_from_nbt",
+      "sig": "1cdafe79df257f55",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10538,
+      "key": "horizon_items::items::BlocksAttacks::parse",
+      "sig": "d1da7ec3e7b7e098",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10539,
+      "key": "horizon_items::items::<ItemStack as InjectSnapshot>::inject_snapshot",
+      "sig": "1a5b22e56dd8fa58",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10540,
+      "key": "horizon_items::items::registry_order",
+      "sig": "89ceecd427234758",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10541,
+      "key": "horizon_items::items::load_instruments",
+      "sig": "8b84ec8b13968e8d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10542,
+      "key": "horizon_items::items::load_songs",
+      "sig": "0a09bb1a6383bc35",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10543,
+      "key": "horizon_items::items::load_tag_lists",
+      "sig": "4ba898340ae6fcd8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10544,
+      "key": "horizon_items::items::Items::load_with",
+      "sig": "8e7dc7e4a6af73b8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10545,
+      "key": "horizon_items::items::Items::can_destroy_block",
+      "sig": "1da1de1d2aec2630",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10546,
+      "key": "horizon_items::items::Items::block_loot_table",
+      "sig": "848aa7ff28b85477",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10547,
+      "key": "horizon_items::items::apply_loot",
+      "sig": "e228f6d28398e4a7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10548,
+      "key": "horizon_items::items::take_held_drop",
+      "sig": "21a7b84e0ce44b9e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10549,
+      "key": "horizon_items::random_sequences::<RandomSequences as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10550,
+      "key": "horizon_items::random_sequences::create",
+      "sig": "b28d6eebdf4ef21c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10551,
+      "key": "horizon_items::random_sequences::RandomSequences::from_nbt",
+      "sig": "8e3d00e34b8bd5c4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10552,
+      "key": "horizon_items::recipe_filters::RecipeFilters::load",
+      "sig": "d752ae87e30b40eb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10553,
+      "key": "horizon_items::recipe_filters::Filter::parse",
+      "sig": "a08625c244de6105",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 10554,
+      "key": "horizon_items::recipe_filters::glob",
+      "sig": "04bff81ea4fac8f8",
+      "status": "live",
+      "kind": "fn"
+    }
+  ],
+  "excluded": [
+    {
+      "key": "horizon_items::banner_layer::BannerLayer::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::banner_layer::layers_from_nbt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::banner_layer::layers_to_nbt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::<Entry as GameplayStateSource>::flag",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::<Entry as GameplayStateSource>::number",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::<Entry as GameplayStateSource>::sound_id",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::<Entry as GameplayStateSource>::sound_number",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::<Entry as GameplayStateSource>::text",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::<Entry as GameplayStateSource>::unsigned",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::<GameplayProjection as GameplayStateSource>::sound_id",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::<GameplayProjection as GameplayStateSource>::text",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::BlockFacts::decode_with_callback",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::BlockFacts::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::BlockFacts::is_air",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::BlockFacts::load",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::BlockFacts::load_pair",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::BlockFacts::load_with_behaviour_json",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::BlockFacts::load_with_behaviours",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::BlockFacts::load_with_callback",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::BlockFacts::load_with_projection",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::BlockFacts::wood_type",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::GameplayProjection::from_entry",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::SignForm::block_entity_type",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::StateFacts::has_class",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::StateFacts::sign_form",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::cube_edges",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::<ContainerVisitor<T> as Visitor>::expecting",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::<ContainerVisitor<T> as Visitor>::visit_bool",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::<ContainerVisitor<T> as Visitor>::visit_f64",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::<ContainerVisitor<T> as Visitor>::visit_i64",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::<ContainerVisitor<T> as Visitor>::visit_map",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::<ContainerVisitor<T> as Visitor>::visit_seq",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::<ContainerVisitor<T> as Visitor>::visit_str",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::<ContainerVisitor<T> as Visitor>::visit_u64",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::<ContainerVisitor<T> as Visitor>::visit_unit",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::<Entries as Container>::seq",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::<Entries as Deserialize>::deserialize",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::<ShapeKey as Hash>::hash",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::<Validate as Deserialize>::deserialize",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::Shapes::intern",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::container",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::flag",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::number",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::same",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::shape_hash",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::text",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::blocks::decode::unsigned",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::Contents::is_full",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::Contents::items",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::Contents::room_for",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::Contents::selected",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::Contents::shown",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::Contents::store",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::Contents::weight_fraction",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::Weight::add",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::Weight::how_many",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::Weight::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::Weight::sub",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::Weight::times",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::can_be_in_bundle",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::contents_of",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::contents_weight",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::gcd",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::item_weight",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::bundle::max_stack",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::content_namespaces::mod_ids",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::content_namespaces::namespaces",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::cooldowns::Cooldowns::add",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::cooldowns::Cooldowns::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::cooldowns::Cooldowns::is_on_cooldown",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::cooldowns::Cooldowns::remove",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::cooldowns::UseCooldown::from_json",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::cooldowns::UseCooldown::ticks",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::cooldowns::component",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::cooldowns::group",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Cost::calculate",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Cost::parse",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::attribute_add",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::attributes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::can_enchant",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::compatible",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::condition",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::enchantable",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::enchantment_cost",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::entity_matches",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::full_name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::has_component",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::in_tag",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::is_curse",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::is_primary",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::item_in",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::load",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::modifier_rows",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::modify_value_with",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::props",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::select",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::tag",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::translate",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::Enchantments::weighted",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::apply_value_effect",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::expand_ordered",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::level_name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::level_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::next_int",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::read_tag_dir",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::role_state",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::string_list",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::enchant::tests::enchanting_cost_matches_vanilla_formula[cfg(any(test,feature=\"test-support\"))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::firework::FireworkShape::from_name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::firework::FireworkShape::name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::flowers::stew_effect",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::crafting_enchantments",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::custom_name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::custom_potion_effects",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::data",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::data_mut",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::enchantment_level",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::enchantments",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::has_any_enchantments",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::has_foil",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::item_name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::potion",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::potion_duration_scale",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::profile_name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::repair_cost",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::same_item_same_components",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::set_crafting_enchantments",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::stored_enchantments",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::tidy",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::transmute",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::wire_patch",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ItemStack::with_potion",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::StackData::custom_name_plain",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::StackData::debug_stick_property",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::StackData::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::StackData::other",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::StackData::set_debug_stick_property",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::StackData::set_loot_component",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::StackData::set_loot_name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::StackData::set_other",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::Wire::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::Wire::patch",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::all_bricks",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::canon_stack",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::collapsed_text",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::encode_components",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::explosion_from",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::filterable_text",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::int",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::levels_tag",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::ominous_tooltip_display",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::parse_stack",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::plain_component",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::read_levels",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::read_text",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::set_level",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::stack_from_hover",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::string",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::template_from",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::upgrade",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_nbt::decode_items",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_nbt::encode_item",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_nbt::encode_items",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_nbt::item_to_nbt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::BlocksAttacks::of_stack",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Instrument::use_ticks",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::block_drops",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::block_drops_by_player",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::block_drops_exploded",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::block_drops_full",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::block_drops_in",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::block_drops_raw",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::block_drops_with",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::block_in_tag",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::block_loot_sequence",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::block_matches",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::catalog",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::correct_for_drops",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::entity_drops",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::for_tests[cfg(any(test,feature=\"test-support\"))]",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::has_loot_table",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::inline_loot_table",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::instrument",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::interact_loot",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::item_in_tag",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::load",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::loot_sequence",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::loot_table",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::loot_table_from",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::mining_speed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::resists_cactus",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::resists_fire",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Items::tags_only",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::LootContext::choose",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::LootContext::condition",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::LootContext::conditions",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::LootContext::enchant_pool",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::LootContext::enchantment_level",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::LootContext::evaluate",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::LootContext::expand",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::LootContext::int_number",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::LootContext::modifiers",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::LootContext::native_loot_context",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::LootContext::nested",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::LootContext::number",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::Song::finished",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::bucket_contents",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::entity_spec",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::fire_starter_pitch",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::fire_starter_sound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::inline_instrument",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::instrument_id",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::load_tags",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::loot_of",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::mod_function",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::parse_consume_effect",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::parse_instrument",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::publish_registry",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::publish_registry_for_checks",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::published_stack_limit",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::set_villager_food",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::villager_food",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::random_sequences::RandomSequences::clear",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::random_sequences::RandomSequences::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::random_sequences::RandomSequences::give_back",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::random_sequences::RandomSequences::ids",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::random_sequences::RandomSequences::lend",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::random_sequences::RandomSequences::reset",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::random_sequences::RandomSequences::reset_with",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::random_sequences::RandomSequences::set_defaults",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::random_sequences::RandomSequences::to_nbt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::recipe_filters::Filter::matches",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::recipe_filters::RecipeFilters::apply",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::recipe_filters::RecipeFilters::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::recipe_filters::RecipeFilters::parse",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::recipe_filters::contains",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::recipe_filters::named",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::recipe_filters::read_dir",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::recipe_filters::replace",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_items::use_animation::consumable_animation",
+      "reason": "small body",
+      "kind": "fn"
+    }
+  ]
+}

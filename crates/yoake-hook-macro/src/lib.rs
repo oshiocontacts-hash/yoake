@@ -288,19 +288,24 @@ fn expand(
     let mut lifetime_counts = LifetimeCounts::default();
     let mut raw_input_types = Vec::new();
     let mut outer_arg_names = Vec::new();
+    // F1 W12: what the chain call receives: the argument itself, or `&f` / `&mut f` for an `impl Fn` shimmed to `dyn`.
+    let mut chain_arg_exprs = Vec::new();
     for argument in &mut function.sig.inputs {
         match argument {
             FnArg::Receiver(receiver) => {
-                if !associated || receiver.reference.is_none() || receiver.colon_token.is_some() {
+                // F1 W12: a plain by-value `self` (`self`, `mut self`) is an ordinary by-value argument of type
+                // `Self`; the codemod only stamps it for `Copy` types. Typed receivers (`self: Box<Self>`) still need skip.
+                if !associated || receiver.colon_token.is_some() {
                     return Err(syn::Error::new_spanned(
                         receiver,
-                        "S2 borrowed receivers require method; by-value/typed receivers need skip",
+                        "S2 typed receivers need skip",
                     ));
                 }
                 let receiver_type = *receiver.ty.clone();
                 lifetime_counts.visit_type(&receiver_type);
                 raw_input_types.push(receiver_type);
                 outer_arg_names.push(quote!(self));
+                chain_arg_exprs.push(quote!(self));
             }
             FnArg::Typed(argument) => {
                 // F1 W4: the outer fn only forwards its arguments, so a destructuring, `_`, `ref` or `@` pattern
@@ -320,7 +325,31 @@ fn expand(
                 let Pat::Ident(pattern) = &mut *argument.pat else { unreachable!() };
                 pattern.mutability = None;
                 let name = pattern.ident.clone();
-                let argument_type = *argument.ty.clone();
+                let mut argument_type = *argument.ty.clone();
+                // F1 W12: `impl Fn(..)` / `impl FnMut(..)`: a mod sees `&dyn Fn(..)` / `&mut dyn FnMut(..)`; the
+                // original still gets the real closure when no mod runs, and the reference when one does
+                // (a `&dyn Fn` is itself `Fn`, a `&mut dyn FnMut` is `FnMut`).
+                let mut chain_expr = quote!(#name);
+                if let Type::ImplTrait(shim) = &argument_type {
+                    let single_fn = shim.bounds.len() == 1
+                        && matches!(&shim.bounds[0], syn::TypeParamBound::Trait(b)
+                            if b.lifetimes.is_none()
+                                && b.path.segments.last().is_some_and(|seg| (seg.ident == "Fn" || seg.ident == "FnMut")
+                                    && matches!(seg.arguments, syn::PathArguments::Parenthesized(_))));
+                    if single_fn {
+                        let bound = &shim.bounds[0];
+                        let is_mut = matches!(bound, syn::TypeParamBound::Trait(b)
+                            if b.path.segments.last().is_some_and(|seg| seg.ident == "FnMut"));
+                        if is_mut {
+                            pattern.mutability = Some(Default::default());
+                            argument_type = syn::parse_quote!(&mut dyn #bound);
+                            chain_expr = quote!(&mut #name);
+                        } else {
+                            argument_type = syn::parse_quote!(&dyn #bound);
+                            chain_expr = quote!(&#name);
+                        }
+                    }
+                }
                 let mut input_check = Unsupported::default();
                 input_check.visit_type(&argument_type);
                 if input_check.opaque {
@@ -338,6 +367,7 @@ fn expand(
                 lifetime_counts.visit_type(&argument_type);
                 raw_input_types.push(argument_type);
                 outer_arg_names.push(quote!(#name));
+                chain_arg_exprs.push(chain_expr);
             }
         }
     }
@@ -563,7 +593,7 @@ fn expand(
         quote! {
             #(#cfg_attrs)*
             #[doc(hidden)]
-            #[allow(dead_code, clippy::type_complexity)]
+            #[allow(dead_code, non_snake_case, clippy::type_complexity)]
             pub(crate) fn #register_ident #register_impl_generics (
                 callback: #callback_type,
                 order: ::yoake_hook_rt::Order,
@@ -604,7 +634,7 @@ fn expand(
             #alias
             #(#cfg_attrs)*
             #[doc(hidden)]
-            #[allow(dead_code, clippy::type_complexity)]
+            #[allow(dead_code, non_snake_case, clippy::type_complexity)]
             pub(crate) fn #register_ident #register_impl_generics (
                 callback: #callback_parameter,
                 order: ::yoake_hook_rt::Order,
@@ -624,7 +654,7 @@ fn expand(
         #claim
         #ledger_assert
         if let Some(__yoake_chain) = ::yoake_hook_rt::SLOTS[#slot_id].load() {
-            return #prefix #call_ident #turbofish (__yoake_chain #(, #outer_arg_names)*);
+            return #prefix #call_ident #turbofish (__yoake_chain #(, #chain_arg_exprs)*);
         }
         #prefix #orig_ident #turbofish (#(#outer_arg_names),*)
     });

@@ -7,6 +7,8 @@ rust-version = "1.90"
 description = "Blocks and items as the client knows them: block facts, item stacks and their data components, enchantments, cooldowns, bundles, and items in NBT"
 
 [dependencies]
+yoake-hook-macro = { path = "../yoake-hook-macro" }
+yoake-hook-rt = { path = "../yoake-hook-rt" }
 horizon-client-core = { path = "../horizon-client-core" }
 horizon-core = { path = "../horizon-core" }
 yoake-inject-macro = { path = "../yoake-inject-macro" }
@@ -23,6 +25,9 @@ yoake-slice = { path = "../yoake-slice", optional = true }
 yoake2-slice = ["dep:yoake-slice"]
 # Test helpers (`Items::for_tests`, `enchant::tests`) for horizon-client's unit tests.
 test-support = []
+
+[build-dependencies]
+yoake-hook-ledger = { path = "../yoake-hook-ledger" }
 
 [lints]
 workspace = true
