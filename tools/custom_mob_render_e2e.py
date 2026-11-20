@@ -220,7 +220,8 @@ def run(ctl, out, shots, resources):
         look_at_fox(host, fox, back=3.0, dy=0.9)
         tag = shot(host, 'nametag')
         clear_foxes(host)
-        results['name'] = {'pass': Path(tag).stat().st_size > 5000, 'detail': {
+        named_ok = not any('←' in line for line in named.get('chat', []))  # the parser marks the error position with an arrow
+        results['name'] = {'pass': named_ok and Path(tag).stat().st_size > 5000, 'detail': {
             'data_merge_reply': named, 'png': saved['nametag'], 'note': 'the tag is judged by looking at the PNG (a pixel check cannot tell text)'}}
 
         # strike-mob: a fox next to a chicken (creative host: no player target): the blow lands on the chicken.
