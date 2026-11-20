@@ -51,6 +51,8 @@ impl OpenAttempt {
 pub(super) struct NativeLifecycle {
     attempt: Option<OpenAttempt>,
     read_scope: bool,
+    /// F4M-10: this server's hold on the script runtime of custom mobs, from its open to its close.
+    script_session: Option<horizon_client::mobs::custom::script::Session>,
 }
 
 impl NativeLifecycle {
@@ -213,8 +215,33 @@ impl Game<'_> {
     }
 
     pub(super) fn native_lifecycle_open_started(&mut self) {
-        self.native_lifecycle
-            .begin_open(self.native_lifecycle_authority());
+        let authority = self.native_lifecycle_authority();
+        self.native_lifecycle.begin_open(authority);
+        self.script_session_open(authority);
+    }
+
+    /// F4M-10: a server world takes the script runtime of custom mobs (the WASM modules and the native mods)
+    /// for as long as it is open. There is one runtime per process: a second server open at the same time is
+    /// told so in the log and runs its custom mobs without the first one's scripts being touched.
+    fn script_session_open(&mut self, authority: NativeAuthority) {
+        // A session left from an open that never closed (a failed retry) is let go first.
+        self.native_lifecycle.script_session = None;
+        if !matches!(authority, NativeAuthority::IntegratedServer | NativeAuthority::DedicatedServer) {
+            return;
+        }
+        let Some(runtime) = crate::entry::wasm_mods::world_script_runtime() else { return };
+        match horizon_client::mobs::custom::script::open_session(runtime) {
+            Ok(session) => self.native_lifecycle.script_session = Some(session),
+            Err(_) => log::warn!(
+                "another server already holds the script runtime of custom mobs: this world's custom mobs run without scripts (one runtime per process)"
+            ),
+        }
+    }
+
+    /// F4M-10: the world is closed (or failed to open or close): the runtime, the queued commands and the
+    /// published views go with it.
+    fn script_session_close(&mut self) {
+        self.native_lifecycle.script_session = None;
     }
 
     pub(super) fn native_lifecycle_world_ready(&mut self) {
@@ -227,6 +254,7 @@ impl Game<'_> {
 
     /// `error_text` is the engine's own error text, unchanged.
     pub(super) fn native_lifecycle_world_failed(&mut self, error_text: &str) {
+        self.script_session_close();
         self.clear_native_local_sounds();
         self.native_player_ops.bars.clear();
         self.native_player_ops.inventory_dirty.clear();
@@ -240,6 +268,7 @@ impl Game<'_> {
 
     /// Report a server-loop or shutdown failure once and retire its epoch.
     pub(super) fn native_lifecycle_close_failed(&mut self, error_text: &str) {
+        self.script_session_close();
         self.clear_native_local_sounds();
         self.native_player_ops.bars.clear();
         self.native_player_ops.inventory_dirty.clear();
@@ -255,6 +284,7 @@ impl Game<'_> {
         if self.remote.is_some() {
             return;
         }
+        self.script_session_close();
         self.native_player_ops.bars.clear();
         self.native_player_ops.inventory_dirty.clear();
         // Each level closes after the final save (`LevelEvent.Unload`).

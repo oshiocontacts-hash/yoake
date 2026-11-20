@@ -13,17 +13,26 @@ use yoake_wasm::full_bindings::client::yoake::mods::engine_types as et;
 
 pub(crate) struct WasmRuntime;
 
-/// Installs the runtime (once; the first server module that registers does it, and `entry::run` when native mods
-/// exist): the WASM modules first, then the native mods (`mob_native`, through `mod_api::mods()`).
+/// Installs what is process-wide (once; the first server module that registers does it): the `mob-interact`
+/// hook of the data dispatch. The script runtime is not: a server opens it with its world (see [`world_runtime`]).
 pub(crate) fn install() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
-        crate::mobs::custom::script::set_runtime(Some(Arc::new(crate::mobs::custom::script::Chain {
-            first: Arc::new(WasmRuntime),
-            second: Arc::new(crate::mob_native::NativeRuntime::process()),
-        })));
         crate::mobs::custom::ai::interact::set_hook(Some(Arc::new(WasmRuntime)));
     });
+}
+
+/// The script runtime a server opens its session with (`script::open_session`): the WASM server modules first,
+/// then the native mods (`mob_native`, through `mod_api::mods()`). `None` when there is neither (the custom
+/// mobs then run without scripts and publish no views).
+pub(crate) fn world_runtime() -> Option<Arc<dyn crate::mobs::custom::script::Runtime>> {
+    if endpoints().is_empty() && crate::mod_api::mods().is_empty() {
+        return None;
+    }
+    Some(Arc::new(crate::mobs::custom::script::Chain {
+        first: Arc::new(WasmRuntime),
+        second: Arc::new(crate::mob_native::NativeRuntime::process()),
+    }))
 }
 
 /// Installs the client runtime (once): the WASM client modules first, then the native mods.
@@ -393,6 +402,11 @@ mod tests {
         Some((dev, Arc::new(FullMod::new(module.mod_id.clone(), None, Some(server)).with_server_source(source))))
     }
 
+    /// The server's session over the registered modules (what the game opens with its world); the tests hold it.
+    fn session() -> script::Session {
+        script::open_session(super::world_runtime().expect("a server module is registered")).expect("no other session is open")
+    }
+
     /// One evaluation of the goal selector at game time `t`.
     fn select(m: &mut Mob, fx: &BenchWorld, others: &[crate::mobs::Seen], lr: &mut LegacyRandom, events: &mut Vec<MobEvent>, t: i64) {
         let mut w = fx.world();
@@ -422,6 +436,7 @@ mod tests {
         script::reset();
         // The real dev mod: the fixture's `yak.toml` and content with the built fox_ai guest.
         let Some((_dev, _pkg)) = dev_mod_package() else { return };
+        let _session = session();
         let fx = BenchWorld::new();
         let mut lr = LegacyRandom::new(1);
         let mut events = Vec::new();
@@ -467,6 +482,7 @@ mod tests {
         let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         script::reset();
         let Some(_pkg) = package(&FOX_AI, "fox_ai_ungranted", false) else { return };
+        let _session = session();
         let fx = BenchWorld::new();
         let mut lr = LegacyRandom::new(1);
         let mut events = Vec::new();
@@ -487,6 +503,7 @@ mod tests {
         let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         script::reset();
         let Some(_pkg) = package(&FOX_AI_TRAP, "fox_ai_trap", true) else { return };
+        let _session = session();
         let fx = BenchWorld::new();
         let mut lr = LegacyRandom::new(1);
         let mut events = Vec::new();
@@ -506,6 +523,7 @@ mod tests {
         let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         script::reset();
         let Some(_pkg) = package(&FOX_AI_SPIN, "fox_ai_spin", true) else { return };
+        let _session = session();
         let fx = BenchWorld::new();
         let mut lr = LegacyRandom::new(1);
         let mut events = Vec::new();

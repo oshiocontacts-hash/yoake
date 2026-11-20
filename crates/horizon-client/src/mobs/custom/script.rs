@@ -488,25 +488,78 @@ impl ClientRuntime for ClientChain {
     }
 }
 
-static RUNTIME: RwLock<Option<Arc<dyn Runtime>>> = RwLock::new(None);
+/// The runtime the engine calls, and the session that owns it (0: nobody, an installed test double).
+struct Slot {
+    runtime: Option<Arc<dyn Runtime>>,
+    owner: u64,
+}
 
-/// Installs (or removes, with `None`) the guest runtime; returns the one it replaced.
+static RUNTIME: RwLock<Slot> = RwLock::new(Slot { runtime: None, owner: 0 });
+static NEXT_SESSION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+/// A server's hold on the script runtime (F4M-10): opened when its world opens, dropped when the world is
+/// closed (or the server is dropped). The runtime, the command bus (views, queued commands) and the drawn
+/// locators belong to it, so the next world starts with none of the last one's. There is one runtime slot per
+/// process: while a session is open, [`open_session`] refuses another (see [`SessionBusy`]).
+#[derive(Debug)]
+pub struct Session {
+    id: u64,
+}
+
+/// A second server asked for the runtime while another holds it.
+#[derive(Debug, PartialEq, Eq)]
+pub struct SessionBusy;
+
+/// Opens a session with `runtime`: it is installed, and the bus is empty. Refused (nothing changes: the first
+/// session keeps its runtime) while a runtime is installed, by a session or by [`set_runtime`].
+pub fn open_session(runtime: Arc<dyn Runtime>) -> Result<Session, SessionBusy> {
+    let mut slot = RUNTIME.write().unwrap_or_else(|p| p.into_inner());
+    if slot.runtime.is_some() {
+        return Err(SessionBusy);
+    }
+    let id = NEXT_SESSION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    reset();
+    clear_locators();
+    slot.runtime = Some(runtime);
+    slot.owner = id;
+    Ok(Session { id })
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        let mut slot = RUNTIME.write().unwrap_or_else(|p| p.into_inner());
+        // A session that was replaced by `set_runtime` no longer owns anything.
+        if slot.owner == self.id {
+            slot.runtime = None;
+            slot.owner = 0;
+            drop(slot);
+            reset();
+            clear_locators();
+        }
+    }
+}
+
+/// Installs (or removes, with `None`) a runtime that belongs to no session (tests); returns the one it replaced.
+/// The game does not use it: a server opens a [`Session`].
 pub fn set_runtime(r: Option<Arc<dyn Runtime>>) -> Option<Arc<dyn Runtime>> {
     match RUNTIME.write() {
-        Ok(mut slot) => std::mem::replace(&mut *slot, r),
+        Ok(mut slot) => {
+            slot.owner = 0;
+            std::mem::replace(&mut slot.runtime, r)
+        }
         Err(_) => None,
     }
 }
 
 /// The installed runtime, if it has a live module.
 pub fn runtime() -> Option<Arc<dyn Runtime>> {
-    let r = RUNTIME.read().ok()?.clone()?;
+    let r = RUNTIME.read().ok()?.runtime.clone()?;
     r.live().then_some(r)
 }
 
 /// Whether a runtime is installed (cheap; the game asks it before it publishes views).
 pub fn installed() -> bool {
-    RUNTIME.read().map(|r| r.is_some()).unwrap_or(false)
+    RUNTIME.read().map(|r| r.runtime.is_some()).unwrap_or(false)
 }
 
 /// Runs `f` (a call into the guest) for `m`: the mob's view is published, and the commands the
