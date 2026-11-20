@@ -5,7 +5,6 @@ use super::script::{self, Command, MAX_DATA_BYTES, synced_value};
 use super::{attrs, anim_sync};
 use crate::mobs::{
     Damage, Mob, MobEvent, MobWorld, Who,
-    goals::{JUMP, LOOK, MOVE},
 };
 
 fn finite(v: &[f64]) -> bool {
@@ -130,17 +129,12 @@ pub fn apply_in(m: &mut Mob, w: Option<&MobWorld>, events: Option<&mut Vec<MobEv
             m.removed = true;
         }
         Command::Claim(on) => {
-            let disabled = m.ai.goals.disabled;
-            if let Some(s) = m.extra.custom.as_mut().map(|c| &mut c.script) {
-                if on && !s.claimed {
-                    s.claimed = true;
-                    s.saved_disabled = disabled;
-                    m.ai.goals.disabled |= MOVE | LOOK | JUMP;
-                } else if !on && s.claimed {
-                    s.claimed = false;
-                    m.ai.goals.disabled = s.saved_disabled;
-                }
+            // The goal selector is held apart while the goals run, so the flags are put on it by
+            // `script::sync_claim` at the start of the mob's next tick.
+            if let Some(s) = script::state(m) {
+                s.claimed = on;
             }
+            script::sync_claim(m);
         }
         Command::Impulse(v) => {
             if finite(&v) {

@@ -356,7 +356,7 @@ pub mod server {
             services::mob_spawn(dimension, options, position, type_id)
         }
         pub fn set_synced(entity: u32, key: &str, value: types::MobValue) -> Result<(), String> {
-            services::mob_set_synced(entity, key, value)
+            services::mob_set_synced(entity, key, &value)
         }
         pub fn get_synced(entity: u32, key: &str) -> Result<Option<types::MobValue>, String> {
             services::mob_get_synced(entity, key)

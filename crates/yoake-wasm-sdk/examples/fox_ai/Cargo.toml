@@ -1,0 +1,25 @@
+[package]
+name = "yoake-wasm-fox-ai"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+# Test builds: the first `pounce` check traps (`trap`) or never returns (`spin`).
+trap = []
+spin = []
+
+[dependencies]
+yoake-wasm-sdk = { path = "../..", features = ["full"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+panic = "abort"
+
+[workspace]

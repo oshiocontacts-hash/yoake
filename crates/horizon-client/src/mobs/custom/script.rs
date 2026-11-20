@@ -114,6 +114,10 @@ pub struct MobView {
     pub baby: bool,
     pub age: i32,
     pub controlled: bool,
+    /// Where the attack target is, and whether the mob has a line of sight to it (known when the
+    /// view is made with a world: inside a guest call of the mob's own goals and hooks).
+    pub target_position: Option<[f64; 3]>,
+    pub target_visible: bool,
     /// The tracked values by name, and the custom attributes by name (base, value).
     pub synced: Vec<(String, MobScriptValue)>,
     pub attributes: Vec<(String, f64, f64)>,
@@ -123,6 +127,11 @@ pub struct MobView {
 impl MobView {
     /// The view of `m` (`None` for a mob that is not custom).
     pub fn of(m: &Mob) -> Option<Self> {
+        Self::of_in(m, None, false)
+    }
+
+    /// [`of`](Self::of) with the world, which gives the target's place and sight.
+    pub fn of_in(m: &Mob, w: Option<&MobWorld>, sees_target: bool) -> Option<Self> {
         let t = m.kind.custom.as_ref()?;
         let state = m.extra.custom.as_ref()?;
         let mut attrs = state.attrs.clone();
@@ -153,6 +162,8 @@ impl MobView {
             baby: m.is_baby(),
             age: m.extra.age,
             controlled: state.script.claimed,
+            target_position: w.and_then(|w| m.target_info(w)).map(|t| [t.position.x, t.position.y, t.position.z]),
+            target_visible: sees_target,
             synced: t
                 .synced
                 .iter()
@@ -381,7 +392,11 @@ pub fn call<R>(
     f: impl FnOnce(&dyn Runtime) -> R,
 ) -> Option<R> {
     let rt = runtime()?;
-    if let Some(v) = MobView::of(m) {
+    let sees = match (w, m.ai.target) {
+        (Some(w), Some(who)) => m.sees(w, who),
+        _ => false,
+    };
+    if let Some(v) = MobView::of_in(m, w, sees) {
         let mut b = bus();
         b.views.insert(v.id, Arc::new(v));
         b.current = Some(m.id);
@@ -467,12 +482,35 @@ pub fn uuid_text(u: [i32; 4]) -> String {
     format!("{}-{}-{}-{}-{}", &h[..8], &h[8..12], &h[12..16], &h[16..20], &h[20..])
 }
 
+/// Puts the claim of `claim-control` on the mob's goal selector (the goals that need `move`, `look`
+/// or `jump` stop), or takes it off again. Called when the claim changes and at the start of every
+/// tick of the mob (the selector is held apart while goals run, so a change made then is lost).
+pub fn sync_claim(m: &mut Mob) {
+    use crate::mobs::goals::{JUMP, LOOK, MOVE};
+    let disabled = m.ai.goals.disabled;
+    let Some(s) = m.extra.custom.as_mut().map(|c| &mut c.script) else { return };
+    if s.claimed && !s.applied {
+        s.saved_disabled = disabled;
+        s.applied = true;
+    }
+    if s.claimed {
+        m.ai.goals.disabled = s.saved_disabled | MOVE | LOOK | JUMP;
+    } else if s.applied {
+        m.ai.goals.disabled = s.saved_disabled;
+        s.applied = false;
+    }
+}
+
 /// What a custom mob's tick tells the guests, before its goals (called by `Mob::tick`): commands
 /// that waited for the mob are applied, then `mob-load` (once), `mob-anim-event`,
 /// `synced-changed-server`, `mob-tamed` / `mob-bred`, and `mob-tick`. Nothing happens without a
 /// runtime. Returns false when a script despawned the mob.
 pub fn pre_tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) -> bool {
-    if !installed() || m.kind.custom.is_none() {
+    if m.kind.custom.is_none() {
+        return true;
+    }
+    sync_claim(m);
+    if !installed() {
         return true;
     }
     apply_pending(m, Some(w), Some(events));
@@ -637,6 +675,8 @@ pub struct ScriptState {
     pub spawned: bool,
     /// The bits of the goal selector's `disabled` mask before `claim-control`.
     pub saved_disabled: u8,
+    /// The selector's flags carry the claim now.
+    pub applied: bool,
 }
 
 impl ScriptState {

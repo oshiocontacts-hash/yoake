@@ -46,7 +46,7 @@
     "player-motion": {"position":"vec3","velocity":"vec3","on-ground":"bool","horizontal-collision":"bool","fall-distance":"f64"},
     "mob-value": {"kind":"mob-value-kind","bool-value":"bool","int-value":"s32","float-value":"f32","string-value":"string","vec3-value":"vec3"},
     "mob-spawn-options": {"yaw":"f32","baby":"bool","persistent":"bool"},
-    "mob-info": {"handle":"u32","type-id":"string","dimension":"string","position":"vec3","velocity":"vec3","yaw":"f32","pitch":"f32","health":"f32","max-health":"f32","alive":"bool","on-ground":"bool","target":"option<u32>","target-player":"option<string>","owner":"option<string>","sitting":"bool","baby":"bool","age":"s32","controlled":"bool"}
+    "mob-info": {"handle":"u32","type-id":"string","dimension":"string","position":"vec3","velocity":"vec3","yaw":"f32","pitch":"f32","health":"f32","max-health":"f32","alive":"bool","on-ground":"bool","target":"option<u32>","target-player":"option<string>","owner":"option<string>","sitting":"bool","baby":"bool","age":"s32","controlled":"bool","target-position":"option<vec3>","target-visible":"bool"}
   },
   "enums": {
     "config-value-kind": ["bool","int","float","string","enum","bool-list","int-list","float-list","string-list","enum-list"],

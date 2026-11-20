@@ -219,3 +219,5 @@ pub(crate) mod test_support;
 mod tests;
 #[cfg(test)]
 mod tests_4c;
+#[cfg(test)]
+mod tests_script;

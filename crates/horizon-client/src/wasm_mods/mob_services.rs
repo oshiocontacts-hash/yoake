@@ -105,6 +105,8 @@ pub(super) fn info(entity: u32) -> Result<Option<st::MobInfo>, String> {
         on_ground: v.on_ground,
         target: v.target_mob,
         target_player: None,
+        target_position: v.target_position.map(|p| st::Vec3 { x: p[0], y: p[1], z: p[2] }),
+        target_visible: v.target_visible,
         owner: v.owner.map(script::uuid_text),
         sitting: v.sitting,
         baby: v.baby,

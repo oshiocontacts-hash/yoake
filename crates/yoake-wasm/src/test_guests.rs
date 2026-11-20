@@ -74,6 +74,26 @@ pub const FULL_SERVICES_SERVER: Guest = Guest {
     features: "server",
     artifact: "yoake_wasm_full_services.wasm",
 };
+/// F4M-10: the Cinder Fox `pounce` script goal, and builds whose goal check traps or never returns.
+pub const FOX_AI: Guest = Guest {
+    name: "fox-ai",
+    example: "fox_ai",
+    features: "",
+    artifact: "yoake_wasm_fox_ai.wasm",
+};
+pub const FOX_AI_TRAP: Guest = Guest {
+    name: "fox-ai-trap",
+    example: "fox_ai",
+    features: "trap",
+    artifact: "yoake_wasm_fox_ai.wasm",
+};
+pub const FOX_AI_SPIN: Guest = Guest {
+    name: "fox-ai-spin",
+    example: "fox_ai",
+    features: "spin",
+    artifact: "yoake_wasm_fox_ai.wasm",
+};
+
 pub const CLIENT_SERVICES_DEMO: Guest = Guest {
     name: "client-services-demo",
     example: "client-services-demo",

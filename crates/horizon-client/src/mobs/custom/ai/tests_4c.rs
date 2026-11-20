@@ -2,7 +2,7 @@
 //! Fox fixture (the real loaders over its model) and the flat resource-free world.
 use super::{
     breed::{self, BABY_AGE, Fed},
-    interact::{self, Action, ClickHand as Hand, Hook, Outcome, Reply},
+    interact::{self, Action, ClickHand as Hand, Context, Hook, Outcome, Reply},
     riding::{self, Controls, RiderKind},
     tame,
     test_support::*,

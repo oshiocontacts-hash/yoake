@@ -1958,6 +1958,8 @@ interface server-types {
         sitting: bool,
         target: option<u32>,
         target-player: option<string>,
+        target-position: option<vec3>,
+        target-visible: bool,
         type-id: string,
         velocity: vec3,
         yaw: f32,

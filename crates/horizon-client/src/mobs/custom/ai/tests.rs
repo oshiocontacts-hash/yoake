@@ -47,21 +47,20 @@ fn every_schema_goal_type_has_a_status() {
             }
         }
     }
-    // F4M-4c brought the owner goals, `breed` and `follow_parent`: only `script` (F4M-10) is left.
-    assert_eq!(running, 40);
+    // F4M-4c brought the owner goals, `breed` and `follow_parent`, F4M-10 the `script` goal: all run.
+    assert_eq!(running, 41);
     deferred.sort();
-    assert_eq!(deferred, ["script"]);
+    assert!(deferred.is_empty());
     assert_eq!(support("owner_target"), Support::Target);
     assert_eq!(support("follow_owner"), Support::Goal);
-    assert_eq!(support("script"), Support::Deferred("F4M-10: script goals"));
+    assert_eq!(support("script"), Support::Goal);
 }
 
 #[test]
-fn the_fixture_fox_lists_the_goals_it_does_not_get() {
+fn the_fixture_fox_gets_every_goal_it_lists() {
     let t = super::super::tests::fox_type();
     let rows = unsupported(&t.file);
-    let list: Vec<&str> = rows.iter().map(|(k, _)| k.as_str()).collect();
-    assert_eq!(list, ["script"]);
+    assert!(rows.is_empty(), "{rows:?}");
 }
 
 #[test]
