@@ -1,0 +1,21 @@
+[host] Horizon custom-mob script goal: mob 306 pounce can_use Some(false) (on_ground Some(false), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob script goal: mob 306 pounce can_use Some(false) (on_ground Some(true), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob death: mob 306 dies, death_time 1 (limit 20) tick 4272
+[host] Horizon custom-mob death: mob 306 removed at death_time 20 (limit 20) tick 4290
+[host] Horizon custom-mob script goal: mob 329 pounce can_use Some(false) (on_ground Some(false), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob script goal: mob 329 pounce can_use Some(false) (on_ground Some(true), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob death: mob 329 dies, death_time 1 (limit 20) tick 4795
+[host] Horizon custom-mob death: mob 329 removed at death_time 20 (limit 20) tick 4813
+[host] Horizon custom-mob target: mob 331 picked Player
+[host] Horizon custom-mob script goal: mob 331 pounce can_use Some(false) (on_ground Some(false), target Some((None, true)), visible Some(true), has target_position Some(true)) target distance Some(3.1622776601683795)
+[host] Horizon custom-mob script goal: mob 331 pounce can_use Some(true) (on_ground Some(true), target Some((None, true)), visible Some(true), has target_position Some(true)) target distance Some(3.1622776601683795)
+[host] Horizon custom-mob goal: mob 331 ScriptGoal stopped: can_continue false tick 4887
+[host] Horizon custom-mob script goal: mob 331 pounce can_use Some(false) (on_ground Some(true), target Some((None, true)), visible Some(true), has target_position Some(true)) target distance Some(0.5415635925142968)
+[host] Horizon custom-mob target: mob 331 target_continue: no target
+[host] Horizon custom-mob target: mob 331 NearestTarget stopped: can_continue false tick 6659
+[host] Horizon custom-mob death: mob 331 dies, death_time 1 (limit 20) tick 6661
+[host] Horizon custom-mob death: mob 331 removed at death_time 20 (limit 20) tick 6679
+[host] Horizon custom-mob script goal: mob 339 pounce can_use Some(false) (on_ground Some(false), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob script goal: mob 339 pounce can_use Some(false) (on_ground Some(true), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob death: mob 339 dies, death_time 0 (limit 20) tick 6744
+[host] Horizon custom-mob death: mob 339 removed at death_time 20 (limit 20) tick 6763

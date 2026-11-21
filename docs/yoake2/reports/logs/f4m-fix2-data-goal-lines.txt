@@ -1,0 +1,38 @@
+[host] Horizon custom-mob death: mob 302 dies, death_time 1 (limit 20) tick 3219
+[host] Horizon custom-mob death: mob 302 removed at death_time 20 (limit 20) tick 3237
+[host] Horizon custom-mob death: mob 316 dies, death_time 1 (limit 20) tick 3736
+[host] Horizon custom-mob death: mob 316 removed at death_time 20 (limit 20) tick 3754
+[host] Horizon custom-mob target: mob 318 picked Mob(317)
+[host] Horizon custom-mob strike: mob 318 begins on Mob(317) tick 3781
+[host] Horizon custom-mob strike: mob 318 lands on Mob(317) tick 3789
+[host] Horizon custom-mob strike: mob 318 hit mob 317 for 2: hurt true tick 3789
+[host] Horizon custom-mob goal: mob 318 CustomMelee stopped: can_continue false tick 3790
+[host] Horizon custom-mob target: mob 318 target_continue: target Mob(317) dead
+[host] Horizon custom-mob target: mob 318 NearestTarget stopped: can_continue false tick 3810
+[host] Horizon custom-mob goal: mob 318 CustomMelee stopped: can_continue false tick 3810
+[host] Horizon custom-mob death: mob 318 dies, death_time 1 (limit 20) tick 3813
+[host] Horizon custom-mob death: mob 318 removed at death_time 20 (limit 20) tick 3831
+[host] Horizon custom-mob target: mob 322 picked Player
+[host] Horizon custom-mob strike: mob 322 begins on Player tick 3879
+[host] Horizon custom-mob strike: mob 322 lands on Player tick 3887
+[host] Horizon custom-mob strike: mob 322 hit the player for 2: hurt true tick 3887
+[host] Horizon custom-mob goal: mob 322 CustomMelee stopped: can_continue false tick 3888
+[host] Horizon custom-mob strike: mob 322 begins on Player tick 3904
+[host] Horizon custom-mob strike: mob 322 lands on Player tick 3912
+[host] Horizon custom-mob goal: mob 322 CustomMelee stopped: can_continue false tick 3914
+[host] Horizon custom-mob strike: mob 322 begins on Player tick 3922
+[host] Horizon custom-mob strike: mob 322 lands on Player tick 3930
+[host] Horizon custom-mob goal: mob 322 CustomMelee stopped: can_continue false tick 3932
+[host] Horizon custom-mob strike: mob 322 begins on Player tick 3941
+[host] Horizon custom-mob strike: mob 322 lands on Player tick 3949
+[host] Horizon custom-mob goal: mob 322 CustomMelee stopped: can_continue false tick 3950
+[host] Horizon custom-mob strike: mob 322 begins on Player tick 3960
+[host] Horizon custom-mob strike: mob 322 lands on Player tick 3968
+[host] Horizon custom-mob goal: mob 322 CustomMelee stopped: can_continue false tick 3970
+[host] Horizon custom-mob target: mob 322 target_continue: no target
+[host] Horizon custom-mob target: mob 322 NearestTarget stopped: can_continue false tick 4020
+[host] Horizon custom-mob goal: mob 322 CustomMelee stopped: can_continue false tick 4020
+[host] Horizon custom-mob death: mob 322 dies, death_time 1 (limit 20) tick 4021
+[host] Horizon custom-mob death: mob 322 removed at death_time 20 (limit 20) tick 4039
+[host] Horizon custom-mob death: mob 323 dies, death_time 0 (limit 20) tick 4116
+[host] Horizon custom-mob death: mob 323 removed at death_time 20 (limit 20) tick 4135

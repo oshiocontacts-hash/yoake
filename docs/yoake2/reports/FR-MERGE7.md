@@ -88,3 +88,49 @@ All game runs are finished: `custom_mob_render_e2e.py` (real guest and data goal
 ## Disk
 
 45 GB free at the start (fresh `target/`), 34 GB at the lowest, never near 12 GB.
+
+## F4M-FIX2 in-game
+
+Merged `yoake-free/f4m-fix2` (a8901861d) into `yoake-free/merge` by fast-forward from c316ac509 (no merge commit). Debug binaries rebuilt (`horizon-client`, `horizon-ctl` from `horizon-client-lib`); `fox_ai` built `--release --target wasm32-wasip2` into `target/fox-ai`. Benchmark gate was clear before every build and game run; disk stayed above 27 GB.
+Resources: `HORIZON_TEST_RESOURCES=<repo>/horizon/.local/horizon-client/26.3`, `PYTHONUTF8=1`. Screenshots went to `target/` (not the committed `img/`).
+
+### Unit tests
+
+`cargo test -p horizon-client-lib --lib custom`: 250 passed, 0 failed (raw: `logs/f4m-fix2-cargo-test-custom.log`).
+
+### Data-goal variant (`tools/custom_mob_render_e2e.py`, no `--wasm`)
+
+Checks: idle pass, glow pass, pounce pass, lod pass, name pass, strike_mob pass (chicken health samples 4.0, 2.0, 2.0), death pass. **strike FAIL** (the check wants exactly one server frame and exactly 2.0 host damage; the run had five blows and the host lost more than 2).
+
+Strike lines (mob 322, host log, raw in `logs/f4m-fix2-data-goal-lines.txt`):
+```
+Horizon custom-mob target: mob 322 picked Player
+Horizon custom-mob strike: mob 322 begins on Player tick 3879
+Horizon custom-mob strike: mob 322 lands on Player tick 3887
+Horizon custom-mob strike: mob 322 hit the player for 2: hurt true tick 3887
+Horizon custom-mob goal: mob 322 CustomMelee stopped: can_continue false tick 3888
+Horizon custom-mob strike: mob 322 begins on Player tick 3904
+Horizon custom-mob strike: mob 322 lands on Player tick 3912
+... (begins/lands pairs at ticks 3922/3930, 3941/3949, 3960/3968; each goal stop follows)
+Horizon custom-mob target: mob 322 target_continue: no target   (tick 4020)
+```
+Damage landed: **yes**. Health (min over the window, from `state` polls): host 20.0 -> 13.166667938232422, guest 20.0 -> 20.0. Server `hit` frames: 5 (ticks 3887, 3913, 3930, 3951, 3968); host and guest events in the same ticks. The fixture's 600 tick interval is not respected by the chase strike (begins repeat about every 16-20 ticks): a finding for the next fix.
+
+### Wasm variant (`--wasm target/fox-ai/wasm32-wasip2/release/yoake_wasm_fox_ai.wasm`)
+
+Checks: idle, glow, pounce, lod, name, death pass. **strike FAIL**; strike_mob not run in this variant.
+
+Key lines (host, raw in `logs/f4m-fix2-wasm-lines.txt`):
+```
+Horizon custom-mob target: mob 331 picked Player
+Horizon custom-mob script goal: mob 331 pounce can_use Some(true) (on_ground Some(true), target Some((None, true)), visible Some(true), has target_position Some(true)) target distance Some(3.1622776601683795)
+Horizon custom-mob server frame: mob 331 "hit" tick 4877
+Horizon custom-mob events: mob 331 tick 4877 count 3
+Horizon custom-mob goal: mob 331 ScriptGoal stopped: can_continue false tick 4887
+Horizon custom-mob target: mob 331 target_continue: no target   (tick 6659)
+```
+Target acquired: **yes** (previously never, now a player at 3.16 blocks with `can_use` true). Damage landed: **no**. The `hit` frame fires once (host and guest events in tick 4877), but no `strike` line is logged and health stays host 20.0 -> 20.0, guest 20.0 -> 20.0. The script goal's pounce does not apply damage on its `hit` frame; that is the open item for the next fix.
+
+Death checks passed in both variants (`death_time 0`, removed at `death_time 20`).
+
+Results: `logs/f4m-fix2-data-results.json`, `logs/f4m-fix2-wasm-results.json`.

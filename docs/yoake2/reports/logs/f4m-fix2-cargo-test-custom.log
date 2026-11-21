@@ -1,0 +1,455 @@
+warning: missing `[lints]` to inherit `[workspace.lints]`
+  --> crates\horizon-prepare\Cargo.toml
+   = note: `cargo::missing_lints_inheritance` is set to `warn` by default
+help: to inherit `workspace.lints, add:
+   |
+23 ~ path = "src/main.rs"
+24 + [lints]
+25 + workspace = true
+   |
+help: to clarify your intent to not inherit, add:
+   |
+23 ~ path = "src/main.rs"
+24 + [lints]
+   |
+warning: `horizon-prepare` (manifest) generated 1 warning
+warning: missing `[lints]` to inherit `[workspace.lints]`
+  --> crates\horizon-theme\Cargo.toml
+   = note: `cargo::missing_lints_inheritance` is set to `warn` by default
+help: to inherit `workspace.lints, add:
+   |
+ 8 ~ [dependencies]
+ 9 + [lints]
+10 + workspace = true
+   |
+help: to clarify your intent to not inherit, add:
+   |
+ 8 ~ [dependencies]
+ 9 + [lints]
+   |
+warning: `horizon-theme` (manifest) generated 1 warning
+warning: missing `[lints]` to inherit `[workspace.lints]`
+  --> crates\horizon-bench\Cargo.toml
+   = note: `cargo::missing_lints_inheritance` is set to `warn` by default
+help: to inherit `workspace.lints, add:
+   |
+12 ~ horizon-telemetry = { path = "../horizon-telemetry", default-features = false }
+13 + [lints]
+14 + workspace = true
+   |
+help: to clarify your intent to not inherit, add:
+   |
+12 ~ horizon-telemetry = { path = "../horizon-telemetry", default-features = false }
+13 + [lints]
+   |
+warning: `horizon-bench` (manifest) generated 1 warning
+warning: unused import: `Dimension`
+ --> crates\horizon-world\src\level\buckets.rs:5:17
+  |
+5 |     Behaviours, Dimension, LevelAccess, Sim, Ticks,
+  |                 ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Dimension`
+ --> crates\horizon-world\src\level\creaking.rs:5:25
+  |
+5 | use super::{Behaviours, Dimension, LevelAccess, Sim, Ticks, update::rel};
+  |                         ^^^^^^^^^
+
+warning: unused import: `Dimension`
+ --> crates\horizon-world\src\level\fluids.rs:4:17
+  |
+4 |     Behaviours, Dimension, LevelAccess, Sim, Spread,
+  |                 ^^^^^^^^^
+
+warning: unused import: `Dimension`
+ --> crates\horizon-world\src\level\timeline.rs:4:13
+  |
+4 | use super::{Dimension, LevelAccess, LevelEvent, Sim, update::below};
+  |             ^^^^^^^^^
+
+warning: unused import: `Dimension`
+ --> crates\horizon-world\src\level\weather.rs:4:25
+  |
+4 | use super::{Behaviours, Dimension, LevelAccess, Precipitation, PrecipitationKind};
+  |                         ^^^^^^^^^
+
+warning: `horizon-world` (lib) generated 5 warnings (run `cargo fix --lib -p horizon-world` to apply 5 suggestions)
+warning: libmimalloc-sys@0.1.49: In file included from C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\prim/prim.c:12,
+warning: libmimalloc-sys@0.1.49:                  from C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:40:
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\prim/windows/prim.c:822: warning: ignoring '#pragma comment ' [-Wunknown-pragmas]
+warning: libmimalloc-sys@0.1.49:   822 |     #pragma comment(linker, "/INCLUDE:_tls_used")
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\prim/windows/prim.c:823: warning: ignoring '#pragma comment ' [-Wunknown-pragmas]
+warning: libmimalloc-sys@0.1.49:   823 |     #pragma comment(linker, "/INCLUDE:_mi_tls_callback_pre")
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\prim/windows/prim.c:824: warning: ignoring '#pragma comment ' [-Wunknown-pragmas]
+warning: libmimalloc-sys@0.1.49:   824 |     #pragma comment(linker, "/INCLUDE:_mi_tls_callback_post")
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\prim/windows/prim.c:825: warning: ignoring '#pragma const_seg ' [-Wunknown-pragmas]
+warning: libmimalloc-sys@0.1.49:   825 |     #pragma const_seg(".CRT$XLB")
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\prim/windows/prim.c:828: warning: ignoring '#pragma const_seg ' [-Wunknown-pragmas]
+warning: libmimalloc-sys@0.1.49:   828 |     #pragma const_seg()
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\prim/windows/prim.c:829: warning: ignoring '#pragma const_seg ' [-Wunknown-pragmas]
+warning: libmimalloc-sys@0.1.49:   829 |     #pragma const_seg(".CRT$XLY")
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\prim/windows/prim.c:832: warning: ignoring '#pragma const_seg ' [-Wunknown-pragmas]
+warning: libmimalloc-sys@0.1.49:   832 |     #pragma const_seg()
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\prim/windows/prim.c:833: warning: ignoring '#pragma const_seg ' [-Wunknown-pragmas]
+warning: libmimalloc-sys@0.1.49:   833 |     #pragma const_seg(".CRT$XIB")
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\prim/windows/prim.c:836: warning: ignoring '#pragma const_seg ' [-Wunknown-pragmas]
+warning: libmimalloc-sys@0.1.49:   836 |     #pragma const_seg()
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:41: warning: visibility attribute not supported in this configuration; ignored [-Wattributes]
+warning: libmimalloc-sys@0.1.49:    41 | #if MI_OSX_ZONE
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:41: warning: visibility attribute not supported in this configuration; ignored [-Wattributes]
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:41: warning: visibility attribute not supported in this configuration; ignored [-Wattributes]
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:41: warning: visibility attribute not supported in this configuration; ignored [-Wattributes]
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:41: warning: visibility attribute not supported in this configuration; ignored [-Wattributes]
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:41: warning: visibility attribute not supported in this configuration; ignored [-Wattributes]
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:41: warning: visibility attribute not supported in this configuration; ignored [-Wattributes]
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:41: warning: visibility attribute not supported in this configuration; ignored [-Wattributes]
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:41: warning: visibility attribute not supported in this configuration; ignored [-Wattributes]
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:41: warning: visibility attribute not supported in this configuration; ignored [-Wattributes]
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:41: warning: visibility attribute not supported in this configuration; ignored [-Wattributes]
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:41: warning: visibility attribute not supported in this configuration; ignored [-Wattributes]
+warning: libmimalloc-sys@0.1.49: C:\Users\USER\NestgateHorizon\horizon-free\third_party\libmimalloc-sys\c_src\mimalloc\v3\src\static.c:41: warning: visibility attribute not supported in this configuration; ignored [-Wattributes]
+warning: function `generate_worker_wit` is never used
+   --> crates\horizon-mod-api-gen\src\abi\wit_inject.rs:117:8
+    |
+117 | pub fn generate_worker_wit() -> String {
+    |        ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `horizon-mod-api-gen` (lib) generated 1 warning
+   Compiling horizon-items v0.1.0 (C:\Users\USER\NestgateHorizon\horizon-free\crates\horizon-items)
+   Compiling horizon-client-render v0.1.0 (C:\Users\USER\NestgateHorizon\horizon-free\crates\horizon-client-render)
+warning: method `resize` is never used
+   --> crates\horizon-client-render\src\gfx\capture.rs:161:19
+    |
+ 94 | impl CaptureHandle {
+    | ------------------ method in this implementation
+...
+161 |     pub(super) fn resize(&self, size: [u32; 2]) {
+    |                   ^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `horizon-client-render` (lib) generated 1 warning
+   Compiling horizon-client-lib v0.1.0 (C:\Users\USER\NestgateHorizon\horizon-free\crates\horizon-client-lib)
+warning: unused import: `crate::entity_rules::EntityRules`
+    --> crates\horizon-client-lib\..\horizon-client\src\entities.rs:2285:13
+     |
+2285 |         use crate::entity_rules::EntityRules;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> crates\horizon-client-lib\..\horizon-client\src\join_mods.rs:499:13
+    |
+499 |     counter.fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).is_ok()
+    |             ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+499 -     counter.fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).is_ok()
+499 +     counter.try_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).is_ok()
+    |
+
+warning: function `target_info` is never used
+   --> crates\horizon-client-lib\..\horizon-client\src\mobs\custom\ai\test_support.rs:104:8
+    |
+104 | pub fn target_info(at: Vec3) -> TargetInfo {
+    |        ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `PLAYER` is never used
+   --> crates\horizon-client-lib\..\horizon-client\src\mobs\custom\ai\test_support.rs:130:11
+    |
+130 | pub const PLAYER: Who = Who::Player;
+    |           ^^^^^^
+
+warning: field `0` is never read
+   --> crates\horizon-client-lib\..\horizon-client\src\mobs\custom\ai\tests_script.rs:123:22
+    |
+123 | struct Installed<'a>(std::sync::MutexGuard<'a, ()>);
+    |        ---------     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |        |
+    |        field in this struct
+    |
+    = help: consider removing this field
+
+warning: associated function `for_test` is never used
+   --> crates\horizon-client-lib\..\horizon-client\src\join_mods.rs:539:8
+    |
+529 | impl FileSource {
+    | --------------- associated function in this implementation
+...
+539 |     fn for_test(files: HashMap<[u8; 32], PathBuf>) -> Self {
+    |        ^^^^^^^^
+
+warning: function `wants` is never used
+   --> crates\horizon-client-lib\..\horizon-client\src\join_mods\tests.rs:472:4
+    |
+472 | fn wants(reaction_send: &[Vec<u8>], hash: &[u8; 32]) -> bool {
+    |    ^^^^^
+
+warning: `horizon-client-lib` (lib test) generated 7 warnings (run `cargo fix --lib -p horizon-client-lib --tests` to apply 2 suggestions)
+    Finished `test` profile [unoptimized] target(s) in 3m 17s
+     Running unittests ..\horizon-client\src\client_lib.rs (target\debug\build\horizon-client-lib/17dd941854a1c2b5\out\horizon_client_lib-17dd941854a1c2b5.exe)
+
+running 250 tests
+test crafting::tests::only_types_outside_minecraft_are_custom ... ok
+test lan::guest::tests::styled_custom_name_survives_inventory_sync ... ok
+test entity_nbt::tests::mob_loading_accepts_default_namespace_and_preserves_custom_namespaces ... ok
+test entity_nbt::tests::creeper_fall_swell_uses_custom_fuse_without_a_zero_floor ... ok
+test entity_nbt::tests::other_mob_command_names_keep_their_type_and_custom_name ... ok
+test mobs::custom::ai::tests::a_custom_mobs_path_search_is_capped_and_a_vanilla_mobs_is_not ... ok
+test item_sync::tests::custom_data_and_custom_model_data_survive_lan_sync ... ok
+test mobs::custom::ai::tests::a_climb_row_gives_the_engines_climber_physics_and_a_path_cost ... ok
+test entity_nbt::tests::loaded_villager_command_names_follow_profession_and_custom_name ... ok
+test mobs::custom::ai::tests::a_put_off_mob_is_refused_until_its_delay_is_over_and_then_has_its_turn ... ok
+test mobs::custom::ai::tests::a_refused_crowd_comes_back_spread_over_several_ticks ... ok
+test crafting::tests::custom_recipes_load_by_type_with_pack_override ... ok
+test mobs::custom::ai::tests::a_cone_area_attack_only_hits_in_front ... ok
+test mobs::custom::ai::tests::a_melee_attack_waits_for_its_damage_frame_and_asks_for_the_trigger ... ok
+test mobs::custom::ai::tests::a_lower_priority_number_takes_over_a_flag_and_equal_ones_do_not ... ok
+test mobs::custom::ai::tests::a_search_that_does_not_fit_waits_for_the_next_tick ... ok
+test mobs::custom::ai::tests::a_goal_restart_cannot_begin_a_second_blow_while_one_is_saved ... ok
+test mobs::custom::ai::tests::a_path_is_found_for_the_ground_and_the_flying_navigator ... ok
+test mobs::custom::ai::tests::a_snapshot_carries_the_custom_type_id_and_a_vanilla_one_does_not ... ok
+test mobs::custom::ai::tests::a_kept_cooldown_runs_out_in_game_time_while_the_goal_is_stopped ... ok
+test mobs::custom::ai::tests::a_part_that_sticks_out_lets_a_melee_attack_reach_further ... ok
+test mobs::custom::ai::tests::a_waiting_mob_that_never_comes_back_does_not_block_the_others_for_long ... ok
+test mobs::custom::ai::tests::a_ranged_attack_shoots_at_its_damage_frame ... ok
+test mobs::custom::ai::tests::a_damage_frame_that_never_comes_falls_back_to_the_delay ... ok
+test mobs::custom::ai::tests::an_axolotls_mob_is_the_engines_axolotls_category ... ok
+test mobs::custom::ai::tests::a_mob_does_not_rest_by_day_and_wakes_when_day_comes ... ok
+test mobs::custom::ai::tests::a_plain_melee_attack_is_the_engines_goal_tick_for_tick ... ok
+test mobs::custom::ai::tests::a_hurt_sleeper_wakes_and_does_not_lie_down_again_at_once ... ok
+test mobs::custom::ai::tests::a_mob_goes_home_at_night_sleeps_and_stays_put ... ok
+test mobs::custom::ai::tests::a_reloaded_mob_rests_at_its_saved_home ... ok
+test mobs::custom::ai::tests::each_navigator_picks_the_engines_navigation_and_controls ... ok
+test mobs::custom::ai::tests::entity_type_lists_split_into_species_player_and_the_rest ... ok
+test mobs::custom::ai::tests::every_schema_goal_type_has_a_status ... ok
+test mobs::custom::ai::tests::a_climber_gets_up_the_wall_by_pressing_against_it ... ok
+test mobs::custom::ai::tests::a_saved_blow_still_drops_for_an_invalid_target_or_a_dead_mob ... ok
+test mobs::custom::ai::tests::a_search_to_an_unreachable_target_gives_up_in_bounded_work ... ok
+test mobs::custom::ai::tests::a_stopped_goals_blow_lands_on_its_recorded_target ... ok
+test mobs::custom::ai::tests::area_attack_hits_what_is_in_its_shape ... ok
+test mobs::custom::ai::tests::a_target_selector_with_a_lower_number_replaces_a_running_one ... ok
+test mobs::custom::ai::tests::avoid_keeps_away_from_the_player ... ok
+test mobs::custom::ai::tests::custom_types_in_a_target_list_are_matched_by_id ... ok
+test mobs::custom::ai::tests::mobs_take_turns_when_the_budget_cannot_serve_all_of_them ... ok
+test mobs::custom::ai::tests::custom_types_in_an_avoid_list_are_matched_by_id ... ok
+test mobs::custom::ai::tests::only_a_custom_mob_takes_frames ... ok
+test mobs::custom::ai::tests::a_when_expression_replaces_the_night ... ok
+test mobs::custom::ai::tests::hurt_by_takes_the_attacker_and_call_for_help_alerts_its_kind ... ok
+test mobs::custom::ai::tests::go_to_block_walks_to_a_listed_block ... ok
+test mobs::custom::ai::tests::goals_with_disjoint_flags_run_together ... ok
+test mobs::custom::ai::tests::float_takes_the_jump_flag_from_a_leap ... ok
+test mobs::custom::ai::tests::leap_at_target_jumps_at_a_target_in_range ... ok
+test mobs::custom::ai::tests::leap_attack_strikes_at_its_damage_frame ... ok
+test mobs::custom::ai::tests::stroll_is_the_same_goal_under_its_new_name ... ok
+test mobs::custom::ai::tests::a_restarted_melee_goal_strikes_at_once_as_vanilla_does ... ok
+test mobs::custom::ai::tests::eat_block_changes_nothing_without_griefing_but_still_has_its_effect ... ok
+test mobs::custom::ai::tests::look_at_player_and_random_look_start_by_chance ... ok
+test mobs::custom::ai::tests::leap_attack_winds_up_jumps_and_strikes_once ... ok
+test mobs::custom::ai::tests::the_budget_defaults_to_8192_nodes_a_tick_and_reads_the_server_setting ... ok
+test mobs::custom::ai::tests::open_door_opens_a_door_of_its_tag_on_the_path_and_closes_it_after ... ok
+test mobs::custom::ai::tests::look_at_player_respects_its_range ... ok
+test mobs::custom::ai::tests::eat_block_replaces_the_block_heals_raises_its_event_and_waits_for_its_cooldown ... ok
+test mobs::custom::ai::tests::nearest_attackable_takes_listed_types_in_range ... ok
+test mobs::custom::ai::tests::open_door_with_break_breaks_the_door_after_240_ticks_and_only_when_griefing ... ok
+test mobs::custom::ai::tests::look_at_target_looks_while_the_target_is_near ... ok
+test mobs::custom::ai::tests::panic_runs_from_a_recent_hit ... ok
+test mobs::custom::ai::tests::random_swim_and_fly_wander_use_the_engines_swimming_and_flying_strolls ... ok
+test mobs::custom::ai::tests::retreat_when_hurt_waits_for_low_health ... ok
+test mobs::custom::ai::tests::yoake_water_slowdown_sets_the_engines_water_slowdown ... ok
+test mobs::custom::ai::tests::the_fixture_fox_gets_every_goal_it_lists ... ok
+test mobs::custom::ai::tests::swim_floats_a_mob_that_is_in_lava_or_deep_water ... ok
+test mobs::custom::ai::tests::tempt_follows_a_player_holding_one_of_its_items ... ok
+test mobs::custom::ai::tests::the_blow_needs_the_target_still_in_reach_when_it_lands ... ok
+test mobs::custom::ai::tests::target_player_picks_the_player_in_sight ... ok
+test mobs::custom::ai::tests_4c::a_click_on_a_rideable_mob_boards_it_unless_sneaking ... ok
+test mobs::custom::ai::tests::ranged_attack_shoots_its_projectile_at_the_target ... ok
+test mobs::custom::ai::tests::the_engines_path_search_of_a_custom_mob_is_metered_and_a_vanilla_mobs_is_not ... ok
+test mobs::custom::ai::tests_4c::a_tamed_parent_has_a_tamed_baby_of_the_same_owner ... ok
+test mobs::custom::ai::tests_4c::a_feed_row_heals_a_hurt_tamed_mob_with_the_items_it_allows ... ok
+test mobs::custom::ai::tests::the_climb_cost_decides_between_the_wall_and_the_way_round ... ok
+test mobs::custom::ai::tests::the_rest_place_can_be_the_nearest_block_of_a_tag ... ok
+test mobs::custom::ai::tests::the_finalized_fixture_fox_keeps_its_target_and_lands_the_server_frame ... ok
+test mobs::custom::ai::tests::the_fixture_targets_a_player_beyond_two_blocks_and_script_view_publishes_it ... ok
+test mobs::custom::ai::tests::the_navigator_routes_up_a_wall_only_for_a_mob_with_a_climb_row ... ok
+test mobs::custom::ai::tests_4c::feeding_an_adult_starts_love_once_and_feeding_a_baby_brings_growth_forward ... ok
+test mobs::custom::ai::tests_4c::berries_tame_a_fox_and_the_notice_is_queued ... ok
+test mobs::custom::ai::tests_4c::rows_feed_tame_give_and_the_implicit_shortcuts_follow ... ok
+test mobs::custom::ai::tests::with_cooldown_persists_a_restart_keeps_the_attack_cooldown ... ok
+test mobs::custom::ai::tests_4c::seats_are_taken_by_allowed_types_in_order ... ok
+test mobs::custom::ai::tests_4c::a_baby_that_grows_up_is_moved_out_of_the_wall_its_bigger_box_would_overlap ... ok
+test mobs::custom::ai::tests_4c::the_baby_scale_is_multiplied_with_the_scale_attribute ... ok
+test mobs::custom::ai::tests_4c::tameable_flags_add_the_default_goals ... ok
+test mobs::custom::ai::tests_4c::the_hook_decides_first_and_pass_goes_on_to_the_data_shortcuts ... ok
+test mobs::custom::ai::tests_4c::the_installed_hook_is_what_the_game_reaches ... ok
+test mobs::custom::ai::tests_4c::the_passenger_is_placed_by_the_servers_static_offset ... ok
+test mobs::custom::ai::tests_4c::the_owner_orders_a_tamed_fox_to_sit_and_stand ... ok
+test mobs::custom::ai::tests_4c::the_pause_counts_down_and_a_baby_grows_up_and_loses_its_small_scale ... ok
+test mobs::custom::ai::tests_4c::a_baby_follows_an_adult_of_its_type ... ok
+test mobs::custom::ai::tests::wander_walks_somewhere ... ok
+test mobs::custom::ai::tests::stay_near_home_walks_back_and_patrol_stays_around ... ok
+test mobs::custom::ai::tests_4c::owner_hurt_target_attacks_what_the_owner_attacked ... ok
+test mobs::custom::ai::tests_4c::a_far_owner_is_a_teleport ... ok
+test mobs::custom::ai::tests_4d::a_custom_type_without_seats_keeps_the_old_link_and_the_ai_boards_seats ... ok
+test mobs::custom::ai::tests_4c::offspring_and_partner_can_be_other_types ... ok
+test mobs::custom::ai::tests_4d::a_vanilla_vehicle_keeps_its_one_rider_rules ... ok
+test mobs::custom::ai::tests_4d::a_disconnect_frees_the_seat ... ok
+test mobs::custom::ai::tests_4d::a_native_veto_stops_seat_set_and_ai_boarding ... ok
+test mobs::custom::ai::tests_4d::a_seat_can_be_asked_for_and_refusals_say_why ... ok
+test mobs::custom::ai::tests_4d::a_seat_is_kept_when_another_rider_gets_off ... ok
+test mobs::custom::ai::tests_4d::players_obey_allowed_types_and_each_other ... ok
+test mobs::custom::ai::tests_4d::allowed_types_pick_the_seat ... ok
+test mobs::custom::ai::tests_4d::riders_sit_at_the_offset_of_their_seat ... ok
+test mobs::custom::ai::tests_4d::riders_get_off_when_the_vehicle_or_a_rider_dies ... ok
+test mobs::custom::ai::tests_4d::several_mobs_board_up_to_the_seat_count ... ok
+test mobs::custom::ai::tests_4c::owner_hurt_by_attacks_what_hurt_the_owner ... ok
+test mobs::custom::ai::tests_4c::owner_target_takes_either_the_more_recent ... ok
+test mobs::custom::ai::tests_4d::host_guest_and_mob_riders_never_share_a_seat ... ok
+test mobs::custom::ai::tests_4d::the_client_seats_a_rider_at_the_posed_locator ... ok
+test mobs::custom::ai::tests_4d::rider_kinds_name_the_type ... ok
+test mobs::custom::ai::tests_4d::the_player_and_mobs_share_the_seats ... ok
+test mobs::custom::ai::tests_4d::the_seats_of_the_riders_survive_a_save ... ok
+test mobs::custom::ai::tests_4d::the_driving_seat_steers_and_the_others_carry ... ok
+test mobs::custom::ai::tests_4d::the_seat_set_command_seats_and_frees_a_rider ... ok
+test mobs::custom::ai::tests_4d::the_seat_of_a_player_survives_a_save ... ok
+test mobs::custom::ai::tests_4d::the_server_seats_a_locator_seat_at_the_rest_position_times_the_scale ... ok
+test mobs::custom::ai::tests_4d::the_sync_seats_riders_that_came_without_a_claim_and_drops_the_surplus ... ok
+test mobs::custom::ai::tests_4c::the_owner_goals_leave_out_what_they_should ... ok
+test mobs::custom::ai::tests_script::a_value_that_does_not_change_is_not_a_change ... ok
+test mobs::custom::ai::tests_script::bone_writes_drop_the_invalid_and_keep_the_cap ... ok
+test mobs::custom::ai::tests_4c::a_sitting_fox_stays_put_and_a_standing_one_wanders ... ok
+test mobs::custom::ai::tests_4c::the_mob_tick_runs_the_breeding_clock_of_breedable_types_only ... ok
+test mobs::custom::ai::tests_4c::two_foxes_in_love_breed_and_rest_and_the_baby_is_small ... ok
+test mobs::custom::ai::tests_script::the_script_goal_is_a_goal_with_the_flags_of_its_row ... ok
+test mobs::custom::ai::tests_4c::the_saddle_the_owner_and_rideable_when_decide ... ok
+test mobs::custom::ai::tests_script::uuid_text_is_the_canonical_form ... ok
+test mobs::custom::ai::tests_4c::the_taming_chance_is_deterministic_per_seed_and_matches_its_rate ... ok
+test mobs::custom::ai::tests_script::a_command_that_needs_a_world_waits_for_one ... ok
+test mobs::custom::ai::tests_script::a_guest_that_dies_stops_its_goal_safely ... ok
+test mobs::custom::ai::tests_4c::a_tamed_fox_follows_its_owner_and_a_sitting_one_does_not ... ok
+test mobs::custom::ai::tests_script::commands_are_checked_and_applied ... ok
+test mobs::custom::ai::tests_script::a_mob_makes_at_most_32_goal_calls_in_a_tick ... ok
+test mobs::custom::ai::tests_script::a_reopened_world_starts_without_the_last_worlds_scripts_or_commands ... ok
+test mobs::custom::anim_sync::tests::a_held_controller_state_stays_for_its_ticks_then_the_controller_goes_on ... ok
+test mobs::custom::anim_sync::tests::a_frame_nobody_emits_falls_back_to_the_delay ... ok
+test mobs::custom::anim_sync::tests::a_types_name_tag_height_is_blocks_above_the_feet_times_the_model_scale ... ok
+test mobs::custom::anim_sync::tests::a_zero_tolerance_re_anchors_on_every_change_of_speed ... ok
+test mobs::custom::anim_sync::tests::a_hold_without_ticks_lasts_until_released_and_a_plain_set_or_a_zero_hold_lets_go ... ok
+test mobs::custom::anim_sync::tests::a_type_without_animations_runs_nothing ... ok
+test mobs::custom::ai::tests_script::a_running_goal_is_not_cut_off_by_the_budget ... ok
+test mobs::custom::ai::tests_script::a_second_server_is_refused_while_the_first_holds_the_runtime ... ok
+test mobs::custom::ai::tests_script::a_session_installs_its_runtime_and_a_closed_world_leaves_nothing_behind ... ok
+test mobs::custom::anim_sync::tests::a_type_without_a_death_animation_is_removed_after_the_engines_20_ticks ... ok
+test mobs::custom::anim_sync::tests::the_values_of_a_type_fit_256_bytes ... ok
+test mobs::custom::anim_sync::tests::the_fixture_fox_has_a_rig_with_its_triggers_and_server_frame ... ok
+test mobs::custom::ai::tests_script::a_test_runtime_blocks_a_session_and_a_replaced_session_clears_nothing_of_its_successor ... ok
+test mobs::custom::attrs::tests::a_default_outside_its_range_is_cut_to_it ... ok
+test mobs::custom::attrs::tests::modifiers_follow_the_engines_operation_order_and_range ... ok
+test mobs::custom::attrs::tests::the_save_round_trips_bases_and_modifiers_by_id ... ok
+test mobs::custom::build::tests::a_custom_mob_is_made_ticks_and_has_its_state_and_goals ... ok
+test mobs::custom::build::tests::a_custom_type_becomes_the_engines_type_with_the_files_numbers ... ok
+test mobs::custom::build::tests::a_vanilla_mob_is_not_a_custom_one ... ok
+test mobs::custom::anim_sync::tests::the_wire_version_follows_the_layout ... ok
+test mobs::custom::build::tests::vanilla_sound_event_ids_are_the_same_strings_as_before ... ok
+test mobs::custom::hitbox::tests::a_blow_reaches_with_the_parts ... ok
+test mobs::custom::hitbox::tests::a_bone_part_hangs_from_the_bone_pivot ... ok
+test mobs::custom::build::tests::spawn_finalization_keeps_the_default_follow_range ... ok
+test mobs::custom::hitbox::tests::a_part_follows_the_body_yaw ... ok
+test mobs::custom::hitbox::tests::a_click_reaches_the_parts_too ... ok
+test mobs::custom::hitbox::tests::rays_enter_boxes_where_they_should ... ok
+test mobs::custom::persist::all_kinds_tests::every_kind_of_persistent_synced_value_round_trips ... ok
+test mobs::custom::persist::tests::a_bad_saved_value_falls_back_to_the_default ... ok
+test mobs::custom::persist::tests::a_custom_mob_survives_a_save_and_load ... ok
+test mobs::custom::anim_sync::tests::anchors_are_sent_on_state_and_speed_changes_only ... ok
+test mobs::custom::persist::tests::a_fresh_mob_writes_the_least_and_a_vanilla_mob_nothing ... ok
+test mobs::custom::persist::tests::a_world_without_the_mod_does_not_build_the_mob ... ok
+test mobs::custom::persist::tests::the_owner_the_sit_order_and_the_breeding_state_survive_a_save_and_load ... ok
+test mobs::custom::registry::tests::peaceful_follows_the_category ... ok
+test mobs::custom::registry::tests::the_registry_refuses_a_second_id_and_can_be_replaced ... ok
+test mobs::custom::persist::tests::the_rest_place_and_home_survive_a_save_and_load ... ok
+test mobs::custom::persist::tests::what_the_type_does_not_know_is_kept_in_the_compound ... ok
+test mobs::custom::anim_sync::tests::the_e2e_fox_prefers_the_nearer_of_a_chicken_and_a_player ... ok
+test mobs::custom::anim_sync::tests::the_e2e_fox_picks_the_player_and_its_pounce_strikes ... ok
+test mobs::custom::anim_sync::tests::the_e2e_fox_picks_a_chicken_and_its_pounce_strikes ... ok
+test mobs::custom::ai::tests_script::can_use_is_asked_every_interval_ticks_only ... ok
+test mobs::custom::ai::tests_script::hurt_died_interact_and_save_go_through_the_runtime ... ok
+test mobs::custom::anim_sync::tests::the_keyframe_not_the_delay_lands_the_blow ... ok
+test mobs::custom::anim_sync::tests::triggers_play_once_keep_a_ring_and_end ... ok
+test mobs::custom::anim_sync::tests::a_dying_mob_stays_until_its_death_animation_ends_with_a_range_of_20_to_60_ticks ... ok
+test mobs::custom::remote::tests::a_late_join_gets_the_whole_state_from_the_snapshot ... ok
+test mobs::custom::remote::tests::a_lost_delta_is_repaired_by_the_next_one_or_a_snapshot ... ok
+test mobs::custom::remote::tests::a_late_joiner_gets_only_the_events_after_it_joined ... ok
+test mobs::custom::render_state::tests::a_death_animation_replaces_the_tilt_and_holds_its_last_pose ... ok
+test mobs::custom::render_state::tests::a_glowmask_beside_the_texture_is_an_emissive_layer_without_a_layer_row ... ok
+test mobs::custom::render_state::tests::a_late_joined_mob_shows_the_pose_of_one_watched_all_along ... ok
+test mobs::custom::render_state::tests::a_bbmodels_embedded_texture_goes_to_the_atlas_under_the_default_texture_name ... ok
+test mobs::custom::render_state::tests::a_pounce_joined_midway_replays_nothing_of_its_past ... ok
+test mobs::custom::render_state::tests::a_pounce_plays_its_hit_sound_and_particle_at_the_mouth_on_the_keyframes_tick ... ok
+test mobs::custom::render_state::tests::a_world_without_custom_mobs_does_no_work_and_holds_nothing ... ok
+test mobs::custom::remote::tests::a_stale_anchor_does_not_replace_a_newer_one ... ok
+test mobs::custom::ai::tests_script::start_tick_and_stop_reach_the_guest_and_the_goal_holds_move_and_look ... ok
+test mobs::custom::render_state::tests::a_state_change_fades_over_the_blend_not_instantly ... ok
+test mobs::custom::render_state::tests::events_of_the_server_side_are_not_routed ... ok
+test mobs::custom::render_state::tests::every_baked_triangle_pair_becomes_a_quad_of_its_bone ... ok
+test mobs::custom::render_state::tests::half_and_quarter_rate_evaluate_every_second_and_fourth_frame_and_hold_in_between ... ok
+test mobs::custom::remote::tests::reordered_and_repeated_deltas_converge_on_the_newest ... ok
+test mobs::custom::remote::tests::a_late_trigger_then_a_re_anchor_fires_its_time_zero_event_once ... ok
+test mobs::custom::render_state::tests::golden_vertex_hashes_of_every_animation ... ok
+test mobs::custom::remote::tests::a_trigger_message_heard_in_time_is_fresh ... ok
+test mobs::custom::render_state::tests::low_bones_leaves_out_the_lod_min_bones_and_hidden_bones_go_at_every_lod ... ok
+test mobs::custom::render_state::tests::locators_and_the_mob_transform_put_the_mouth_in_front ... ok
+test mobs::custom::render_state::tests::mob_states_of_mobs_not_drawn_for_a_while_are_dropped ... ok
+test mobs::custom::render_state::tests::script_writes_hide_and_move_bones ... ok
+test mobs::custom::remote::tests::the_seats_of_a_vehicle_reach_the_client_and_the_newest_frame_wins ... ok
+test mobs::custom::render_state::tests::static_is_the_rest_pose_and_hidden_draws_nothing ... ok
+test mobs::custom::remote::tests::the_clients_hit_event_comes_with_the_servers_frame ... ok
+test mobs::custom::render_state::tests::mob_pose_writes_of_a_script_move_and_hide_bones_and_only_a_flagged_type_asks ... ok
+test mobs::custom::render_state::tests::the_fox_splits_into_a_cutout_body_and_an_emissive_glow_layer ... ok
+test mobs::custom::render_state::tests::the_view_point_is_the_camera_in_model_pixels ... ok
+test mobs::custom::render_state::tests::model_lod_min_bones_and_the_name_suffix_are_both_skipped_by_low_bones ... ok
+test mobs::custom::spawn::tests::a_dimensions_list_matches_a_pack_level_by_its_own_id ... ok
+test mobs::custom::spawn::tests::a_picked_entry_finds_its_rules_by_weight_and_count ... ok
+test mobs::custom::spawn::tests::conditions_check_light_time_height_dimension_and_distance ... ok
+test mobs::custom::spawn::tests::a_type_builds_its_rules_and_refuses_one_the_engine_cannot_read ... ok
+test mobs::custom::spawn::tests::a_rule_is_read_from_the_file_with_category_defaults ... ok
+test mobs::custom::spawn::tests::despawn_follows_the_vanilla_shape_with_the_types_distances ... ok
+test mobs::custom::stats::tests::a_type_filter_shows_one_type_and_an_unknown_one_is_an_error ... ok
+test mobs::custom::stats::tests::the_report_lists_each_type_a_total_the_budget_and_what_is_missing ... ok
+test mobs::custom::stats::tests::without_custom_types_the_report_says_so ... ok
+test mobs::custom::render_state::tests::the_hosts_mirror_hides_owner_values_of_mobs_the_host_does_not_own ... ok
+test mobs::custom::tests::the_custom_species_row_is_neutral ... ok
+test mobs::custom::render_state::tests::the_lod_table_picks_the_last_row_reached ... ok
+test mobs::custom::tests::a_custom_mob_is_a_monster_by_its_category ... ok
+test mobs::custom::render_state::tests::the_hurt_overlay_goes_to_the_body_and_cutout_layers_not_the_glow ... ok
+test projectiles::tests::fireball_inertia_preserves_custom_acceleration ... ok
+test mobs::custom::render_state::tests::translucent_and_additive_layers_sort_after_the_opaque_ones_and_are_tagged ... ok
+test structure_blocks::tests::exploration_maps_wait_in_custom_data_until_searched ... ok
+test mod_content::tests::a_custom_mobs_row_has_the_vanilla_default_attribute_set_then_its_own ... ok
+test mobs::custom::remote::tests::what_cannot_be_applied_is_dropped_and_counted ... ok
+test mobs::custom::tests::only_a_real_change_marks_a_value_dirty ... ok
+test mobs::custom::render_state::tests::the_cull_box_is_the_types_own_box_or_the_hitbox ... ok
+test mobs::custom::tests::the_fixture_fox_builds_into_a_type ... ok
+test mobs::custom::tests::tracked_values_keep_their_type_and_range ... ok
+test mobs::custom::render_state::tests::the_looking_constraint_follows_this_clients_view ... ok
+test mobs::custom::render_state::tests::a_local_mob_is_mirrored_and_its_pounce_events_fire_once ... ok
+test mobs::custom::ai::tests_script::the_tick_hooks_run_in_order_and_tell_each_thing_once ... ok
+test mobs::custom::anim_sync::tests::a_mob_killed_by_damage_is_removed_exactly_at_removal_ticks_and_announced ... ok
+test title::tests::the_single_biome_preset_is_customized_into_the_generator ... ok
+test mobs::custom::remote::tests::deltas_keep_the_client_with_the_server ... ok
+test title::tests::a_customized_world_asks_for_a_backup_before_it_opens ... ok
+test mobs::custom::ai::tests_script::what_the_guest_asked_is_done_before_the_engine_goes_on ... ok
+test mobs::custom::ai::tests_script::without_a_runtime_the_goal_never_starts_and_nothing_breaks ... ok
+test save::tests::world_stem_compatibility_flags_unstable_and_customized_worlds ... ok
+
+test result: ok. 250 passed; 0 failed; 0 ignored; 0 measured; 1717 filtered out; finished in 1.17s
+
+TEST EXIT 0

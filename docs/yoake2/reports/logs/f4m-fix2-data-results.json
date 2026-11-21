@@ -1,0 +1,174 @@
+{
+  "checks": {
+    "idle": {
+      "pass": true,
+      "detail": {
+        "png": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-idle-day.png",
+        "fox": [
+          -7.5,
+          70.0,
+          -6.5
+        ]
+      }
+    },
+    "glow": {
+      "pass": true,
+      "detail": {
+        "changed_vs_day": 1258751,
+        "png": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-idle-night.png"
+      }
+    },
+    "pounce": {
+      "resummoned": 0,
+      "pass": true,
+      "detail": {
+        "server_frames": 1,
+        "server_tick": 2634,
+        "host_event_ticks": [
+          2634
+        ],
+        "guest_event_ticks": [
+          2634
+        ],
+        "host": [
+          1,
+          1,
+          1
+        ],
+        "guest": [
+          1,
+          1,
+          1
+        ],
+        "changed_vs_idle": 220534,
+        "png": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-pounce.png"
+      }
+    },
+    "lod": {
+      "pass": true,
+      "detail": {
+        "changed_vs_empty_scene": {
+          "30": 943381,
+          "70": 46268
+        },
+        "png": [
+          "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-lod-30.png",
+          "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-lod-70.png"
+        ]
+      }
+    },
+    "name": {
+      "pass": true,
+      "detail": {
+        "data_merge_reply": {
+          "chat": [
+            "Foxy\u306e\u30a8\u30f3\u30c6\u30a3\u30c6\u30a3\u30c7\u30fc\u30bf\u3092\u5909\u66f4\u3057\u307e\u3057\u305f"
+          ],
+          "ok": true
+        },
+        "png": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-nametag.png",
+        "note": "the tag is judged by looking at the PNG (a pixel check cannot tell text)"
+      }
+    },
+    "strike_mob": {
+      "pass": true,
+      "detail": {
+        "chicken_health_samples": [
+          4.0,
+          2.0,
+          2.0
+        ]
+      }
+    },
+    "strike": {
+      "pass": false,
+      "detail": {
+        "server_frames": 5,
+        "server_tick": 3887,
+        "health_before_after": {
+          "host": [
+            20.0,
+            13.166667938232422
+          ],
+          "guest": [
+            20.0,
+            20.0
+          ]
+        },
+        "host_event_ticks": [
+          3887,
+          3913,
+          3930,
+          3951,
+          3968
+        ],
+        "guest_event_ticks": [
+          3887,
+          3912,
+          3934,
+          3949,
+          3968
+        ],
+        "strike_lines": [
+          "Horizon custom-mob target: mob 322 picked Player",
+          "Horizon custom-mob strike: mob 322 begins on Player tick 3879",
+          "Horizon custom-mob strike: mob 322 lands on Player tick 3887",
+          "Horizon custom-mob strike: mob 322 hit the player for 2: hurt true tick 3887",
+          "Horizon custom-mob goal: mob 322 CustomMelee stopped: can_continue false tick 3888",
+          "Horizon custom-mob strike: mob 322 begins on Player tick 3904",
+          "Horizon custom-mob strike: mob 322 lands on Player tick 3912",
+          "Horizon custom-mob goal: mob 322 CustomMelee stopped: can_continue false tick 3914",
+          "Horizon custom-mob strike: mob 322 begins on Player tick 3922",
+          "Horizon custom-mob strike: mob 322 lands on Player tick 3930",
+          "Horizon custom-mob goal: mob 322 CustomMelee stopped: can_continue false tick 3932",
+          "Horizon custom-mob strike: mob 322 begins on Player tick 3941",
+          "Horizon custom-mob strike: mob 322 lands on Player tick 3949",
+          "Horizon custom-mob goal: mob 322 CustomMelee stopped: can_continue false tick 3950",
+          "Horizon custom-mob strike: mob 322 begins on Player tick 3960",
+          "Horizon custom-mob strike: mob 322 lands on Player tick 3968",
+          "Horizon custom-mob goal: mob 322 CustomMelee stopped: can_continue false tick 3970"
+        ]
+      }
+    },
+    "death": {
+      "pass": true,
+      "detail": {
+        "foxes_every_2_ticks_after_damage": [
+          1,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "png": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-death.png",
+        "death_lines": [
+          "Horizon custom-mob death: mob 323 dies, death_time 0 (limit 20) tick 4116",
+          "Horizon custom-mob death: mob 323 removed at death_time 20 (limit 20) tick 4135"
+        ]
+      }
+    },
+    "_screenshots": {
+      "pass": true,
+      "detail": {
+        "idle-day": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-idle-day.png",
+        "idle-night": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-idle-night.png",
+        "pounce": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-pounce.png",
+        "lod-30": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-lod-30.png",
+        "lod-70": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-lod-70.png",
+        "nametag": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-nametag.png",
+        "death": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\img\\f4m6-death.png",
+        "log_lines": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\custom-mob-render-e2e-data\\custom-mob-log-lines.txt"
+      }
+    }
+  }
+}
