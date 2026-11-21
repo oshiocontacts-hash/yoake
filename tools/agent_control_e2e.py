@@ -60,7 +60,7 @@ POSITIONAL = {
     'record_start': ['name'], 'record_replay': ['name'], 'repro_export': ['name', 'path'],
     'turn': ['dyaw', 'dpitch'],
     'wait_for': ['condition', 'value'], 'open': ['world', 'seed', 'mode'], 'select': ['slot'],
-    'summon': ['kind', 'x', 'y', 'z'], 'interact_entity': ['id'], 'effect': ['id', 'seconds', 'amplifier'],
+    'summon': ['kind', 'x', 'y', 'z'], 'interact_entity': ['id'], 'use_entity': ['id'], 'effect': ['id', 'seconds', 'amplifier'],
     'xp': ['levels'], 'options': ['page'], 'lan': ['action'], 'world_backup': ['folder'],
     'world_rename': ['folder', 'name'], 'world_delete': ['folder'], 'mouse': ['button', 'action'],
 }

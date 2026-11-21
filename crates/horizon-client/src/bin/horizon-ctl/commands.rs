@@ -353,6 +353,10 @@ pub const COMMANDS: &[Cmd] = &[
     cmd!("interact-entity", Act, "interact-entity ID", "right-click an entity: trade with a villager, mount a horse, ride a boat, shear a sheep",
         "Faces the entity (from entities), right-clicks it with the held item, waits two ticks and replies with the screen.",
         ["horizon-ctl interact-entity 42"], &[p("id", Ty::Int, "entity id from entities")], mcp: true, local: true),
+    cmd!("use-entity", Act, "use-entity [ID] [--type TYPE]", "right-click an entity by id or nearest of a type",
+        "Faces the entity (or the nearest loaded mob of TYPE within reach), right-clicks it with the held item (main hand), waits a few ticks and replies with target and screen.",
+        ["horizon-ctl use-entity 42", "horizon-ctl use-entity --type sample_mobs:cinder_fox"],
+        &[opt("id", Ty::Int, "entity id from entities"), flag("type", Ty::Str, "entity type id (nearest in range)")], mcp: true, local: false),
     cmd!("pad", Act, "pad BUTTON down|up|tap | pad stick left|right X Y | pad trigger left|right V | pad release | pad status", "a virtual controller: buttons, sticks and triggers as a real pad would send them",
         "Buttons by position: south east west north lb rb lt rt select start ls rs up down left right (south is Xbox A / PlayStation cross). Sticks run -1..1 with up positive and stay tilted until centred; triggers 0..1. Merged with any real controller; status lists the connected ones and what is held.",
         ["horizon-ctl pad south tap", "horizon-ctl pad stick left 0 1", "horizon-ctl pad trigger right 1", "horizon-ctl pad status"],
@@ -865,6 +869,20 @@ mod tests {
             line_for(open, &json!({ "world": "A", "mode": "creative" }))
                 .unwrap_err()
                 .contains("seed")
+        );
+        let use_ent = find("use-entity").unwrap();
+        assert_eq!(tool_name(use_ent), "use_entity");
+        assert_eq!(
+            line_for(use_ent, &json!({ "id": 42 })).unwrap(),
+            ["use-entity", "42"]
+        );
+        assert_eq!(
+            line_for(use_ent, &json!({ "type": "sample_mobs:cinder_fox" })).unwrap(),
+            ["use-entity", "--type", "sample_mobs:cinder_fox"]
+        );
+        assert_eq!(
+            schema(use_ent)["required"],
+            json!([])
         );
     }
 
