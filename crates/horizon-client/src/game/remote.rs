@@ -6318,7 +6318,8 @@ impl Game<'_> {
         // A passenger moves with its vehicle (Entity.rideTick), not by itself.
         let riding = self.screen != Screen::Dead && self.remote_ride(keys);
         // The server sends no passenger's position: they sit where their
-        // vehicles are now.
+        // vehicles are now, on the seats its mob-sync messages claim.
+        self.apply_remote_seat_claims();
         self.position_riders();
         // Entity.getFluidInteractionBox asks the vehicle: a boat afloat shelters
         // its passenger's eyes (AbstractBoat.modifyPassengerFluidInteractionBox).

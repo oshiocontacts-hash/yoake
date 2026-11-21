@@ -255,7 +255,15 @@ fn build(project: &Path, features: &str, target: &Path) -> std::io::Result<Outpu
 /// can neither be built nor found (the caller should return, which the test log shows as skipped).
 pub fn load(guest: &Guest) -> Option<Vec<u8>> {
     let _serial = BUILD.lock().unwrap_or_else(|error| error.into_inner());
-    let target = target_dir();
+    // Builds with features (the test-only `trap` and `spin` foxes, client/server variants) go to one
+    // target apart: the plain artifact path of the shared target keeps the plain build, which tools and
+    // e2e runs pick up (a `spin` fox left there once made a real-game run time out). Each build is
+    // copied to its own name under the lock right after it is made.
+    let target = if guest.features.is_empty() {
+        target_dir()
+    } else {
+        target_dir().join("guest-variants")
+    };
     let built = target.join("wasm32-wasip2/release").join(guest.artifact);
     let copy = target
         .join("wasm32-wasip2/release")

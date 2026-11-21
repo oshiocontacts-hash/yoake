@@ -221,6 +221,39 @@ impl RemoteCustomMobs {
     pub fn len(&self) -> usize {
         self.mobs.len()
     }
+    /// The seat claims the server sent (`Seats`) onto the client's copies of the vehicles, so a rider sits
+    /// on the seat the server gave it, not on the one its order among the riders would give (F4M-SEATS3).
+    /// Nothing happens without custom mobs.
+    pub fn copy_seat_claims(&self, mobs: &mut [crate::mobs::Mob], own_uuid: [i32; 4], own: i32) {
+        let remote = self;
+        // Nothing to copy without custom mobs (no work per tick for vanilla).
+        if remote.is_empty() {
+            return;
+        }
+        let ids: std::collections::HashSet<u32> = mobs.iter().map(|m| m.id).collect();
+        for m in mobs {
+            if m.kind.custom.is_none() {
+                continue;
+            }
+            let Some(store) = remote.get(m.id as i32) else { continue };
+            // A rider that is a mob is a mob claim; the others are players (this window's own player
+            // by its UUID, any other by a UUID made from its entity id).
+            let mut claims = Vec::new();
+            let mut players = Vec::new();
+            for &(rider, seat) in &store.seats {
+                match u32::try_from(rider) {
+                    Ok(id) if ids.contains(&id) => claims.push(super::SeatClaim { rider: id, seat }),
+                    _ if rider == own => players.push(super::PlayerClaim { player: own_uuid, seat }),
+                    _ => players.push(super::PlayerClaim { player: [i32::MIN, 0, 0, rider], seat }),
+                }
+            }
+            if let Some(state) = m.extra.custom.as_mut() {
+                state.set_seat_claims(claims);
+                state.set_player_claims(players);
+            }
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.mobs.is_empty()
     }

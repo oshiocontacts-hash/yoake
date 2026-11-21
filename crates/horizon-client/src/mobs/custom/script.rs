@@ -502,8 +502,8 @@ impl ClientRuntime for ClientChain {
 struct Slot {
     runtime: Option<Arc<dyn Runtime>>,
     owner: u64,
-    /// Tests only: the thread that installed a test double with [`set_runtime`]. Other test threads do
-    /// not see it, so a mock cannot answer for the mobs of tests running beside it.
+    /// Tests only: the thread that installed the runtime ([`set_runtime`] or [`open_session`]). Other test
+    /// threads do not see it, so a mock cannot answer for the mobs of tests running beside it.
     #[cfg(test)]
     thread: Option<std::thread::ThreadId>,
 }
@@ -552,9 +552,11 @@ pub fn open_session(runtime: Arc<dyn Runtime>) -> Result<Session, SessionBusy> {
     clear_locators();
     slot.runtime = Some(runtime);
     slot.owner = id;
+    // Tests only: a session a test opens is seen by that test's thread, as a `set_runtime` double is
+    // (the game's sessions are not compiled with `cfg(test)`).
     #[cfg(test)]
     {
-        slot.thread = None;
+        slot.thread = Some(std::thread::current().id());
     }
     Ok(Session { id })
 }
