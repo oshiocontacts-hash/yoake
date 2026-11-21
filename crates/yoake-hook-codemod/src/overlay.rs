@@ -46,8 +46,14 @@ pub(crate) fn canon(path: &Path) -> Result<PathBuf, String> {
 }
 
 /// Literal paths of `include_str!("..")`, `include_bytes!("..")` and `include!("..")`.
+#[cfg(test)]
 pub fn included_files(text: &str, dir: &Path) -> Vec<PathBuf> {
-    let mut out = Vec::new();
+    scan_includes(text, dir).0
+}
+
+fn scan_includes(text: &str, dir: &Path) -> (Vec<PathBuf>, Vec<PathBuf>) {
+    let mut all = Vec::new();
+    let mut code = Vec::new();
     for needle in ["include_str!(", "include_bytes!(", "include!("] {
         let mut from = 0;
         while let Some(rel) = text[from..].find(needle) {
@@ -57,39 +63,122 @@ pub fn included_files(text: &str, dir: &Path) -> Vec<PathBuf> {
             if let Some(body) = rest.strip_prefix('"')
                 && let Some(end) = body.find('"')
             {
-                out.push(dir.join(&body[..end]));
+                let path = dir.join(&body[..end]);
+                if needle == "include!(" {
+                    code.push(path.clone());
+                }
+                all.push(path);
             }
         }
     }
-    out
+    (all, code)
 }
 
-/// Files the compiler reads for this crate: root file, module files, included files, `Cargo.toml`.
+fn collect_mod_items(
+    items: &[syn::Item],
+    path_base: &Path,
+    dir_for_children: &Path,
+    files: &mut BTreeSet<PathBuf>,
+    mod_queue: &mut Vec<(PathBuf, bool)>,
+) {
+    for item in items {
+        let syn::Item::Mod(item_mod) = item else { continue };
+        let explicit_path = crate::modules::attr_path_value(&item_mod.attrs);
+        if let Some((_, inner)) = &item_mod.content {
+            let inner_dir = match explicit_path {
+                Some(rel) => path_base.join(rel),
+                None => dir_for_children.join(item_mod.ident.to_string()),
+            };
+            collect_mod_items(inner, &inner_dir, &inner_dir, files, mod_queue);
+        } else if let Some(rel) = explicit_path {
+            let candidate = path_base.join(&rel);
+            if candidate.is_file() {
+                files.insert(candidate.clone());
+                // rustc resolves child mods of a `#[path = "..."]` module relative to that file's directory.
+                mod_queue.push((candidate, true));
+            }
+        } else {
+            let name = item_mod.ident.to_string();
+            let direct = dir_for_children.join(format!("{name}.rs"));
+            let mod_rs = dir_for_children.join(&name).join("mod.rs");
+            if direct.is_file() {
+                files.insert(direct.clone());
+                mod_queue.push((direct, false));
+            } else if mod_rs.is_file() {
+                files.insert(mod_rs.clone());
+                mod_queue.push((mod_rs, true));
+            }
+        }
+    }
+}
+
+/// Files the compiler reads for this crate: root file, module files (including `#[cfg(test)]` and `#[path]`),
+/// included files, `Cargo.toml`.
 pub fn source_closure(crate_root: &Path, crate_name: &str) -> Result<(PathBuf, Vec<PathBuf>), String> {
     let root_file = crate::modules::find_crate_root_file(crate_root, crate_name)?;
-    let tops = crate::modules::expand_star_modules(crate_root, crate_name, &["*".to_string()], &[])?;
-    let targets = tops
-        .iter()
-        .map(|m| crate::modules::normalize_module_arg(m))
-        .collect::<Result<Vec<_>, _>>()?;
-    let scanned = crate::modules::collect_module_files(crate_root, crate_name, &targets, false)?;
     let mut files: BTreeSet<PathBuf> = BTreeSet::new();
     files.insert(root_file.clone());
-    for f in &scanned {
-        files.insert(f.path.clone());
-    }
     files.insert(crate_root.join("Cargo.toml"));
-    let mut extra = Vec::new();
-    for f in files.iter().filter(|f| f.extension().is_some_and(|e| e == "rs")) {
-        if let Ok(text) = std::fs::read_to_string(f) {
-            extra.extend(included_files(&text, f.parent().unwrap_or(Path::new("."))));
+
+    let mut visited: BTreeSet<(PathBuf, PathBuf)> = BTreeSet::new();
+    let mut mod_queue: Vec<(PathBuf, bool)> = vec![(root_file.clone(), true)];
+    let mut include_queue: Vec<(PathBuf, PathBuf)> = Vec::new();
+    let mut visited_includes: BTreeSet<PathBuf> = BTreeSet::new();
+
+    while !mod_queue.is_empty() || !include_queue.is_empty() {
+        while let Some((file_path, flat_dir)) = mod_queue.pop() {
+            let file_dir = file_path.parent().unwrap_or(Path::new("."));
+            let is_mod_rs = file_path.file_name().and_then(|s| s.to_str()) == Some("mod.rs");
+            let dir_for_children = if flat_dir || is_mod_rs {
+                file_dir.to_path_buf()
+            } else {
+                let stem = file_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+                file_dir.join(stem)
+            };
+            let canonical = file_path.canonicalize().unwrap_or_else(|_| file_path.clone());
+            if !visited.insert((canonical, dir_for_children.clone())) {
+                continue;
+            }
+            let Ok(text) = std::fs::read_to_string(&file_path) else { continue };
+            let (all_inc, code_inc) = scan_includes(&text, file_dir);
+            for p in all_inc {
+                if p.is_file() {
+                    files.insert(p);
+                }
+            }
+            for p in code_inc {
+                if p.is_file() {
+                    include_queue.push((p, dir_for_children.clone()));
+                }
+            }
+            if let Ok(parsed) = syn::parse_file(&text) {
+                collect_mod_items(&parsed.items, file_dir, &dir_for_children, &mut files, &mut mod_queue);
+            }
+        }
+        while let Some((inc_path, parent_dir_for_children)) = include_queue.pop() {
+            let canonical = inc_path.canonicalize().unwrap_or_else(|_| inc_path.clone());
+            if !visited_includes.insert(canonical) {
+                continue;
+            }
+            let Ok(text) = std::fs::read_to_string(&inc_path) else { continue };
+            let inc_dir = inc_path.parent().unwrap_or(Path::new("."));
+            let (all_inc, code_inc) = scan_includes(&text, inc_dir);
+            for p in all_inc {
+                if p.is_file() {
+                    files.insert(p);
+                }
+            }
+            for p in code_inc {
+                if p.is_file() {
+                    include_queue.push((p, parent_dir_for_children.clone()));
+                }
+            }
+            if let Ok(parsed) = syn::parse_file(&text) {
+                collect_mod_items(&parsed.items, inc_dir, &parent_dir_for_children, &mut files, &mut mod_queue);
+            }
         }
     }
-    for f in extra {
-        if f.is_file() {
-            files.insert(f);
-        }
-    }
+
     Ok((root_file, files.into_iter().collect()))
 }
 
@@ -129,8 +218,12 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
     let (root_file, files) = source_closure(&crate_root, &args.crate_name)?;
     let root_file = canon(&root_file)?;
     let mut rels = Vec::new();
+    let mut seen = BTreeSet::new();
     for f in &files {
         let f = canon(f)?;
+        if !seen.insert(f.clone()) {
+            continue;
+        }
         let rel = f
             .strip_prefix(&workspace)
             .map_err(|_| format!("{} is outside the workspace; the overlay cannot hold it", f.display()))?
@@ -592,6 +685,110 @@ mod tests {
         assert!(out.contains(&format!("crates{sep}demo{sep}src{sep}lib.rs")), "{out}");
         assert!(out.lines().next().unwrap().contains("demo.json"), "{out}");
         assert!(out.contains("stamp-config.txt:"), "{out}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn source_closure_resolves_cfg_test_and_path_modules_like_rustc() {
+        let dir = std::env::temp_dir().join(format!("yoake-closure-path-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let crate_dir = dir.join("crates/demo");
+        let src = crate_dir.join("src");
+        std::fs::create_dir_all(src.join("wasm_mods/full")).unwrap();
+        std::fs::create_dir_all(src.join("nested")).unwrap();
+        std::fs::create_dir_all(src.join("plain/inline_sub")).unwrap();
+        std::fs::create_dir_all(dir.join("tests/support")).unwrap();
+
+        std::fs::write(crate_dir.join("Cargo.toml"), "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n").unwrap();
+        std::fs::write(
+            src.join("lib.rs"),
+            "mod entry;\nmod nested;\nmod plain;\n#[cfg(test)]\nmod unit_support;\n#[cfg(test)]\n#[path = \"../../../tests/support/temp_dir.rs\"]\nmod test_support;\n",
+        )
+        .unwrap();
+        std::fs::write(src.join("entry.rs"), "#[path = \"wasm_mods.rs\"]\nmod wasm_mods;\n").unwrap();
+        std::fs::write(src.join("wasm_mods.rs"), "#[path = \"wasm_mods/full.rs\"]\nmod full;\n").unwrap();
+        std::fs::write(src.join("wasm_mods/full.rs"), "#[cfg(test)]\n#[path = \"full/gpu_tests.rs\"]\nmod gpu_tests;\n").unwrap();
+        std::fs::write(src.join("wasm_mods/full/gpu_tests.rs"), "#[test]\nfn t() {}\n").unwrap();
+        std::fs::write(src.join("nested/mod.rs"), "#[cfg(test)]\n#[path = \"nested_tests.rs\"]\nmod tests;\n").unwrap();
+        std::fs::write(src.join("nested/nested_tests.rs"), "#[test]\nfn t() {}\n").unwrap();
+        std::fs::write(
+            src.join("plain.rs"),
+            "#[cfg(test)]\n#[path = \"plain/sub_tests.rs\"]\nmod sub_tests;\nmod inline_sub {\n    #[cfg(test)]\n    #[path = \"in_tests.rs\"]\n    mod t;\n}\n",
+        )
+        .unwrap();
+        std::fs::write(src.join("plain/sub_tests.rs"), "#[test]\nfn t() {}\n").unwrap();
+        std::fs::write(src.join("plain/inline_sub/in_tests.rs"), "#[test]\nfn t() {}\n").unwrap();
+        std::fs::write(src.join("unit_support.rs"), "pub fn ok() {}\n").unwrap();
+        std::fs::write(dir.join("tests/support/temp_dir.rs"), "pub fn tmp() {}\n").unwrap();
+
+        let (_, files) = source_closure(&crate_dir, "demo").unwrap();
+        let has = |p: PathBuf| {
+            let c = canon(&p).unwrap();
+            files.iter().any(|f| canon(f).ok().as_ref() == Some(&c))
+        };
+        assert!(has(src.join("wasm_mods/full/gpu_tests.rs")), "full/gpu_tests.rs missing: {files:?}");
+        assert!(has(src.join("nested/nested_tests.rs")), "nested_tests.rs missing: {files:?}");
+        assert!(has(src.join("plain/sub_tests.rs")), "plain/sub_tests.rs missing: {files:?}");
+        assert!(has(src.join("plain/inline_sub/in_tests.rs")), "in_tests.rs missing: {files:?}");
+        assert!(has(src.join("unit_support.rs")), "unit_support.rs missing: {files:?}");
+        assert!(has(dir.join("tests/support/temp_dir.rs")), "foreign temp_dir.rs missing: {files:?}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn build_overlay_copies_path_modules_keeps_foreign_when_present_and_snapshots_them() {
+        let dir = std::env::temp_dir().join(format!("yoake-overlay-path-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let crate_dir = dir.join("crates/demo");
+        let src = crate_dir.join("src");
+        let ledger = dir.join("hook-ledger");
+        let overlay = dir.join("overlay");
+        std::fs::create_dir_all(src.join("wasm_mods/full")).unwrap();
+        std::fs::create_dir_all(dir.join("tests/support")).unwrap();
+        std::fs::create_dir_all(&ledger).unwrap();
+        std::fs::create_dir_all(overlay.join("tests/support")).unwrap();
+
+        std::fs::write(crate_dir.join("Cargo.toml"), "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n").unwrap();
+        std::fs::write(
+            src.join("lib.rs"),
+            "#[path = \"wasm_mods.rs\"]\nmod wasm_mods;\n#[cfg(test)]\n#[path = \"../../../tests/support/temp_dir.rs\"]\nmod test_support;\n",
+        )
+        .unwrap();
+        std::fs::write(src.join("wasm_mods.rs"), "#[path = \"wasm_mods/full.rs\"]\nmod full;\n").unwrap();
+        std::fs::write(src.join("wasm_mods/full.rs"), "#[cfg(test)]\n#[path = \"full/gpu_tests.rs\"]\nmod gpu_tests;\n").unwrap();
+        std::fs::write(src.join("wasm_mods/full/gpu_tests.rs"), "pub fn original_test() {}\n").unwrap();
+        std::fs::write(dir.join("tests/support/temp_dir.rs"), "pub fn plain_foreign() {}\n").unwrap();
+        std::fs::write(overlay.join("tests/support/temp_dir.rs"), "pub fn stamped_foreign() {}\n").unwrap();
+
+        std::fs::write(ledger.join("meta.json"), "{\"version\":2,\"next_id\":1,\"reserved\":[]}\n").unwrap();
+        std::fs::write(ledger.join("demo.json"), "{\"crate\":\"demo\",\"entries\":[]}\n").unwrap();
+        let stamp_config = ledger.join("stamp-config.txt");
+        std::fs::write(&stamp_config, "crates/demo demo * min_stmts=0\n").unwrap();
+
+        let args = OverlayArgs {
+            workspace_root: dir.clone(),
+            overlay_root: overlay.clone(),
+            crate_root: PathBuf::from("crates/demo"),
+            crate_name: "demo".to_string(),
+            ledger: ledger.clone(),
+            stamp_config,
+            frozen: true,
+        };
+        build_overlay(&args).unwrap();
+
+        let overlay_gpu_tests = overlay.join("crates/demo/src/wasm_mods/full/gpu_tests.rs");
+        assert_eq!(std::fs::read_to_string(&overlay_gpu_tests).unwrap(), "pub fn original_test() {}\n");
+        assert_eq!(
+            std::fs::read_to_string(overlay.join("tests/support/temp_dir.rs")).unwrap(),
+            "pub fn stamped_foreign() {}\n",
+            "foreign #[path] file already in overlay must follow copy-only-when-absent"
+        );
+
+        // Tampering with the overlay copy invalidates the snapshot check and restores it on rebuild.
+        std::fs::write(&overlay_gpu_tests, "pub fn tampered() {}\n").unwrap();
+        build_overlay(&args).unwrap();
+        assert_eq!(std::fs::read_to_string(&overlay_gpu_tests).unwrap(), "pub fn original_test() {}\n");
+
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

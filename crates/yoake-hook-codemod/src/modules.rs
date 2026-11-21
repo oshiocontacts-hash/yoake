@@ -191,7 +191,7 @@ fn meta_is_cfg_test(meta: &Meta) -> bool {
     }
 }
 
-fn attr_path_value(attrs: &[Attribute]) -> Option<String> {
+pub(crate) fn attr_path_value(attrs: &[Attribute]) -> Option<String> {
     for attr in attrs {
         if !attr.path().is_ident("path") {
             continue;

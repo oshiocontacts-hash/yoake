@@ -66,18 +66,22 @@ Reading: the exclusion round halved the point estimate, but the interval is abou
 1. **Lost bridge `include!` (first incremental stamped build after a clean one failed in horizon-world: `loot::__yoake_bridge_install` not found).** Reproduced (a no-change stamped build after the rebuild failed the same way). Cause: `horizon-client` has `include_str!("../../../horizon-world/src/loot.rs")` in a test; the overlay closure of horizon-client copies that file into the SHARED overlay root, over horizon-world's stamped `loot.rs`. horizon-world's state file still says fresh, so its next build takes the fast path and compiles the plain `loot.rs` against a `lib.rs` that still calls the bridge chain. Fixes (both in `overlay.rs`): (a) a foreign `.rs` file reached only through `include_str!` is copied only when absent; (b) the fast path now also compares a snapshot of the crate's overlay files (size and time) written at the end of its own overlay run, so any file another crate's overlay replaced forces a regeneration.
 2. **Same class, second form** (`yoake_glue_tables` not found in `motion` in horizon-client-lib after a no-change build): horizon-client-lib and horizon-client both own files under `crates/horizon-client/src`; their overlays share one root, so each can replace the other's stamped copy. The snapshot check in (b) covers it; a per-crate overlay root would remove the sharing, but verify's path translation and the e2e tests assume one root (`yoake-stamp/root`), so I did not change that.
 3. **`horizon-core` is recompiled by every stamped build, even with nothing changed.** Cause: the dep-info of the stamped crates listed overlay-only generated bridge files as inputs; they did not exist in the tree, so cargo saw them as missing and rebuilt `horizon-core` (and everything above it) on every run. Fixed by filtering those generated files out of the dep-info. After the fix a no-change stamped build takes **9 s**.
-4. **Test-only overlay gap (found by the `&Game` guest test, section 4).** `crates/horizon-client/src/wasm_mods/full.rs` declares `#[cfg(test)] #[path = "full/gpu_tests.rs"] mod gpu_tests;`. The overlay copies the stamped `.rs` files and does not copy a file reached only through a `#[path]` attribute, so the stamped `cargo test -p horizon-client` fails with "couldn't find file ... yoake-stamp\root\...\full\gpu_tests.rs". `apply --verify` builds (not tests) and never sees the module, so it reports clean. Not fixed in this run; the fix belongs in `overlay.rs` (copy `#[path]`-referenced files like the `include_str!` case in item 1) and should be followed by a verify with `--verify-arg test`.
+4. **Test-only overlay gap (found by the `&Game` guest test, section 4; fixed).** `crates/horizon-client/src/wasm_mods/full.rs` declares `#[cfg(test)] #[path = "full/gpu_tests.rs"] mod gpu_tests;`. Previously `source_closure` in `overlay.rs` relied on `modules::expand_star_modules` / `collect_module_files` (which skip `#[cfg(test)]` modules), so neither `#[cfg(test)]` modules nor files reached through `#[path]` inside them were copied into `yoake-stamp/root`, causing stamped `cargo test -p horizon-client` to fail with `couldn't find file ... yoake-stamp\root\...\full\gpu_tests.rs`. `apply --verify` with `--verify-arg build` never compiled test targets, so it missed it. Fixed in `crates/yoake-hook-codemod/src/overlay.rs` (`source_closure` now walks all `mod` declarations from the crate root — including `#[cfg(test)]`, `#[path = "..."]`, inline `mod` blocks, and transitive `include!` files — using rustc's directory rules: `#[path]` relative to the declaring file's directory or enclosing inline `mod` directory, with `#[path]`-loaded modules resolving non-path child modules relative to their own directory; `build_overlay` keeps the `!own_tree` copy-only-when-absent rule and `overlay_snapshot` check, and deduplicates `rels` by canonical path). Verified with `yoake-hook-codemod` unit tests, `apply --verify --overlay --verify-arg test` on `horizon-client`, and the section 4 `&Game` guest test.
 
 ## 4. `&Game` wasm guest test (W9c gap)
 
-Run in the second round: it does not compile yet (see the result below). `crates/yoake-guest-sdk/examples/engine_call_game_ref.rs` (hooks `Game::sleep_height(&self, head)`, ledger id 5380, reads `Game.world.day_time` and `Game.settings.fov` through the shared root, then calls original) and the ignored test `game_ref_example_reads_world_and_settings_through_a_stamped_shared_bridge` in `crates/horizon-client/src/game/yoake2_examples_tests.rs`. Run:
+`crates/yoake-guest-sdk/examples/engine_call_game_ref.rs` (hooks `Game::sleep_height(&self, head)`, ledger id 5380, reads `Game.world.day_time` and `Game.settings.fov` through the shared root, then calls original) and the ignored test `game_ref_example_reads_world_and_settings_through_a_stamped_shared_bridge` in `crates/horizon-client/src/game/yoake2_examples_tests.rs`. Run:
 
 ```
 HORIZON_TEST_RESOURCES=C:\Users\USER\NestgateHorizon\horizon\.local\horizon-client\26.3 \
 tools/yoake-stamped-cargo.sh test --offline --profile fast -p horizon-client --lib --features yoake2-slice yoake2_examples -- --ignored
 ```
 
-**Run result: FAILED to compile** (exit 101, 2026-11-21 15:15): `error: couldn't find file ...\target-stamped\yoake-stamp\root\crates\horizon-client\src\wasm_mods\full\gpu_tests.rs` at `crates\horizon-client\src\wasm_mods\full.rs:1299`, then `could not compile horizon-client (lib test)`. The test was not executed. Cause: section 3 item 4. Not a failure of the bridge test itself, which has not run.
+* Earlier run (2026-11-21 15:15, before the section 3 item 4 fix): FAILED to compile (exit 101) at `crates\horizon-client\src\wasm_mods\full.rs:1299` (`couldn't find file ...\target-stamped\yoake-stamp\root\crates\horizon-client\src\wasm_mods\full\gpu_tests.rs`).
+* **Rerun after the overlay `#[path]` fix (2026-11-21): PASSED** (exit 0; `Finished fast profile [optimized] target(s) in 31m 22s`; `3 passed; 0 failed; 0 ignored; 0 measured; 1300 filtered out; finished in 49.05s`):
+  * `game::yoake2_examples_tests::tick_and_item_use_example_loads_reports_modes_and_runs_through_bridges ... ok`
+  * `game::yoake2_examples_tests::engine_call_game_path_example_reads_writes_and_handles_stale ... ok`
+  * `game::yoake2_examples_tests::game_ref_example_reads_world_and_settings_through_a_stamped_shared_bridge ... ok`
 
 ## 5. Second round results (858 exclusions, 20 pairs per scene)
 
@@ -122,10 +126,20 @@ target-tools/release/yoake-hook-codemod.exe apply --crate-root crates/<crate> --
 | horizon-client-lib | build clean | 1 | 0 |
 | horizon-client (`yoake2-slice`) | build clean | 1 | 0 |
 
-Log: `%TEMP%\verify3.log`. Tracked files unchanged afterwards (`git status` shows only the untracked `target-unstamped/`). Verify does not compile test targets, which is why it missed item 4 of section 3.
+Log: `%TEMP%\verify3.log`. Tracked files unchanged afterwards (`git status` shows only the untracked `target-unstamped/`). Verify with `--verify-arg build` does not compile test targets, which is why it missed item 4 of section 3.
+
+Rerun with `--verify-arg test` after fixing section 3 item 4 (with `YOAKE_STAMP_TARGET=<repo>/target-stamped`, `CARGO_INCREMENTAL=0`, `CARGO_PROFILE_DEV_DEBUG=0`):
+
+```
+target-tools/release/yoake-hook-codemod.exe apply --crate-root crates/horizon-client --crate-name horizon_client --ledger hook-ledger --module '*' \
+  --stamp-config hook-ledger/stamp-config.txt --verify --overlay --verify-arg test --verify-arg --offline \
+  --verify-arg --profile --verify-arg fast --verify-arg -p --verify-arg horizon-client --verify-arg --features --verify-arg yoake2-slice
+```
+
+* `horizon-client` (`yoake2-slice`, `--verify-arg test`): `verify: build clean after 1 round(s); 0 stamp(s) withdrawn` (exit 0).
+* `horizon-world` and `horizon-client-lib` were not re-verified with `--verify-arg test` in this pass.
 
 ### Still to do
 
-* Fix the overlay `#[path]` gap (section 3 item 4), then rerun the `&Game` guest test (section 4 command) and the verify with `--verify-arg test`.
 * More pairs (or a quieter machine) to decide the 1 % gate, forest first.
 * Release/LTO build: not built.
