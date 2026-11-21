@@ -727,6 +727,61 @@ fn a_click_on_a_rideable_mob_boards_it_unless_sneaking() {
     assert_eq!(interact::dispatch(&mut r, &c, None).actions, [Action::Ride { seat: 0 }]);
 }
 
+/// A tamed vehicle that `sits_on_command` (Yoake's decision): the owner's plain click rides when a seat
+/// is free (else nothing), the owner's sneaking click toggles sit and never rides, anyone else's click
+/// does nothing. A tamed mob without seats keeps the plain-click sit order.
+#[test]
+fn a_tamed_vehicle_rides_on_the_owners_click_and_sits_on_the_sneaking_click() {
+    let t = ty(json!([]), |v| {
+        v["tameable"]["chance"] = json!(1.0);
+        v["tameable"]["sits_on_command"] = json!(true);
+        v["seats"] = json!([{"offset": [0, 1, 0], "controls": "player"}]);
+    });
+    let mut m = plain(&t, 0.5, 0.5);
+    tame::tame(&mut m, OWNER);
+    // Taming sits it down (as a wolf); stand it up first.
+    if m.extra.sitting {
+        tame::toggle_sit(&mut m);
+    }
+    assert!(!m.extra.sitting);
+    let mut c = click(None, OWNER);
+    c.ride_seat = Some(0);
+    let o = interact::dispatch(&mut m, &c, None);
+    assert_eq!((o.reply, o.actions), (Reply::Success, vec![Action::Ride { seat: 0 }]));
+    assert!(!m.extra.sitting, "riding does not toggle sit");
+    c.ride_seat = None;
+    assert_eq!(interact::dispatch(&mut m, &c, None), Outcome::pass(), "no free seat: nothing");
+    assert!(!m.extra.sitting);
+    c.sneaking = true;
+    c.ride_seat = Some(0);
+    let o = interact::dispatch(&mut m, &c, None);
+    assert_eq!((o.reply, o.actions), (Reply::Success, vec![]), "the sneaking click is the sit order");
+    assert!(m.extra.sitting);
+    let _ = interact::dispatch(&mut m, &c, None);
+    assert!(!m.extra.sitting, "and stands again");
+    // Someone else: the game offers no seat (only the owner rides a tameable type), nothing happens.
+    let fx = flat();
+    let others = [];
+    let w = view(&fx.world(), &others, None);
+    assert!(!riding::rideable(&m, &w, Some(STRANGER)));
+    let stranger = click(None, STRANGER);
+    assert_eq!(interact::dispatch(&mut m, &stranger, None), Outcome::pass());
+    let mut sneaky = click(None, STRANGER);
+    sneaky.sneaking = true;
+    assert_eq!(interact::dispatch(&mut m, &sneaky, None), Outcome::pass());
+    assert!(!m.extra.sitting);
+    // No seats: the owner's plain click is still the sit order.
+    let d = ty(json!([]), |v| {
+        v["tameable"]["chance"] = json!(1.0);
+        v["tameable"]["sits_on_command"] = json!(true);
+    });
+    let mut dog = plain(&d, 0.5, 0.5);
+    tame::tame(&mut dog, OWNER);
+    let before = dog.extra.sitting;
+    let _ = interact::dispatch(&mut dog, &click(None, OWNER), None);
+    assert_eq!(dog.extra.sitting, !before);
+}
+
 // ---- the mob-interact plumbing -----------------------------------------------------------------
 
 struct Double(Reply, std::sync::Mutex<Vec<(Option<String>, bool)>>);

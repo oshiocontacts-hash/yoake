@@ -497,9 +497,29 @@ impl ClientRuntime for ClientChain {
 struct Slot {
     runtime: Option<Arc<dyn Runtime>>,
     owner: u64,
+    /// Tests only: the thread that installed a test double with [`set_runtime`]. Other test threads do
+    /// not see it, so a mock cannot answer for the mobs of tests running beside it.
+    #[cfg(test)]
+    thread: Option<std::thread::ThreadId>,
 }
 
-static RUNTIME: RwLock<Slot> = RwLock::new(Slot { runtime: None, owner: 0 });
+impl Slot {
+    /// The runtime this thread sees (in the game: the installed one).
+    fn visible(&self) -> Option<&Arc<dyn Runtime>> {
+        #[cfg(test)]
+        if self.thread.is_some_and(|t| t != std::thread::current().id()) {
+            return None;
+        }
+        self.runtime.as_ref()
+    }
+}
+
+static RUNTIME: RwLock<Slot> = RwLock::new(Slot {
+    runtime: None,
+    owner: 0,
+    #[cfg(test)]
+    thread: None,
+});
 static NEXT_SESSION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 /// A server's hold on the script runtime (F4M-10): opened when its world opens, dropped when the world is
@@ -527,6 +547,10 @@ pub fn open_session(runtime: Arc<dyn Runtime>) -> Result<Session, SessionBusy> {
     clear_locators();
     slot.runtime = Some(runtime);
     slot.owner = id;
+    #[cfg(test)]
+    {
+        slot.thread = None;
+    }
     Ok(Session { id })
 }
 
@@ -550,6 +574,10 @@ pub fn set_runtime(r: Option<Arc<dyn Runtime>>) -> Option<Arc<dyn Runtime>> {
     match RUNTIME.write() {
         Ok(mut slot) => {
             slot.owner = 0;
+            #[cfg(test)]
+            {
+                slot.thread = r.as_ref().map(|_| std::thread::current().id());
+            }
             std::mem::replace(&mut slot.runtime, r)
         }
         Err(_) => None,
@@ -558,13 +586,13 @@ pub fn set_runtime(r: Option<Arc<dyn Runtime>>) -> Option<Arc<dyn Runtime>> {
 
 /// The installed runtime, if it has a live module.
 pub fn runtime() -> Option<Arc<dyn Runtime>> {
-    let r = RUNTIME.read().ok()?.runtime.clone()?;
+    let r = RUNTIME.read().ok()?.visible().cloned()?;
     r.live().then_some(r)
 }
 
 /// Whether a runtime is installed (cheap; the game asks it before it publishes views).
 pub fn installed() -> bool {
-    RUNTIME.read().map(|r| r.runtime.is_some()).unwrap_or(false)
+    RUNTIME.read().map(|r| r.visible().is_some()).unwrap_or(false)
 }
 
 /// Runs `f` (a call into the guest) for `m`: the mob's view is published, and the commands the
