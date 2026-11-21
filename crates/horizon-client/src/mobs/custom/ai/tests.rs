@@ -667,6 +667,147 @@ fn the_blow_needs_the_target_still_in_reach_when_it_lands() {
     assert_eq!(hits(&ctx.events), 0, "a miss");
 }
 
+fn finalized_fox(def: serde_json::Value, at: Vec3) -> crate::mobs::Mob {
+    use crate::mobs::custom::anim_sync::tests::{fox_mob, fox_type_with};
+    let t = fox_type_with(def, |_| {});
+    let mut m = fox_mob(&t, at);
+    crate::mobs::finalize::mob_spawn(&mut m, &mut horizon_core::random::LegacyRandom::new(7));
+    m
+}
+
+fn fox_combat(with_attack: bool) -> serde_json::Value {
+    let goals = if with_attack {
+        serde_json::json!([{"type":"melee_attack","priority":2,"trigger":"pounce",
+            "damage_frame":"hit","interval":600}])
+    } else {
+        serde_json::json!([])
+    };
+    serde_json::json!({
+        "navigator":"ground",
+        "goals":goals,
+        "targets":[{"type":"nearest_target","priority":1,
+            "types":["minecraft:chicken","minecraft:player"]}]
+    })
+}
+
+fn stop_goals(m: &mut crate::mobs::Mob, w: &crate::mobs::MobWorld, ctx: &mut Ctx) {
+    let mut goals = std::mem::take(&mut m.ai.goals);
+    goals.stop_all(m, &mut ctx.cx(w));
+    m.ai.goals = goals;
+}
+
+#[test]
+fn the_finalized_fixture_fox_keeps_its_target_and_lands_the_server_frame() {
+    let fx = flat();
+    let w0 = fx.world();
+    let others = [];
+    let w = player_view(&w0, &others, at(0.5, 1.4));
+    let mut m = finalized_fox(fox_combat(true), at(0.5, 0.5));
+    let mut ctx = Ctx::new();
+    assert!(m.attrs.follow_range > 14.0, "spawn finalization resets no default (it is 16 +- 11.5 %)");
+    run_server(&mut m, &w, &mut ctx, 40);
+    assert_eq!(m.ai.target, Some(Who::Player));
+    assert_eq!(hits(&ctx.events), 1, "the real target list and damage frame work together");
+}
+
+#[test]
+fn a_stopped_goals_blow_lands_on_its_recorded_target() {
+    let fx = flat();
+    let w0 = fx.world();
+    let others = [];
+    let w = player_view(&w0, &others, at(0.5, 1.4));
+    let row = r#"{"type":"melee_attack","priority":3,"damage_frame":"hit","damage_delay":30}"#;
+    let mut m = mob(&ai(row), at(0.5, 0.5));
+    m.ai.target = Some(Who::Player);
+    let mut ctx = Ctx::new();
+    run_server(&mut m, &w, &mut ctx, 3);
+    assert_eq!(hits(&ctx.events), 0);
+    stop_goals(&mut m, &w, &mut ctx);
+    m.ai.target = None;
+    attacks::deliver_frame(&mut m, "hit");
+    run_server(&mut m, &w, &mut ctx, 1);
+    assert_eq!(hits(&ctx.events), 1, "stopping the selector does not cancel the started blow");
+}
+
+#[test]
+fn a_saved_blow_still_drops_for_an_invalid_target_or_a_dead_mob() {
+    let fx = flat();
+    let w0 = fx.world();
+    let others = [];
+    let row = r#"{"type":"melee_attack","priority":3,"damage_frame":"hit","damage_delay":30}"#;
+    for invalid in ["creative", "dead", "out_of_reach", "different_player"] {
+        let mut w = player_view(&w0, &others, at(0.5, 1.4));
+        let mut m = mob(&ai(row), at(0.5, 0.5));
+        m.ai.target = Some(Who::Player);
+        let mut ctx = Ctx::new();
+        run_server(&mut m, &w, &mut ctx, 3);
+        stop_goals(&mut m, &w, &mut ctx);
+        m.ai.target = None;
+        let p = w.player.as_mut().unwrap();
+        match invalid {
+            "creative" => p.creative = true,
+            "dead" => p.alive = false,
+            "out_of_reach" => *p = crate::mobs::world::test_player(at(0.5, 9.5)),
+            "different_player" => p.uuid = [9; 4],
+            _ => unreachable!(),
+        }
+        attacks::deliver_frame(&mut m, "hit");
+        run_server(&mut m, &w, &mut ctx, 1);
+        assert_eq!(hits(&ctx.events), 0, "{invalid}");
+    }
+    let w = player_view(&w0, &others, at(0.5, 1.4));
+    let mut m = mob(&ai(row), at(0.5, 0.5));
+    m.ai.target = Some(Who::Player);
+    let mut ctx = Ctx::new();
+    run_server(&mut m, &w, &mut ctx, 3);
+    stop_goals(&mut m, &w, &mut ctx);
+    m.ai.target = None;
+    m.health = 0.0;
+    attacks::deliver_frame(&mut m, "hit");
+    run_server(&mut m, &w, &mut ctx, 1);
+    assert_eq!(hits(&ctx.events), 0, "the attacking mob died");
+}
+
+#[test]
+fn a_goal_restart_cannot_begin_a_second_blow_while_one_is_saved() {
+    let fx = flat();
+    let w0 = fx.world();
+    let others = [];
+    let w = player_view(&w0, &others, at(0.5, 1.4));
+    let row = r#"{"type":"melee_attack","priority":3,"damage_frame":"hit","damage_delay":30,"interval":1}"#;
+    let mut m = mob(&ai(row), at(0.5, 0.5));
+    m.ai.target = Some(Who::Player);
+    let mut ctx = Ctx::new();
+    run_server(&mut m, &w, &mut ctx, 3);
+    stop_goals(&mut m, &w, &mut ctx);
+    run_server(&mut m, &w, &mut ctx, 4);
+    assert!(!m.ai.goals.is_running("CustomMelee"));
+    attacks::deliver_frame(&mut m, "hit");
+    run_server(&mut m, &w, &mut ctx, 1);
+    assert_eq!(hits(&ctx.events), 1);
+}
+
+#[test]
+fn the_fixture_targets_a_player_beyond_two_blocks_and_script_view_publishes_it() {
+    let fx = flat();
+    let w0 = fx.world();
+    let others = [];
+    let w = player_view(&w0, &others, at(0.5, 4.5));
+    let mut m = finalized_fox(fox_combat(false), at(0.5, 0.5));
+    m.id = 0xF42;
+    let mut ctx = Ctx::new();
+    run_server(&mut m, &w, &mut ctx, 40);
+    assert_eq!(m.ai.target, Some(Who::Player));
+    use crate::mobs::custom::script;
+    script::forget(m.id);
+    script::publish(script::MobView::of_in(&m, Some(&w), false).unwrap());
+    let shown = script::view(m.id);
+    script::forget(m.id);
+    let shown = shown.unwrap();
+    assert!(shown.target_player);
+    assert_eq!(shown.target_position, Some([0.5, 1.0, 4.5]));
+}
+
 #[test]
 fn a_part_that_sticks_out_lets_a_melee_attack_reach_further() {
     let fx = flat();

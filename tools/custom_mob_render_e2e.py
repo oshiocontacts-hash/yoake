@@ -101,7 +101,7 @@ def install_package(game, package):
     (game.work / 'yoake-mods.txt').write_text('sample_mobs 0.1.0' + chr(10))
 
 
-STRIKE_LINE = re.compile(r'^.*Horizon custom-mob (?:strike|death|script goal):.*$', re.M)
+STRIKE_LINE = re.compile(r'^.*Horizon custom-mob (?:strike|death|script goal|target|goal):.*$', re.M)
 
 
 def log_of(game):

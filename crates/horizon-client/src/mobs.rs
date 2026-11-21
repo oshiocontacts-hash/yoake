@@ -2931,6 +2931,7 @@ impl Mob {
         }
         // The PathNavigation constructor: the base follow range.
         mob.ai.nav.max_visited_nodes = (mob.kind.follow_range * 16.0).floor() as i32;
+        mob.ai.targets.target_selector = true;
         ai::register(&mut mob);
         mob
     }
@@ -3519,6 +3520,7 @@ impl Mob {
             if !custom::script::pre_tick(self, w, events) {
                 return false;
             }
+            custom::ai::attacks::tick_pending(self, w, level_random, events);
         }
         ai::tick(self, w, level_random, events)
     }

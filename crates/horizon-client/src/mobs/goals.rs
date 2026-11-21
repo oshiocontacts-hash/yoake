@@ -81,6 +81,7 @@ pub struct GoalSelector {
     goals: Vec<Wrapped>,
     locked: [Option<usize>; 4],
     pub disabled: u8,
+    pub target_selector: bool,
 }
 impl GoalSelector {
     pub fn add(&mut self, priority: i32, goal: impl Goal + 'static) {
@@ -118,20 +119,31 @@ impl GoalSelector {
             .iter()
             .any(|g| g.running && g.goal.name() == name)
     }
-    fn stop(&mut self, i: usize, m: &mut Mob, cx: &mut Cx) {
+    fn stop(&mut self, i: usize, m: &mut Mob, cx: &mut Cx, why: &str) {
         if self.goals[i].running {
             self.goals[i].running = false;
+            if m.kind.custom.is_some() {
+                let kind = if self.target_selector { "target" } else { "goal" };
+                log::info!(
+                    "Horizon custom-mob {kind}: mob {} {} stopped: {why} tick {}",
+                    m.id,
+                    self.goals[i].goal.name(),
+                    cx.w.game_time
+                );
+            }
             self.goals[i].goal.stop(m, cx);
         }
     }
     /// GoalSelector.tick
     pub fn tick(&mut self, m: &mut Mob, cx: &mut Cx) {
         for i in 0..self.goals.len() {
-            if self.goals[i].running
-                && (self.goals[i].goal.flags() & self.disabled != 0
-                    || !self.goals[i].goal.can_continue(m, cx))
-            {
-                self.stop(i, m, cx);
+            if self.goals[i].running {
+                let disabled = self.goals[i].goal.flags() & self.disabled != 0;
+                let continues = !disabled && self.goals[i].goal.can_continue(m, cx);
+                if disabled || !continues {
+                    let why = if disabled { "flags disabled" } else { "can_continue false" };
+                    self.stop(i, m, cx, why);
+                }
             }
         }
         for slot in &mut self.locked {
@@ -160,7 +172,7 @@ impl GoalSelector {
             for b in 0..4 {
                 if flags & (1 << b) != 0 {
                     if let Some(j) = self.locked[b] {
-                        self.stop(j, m, cx);
+                        self.stop(j, m, cx, "replaced by another goal");
                     }
                     self.locked[b] = Some(i);
                 }
@@ -181,7 +193,7 @@ impl GoalSelector {
     }
     pub fn stop_all(&mut self, m: &mut Mob, cx: &mut Cx) {
         for i in 0..self.goals.len() {
-            self.stop(i, m, cx);
+            self.stop(i, m, cx, "stop_all");
         }
         self.locked = [None; 4];
     }
@@ -1617,29 +1629,57 @@ fn illager_spares(attacker: Species, target: &Seen) -> bool {
     ) && target.baby
         && matches!(target.species, Species::Villager | Species::WanderingTrader)
 }
+fn target_continue_failed(m: &Mob, reason: std::fmt::Arguments<'_>) {
+    if m.kind.custom.is_some() {
+        log::info!("Horizon custom-mob target: mob {} target_continue: {reason}", m.id);
+    }
+}
+
 /// TargetGoal.canContinueToUse
 pub fn target_continue(st: &mut TargetState, must_see: bool, m: &mut Mob, cx: &mut Cx) -> bool {
-    let Some(who) = m.ai.target else { return false };
+    let Some(who) = m.ai.target else {
+        target_continue_failed(m, format_args!("no target"));
+        return false;
+    };
     if let Who::Mob(id) = who
         && cx
             .w
             .seen(id)
             .is_some_and(|s| illager_spares(m.species(), s))
     {
+        target_continue_failed(m, format_args!("spared target {who:?}"));
         return false;
     }
     let Some(t) = cx.w.target_info(who) else {
+        target_continue_failed(m, format_args!("target_info none for {who:?}"));
         return false;
     };
-    if !t.alive
-        || !t.can_be_seen_as_enemy
-        || (t.is_player && t.creative)
-        || m.spares_target(cx.w, who)
-    {
+    if !t.alive {
+        target_continue_failed(m, format_args!("target {who:?} dead"));
+        return false;
+    }
+    if !t.can_be_seen_as_enemy {
+        target_continue_failed(m, format_args!("target {who:?} is not an enemy"));
+        return false;
+    }
+    if t.is_player && t.creative {
+        target_continue_failed(m, format_args!("target {who:?} creative"));
+        return false;
+    }
+    if m.spares_target(cx.w, who) {
+        target_continue_failed(m, format_args!("target {who:?} spared"));
         return false;
     }
     let follow = m.attrs.follow_range * st.follow_scale;
-    if m.distance_sqr(t.position) > follow * follow {
+    let distance_sqr = m.distance_sqr(t.position);
+    if distance_sqr > follow * follow {
+        target_continue_failed(
+            m,
+            format_args!(
+                "target {who:?} out of range: distance {:.3}, follow_range {follow:.3}",
+                distance_sqr.sqrt()
+            ),
+        );
         return false;
     }
     if must_see {
@@ -1648,6 +1688,14 @@ pub fn target_continue(st: &mut TargetState, must_see: bool, m: &mut Mob, cx: &m
         } else {
             st.unseen += 1;
             if st.unseen > reduced(st.unseen_memory) {
+                target_continue_failed(
+                    m,
+                    format_args!(
+                        "target {who:?} unseen count {} exceeds {}",
+                        st.unseen,
+                        reduced(st.unseen_memory)
+                    ),
+                );
                 return false;
             }
         }
@@ -1726,6 +1774,11 @@ impl Goal for NearestTarget {
         target_continue(&mut self.target_goal, self.must_see, m, cx)
     }
     fn start(&mut self, m: &mut Mob, _: &mut Cx) {
+        if m.kind.custom.is_some()
+            && let Some(who) = self.found
+        {
+            log::info!("Horizon custom-mob target: mob {} picked {who:?}", m.id);
+        }
         m.ai.target = self.found;
         self.target_goal.unseen = 0;
     }

@@ -21,8 +21,9 @@
 //!   animations (nothing calls [`deliver_frame`]): set it to the keyframe's time in ticks. An
 //!   author who sets both must make the delay at least the keyframe time, or the fallback wins.
 //!
-//! A blow that is pending when the goal stops (the target died, a higher-priority goal took over)
-//! is dropped. When the blow lands the target must still be alive and in reach.
+//! A chase blow that is pending when its goal stops stays on the mob's [`AttackState`] and lands
+//! from the mob's own tick. When the blow lands its recorded target must still be alive, an enemy,
+//! not creative or spectator, not spared, and in reach; a dead mob drops it.
 //!
 //! `melee_attack` and `area_attack` chase their target with the engine's `MeleeAttack` (pathing,
 //! recalculation, looking), whose own strike is held off; the strike is the goal's. A
@@ -52,6 +53,8 @@ pub struct AttackState {
     frames: Vec<String>,
     /// Trigger animations the goals asked for and the animation sync has not taken.
     triggers: Vec<String>,
+    /// A chase strike whose goal stopped before its damage frame. Not saved.
+    pending: Option<PendingChase>,
     /// The game time before which a `melee_attack` or `area_attack` may not begin a strike again.
     /// Kept and read only for a type with `cooldown_persists`: it is what lets the cooldown outlast
     /// a goal restart (F4M-4d). Not saved.
@@ -120,12 +123,26 @@ pub struct Pending {
     deadline: i64,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Started {
+    who: Who,
+    player_uuid: Option<[i32; 4]>,
+    pending: Pending,
+}
+
 /// A goal row's `trigger`, `damage_frame` and `damage_delay`.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Timing {
     trigger: Option<String>,
     frame: Option<String>,
     delay: i32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct PendingChase {
+    started: Started,
+    timing: Timing,
+    strike: Strike,
 }
 
 impl Timing {
@@ -256,7 +273,7 @@ pub fn add(m: &mut Mob, g: &GoalDef) -> bool {
 // ---- melee and area: chase, then strike ------------------------------------------------------
 
 /// What the blow of a chase-and-strike goal is.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Strike {
     /// `Mob.doHurtTarget` on the target, in `within_melee_range`.
     Melee,
@@ -265,7 +282,7 @@ pub enum Strike {
 }
 
 /// `area_attack`'s shape and numbers.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Area {
     /// The reach of the blow, blocks from the mob's centre.
     pub radius: f64,
@@ -288,7 +305,7 @@ pub struct ChaseStrike {
     timing: Timing,
     interval: i32,
     until: i32,
-    pending: Option<Pending>,
+    pending: Option<Started>,
 }
 
 impl ChaseStrike {
@@ -304,27 +321,111 @@ impl ChaseStrike {
     }
     /// Whether the target is near enough for the blow to begin (or, when it lands, to still hit).
     fn in_reach(&self, m: &Mob, t: &TargetInfo) -> bool {
-        match &self.strike {
-            Strike::Melee => m.within_melee_range(t),
-            Strike::Area(a) => {
-                let c = m.center();
-                let nearest = nearest_point(&t.bounds, c);
-                dist_sqr(c, nearest) <= a.range * a.range
-            }
+        strike_in_reach(&self.strike, m, t)
+    }
+}
+
+fn strike_in_reach(strike: &Strike, m: &Mob, t: &TargetInfo) -> bool {
+    match strike {
+        Strike::Melee => m.within_melee_range(t),
+        Strike::Area(a) => {
+            let c = m.center();
+            let nearest = nearest_point(&t.bounds, c);
+            dist_sqr(c, nearest) <= a.range * a.range
         }
     }
-    fn land(&self, m: &mut Mob, who: Who, cx: &mut Cx) {
-        match &self.strike {
-            Strike::Melee => {
-                m.swing();
-                crate::mobs::ai::do_hurt_target(m, who, cx);
-            }
-            Strike::Area(a) => {
-                m.swing();
-                area_hit(a, m, who, cx);
-            }
+}
+
+fn land_strike(strike: &Strike, m: &mut Mob, who: Who, cx: &mut Cx) {
+    match strike {
+        Strike::Melee => {
+            m.swing();
+            crate::mobs::ai::do_hurt_target(m, who, cx);
+        }
+        Strike::Area(a) => {
+            m.swing();
+            area_hit(a, m, who, cx);
         }
     }
+}
+
+fn resolve_due(m: &mut Mob, started: Started, strike: &Strike, cx: &mut Cx) {
+    let now = cx.w.game_time;
+    let who = started.who;
+    if started
+        .player_uuid
+        .is_some_and(|uuid| cx.w.player.as_ref().is_none_or(|p| p.uuid != uuid))
+    {
+        log::info!(
+            "Horizon custom-mob strike: mob {} dropped, the recorded player is not the world player tick {now}",
+            m.id
+        );
+        return;
+    }
+    let Some(t) = cx.w.target_info(who) else {
+        log::info!("Horizon custom-mob strike: mob {} dropped, target {who:?} missing tick {now}", m.id);
+        return;
+    };
+    let alive = t.alive;
+    let enemy = t.can_be_seen_as_enemy;
+    let creative = t.is_player && t.creative;
+    let spared = m.spares_target(cx.w, who);
+    let reach = strike_in_reach(strike, m, &t);
+    if alive && enemy && !creative && !spared && reach {
+        log::info!("Horizon custom-mob strike: mob {} lands on {who:?} tick {now}", m.id);
+        land_strike(strike, m, who, cx);
+    } else {
+        log::info!(
+            "Horizon custom-mob strike: mob {} dropped, target alive {alive} enemy {enemy} creative {creative} spared {spared} in reach {reach} tick {now}",
+            m.id
+        );
+    }
+}
+
+/// Whether a saved chase blow still targets the player this mob's world view must keep bound.
+pub fn pending_player(m: &Mob) -> bool {
+    m.extra
+        .custom
+        .as_ref()
+        .is_some_and(|c| c.attack.pending.as_ref().is_some_and(|p| p.started.who == Who::Player))
+}
+
+/// Resolves a chase strike saved when its goal stopped. The mob's own tick, rather than a goal
+/// restart, owns the rest of its wind-up.
+pub fn tick_pending(
+    m: &mut Mob,
+    w: &crate::mobs::MobWorld,
+    level_random: &mut horizon_core::random::LegacyRandom,
+    events: &mut Vec<MobEvent>,
+) {
+    let Some(p) = m
+        .extra
+        .custom
+        .as_mut()
+        .and_then(|c| c.attack.pending.take())
+    else {
+        return;
+    };
+    if !m.alive() || m.removed {
+        log::info!(
+            "Horizon custom-mob strike: mob {} dropped, the mob is dead tick {}",
+            m.id,
+            w.game_time
+        );
+        return;
+    }
+    if !p.timing.due(m, p.started.pending, w.game_time) {
+        if let Some(c) = m.extra.custom.as_mut() {
+            c.attack.pending = Some(p);
+        }
+        return;
+    }
+    let mut cx = Cx {
+        w,
+        lr: level_random,
+        events,
+    };
+    resolve_due(m, p.started, &p.strike, &mut cx);
 }
 
 impl Goal for ChaseStrike {
@@ -339,13 +440,20 @@ impl Goal for ChaseStrike {
         MOVE | LOOK
     }
     fn can_use(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
+        if m.extra
+            .custom
+            .as_ref()
+            .is_some_and(|c| c.attack.pending.is_some())
+        {
+            return false;
+        }
         self.inner.can_use(m, cx)
     }
     fn can_continue(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
-        if self.pending.is_some() {
+        if let Some(started) = self.pending {
             // A blow is on its way: stay until it lands, even when the chase has arrived (the
-            // wrapped goal ends then), unless the target is gone.
-            return m.target_info(cx.w).is_some_and(|t| t.alive);
+            // wrapped goal ends then), unless the recorded target is gone.
+            return cx.w.target_info(started.who).is_some_and(|t| t.alive);
         }
         self.inner.can_continue(m, cx)
     }
@@ -358,8 +466,31 @@ impl Goal for ChaseStrike {
         self.pending = None;
     }
     fn stop(&mut self, m: &mut Mob, cx: &mut Cx) {
-        if self.pending.take().is_some() {
-            log::info!("Horizon custom-mob strike: mob {} dropped, the goal stopped tick {}", m.id, cx.w.game_time);
+        if let Some(started) = self.pending.take() {
+            let saved = m.extra.custom.as_mut().is_some_and(|c| {
+                if c.attack.pending.is_some() {
+                    return false;
+                }
+                c.attack.pending = Some(PendingChase {
+                    started,
+                    timing: self.timing.clone(),
+                    strike: self.strike.clone(),
+                });
+                true
+            });
+            if saved {
+                log::info!(
+                    "Horizon custom-mob strike: mob {} continues after the goal stopped tick {}",
+                    m.id,
+                    cx.w.game_time
+                );
+            } else {
+                log::info!(
+                    "Horizon custom-mob strike: mob {} dropped, another blow is pending tick {}",
+                    m.id,
+                    cx.w.game_time
+                );
+            }
         }
         self.inner.stop(m, cx);
     }
@@ -370,29 +501,23 @@ impl Goal for ChaseStrike {
         // The wrapped goal paths and looks; its own strike never comes.
         self.inner.until_attack = HOLD;
         self.inner.tick(m, cx);
+        if let Some(started) = self.pending {
+            // The cooldown counts down through the wind-up, as before (only while there is a target).
+            if m.target_info(cx.w).is_some() {
+                self.until = (self.until - 1).max(0);
+            }
+            if self.timing.due(m, started.pending, cx.w.game_time) {
+                self.pending = None;
+                resolve_due(m, started, &self.strike, cx);
+            }
+            return;
+        }
         let Some(who) = m.ai.target else { return };
         let Some(t) = cx.w.target_info(who) else {
             return;
         };
         let now = cx.w.game_time;
         self.until = (self.until - 1).max(0);
-        if let Some(p) = self.pending {
-            if self.timing.due(m, p, now) {
-                self.pending = None;
-                let (alive, reach) = (t.alive, self.in_reach(m, &t));
-                if alive && reach {
-                    log::info!("Horizon custom-mob strike: mob {} lands on {who:?} tick {now}", m.id);
-                    self.land(m, who, cx);
-                } else {
-                    // The blow is dropped, said once in the log (a rerun must tell this from a lost frame).
-                    log::info!(
-                        "Horizon custom-mob strike: mob {} dropped, target alive {alive} in reach {reach} tick {now}",
-                        m.id
-                    );
-                }
-            }
-            return;
-        }
         let ready = if persists(m) {
             m.extra.custom.as_ref().is_none_or(|c| c.attack.strike_ready <= now)
         } else {
@@ -403,13 +528,19 @@ impl Goal for ChaseStrike {
             if let Some(c) = m.extra.custom.as_mut() {
                 c.attack.strike_ready = now + i64::from(self.interval);
             }
-            let p = self.timing.begin(m, now);
+            let started = Started {
+                who,
+                player_uuid: match who {
+                    Who::Player => cx.w.player.as_ref().map(|p| p.uuid),
+                    Who::Mob(_) => None,
+                },
+                pending: self.timing.begin(m, now),
+            };
             log::info!("Horizon custom-mob strike: mob {} begins on {who:?} tick {now}", m.id);
-            if self.timing.due(m, p, now) {
-                log::info!("Horizon custom-mob strike: mob {} lands on {who:?} tick {now}", m.id);
-                self.land(m, who, cx);
+            if self.timing.due(m, started.pending, now) {
+                resolve_due(m, started, &self.strike, cx);
             } else {
-                self.pending = Some(p);
+                self.pending = Some(started);
             }
         }
     }

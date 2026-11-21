@@ -89,6 +89,17 @@ pub fn run(m: &mut Mob, w: &MobWorld, ctx: &mut Ctx, n: usize) {
     }
 }
 
+/// Ticks `m` `n` times through `Mob::tick`, including custom animation and pending attacks.
+pub fn run_server(m: &mut Mob, w: &MobWorld, ctx: &mut Ctx, n: usize) {
+    let mut w = w.clone();
+    for _ in 0..n {
+        w.game_time += ctx.elapsed;
+        m.tick(&w, &mut ctx.lr, &mut ctx.events);
+        w.game_time -= ctx.elapsed;
+        ctx.elapsed += 1;
+    }
+}
+
 /// A target's `TargetInfo` of a plain 0.6 by 1.8 box at `at`.
 pub fn target_info(at: Vec3) -> TargetInfo {
     TargetInfo {

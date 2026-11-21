@@ -125,6 +125,10 @@ pub fn mob_type(t: &Arc<CustomType>) -> MobType {
     for a in &t.attributes {
         attributes.insert(a.id.clone(), a.default);
     }
+    // finalizeSpawn's follow-range modifier refreshes from this map, not from `MobType.follow_range`.
+    attributes
+        .entry("minecraft:follow_range".to_owned())
+        .or_insert_with(|| value("follow_range", 16.0));
     let sound = |slot: &str| {
         f.sounds
             .get(slot)
@@ -238,6 +242,15 @@ mod tests {
         assert!(kind.custom.is_some());
         // No flags of any vanilla family.
         assert!(!kind.flags.animal && !kind.flags.undead);
+    }
+
+    #[test]
+    fn spawn_finalization_keeps_the_default_follow_range() {
+        let kind = fox();
+        assert_eq!(kind.attributes["minecraft:follow_range"], 16.0);
+        let mut m = Mob::new(7, kind, Vec3::new(0.5, 64.0, 0.5), 0.0);
+        crate::mobs::finalize::mob_spawn(&mut m, &mut horizon_core::random::LegacyRandom::new(7));
+        assert!(m.attrs.follow_range > 14.0, "{}", m.attrs.follow_range); // the spawn modifier is a triangle of +-0.11485
     }
 
     #[test]

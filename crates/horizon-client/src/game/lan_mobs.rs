@@ -17,7 +17,8 @@ pub(super) type GuestViews = Vec<(u32, PlayerView)>;
 /// The player a mob sees this tick: `None` for the host, else a guest.
 /// A mob that targets a guest, or that a guest hurt in the last 100 ticks
 /// (`LivingEntity.getLastHurtByMob`), keeps them while they are still a
-/// valid target; otherwise it sees the nearest player
+/// valid target. A custom mob's saved blow keeps its recorded player until it resolves, valid or
+/// not; otherwise it sees the nearest player
 /// (`TargetingConditions`: alive, neither creative nor spectator), or the
 /// nearest one that is not a spectator if none qualifies.
 pub(super) fn player_for(
@@ -26,6 +27,10 @@ pub(super) fn player_for(
     guests: &GuestViews,
     bound: Option<u32>,
 ) -> Option<u32> {
+    // A stopped chase goal resolves its recorded player, even when they can no longer be targeted.
+    if horizon_client::mobs::custom::ai::attacks::pending_player(m) {
+        return bound;
+    }
     // A tame cat reads its owner wherever they are while they sleep, or just
     // woke up (`CatRelaxOnOwnerGoal` uses `getOwner`, not the nearest player).
     if m.species() == Species::Cat
