@@ -45,11 +45,11 @@ from lan_e2e import Game, changed_pixels, pos_of  # noqa: E402
 from mob_sync_e2e import wait_for_quiet  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXTURE = ROOT / 'tools/fixtures/cinder_fox'
+FIXTURE = ROOT / 'tools/fixtures/cinder_fox'  # the package folder: yak.toml and content/
 FOX = 'sample_mobs:cinder_fox'
 FOXES = '@e[type=sample_mobs:cinder_fox]'
-ANIM = 'assets/sample_mobs/animations/cinder_fox.animation.json'
-TYPE = 'data/sample_mobs/horizon/entity_type/cinder_fox.json'
+ANIM = 'content/assets/sample_mobs/animations/cinder_fox.animation.json'
+TYPE = 'content/data/sample_mobs/horizon/entity_type/cinder_fox.json'
 
 SERVER_FRAME = re.compile(r'Horizon custom-mob server frame: mob (\d+) "(\w+)" tick (\d+)')
 EVENTS = re.compile(r'Horizon custom-mob events: mob (\d+) tick (\d+) count (\d+)')
@@ -58,10 +58,15 @@ PARTICLE = re.compile(r'Horizon custom-mob particle: mob (\d+) (\S+) at')
 EVENT = re.compile(r'Horizon custom-mob event: mob (\d+) "(\w+)" at')
 
 
-def patched_fixture(scratch):
-    """A copy of the fixture with a sound and a particle at the pounce's hit, and a melee goal that pounces."""
+def patched_fixture(scratch, wasm=None):
+    """A copy of the package with a sound and a particle at the pounce's hit. With `wasm` (the built fox_ai guest) the
+    real script goal stays and the player becomes a target; without it the script goal is replaced by a data
+    `melee_attack` that pounces."""
     dest = scratch / 'cinder_fox'
     shutil.copytree(FIXTURE, dest)
+    if wasm is not None:
+        (dest / 'bin/wasm').mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(wasm, dest / 'bin/wasm/fox_ai.wasm')
     path = dest / ANIM
     data = json.loads(path.read_text(encoding='utf-8'))
     pounce = data['animations']['animation.cinder_fox.pounce']
@@ -73,6 +78,12 @@ def patched_fixture(scratch):
     data['attributes']['attack_damage'] = 2
     data['model']['particles'] = {'flame': 'minecraft:flame'}
     ai = data['ai']
+    if wasm is not None:
+        # The real script goal beside swimming only (no wandering, sitting or following), so the fox stands until it has a target.
+        ai['goals'] = [g for g in ai['goals'] if g['type'] in ('swim', 'script')]
+        ai['targets'] = [{'type': 'nearest_target', 'priority': 1, 'types': ['minecraft:chicken', 'minecraft:player']}]
+        path.write_text(json.dumps(data, indent=2), encoding='utf-8')
+        return dest
     # No wandering or looking about: the fox stands still until it has a target (a creative player is none).
     ai['goals'] = [g for g in ai['goals'] if g['type'] in ('swim',)]
     ai['goals'].append({'type': 'melee_attack', 'priority': 2, 'speed': 1.0, 'interval': 600,
@@ -81,6 +92,16 @@ def patched_fixture(scratch):
     ai['targets'] = [{'type': 'nearest_target', 'priority': 1, 'types': ['minecraft:chicken', 'minecraft:player']}]
     path.write_text(json.dumps(data, indent=2), encoding='utf-8')
     return dest
+
+
+def install_package(game, package):
+    """The package where the game reads installed ones (yoake-mods.txt, yoake-mods/<id>/<version>/)."""
+    root = game.work / 'yoake-mods/sample_mobs/0.1.0'
+    shutil.copytree(package, root)
+    (game.work / 'yoake-mods.txt').write_text('sample_mobs 0.1.0' + chr(10))
+
+
+STRIKE_LINE = re.compile(r'^.*Horizon custom-mob (?:strike|death|script goal):.*$', re.M)
 
 
 def log_of(game):
@@ -111,11 +132,18 @@ def look_at_fox(game, fox, back=2.0, dy=0.6):
     game.wait(6)
 
 
-def run(ctl, out, shots, resources):
+def run(ctl, out, shots, resources, wasm=None):
     scratch = Path(tempfile.mkdtemp(prefix='hzfox-'))
-    mod = patched_fixture(scratch)
+    mod = patched_fixture(scratch, wasm)
+    if wasm is not None:
+        os.environ['YOAKE_WASM_UNSIGNED'] = '1'  # developer mode: the package is not signed
     host, guest = Game('host', ctl, resources), Game('guest', ctl, resources)
-    args = ['--offscreen', '--no-focus', '--no-pause', '--pregen', '--dev-mod', str(mod)]  # --pregen turns Horizon's own commands on
+    args = ['--offscreen', '--no-focus', '--no-pause', '--pregen']  # --pregen turns Horizon's own commands on
+    if wasm is None:
+        args += ['--dev-mod', str(mod / 'content')]
+    else:
+        install_package(host, mod)
+        install_package(guest, mod)
     results = {}
     games = (host, guest)
     saved = {}
@@ -214,7 +242,7 @@ def run(ctl, out, shots, resources):
         # name tag
         host('command', command=f'summon {FOX} {hx + 0.5} {hy} {hz - 6.5}')
         host.wait(20)
-        named = host('command', command=f"data merge entity @e[type=sample_mobs:cinder_fox,limit=1] {{CustomName:\"Cinder\",CustomNameVisible:1b}}")
+        named = host('command', command=f"data merge entity @e[type=sample_mobs:cinder_fox,limit=1] {{CustomName:\"Foxy\",CustomNameVisible:1b}}")
         host.wait(10)
         fox = fox_list(host)[0]
         look_at_fox(host, fox, back=3.0, dy=0.9)
@@ -224,58 +252,64 @@ def run(ctl, out, shots, resources):
         results['name'] = {'pass': named_ok and Path(tag).stat().st_size > 5000, 'detail': {
             'data_merge_reply': named, 'png': saved['nametag'], 'note': 'the tag is judged by looking at the PNG (a pixel check cannot tell text)'}}
 
-        # strike-mob: a fox next to a chicken (creative host: no player target): the blow lands on the chicken.
-        host('command', command=f'kill @e[type=minecraft:chicken]')
-        host('command', command=f'summon minecraft:chicken {hx + 1.5} {hy} {hz - 1.5}')
-        host.wait(5)
-        mark_h = len(log_of(host))
-        host('command', command=f'summon {FOX} {hx + 1.5} {hy} {hz - 0.8}')
-        chicken_hp = []
-        for _ in range(100):
-            host.wait(2)
+        if wasm is None:
+            # strike-mob: a fox next to a chicken (creative host: no player target): the blow lands on the chicken.
+            host('command', command=f'kill @e[type=minecraft:chicken]')
+            host('command', command=f'summon minecraft:chicken {hx + 1.5} {hy} {hz - 1.5}')
+            host.wait(5)
+            mark_h = len(log_of(host))
+            host('command', command=f'summon {FOX} {hx + 1.5} {hy} {hz - 0.8}')
+            chicken_hp = []
+            for _ in range(100):
+                host.wait(2)
+                chickens = [e for e in host.raw('entities', 20)['entities'] if e.get('type') == 'minecraft:chicken']
+                chicken_hp.append(chickens[0]['health'] if chickens else None)
+                if SERVER_FRAME.search(log_of(host)[mark_h:]):
+                    break
+            host.wait(10)
             chickens = [e for e in host.raw('entities', 20)['entities'] if e.get('type') == 'minecraft:chicken']
             chicken_hp.append(chickens[0]['health'] if chickens else None)
-            if SERVER_FRAME.search(log_of(host)[mark_h:]):
-                break
-        host.wait(10)
-        chickens = [e for e in host.raw('entities', 20)['entities'] if e.get('type') == 'minecraft:chicken']
-        chicken_hp.append(chickens[0]['health'] if chickens else None)
-        results['strike_mob'] = {'pass': len(SERVER_FRAME.findall(log_of(host)[mark_h:])) == 1 and (chicken_hp[-1] is None or chicken_hp[-1] < 4.0),
-                                 'detail': {'chicken_health_samples': chicken_hp[-6:]}}
-        host('command', command='kill @e[type=minecraft:chicken]')
-        clear_foxes(host)
-        # strike: a fox with AI, the host in survival within reach: one hit.
+            results['strike_mob'] = {'pass': len(SERVER_FRAME.findall(log_of(host)[mark_h:])) == 1 and (chicken_hp[-1] is None or chicken_hp[-1] < 4.0),
+                                     'detail': {'chicken_health_samples': chicken_hp[-6:]}}
+            host('command', command='kill @e[type=minecraft:chicken]')
+            clear_foxes(host)
+        # strike: a fox with AI and survival players in reach. Data goal: the fox next to the host; real guest: the
+        # script goal needs the target 3 to 6 blocks away. Both players' health is recorded (the fox may pick the guest).
         host('command', command='gamemode survival')
+        guest('command', command='gamemode survival')
         host('command', command=f'tp @s {hx + 0.5} {hy} {hz + 0.5}')
+        guest('command', command=f'tp @s {hx + 3.5} {hy} {hz + 3.5}')
         host.wait(20)
-        before = host('state')['player']['health']
+        before = {'host': host('state')['player']['health'], 'guest': guest('state')['player']['health']}
         mark_h, mark_g = len(log_of(host)), len(log_of(guest))
-        host('command', command=f'summon {FOX} {hx + 1.5} {hy} {hz + 0.5}')
-        health = [before]
-        gap = []
-        for _ in range(160):
+        fx, fz = (hx + 0.5, hz + 4.5) if wasm is not None else (hx + 1.5, hz + 0.5)
+        host('command', command=f'summon {FOX} {fx} {hy} {fz}')
+        health = {'host': [before['host']], 'guest': [before['guest']]}
+        landed = re.compile(r'custom-mob strike: mob \d+ (?:hit|dropped)')
+        for _ in range(200):
             host.wait(2)
-            me = host('state')['player']
-            health.append(me['health'])
-            foxes = fox_list(host)
-            if foxes:
-                gap.append(round(((foxes[0]['pos'][0] - me['position'][0]) ** 2 + (foxes[0]['pos'][2] - me['position'][2]) ** 2) ** 0.5, 2))
-            if SERVER_FRAME.search(log_of(host)[mark_h:]):
+            for name, game in (('host', host), ('guest', guest)):
+                health[name].append(game('state')['player']['health'])
+            if landed.search(log_of(host)[mark_h:]):
                 break
         for _ in range(10):
             host.wait(2)
-            health.append(host('state')['player']['health'])
-        after = min(health)
+            for name, game in (('host', host), ('guest', guest)):
+                health[name].append(game('state')['player']['health'])
+        after = {k: min(v) for k, v in health.items()}
         h_text, g_text = log_of(host)[mark_h:], log_of(guest)[mark_g:]
         server = list(SERVER_FRAME.finditer(h_text))
         st = int(server[0].group(3)) if server else None
         ht = [int(m.group(2)) for m in EVENTS.finditer(h_text)]
         gt = [int(m.group(2)) for m in EVENTS.finditer(g_text)]
-        results['strike'] = {'pass': (len(server) == 1 and before - after == 2.0 and ht and st is not None
+        hurt = sorted(k for k in before if after[k] < before[k])
+        results['strike'] = {'pass': (len(server) >= 1 and len(hurt) == 1 and before[hurt[0]] - after[hurt[0]] == 2.0 and ht and st is not None
                                       and 0 <= ht[0] - st <= 1),
-                             'detail': {'server_frames': len(server), 'server_tick': st, 'health': [before, after], 'health_samples': health[-14:], 'fox_distance': gap[-6:],
-                                        'host_event_ticks': ht, 'guest_event_ticks': gt}}
+                             'detail': {'server_frames': len(server), 'server_tick': st, 'health_before_after': {k: [before[k], after[k]] for k in before},
+                                        'host_event_ticks': ht, 'guest_event_ticks': gt,
+                                        'strike_lines': STRIKE_LINE.findall(h_text)[:30]}}
         host('command', command='gamemode creative')
+        guest('command', command='gamemode creative')
 
         clear_foxes(host)
         # death: the death animation (0.6 s = 12 ticks) keeps the body, then it is removed.
@@ -283,6 +317,7 @@ def run(ctl, out, shots, resources):
         host.wait(20)
         fox = fox_list(host)
         look_at_fox(host, fox[0])
+        mark_death = len(log_of(host))
         host('command', command=f'damage @e[type=sample_mobs:cinder_fox,limit=1] 100 minecraft:generic')
         presence = []
         shot_taken = False
@@ -292,13 +327,17 @@ def run(ctl, out, shots, resources):
             if i == 2 and not shot_taken:
                 shot(host, 'death'); shot_taken = True
         results['death'] = {'pass': presence[0] == 1 and presence[-1] == 0,
-                            'detail': {'foxes_every_2_ticks_after_damage': presence, 'png': saved.get('death')}}
+                            'detail': {'foxes_every_2_ticks_after_damage': presence, 'png': saved.get('death'),
+                                       'death_lines': STRIKE_LINE.findall(log_of(host)[mark_death:])}}
         for game in games:
             game.shot(out, 'end')
     except (Failed, AssertionError, KeyError, StopIteration, IndexError, TypeError) as e:
         results.setdefault('error', {'pass': False, 'detail': repr(e)})
     finally:
         logs = {g.name: g.close() for g in reversed(games)}
+        lines = [f'[{n}] {l}' for n, t in logs.items() for l in STRIKE_LINE.findall(t)]
+        (out / 'custom-mob-log-lines.txt').write_text(chr(10).join(lines) + chr(10), encoding='utf-8')
+        saved['log_lines'] = str(out / 'custom-mob-log-lines.txt')
         for name, text in logs.items():
             (out / f'{name}.log').write_text(text)
         for g in games:
@@ -314,6 +353,7 @@ def main():
     parser.add_argument('--out', default=str(ROOT / 'target/custom-mob-render-e2e'))
     parser.add_argument('--shots', default=str(ROOT / 'docs/yoake2/reports/img'))
     parser.add_argument('--resources', default=os.environ.get('HORIZON_TEST_RESOURCES') or str(lab.RESOURCES))
+    parser.add_argument('--wasm', help='the built fox_ai guest: the real script goal runs (default: a data melee_attack goal instead)')
     parser.add_argument('--wait-minutes', type=int, default=30)
     args = parser.parse_args()
     resources = Path(args.resources).resolve()
@@ -327,7 +367,7 @@ def main():
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     ext = '.exe' if sys.platform == 'win32' else ''
-    results = run(Path(args.bin_dir).resolve() / f'horizon-ctl{ext}', out, Path(args.shots).resolve(), resources)
+    results = run(Path(args.bin_dir).resolve() / f'horizon-ctl{ext}', out, Path(args.shots).resolve(), resources, Path(args.wasm).resolve() if args.wasm else None)
     (out / 'results.json').write_text(json.dumps({'checks': results}, indent=2) + '\n')
     print(json.dumps(results, indent=1))
     sys.exit(0 if all(r['pass'] for r in results.values()) else 1)

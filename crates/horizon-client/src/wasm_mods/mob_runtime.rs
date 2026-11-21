@@ -105,7 +105,26 @@ impl Runtime for WasmRuntime {
         })
     }
     fn goal_can_use(&self, mob: u32, goal: &str) -> Option<bool> {
-        any_true(each(|m| m.dispatch("mob_goal_can_use", |e, s| e.yoake_mods_server_hooks().call_mob_goal_can_use(s, mob, goal))))
+        let answer = any_true(each(|m| m.dispatch("mob_goal_can_use", |e, s| e.yoake_mods_server_hooks().call_mob_goal_can_use(s, mob, goal))));
+        // One info line when the gate's inputs for this mob and goal change (for the end-to-end run): the script goal's gate.
+        static LAST: std::sync::Mutex<Option<(u32, String, String)>> = std::sync::Mutex::new(None);
+        if let Ok(mut last) = LAST.lock() {
+            let v = crate::mobs::custom::script::view(mob);
+            let state = format!(
+                "can_use {answer:?} (on_ground {:?}, target {:?}, visible {:?}, has target_position {:?})",
+                v.as_ref().map(|v| v.on_ground),
+                v.as_ref().map(|v| (v.target_mob, v.target_player)),
+                v.as_ref().map(|v| v.target_visible),
+                v.as_ref().map(|v| v.target_position.is_some())
+            );
+            let key = (mob, goal.to_owned(), state.clone());
+            if last.as_ref() != Some(&key) {
+                let distance = v.as_ref().and_then(|v| v.target_position.map(|t| ((t[0] - v.position[0]).powi(2) + (t[1] - v.position[1]).powi(2) + (t[2] - v.position[2]).powi(2)).sqrt()));
+                log::info!("Horizon custom-mob script goal: mob {mob} {goal} {state} target distance {distance:?}");
+                *last = Some(key);
+            }
+        }
+        answer
     }
     fn goal_can_continue(&self, mob: u32, goal: &str) -> Option<bool> {
         any_true(each(|m| m.dispatch("mob_goal_can_continue", |e, s| e.yoake_mods_server_hooks().call_mob_goal_can_continue(s, mob, goal))))

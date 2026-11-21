@@ -1,0 +1,14 @@
+[host] Horizon custom-mob death: mob 331 dies, death_time 1 (limit 20) tick 2781
+[host] Horizon custom-mob death: mob 331 removed at death_time 20 (limit 20) tick 2799
+[host] Horizon custom-mob death: mob 354 dies, death_time 1 (limit 20) tick 3312
+[host] Horizon custom-mob death: mob 354 removed at death_time 20 (limit 20) tick 3330
+[host] Horizon custom-mob death: mob 356 dies, death_time 1 (limit 20) tick 3978
+[host] Horizon custom-mob death: mob 356 removed at death_time 20 (limit 20) tick 3996
+[host] Horizon custom-mob strike: mob 361 begins on Player tick 4067
+[host] Horizon custom-mob strike: mob 361 dropped, the goal stopped tick 4069
+[host] Horizon custom-mob strike: mob 361 begins on Player tick 4107
+[host] Horizon custom-mob strike: mob 361 dropped, the goal stopped tick 4111
+[host] Horizon custom-mob death: mob 361 dies, death_time 1 (limit 20) tick 4158
+[host] Horizon custom-mob death: mob 361 removed at death_time 20 (limit 20) tick 4176
+[host] Horizon custom-mob death: mob 364 dies, death_time 0 (limit 20) tick 4243
+[host] Horizon custom-mob death: mob 364 removed at death_time 20 (limit 20) tick 4262

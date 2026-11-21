@@ -1,0 +1,16 @@
+[host] Horizon custom-mob script goal: mob 273 pounce can_use Some(false) (on_ground Some(false), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob script goal: mob 273 pounce can_use Some(false) (on_ground Some(true), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob death: mob 273 dies, death_time 1 (limit 20) tick 2996
+[host] Horizon custom-mob death: mob 273 removed at death_time 20 (limit 20) tick 3014
+[host] Horizon custom-mob script goal: mob 318 pounce can_use Some(false) (on_ground Some(false), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob script goal: mob 318 pounce can_use Some(false) (on_ground Some(true), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob death: mob 318 dies, death_time 1 (limit 20) tick 3719
+[host] Horizon custom-mob death: mob 318 removed at death_time 20 (limit 20) tick 3737
+[host] Horizon custom-mob script goal: mob 322 pounce can_use Some(false) (on_ground Some(false), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob script goal: mob 322 pounce can_use Some(false) (on_ground Some(true), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob death: mob 322 dies, death_time 1 (limit 20) tick 5717
+[host] Horizon custom-mob death: mob 322 removed at death_time 20 (limit 20) tick 5735
+[host] Horizon custom-mob script goal: mob 332 pounce can_use Some(false) (on_ground Some(false), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob script goal: mob 332 pounce can_use Some(false) (on_ground Some(true), target Some((None, false)), visible Some(false), has target_position Some(false)) target distance None
+[host] Horizon custom-mob death: mob 332 dies, death_time 0 (limit 20) tick 5798
+[host] Horizon custom-mob death: mob 332 removed at death_time 20 (limit 20) tick 5817
