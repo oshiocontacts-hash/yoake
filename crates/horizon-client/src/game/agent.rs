@@ -55,6 +55,7 @@ pub(super) const HELP: &[&str] = &[
     "place X Y Z [--item ITEM]      place the held (or given) item at a position",
     "interact X Y Z [FACE]          right-click a block (open a door, chest, crafting table...)",
     "use-item [--hold S]            right-click with the held item (eat, drink, throw, draw a bow)",
+    "use-entity [ID] [--type TYPE]  right-click an entity by id or nearest of a type",
     "select SLOT|ITEM               select a hotbar slot (1-9) or the hotbar slot holding ITEM",
     "drop [all]                     drop one of the held item (all: the stack)",
     "open-inventory                 open the inventory screen",
@@ -86,7 +87,9 @@ pub(super) struct Args<'a> {
     pub flags: HashMap<&'a str, Option<&'a str>>,
 }
 /// Options that take a value (`--timeout 10` or `--timeout=10`).
-const VALUE_FLAGS: &[&str] = &["timeout", "near", "item", "radius", "hold", "face", "over"];
+const VALUE_FLAGS: &[&str] = &[
+    "timeout", "near", "item", "radius", "hold", "face", "over", "id", "type",
+];
 
 pub(super) fn parse_args<'a>(words: &[&'a str]) -> Args<'a> {
     let mut args = Args::default();
@@ -142,6 +145,51 @@ impl Args<'_> {
             self.i32(from + 1, "Y")?,
             self.i32(from + 2, "Z")?,
         ])
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum EntityTarget {
+    Id(u32),
+    Type(String),
+}
+
+pub(super) fn parse_use_entity_target(a: &Args<'_>) -> Result<EntityTarget> {
+    let flag_id = match a.flags.get("id") {
+        Some(Some(v)) => Some(
+            v.parse::<u32>()
+                .map_err(|_| format!("entity id must be an integer, not {v}"))?,
+        ),
+        Some(None) => return Err("--id needs a value".into()),
+        None => None,
+    };
+    let flag_type = match a.flags.get("type") {
+        Some(Some(v)) if !v.is_empty() => Some(namespaced(v)),
+        Some(_) => return Err("--type needs an entity type id".into()),
+        None => None,
+    };
+    if a.pos.len() > 1 {
+        return Err("use-entity takes at most one positional argument (ID or TYPE)".into());
+    }
+    let pos_target = match a.pos.first() {
+        Some(raw) => match raw.parse::<u32>() {
+            Ok(id) => Some(EntityTarget::Id(id)),
+            Err(_) if !raw.is_empty() => Some(EntityTarget::Type(namespaced(raw))),
+            Err(_) => return Err("empty entity target".into()),
+        },
+        None => None,
+    };
+    match (flag_id, flag_type, pos_target) {
+        (Some(_), Some(_), _) | (Some(_), _, Some(_)) | (_, Some(_), Some(_)) => {
+            Err("pass either an entity id or --type, not both".into())
+        }
+        (Some(id), None, None) | (None, None, Some(EntityTarget::Id(id))) => {
+            Ok(EntityTarget::Id(id))
+        }
+        (None, Some(ty), None) | (None, None, Some(EntityTarget::Type(ty))) => {
+            Ok(EntityTarget::Type(ty))
+        }
+        (None, None, None) => Err("use-entity needs ID or --type TYPE".into()),
     }
 }
 
@@ -238,6 +286,11 @@ enum TaskKind {
     Attack {
         id: Option<u32>,
         health: Option<f32>,
+        report_tick: u64,
+    },
+    UseEntity {
+        id: u32,
+        kind: String,
         report_tick: u64,
     },
 }
@@ -1006,6 +1059,7 @@ impl Game<'_> {
                 | "place"
                 | "interact"
                 | "use-item"
+                | "use-entity"
                 | "attack"
                 | "wait"
         );
@@ -1434,6 +1488,47 @@ impl Game<'_> {
                     },
                     reply,
                     hold + 5.0,
+                )
+            }
+            "use-entity" => {
+                self.playing()?;
+                let target = parse_use_entity_target(&a)?;
+                let eye = self.eye_position().ok_or("no player")?;
+                let (id, kind, center) = match target {
+                    EntityTarget::Id(id) => {
+                        let m = self
+                            .mobs
+                            .iter()
+                            .find(|m| !m.removed && m.id == id)
+                            .ok_or_else(|| format!("no entity {id}"))?;
+                        (m.id, m.kind.id.to_string(), m.center())
+                    }
+                    EntityTarget::Type(kind) => {
+                        let m = self
+                            .mobs
+                            .iter()
+                            .filter(|m| !m.removed && m.kind.id == kind)
+                            .min_by(|a, b| dist(eye, a.center()).total_cmp(&dist(eye, b.center())))
+                            .ok_or_else(|| format!("no {kind} nearby"))?;
+                        (m.id, m.kind.id.to_string(), m.center())
+                    }
+                };
+                self.face_point(center)?;
+                if self.mob_hit().map(|(i, _)| self.mobs[i].id) != Some(id) {
+                    return Err("that entity is out of reach or hidden; get closer".into());
+                }
+                self.agent_mouse(MouseButton::Right, true)?;
+                self.agent_mouse(MouseButton::Right, false)?;
+                let report_tick = self.ticks + 4;
+                self.start_task(
+                    "use-entity",
+                    TaskKind::UseEntity {
+                        id,
+                        kind,
+                        report_tick,
+                    },
+                    reply,
+                    5.0,
                 )
             }
             "select" => {
@@ -1999,6 +2094,22 @@ impl Game<'_> {
                     "hit": id.is_some(),
                 }))
             }
+            TaskKind::UseEntity {
+                id,
+                kind,
+                report_tick,
+            } => {
+                if self.ticks < *report_tick && !timed_out {
+                    return None;
+                }
+                Some(json!({
+                    "ok": true,
+                    "target": id,
+                    "type": kind,
+                    "riding": self.riding,
+                    "screen": self.screen_label(),
+                }))
+            }
         }
     }
 
@@ -2240,5 +2351,34 @@ mod tests {
                 ("c".to_owned(), 1)
             ])
         );
+    }
+
+    #[test]
+    fn parses_use_entity_targets() {
+        assert_eq!(
+            parse_use_entity_target(&parse_args(&["42"])).unwrap(),
+            EntityTarget::Id(42)
+        );
+        assert_eq!(
+            parse_use_entity_target(&parse_args(&["--id", "42"])).unwrap(),
+            EntityTarget::Id(42)
+        );
+        assert_eq!(
+            parse_use_entity_target(&parse_args(&["cow"])).unwrap(),
+            EntityTarget::Type("minecraft:cow".to_owned())
+        );
+        assert_eq!(
+            parse_use_entity_target(&parse_args(&["--type", "sample_mobs:cinder_fox"])).unwrap(),
+            EntityTarget::Type("sample_mobs:cinder_fox".to_owned())
+        );
+        assert_eq!(
+            parse_use_entity_target(&parse_args(&["sample_mobs:cinder_fox"])).unwrap(),
+            EntityTarget::Type("sample_mobs:cinder_fox".to_owned())
+        );
+        assert!(parse_use_entity_target(&parse_args(&[])).is_err());
+        assert!(parse_use_entity_target(&parse_args(&["42", "--type", "cow"])).is_err());
+        assert!(parse_use_entity_target(&parse_args(&["--id", "42", "--type", "cow"])).is_err());
+        assert!(parse_use_entity_target(&parse_args(&["--id", "abc"])).is_err());
+        assert!(parse_use_entity_target(&parse_args(&["1", "2"])).is_err());
     }
 }
