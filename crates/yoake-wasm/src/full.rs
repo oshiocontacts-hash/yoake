@@ -19,11 +19,12 @@ pub(crate) fn service_call<T>(
     call: impl FnOnce(&mut crate::package_services::PackageServices) -> Result<T, String>,
 ) -> Result<T, String> {
     let began = std::time::Instant::now();
+    let cpu_began = crate::thread_cpu_time();
     let answer = handle.and_then(|handle| {
         let mut services = handle.lock().map_err(|_| "package service lock poisoned")?;
         call(&mut services)
     });
-    crate::add_storage_time(began.elapsed());
+    crate::add_storage_time(began.elapsed(), crate::cpu_elapsed(cpu_began));
     answer
 }
 
@@ -350,11 +351,12 @@ macro_rules! server_services {
             $(
                 fn $name(&mut self, $($arg: $ty),*) -> $ret {
                     let began = std::time::Instant::now();
+                    let cpu_began = crate::thread_cpu_time();
                     let answer = self.host.$name($($arg),*);
                     if !matches!(stringify!($name), "world_storage_read" | "world_storage_write" | "config_read" | "config_write" | "config_dir") {
-                        crate::add_host_time(began.elapsed());
+                        crate::add_host_time(began.elapsed(), crate::cpu_elapsed(cpu_began));
                     } else {
-                        crate::add_storage_time(began.elapsed());
+                        crate::add_storage_time(began.elapsed(), crate::cpu_elapsed(cpu_began));
                     }
                     answer
                 }

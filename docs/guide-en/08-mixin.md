@@ -209,10 +209,12 @@ The main time and memory limits are listed below. Reaching 20 consecutive aggreg
 
 | Limit | Client | Server |
 |---|---:|---:|
-| Per-call deadline | 20 ms | 25 ms |
-| Aggregate execution per 50 ms window | 10 ms | 25 ms |
+| Per-call CPU deadline | 20 ms | 25 ms |
+| Aggregate guest CPU per 50 ms window | 10 ms | 25 ms |
 | Fuel per call | 10,000,000 | 10,000,000 |
 | Linear memory | 64 MiB | 64 MiB |
+
+CPU limits measure the calling thread, so time when that thread is descheduled does not disable a healthy mod. A separate wall-clock safety cap of twenty times the call limit, with a one-second minimum, still bounds every call. If the operating system's thread CPU clock fails, the per-call deadline falls back to wall time.
 
 In addition, each callback value conversion is capped at 4,096 total nodes, depth 32, and 256 KiB of payload.
 

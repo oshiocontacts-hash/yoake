@@ -62,32 +62,80 @@ pub const TABLE_LIMIT: usize = 8;
 const EPOCH_INTERVAL: Duration = Duration::from_millis(1);
 
 thread_local! {
-    /// Wall-clock time the running call spent inside host services (the game doing what the guest asked:
-    /// breaking a block, reading a container). It is the game's time, not the guest's: it extends the
-    /// call's deadline and does not count against the aggregate budget. The guest's own work is still
-    /// bounded by fuel, and every service call burns some.
+    /// Host services extend both clocks. Ordinary host service time is also excluded from the aggregate;
+    /// storage and counted host work remain aggregate-charged.
     static HOST_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
+    static HOST_CPU_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
     static STORAGE_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
+    static STORAGE_CPU_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
     static STORAGE_THROTTLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static STORAGE_WINDOW: std::cell::Cell<Option<Instant>> = const { std::cell::Cell::new(None) };
     static COUNTED_HOST_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
+    static COUNTED_HOST_CPU_TIME: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
+}
+
+#[cfg(unix)]
+pub(crate) fn thread_cpu_time() -> Option<Duration> {
+    // SAFETY: `time` is a valid output pointer and this clock needs no other setup.
+    unsafe {
+        let mut time: libc::timespec = std::mem::zeroed();
+        if libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut time) != 0 {
+            return None;
+        }
+        Some(Duration::new(time.tv_sec as u64, time.tv_nsec as u32))
+    }
+}
+
+#[cfg(windows)]
+pub(crate) fn thread_cpu_time() -> Option<Duration> {
+    use windows_sys::Win32::Foundation::FILETIME;
+    use windows_sys::Win32::System::Threading::{GetCurrentThread, GetThreadTimes};
+    fn ticks(time: FILETIME) -> u64 {
+        (u64::from(time.dwHighDateTime) << 32) | u64::from(time.dwLowDateTime)
+    }
+    // SAFETY: all outputs are valid and the current-thread pseudo handle needs no closing.
+    unsafe {
+        let (mut created, mut exited, mut kernel, mut user) = (
+            std::mem::zeroed(),
+            std::mem::zeroed(),
+            std::mem::zeroed(),
+            std::mem::zeroed(),
+        );
+        if GetThreadTimes(GetCurrentThread(), &mut created, &mut exited, &mut kernel, &mut user) == 0 {
+            return None;
+        }
+        Some(Duration::from_nanos((ticks(kernel) + ticks(user)) * 100))
+    }
+}
+
+#[cfg(not(any(unix, windows)))]
+pub(crate) fn thread_cpu_time() -> Option<Duration> {
+    None
+}
+
+pub(crate) fn cpu_elapsed(started: Option<Duration>) -> Duration {
+    started
+        .and_then(|started| thread_cpu_time().map(|now| now.saturating_sub(started)))
+        .unwrap_or(Duration::ZERO)
 }
 
 /// The most host-service time that extends one call's deadline (a guest that loops over services cannot hold the
-/// server thread longer than this plus its own budget).
+/// server thread longer than this plus its own budget and the wall-clock safety cap).
 pub const MAX_HOST_TIME: Duration = Duration::from_millis(400);
 
-/// Adds `spent` to the running call's host-service time (see [`HOST_TIME`]).
-pub(crate) fn add_host_time(spent: Duration) {
+pub(crate) fn add_host_time(spent: Duration, cpu: Duration) {
     HOST_TIME.with(|time| time.set(time.get() + spent));
+    HOST_CPU_TIME.with(|time| time.set(time.get() + cpu));
 }
 
-pub(crate) fn add_counted_host_time(spent: Duration) {
+pub(crate) fn add_counted_host_time(spent: Duration, cpu: Duration) {
     COUNTED_HOST_TIME.with(|time| time.set(time.get() + spent));
+    COUNTED_HOST_CPU_TIME.with(|time| time.set(time.get() + cpu));
 }
 
-pub(crate) fn add_storage_time(spent: Duration) {
+pub(crate) fn add_storage_time(spent: Duration, cpu: Duration) {
     STORAGE_TIME.with(|time| time.set(time.get() + spent));
+    STORAGE_CPU_TIME.with(|time| time.set(time.get() + cpu));
 }
 
 pub(crate) fn storage_throttled() {
@@ -106,11 +154,69 @@ fn deadline_extension() -> Duration {
         + COUNTED_HOST_TIME.with(std::cell::Cell::get))
     .min(MAX_HOST_TIME)
 }
-/// One client hook call may run this long of wall-clock time (plus one epoch tick) before it is
-/// stopped and the module disabled. A call is stopped by the clock, not by its CPU time, and a busy
-/// machine can pause a thread for a whole scheduler quantum (15.6 ms on Windows): a tighter limit
-/// (the design's 2 ms) disabled healthy mods in practice. How much of the frame a mod may use is
-/// [`CLIENT_AGGREGATE_BUDGET`]'s business.
+
+/// How coarse the thread CPU clock is. Windows charges thread time in scheduler ticks (`GetThreadTimes`
+/// advances by about 15.6 ms), so a reading can be one tick ahead of the real work: the CPU limit allows
+/// one tick more there, or a healthy 10 ms call could read as 15.6 + 15.6 and be stopped.
+#[cfg(windows)]
+const CPU_CLOCK_GRANULARITY: Duration = Duration::from_micros(15_625);
+#[cfg(not(windows))]
+const CPU_CLOCK_GRANULARITY: Duration = Duration::ZERO;
+
+fn cpu_deadline_extension() -> Duration {
+    (HOST_CPU_TIME.with(std::cell::Cell::get)
+        + STORAGE_CPU_TIME.with(std::cell::Cell::get)
+        + COUNTED_HOST_CPU_TIME.with(std::cell::Cell::get))
+    .min(MAX_HOST_TIME)
+}
+
+#[derive(Clone, Copy)]
+struct CallClock {
+    wall: fn(Instant) -> Duration,
+    cpu: fn() -> Option<Duration>,
+}
+
+impl Default for CallClock {
+    fn default() -> Self {
+        Self { wall: |started| started.elapsed(), cpu: thread_cpu_time }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LimitHit {
+    Cpu,
+    WallFallback,
+    WallCap,
+}
+
+fn wall_cap(limit: Duration) -> Duration {
+    limit.saturating_mul(20).max(Duration::from_secs(1))
+}
+
+fn limit_reason(kind: LimitHit, cpu: Option<Duration>, wall: Duration, limit: Duration) -> String {
+    let cpu = cpu.map_or_else(|| "unavailable".to_owned(), |cpu| format!("{:.1}", cpu.as_secs_f64() * 1000.0));
+    match kind {
+        LimitHit::Cpu => format!(
+            "over its per-call CPU limit (cpu {cpu} ms, wall {:.1} ms, limit {} ms)",
+            wall.as_secs_f64() * 1000.0,
+            limit.as_millis()
+        ),
+        LimitHit::WallCap => format!(
+            "over its wall-clock safety cap (cpu {cpu} ms, wall {:.1} ms, cap {} ms)",
+            wall.as_secs_f64() * 1000.0,
+            wall_cap(limit).as_millis()
+        ),
+        LimitHit::WallFallback => format!(
+            "over its per-call wall-clock limit (CPU clock unavailable; wall {:.1} ms, limit {} ms)",
+            wall.as_secs_f64() * 1000.0,
+            limit.as_millis()
+        ),
+    }
+}
+
+/// One client hook call may use this much calling-thread CPU time (plus one epoch tick). A separate
+/// wall-clock safety cap, at least one second and twenty times the CPU limit, bounds scheduler starvation
+/// and sleeping host services. [`CLIENT_AGGREGATE_BUDGET`] limits the frame's total guest CPU time.
 pub const CLIENT_HOOK_BUDGET: Duration = Duration::from_millis(20);
 /// The same for one server hook call (a server tick is 50 ms).
 pub const SERVER_HOOK_BUDGET: Duration = Duration::from_millis(25);
@@ -348,8 +454,12 @@ pub struct HostState<T> {
     /// The mod's worker, if it declares one (stopped when this instance is dropped).
     worker: Option<WorkerHandle>,
     output: wasi::Output,
-    /// When the running call must be over (the epoch callback stops the guest after it).
-    deadline: Instant,
+    call_started: Instant,
+    cpu_started: Option<Duration>,
+    call_limit: Duration,
+    wall_cap: Duration,
+    limit_hit: Option<LimitHit>,
+    clock: CallClock,
 }
 
 /// Per-mod files and workers (FR-F2), keyed by mod id; filled by the loader before a mod is compiled.
@@ -442,7 +552,7 @@ impl CompiledComponent {
             }
         }
         let wasi = builder.build();
-        let deadline = Instant::now() + TimeLimits::INIT.call;
+        let call_started = Instant::now();
         let state = HostState {
             host,
             limits,
@@ -453,15 +563,39 @@ impl CompiledComponent {
             main_network,
             worker,
             output,
-            deadline,
+            call_started,
+            cpu_started: thread_cpu_time(),
+            call_limit: TimeLimits::INIT.call,
+            wall_cap: wall_cap(TimeLimits::INIT.call),
+            limit_hit: None,
+            clock: CallClock::default(),
         };
         let mut store = Store::new(&self.runtime.engine, state);
         store.limiter(|state| &mut state.limits);
         store
             .set_fuel(FUEL_PER_CALL)
             .map_err(|error| error.to_string())?;
-        store.epoch_deadline_callback(|context| {
-            if Instant::now() >= context.data().deadline + deadline_extension() {
+        store.epoch_deadline_callback(|mut context| {
+            let data = context.data();
+            let wall = (data.clock.wall)(data.call_started);
+            let host_wall = deadline_extension();
+            let hit = if wall >= data.wall_cap + host_wall {
+                Some(LimitHit::WallCap)
+            } else {
+                let cpu = data.cpu_started.and_then(|started| {
+                    (data.clock.cpu)().map(|now| {
+                        now.saturating_sub(started)
+                            .saturating_sub(cpu_deadline_extension())
+                    })
+                });
+                match cpu {
+                    Some(cpu) if cpu >= data.call_limit + CPU_CLOCK_GRANULARITY => Some(LimitHit::Cpu),
+                    None if wall >= data.call_limit + host_wall => Some(LimitHit::WallFallback),
+                    _ => None,
+                }
+            };
+            if let Some(hit) = hit {
+                context.data_mut().limit_hit = Some(hit);
                 Ok(UpdateDeadline::Interrupt)
             } else {
                 Ok(UpdateDeadline::Continue(1))
@@ -625,14 +759,24 @@ impl<T: 'static> ModInstance<T> {
             }
             return Ok(None);
         }
-        self.store.data_mut().deadline = began + self.limits.call;
+        let clock = self.store.data().clock;
+        let state = self.store.data_mut();
+        state.call_started = began;
+        state.cpu_started = (clock.cpu)();
+        state.call_limit = self.limits.call;
+        state.wall_cap = wall_cap(self.limits.call);
+        state.limit_hit = None;
+        let cpu_began = state.cpu_started;
         // Calls nest (a `mod-call` runs another module inside a service): each has its own host time.
         let outer_host_time = HOST_TIME.with(|time| time.replace(Duration::ZERO));
+        let outer_host_cpu_time = HOST_CPU_TIME.with(|time| time.replace(Duration::ZERO));
         let outer_storage_time = STORAGE_TIME.with(|time| time.replace(Duration::ZERO));
+        let outer_storage_cpu_time = STORAGE_CPU_TIME.with(|time| time.replace(Duration::ZERO));
         let outer_storage_throttled = STORAGE_THROTTLED.with(|throttled| throttled.replace(false));
         let outer_storage_window =
             STORAGE_WINDOW.with(|window| window.replace(Some(self.window.started)));
         let outer_counted_host_time = COUNTED_HOST_TIME.with(|time| time.replace(Duration::ZERO));
+        let outer_counted_host_cpu_time = COUNTED_HOST_CPU_TIME.with(|time| time.replace(Duration::ZERO));
         let result = self
             .store
             .set_fuel(self.fuel)
@@ -642,14 +786,29 @@ impl<T: 'static> ModInstance<T> {
                 invoke(&mut self.store, &self.instance)
             });
         let host_time = HOST_TIME.with(|time| time.replace(outer_host_time));
+        let host_cpu_time = HOST_CPU_TIME.with(|time| time.replace(outer_host_cpu_time));
         STORAGE_TIME.with(|time| time.set(outer_storage_time));
+        let storage_cpu_time = STORAGE_CPU_TIME.with(|time| time.replace(outer_storage_cpu_time));
         STORAGE_WINDOW.with(|window| window.set(outer_storage_window));
         self.window.exceeded |=
             STORAGE_THROTTLED.with(|throttled| throttled.replace(outer_storage_throttled));
         COUNTED_HOST_TIME.with(|time| time.set(outer_counted_host_time));
+        let counted_host_cpu_time =
+            COUNTED_HOST_CPU_TIME.with(|time| time.replace(outer_counted_host_cpu_time));
+        let wall = (clock.wall)(began);
+        let cpu = cpu_began.and_then(|started| {
+            (clock.cpu)().map(|now| {
+                now.saturating_sub(started)
+                    .saturating_sub(host_cpu_time + storage_cpu_time + counted_host_cpu_time)
+            })
+        });
         if !self.aggregate_exempt {
-            self.window.spent += began.elapsed().saturating_sub(host_time);
+            self.window.spent += cpu.map_or_else(
+                || wall.saturating_sub(host_time),
+                |cpu| cpu + storage_cpu_time + counted_host_cpu_time,
+            );
         }
+        let limit_hit = self.store.data().limit_hit;
         match result {
             Ok(value) => Ok(Some(value)),
             Err(error) => {
@@ -659,7 +818,10 @@ impl<T: 'static> ModInstance<T> {
                 self.disabled = true;
                 let id = self.id.replace(['\r', '\n'], " ");
                 let hook = hook.replace(['\r', '\n'], " ");
-                let reason = error.replace(['\r', '\n'], " ");
+                let reason = limit_hit.map_or_else(
+                    || error.replace(['\r', '\n'], " "),
+                    |hit| limit_reason(hit, cpu, wall, self.limits.call),
+                );
                 eprintln!("WebAssembly mod {id} disabled in {hook}: {reason}");
                 Err(error)
             }
@@ -671,7 +833,7 @@ impl<T: 'static> ModInstance<T> {
 mod tests {
     use super::*;
 
-    fn tick_component() -> Vec<u8> {
+    fn test_component(spin: bool) -> Vec<u8> {
         let mut resolve = wit_parser::Resolve::default();
         let package = resolve
             .push_str(
@@ -682,7 +844,12 @@ mod tests {
         let world = resolve
             .select_world(&[package], Some("client-mod"))
             .unwrap();
-        let mut module = b"\0asm\x01\0\0\0\x01\x04\x01\x60\0\0\x03\x02\x01\0\x07\x10\x01\x0ccm32p2||tick\0\0\x0a\x04\x01\x02\0\x0b".to_vec();
+        let mut module = b"\0asm\x01\0\0\0\x01\x04\x01\x60\0\0\x03\x02\x01\0\x07\x10\x01\x0ccm32p2||tick\0\0".to_vec();
+        module.extend_from_slice(if spin {
+            b"\x0a\x09\x01\x07\0\x03\x40\x0c\0\x0b\x0b"
+        } else {
+            b"\x0a\x04\x01\x02\0\x0b"
+        });
         wit_component::embed_component_metadata(
             &mut module,
             &resolve,
@@ -697,6 +864,36 @@ mod tests {
             .unwrap()
     }
 
+    fn tick_component() -> Vec<u8> {
+        test_component(false)
+    }
+
+    fn call_tick(module: &mut ModInstance<()>) -> Option<()> {
+        module.call("tick", |store, instance| {
+            let tick = instance
+                .get_typed_func::<(), ()>(&mut *store, "tick")
+                .map_err(|error| error.to_string())?;
+            tick.call(&mut *store, ())
+                .map_err(|error| error.to_string())
+        })
+    }
+
+    fn no_cpu_progress() -> Option<Duration> {
+        Some(Duration::ZERO)
+    }
+
+    thread_local! {
+        static TEST_WALL: std::cell::Cell<Duration> = const { std::cell::Cell::new(Duration::ZERO) };
+    }
+
+    fn advancing_wall(_: Instant) -> Duration {
+        TEST_WALL.with(|wall| {
+            let now = wall.get();
+            wall.set(now + Duration::from_millis(250));
+            now
+        })
+    }
+
     /// F3-8: calls made exempt from the aggregate budget (the chunk generator's) are neither skipped for it nor
     /// counted in it; the same calls not exempt are skipped once the window's budget is used.
     #[test]
@@ -707,6 +904,7 @@ mod tests {
             .unwrap()
             .instantiate("exempt-clock", (), |_| Ok(()))
             .unwrap();
+        module.store.data_mut().clock.cpu = || None;
         module.set_limits(TimeLimits { call: Duration::from_millis(500), aggregate: Duration::from_millis(5) });
         let slow = |module: &mut ModInstance<()>| {
             module.call("tick", |_, _| {
@@ -734,11 +932,12 @@ mod tests {
                 .unwrap()
                 .instantiate("storage-clock", (), |_| Ok(()))
                 .unwrap();
+            module.store.data_mut().clock.cpu = || None;
             module.set_limits(limits);
             let answer = module.call("tick", |store, instance| {
                 let began = Instant::now();
                 std::thread::sleep(Duration::from_millis(80));
-                add_storage_time(began.elapsed());
+                add_storage_time(began.elapsed(), Duration::ZERO);
                 let tick = instance
                     .get_typed_func::<(), ()>(&mut *store, "tick")
                     .map_err(|error| error.to_string())?;
@@ -749,6 +948,82 @@ mod tests {
             assert!(!module.disabled);
             assert!(module.window.spent >= Duration::from_millis(80));
         }
+    }
+
+    #[test]
+    fn spinning_guest_hits_the_cpu_limit() {
+        let mut module = Sandbox::new()
+            .compile(&test_component(true))
+            .unwrap()
+            .instantiate("cpu-limit", (), |_| Ok(()))
+            .unwrap();
+        module.set_limits(TimeLimits { call: Duration::from_millis(5), aggregate: Duration::from_secs(1) });
+        module.set_fuel_per_call(u64::MAX);
+        assert_eq!(call_tick(&mut module), None);
+        assert!(module.is_disabled());
+        assert_eq!(module.store.data().limit_hit, Some(LimitHit::Cpu));
+        assert!(module.window.spent >= module.limits.call);
+    }
+
+    #[test]
+    fn starved_thread_does_not_hit_the_cpu_limit() {
+        let mut module = Sandbox::new()
+            .compile(&tick_component())
+            .unwrap()
+            .instantiate("starved", (), |_| Ok(()))
+            .unwrap();
+        module.store.data_mut().clock.cpu = no_cpu_progress;
+        module.set_limits(TimeLimits { call: Duration::from_millis(5), aggregate: Duration::from_millis(10) });
+        let answer = module.call("tick", |store, instance| {
+            std::thread::sleep(Duration::from_millis(30));
+            let tick = instance
+                .get_typed_func::<(), ()>(&mut *store, "tick")
+                .map_err(|error| error.to_string())?;
+            tick.call(&mut *store, ())
+                .map_err(|error| error.to_string())
+        });
+        assert_eq!(answer, Some(()));
+        assert!(!module.is_disabled());
+        assert_eq!(module.store.data().limit_hit, None);
+        assert_eq!(module.window.spent, Duration::ZERO);
+    }
+
+    #[test]
+    fn wall_cap_interrupts_even_without_cpu_progress() {
+        TEST_WALL.with(|wall| wall.set(Duration::ZERO));
+        let mut module = Sandbox::new()
+            .compile(&test_component(true))
+            .unwrap()
+            .instantiate("wall-cap", (), |_| Ok(()))
+            .unwrap();
+        module.store.data_mut().clock = CallClock { wall: advancing_wall, cpu: no_cpu_progress };
+        module.set_limits(TimeLimits { call: Duration::from_millis(5), aggregate: Duration::from_secs(1) });
+        module.set_fuel_per_call(u64::MAX);
+        assert_eq!(call_tick(&mut module), None);
+        assert!(module.is_disabled());
+        assert_eq!(module.store.data().limit_hit, Some(LimitHit::WallCap));
+    }
+
+    #[test]
+    fn limit_messages_name_the_limit_and_measurements() {
+        assert_eq!(
+            limit_reason(
+                LimitHit::Cpu,
+                Some(Duration::from_micros(31_200)),
+                Duration::from_millis(212),
+                Duration::from_millis(25),
+            ),
+            "over its per-call CPU limit (cpu 31.2 ms, wall 212.0 ms, limit 25 ms)"
+        );
+        assert_eq!(
+            limit_reason(
+                LimitHit::WallCap,
+                Some(Duration::from_millis(2)),
+                Duration::from_millis(1100),
+                Duration::from_millis(50),
+            ),
+            "over its wall-clock safety cap (cpu 2.0 ms, wall 1100.0 ms, cap 1000 ms)"
+        );
     }
 
     #[test]
@@ -811,13 +1086,14 @@ mod budget_tests {
             .unwrap()
             .instantiate("budget", (), |_| Ok(()))
             .unwrap();
+        instance.store.data_mut().clock.cpu = || None;
         let mut measured = Duration::ZERO;
         assert_eq!(
             instance.call("compile", |_, _| {
                 let began = Instant::now();
                 std::thread::sleep(Duration::from_millis(2));
                 measured = began.elapsed();
-                add_counted_host_time(measured);
+                add_counted_host_time(measured, Duration::ZERO);
                 assert!(deadline_extension() >= measured);
                 Ok(())
             }),

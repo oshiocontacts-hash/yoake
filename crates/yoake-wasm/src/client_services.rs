@@ -78,11 +78,12 @@ impl ClientContext {
         operation: impl FnOnce(&mut dyn ClientServices) -> Result<T, String>,
     ) -> Result<T, String> {
         let began = Instant::now();
+        let cpu_began = crate::thread_cpu_time();
         let result = match self.host.client_services() {
             Some(host) => operation(host),
             None => Err("unsupported client services".to_owned()),
         };
-        crate::add_host_time(began.elapsed());
+        crate::add_host_time(began.elapsed(), crate::cpu_elapsed(cpu_began));
         result
     }
 }

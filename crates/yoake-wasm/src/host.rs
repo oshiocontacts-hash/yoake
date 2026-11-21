@@ -18,8 +18,9 @@ const MAX_TEXTURES: usize = 64;
 macro_rules! timed_host_call {
     ($call:expr) => {{
         let started = std::time::Instant::now();
+        let cpu_started = crate::thread_cpu_time();
         let result = $call;
-        crate::add_host_time(started.elapsed());
+        crate::add_host_time(started.elapsed(), crate::cpu_elapsed(cpu_started));
         result
     }};
 }

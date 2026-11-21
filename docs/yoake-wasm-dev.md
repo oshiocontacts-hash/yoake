@@ -459,17 +459,21 @@ client module fails to load does not run its server module either.
 #### Limits every module runs under
 
 * Memory 64 MiB, 1 memory, 8 tables of at most 65,536 elements, 16 instances; no threads.
-* A hook call may run 20 ms (client) or 25 ms (server) of wall-clock time, checked every millisecond
-  (a trap, fuel or time, disables the module; the limit is not tighter because a busy machine can pause
-  a thread for a scheduler quantum, and a tight wall-clock limit disabled healthy mods); a call also has 10 million units of fuel, which bounds its CPU time first. All the calls of
-  one module in a 50 ms window may use 10 ms (client) or 25 ms (server) of it;
-  further calls in the window are skipped (a skipped hook answers its fallback) and counted, and a module
-  that overruns in 20 windows in a row is disabled. `init` has 250 ms.
+* A hook call may use 20 ms (client) or 25 ms (server) of calling-thread CPU time, checked every
+  millisecond; descheduled time does not consume that budget. A wall-clock safety cap of twenty times
+  the call limit (minimum 1 s) still stops a call that cannot make CPU progress. If the OS thread CPU
+  clock fails, the old wall-clock call limit is the fallback. A trap, exhausted fuel, or either time
+  limit disables the module; a call also has 10 million units of fuel. All calls of one module in a
+  50 ms window may use 10 ms (client) or 25 ms (server) of guest CPU; further calls in the window are
+  skipped (a skipped hook answers its fallback) and counted, and a module that overruns in 20 windows
+  in a row is disabled. `init` has a 250 ms CPU limit and the same wall-cap rule.
 * Time spent inside a server service (the game breaking a block, reading a container, another
-  package's `handle-call`) extends the call's deadline by at most 400 ms in all, including config and
-  storage I/O. Config and storage I/O still count against the aggregate budget; other server-service
-  time is the game's, not the guest's, and is excluded. The guest's own work stays bounded by fuel
-  and the clock, and the native helpers allow 512 to 1024 calls per mod and server tick.
+  package's `handle-call`) extends both the CPU deadline and wall cap by at most 400 ms in all,
+  including config and storage I/O. Host services record CPU time as well as wall time: sleeping in a
+  host service no longer looks like guest CPU work. Config and storage I/O still count against the
+  aggregate CPU budget; other server-service CPU is the game's, not the guest's, and is excluded. The
+  guest's own work stays bounded by fuel and both clocks, and the native helpers allow 512 to 1024
+  calls per mod and server tick.
 * A hook that finds its module busy (re-entered from the module's own service call) answers its fallback
   and is counted; the first drop is logged.
 * A guest's answers are checked before they touch the game: floats must be finite, strings at most

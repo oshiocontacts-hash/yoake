@@ -337,16 +337,18 @@ ordinary host hooks, with bounded value conversion in addition:
 
 | Limit | Client | Server |
 | --- | --- | --- |
-| Per-call deadline | 20 ms | 25 ms |
-| Aggregate execution per 50 ms window | 10 ms | 25 ms |
+| Per-call calling-thread CPU deadline | 20 ms | 25 ms |
+| Aggregate guest CPU per 50 ms window | 10 ms | 25 ms |
 | Consecutive exhausted-window strikes before disabling | 20 | 20 |
 | Fuel per call | 10,000,000 | 10,000,000 |
 | Linear memory | 64 MiB | 64 MiB |
 | Memories / tables / instances | 1 / 8 / 16 | 1 / 8 / 16 |
 | Elements per table | 65,536 | 65,536 |
 
-Epochs advance every millisecond. Initialization has a 250 ms call deadline and a
-1 s aggregate budget. WASI output is bounded to 64 KiB, 1024 characters per log line,
+Epochs advance every millisecond. A wall-clock safety cap of twenty times the call
+limit (minimum 1 s) still bounds descheduled or sleeping calls; CPU-clock failure
+falls back to the wall-clock call limit. Initialization has a 250 ms CPU call deadline
+(with the same wall-cap rule) and a 1 s aggregate budget. WASI output is bounded to 64 KiB, 1024 characters per log line,
 and 256 emitted lines per drain. No limits, package trust checks, or ABI checks
 are relaxed for mixins.
 

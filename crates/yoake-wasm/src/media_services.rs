@@ -57,13 +57,14 @@ impl ClientContext {
         operation: impl FnOnce(&mut dyn MediaServices) -> Result<T, String>,
     ) -> Result<T, String> {
         let began = std::time::Instant::now();
+        let cpu_began = crate::thread_cpu_time();
         let result = match self.host.media_services() {
             Some(host) => operation(host),
             None => Err(BROWSER_PERMISSION.to_owned()),
         };
         // Decoding and copying frames is the host's work: it extends the call's deadline like the other
         // client services instead of using up the package's own budget.
-        crate::add_host_time(began.elapsed());
+        crate::add_host_time(began.elapsed(), crate::cpu_elapsed(cpu_began));
         result
     }
 }
