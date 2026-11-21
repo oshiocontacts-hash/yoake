@@ -162,3 +162,12 @@ Expected `[(0.5, 0.8)]` (seat 1). Raw: `logs/f4m-e2e-seats-wasm-aborted.log`.
 | 7 seat_set | not run in this variant (run 1 above: FAIL) |
 
 Guest-side `use-entity` did not stop with "no entity": it returned `ok: true` with target 325, but it did not board (`riding: null`). Raw: `logs/f4m-e2e-seats-nowasm-stdout.log`, `logs/f4m-e2e-seats-nowasm-host.log`, `logs/f4m-e2e-seats-nowasm-guest.log`, `logs/f4m-e2e-seats-nowasm-results.json`.
+
+## F4M-FIX3 / SEATS2 rerun (GALLERIA, 2026-11-21)
+
+Merged vps/yoake-free/f4m-fix3 (770009182) and vps/yoake-free/f4m-seats2 (377496b29) without conflicts (HEAD 4e593958d). horizon-client and horizon-ctl rebuilt (-j 4); `cargo test -p horizon-client-lib --lib custom`: 252 passed. Guest .wasm files (fox_ai, seat_fox) are the earlier builds (fix3/seats2 change no guest source). Logs: `logs/f4m-fix3-{data,wasm}.log`, `logs/f4m-seats2-{wasm,nowasm}.log`.
+
+- custom_mob_render_e2e.py, data goal: exit 0.
+- custom_mob_render_e2e.py --wasm: strike FAIL (0 server frames; host and guest health 20 -> 20). After "target: mob 361 picked Player" the guest still logs `pounce can_use None (... target Some((None, true)), visible Some(true), has target_position Some(true)) target distance Some(3.16)`: the target uuid is still None in-game, so no "script attack" line. Other checks pass.
+- custom_mob_seats_e2e.py: ride3, guest, stay, vehicle pass in both runs. use_entity now boards (`ok: true, riding: 316`, steer distance 11.2) but FAILs on the offset check (host offset (0.0, 0.2)). The run then aborts: the guest's `use-entity` gets "that entity is out of reach or hidden; get closer" (the host steered the vehicle ~11 blocks away first), so multi_player, reload and locator did not run.
+- --seat-wasm seat_set: FAIL, offset (0.0, 0.8) (seat 0) while the server log says `seat-set vehicle 19 seat 1 rider Some(13): mob 13 now holds seat Some(1)`: the server holds seat 1 but clients place the rider at seat 0.
