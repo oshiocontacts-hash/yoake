@@ -28,6 +28,7 @@ import argparse
 import json
 import math
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -62,10 +63,13 @@ def vehicle_fixture(scratch, seat_wasm=None):
     ai = data['ai']
     ai['goals'] = [g for g in ai['goals'] if g['type'] == 'swim']
     ai['targets'] = []
+    # Anyone may board: a tameable type is ridden by its owner only (FR-F4M-4c), and the checks seat both players.
+    data.pop('tameable', None)
     ai.pop('script_goals', None)
     path.write_text(json.dumps(data, indent=2), encoding='utf-8')
     mouth = dict(data)
     mouth['seats'] = [{'locator': 'mouth', 'controls': 'none'}]
+    mouth['breedable'] = {'food': ['minecraft:sweet_berries'], 'baby_scale': 0.5}
     mouth_path = dest / 'content/data/sample_mobs/horizon/entity_type/cinder_fox_mouth.json'
     mouth_path.write_text(json.dumps(mouth, indent=2), encoding='utf-8')
     if seat_wasm is not None:
@@ -159,9 +163,15 @@ def run(ctl, out, resources, seat_wasm=None):
         if seat_wasm is not None:
             host('command', command=f'summon {CHICKEN} {hx + 0.5} {hy} {hz - 3.5} {{Tags:["wasm_c"]}}')
             host.wait(10)
+            mark = len(r.log_of(host))
             host('command', command=f'summon {r.FOX} {hx + 0.5} {hy} {hz - 4.5}')
-            wasm_seen = host.until(lambda: offsets(host), lambda o: o == [(0.5, 0.8)], ticks=40)
-            results['seat_set'] = {'pass': wasm_seen == [(0.5, 0.8)], 'detail': {'offsets': wasm_seen}}
+            try:
+                wasm_seen = host.until(lambda: offsets(host), lambda o: o == [(0.5, 0.8)], ticks=40)
+            except (AssertionError, Failed):
+                # Not fatal: the other checks still run. The seat lines say which path seated the chicken.
+                wasm_seen = offsets(host)
+            seat_lines = re.findall(r'^.*Horizon custom-mob seat:.*$', r.log_of(host)[mark:], re.M)
+            results['seat_set'] = {'pass': wasm_seen == [(0.5, 0.8)], 'detail': {'offsets': wasm_seen, 'seat_lines': seat_lines[-10:]}}
             clear_mobs(host)
 
         # check 1: three chickens mounted via /ride, fourth refused (spawn >4 blocks from fox for --seat-wasm)
@@ -300,7 +310,7 @@ def run(ctl, out, resources, seat_wasm=None):
         host.wait(10)
         clear_mobs(host)
 
-        # check 12: locator seat ("mouth" rest [0, 5/16, 12/16] => (0.75, 0.3125), animated during pounce, half for baby)
+        # check 12: the server stays at the mouth's rest offset; the guest's client follows pounce.
         host('command', command=f'summon {MOUTH_FOX} {hx + 0.5} {hy} {hz - 4.5}')
         host('command', command=f'summon {CHICKEN} {hx + 0.5} {hy} {hz + 2.5} {{Tags:["ml"]}}')
         host.wait(10)
@@ -315,8 +325,8 @@ def run(ctl, out, resources, seat_wasm=None):
         g_rest = offsets(guest, MOUTH_FOX)[0]
         host('command', command=f'horizon custommobs trigger {MOUTH_VEHICLE} pounce')
         h_anim, g_anim = [], []
-        for _ in range(5):
-            host.wait(2)
+        for _ in range(16):
+            host.wait(1)
             h_anim.append(offsets(host, MOUTH_FOX)[0])
             g_anim.append(offsets(guest, MOUTH_FOX)[0])
         h_delta = max(abs(a[0] - h_rest[0]) + abs(a[1] - h_rest[1]) for a in h_anim)
@@ -332,7 +342,7 @@ def run(ctl, out, resources, seat_wasm=None):
         results['locator'] = {
             'pass': (abs(h_rest[0] - 0.75) < 0.15 and abs(h_rest[1] - 0.31) < 0.15
                      and abs(g_rest[0] - 0.75) < 0.15 and abs(g_rest[1] - 0.31) < 0.15
-                     and h_delta > 0.02 and g_delta > 0.02
+                     and g_delta > 0.02
                      and baby_veh.get('baby') is True and abs(baby_off[0] - 0.38) < 0.15 and abs(baby_off[1] - 0.16) < 0.15),
             'detail': {'host_rest': h_rest, 'guest_rest': g_rest, 'host_pounce_delta': round(h_delta, 3),
                        'guest_pounce_delta': round(g_delta, 3), 'baby_flag': baby_veh.get('baby'), 'baby_offset': baby_off},

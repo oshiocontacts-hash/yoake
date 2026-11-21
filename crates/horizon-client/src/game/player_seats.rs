@@ -79,17 +79,24 @@ impl Game<'_> {
         if !self.native_mob_may_ride(rider, vehicle, true) {
             return false;
         }
-        riding::commit_board(&mut self.mobs, rider, vehicle, plan);
+        let seat = riding::commit_board(&mut self.mobs, rider, vehicle, plan);
+        log::info!("Horizon custom-mob seat: AI boarding: mob {rider} takes seat {seat} of {vehicle}");
         true
     }
 
     /// A script's `seat-set`: puts a mob on a seat or takes the one on it off, unless a native mod vetoes
     /// the boarding or the dismounting (`native_mob_may_ride`).
     pub(super) fn script_seat_set(&mut self, vehicle: u32, seat: usize, rider: Option<u32>) {
-        let Some((who, mounting)) = riding::plan_seat_set(&self.mobs, vehicle, seat, rider) else { return };
+        let Some((who, mounting)) = riding::plan_seat_set(&self.mobs, vehicle, seat, rider) else {
+            log::info!("Horizon custom-mob seat: seat-set vehicle {vehicle} seat {seat} rider {rider:?}: nothing to do");
+            return;
+        };
         if !self.native_mob_may_ride(who, vehicle, mounting) {
+            log::info!("Horizon custom-mob seat: seat-set vehicle {vehicle} seat {seat} rider {rider:?}: vetoed by a native mod");
             return;
         }
         riding::seat_set(&mut self.mobs, vehicle, seat, rider);
+        let now = self.mobs.iter().find(|m| m.id == vehicle).and_then(|v| riding::claim_of(v, who));
+        log::info!("Horizon custom-mob seat: seat-set vehicle {vehicle} seat {seat} rider {rider:?}: mob {who} now holds seat {now:?}");
     }
 }
