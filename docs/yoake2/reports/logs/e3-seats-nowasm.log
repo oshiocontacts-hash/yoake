@@ -1,0 +1,382 @@
+[host] ['launch', '--offscreen', '--no-focus', '--no-pause', '--pregen', '--dev-mod', 'C:\\Users\\USER\\AppData\\Local\\Temp\\hzseat-86j7e11p\\cinder_fox\\content'] -> {"game": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\debug\\horizon-client.exe", "home": null, "log": "C:\\Users\\USER\\AppData\\Local\\Temp\\hzlan-host-zqut509e\\c.log", "ok": true, "pid": 19224, "resources": null, "socket": "C:\\Users\\USER\\AppData\\Local\\Temp\\hzlan-host-zqut509e\\c.sock", "source": "beside horizon-ctl", "version": null}
+[host] ['open', 'Lan', 5, 'creative'] -> {"ok": true}
+[host] ['wait-ready', '400'] -> {"block_entities": 0, "border": {"center": [0.0, 0.0], "size": 59999968.0}, "carts": [], "chunks": 5, "creative": true, "day_time": 18, "debug": {"advanced_tooltips": false, "chunk_borders": false, "clipboard": null, "hitboxes": false, "overlay": false, "pause_menu": true, "pause_on_lost_focus": true}, "destroying": [], "dimension": "minecraft:overworld", "dirty_light": 0, "display": {"height": 10...
+[host] ['command', 'gamemode creative'] -> {"chat": [], "ok": true}
+[host] ['command', 'difficulty peaceful'] -> {"chat": ["\u96e3\u6613\u5ea6\u304c\u30d4\u30fc\u30b9\u30d5\u30eb\u306b\u8a2d\u5b9a\u3055\u308c\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'time set day'] -> {"chat": ["minecraft:overworld\u3092\u30bf\u30a4\u30e0\u30de\u30fc\u30ab\u30fc\u300cminecraft:day\u300d\u306b\u8a2d\u5b9a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'gamerule spawn_mobs false'] -> {"chat": ["\u30b2\u30fc\u30e0\u30eb\u30fc\u30eb\u300cspawn_mobs\u300d\u304cfalse\u306b\u8a2d\u5b9a\u3055\u308c\u307e\u3057\u305f"], "ok": true}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "creative", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": {"block": "minecraft:oak_leaves", "distance": 4.5, "face": "north", ...
+[host] ['command', 'fill -12 69 -5 12 69 19 minecraft:stone'] -> {"chat": ["625\u500b\u306e\u30d6\u30ed\u30c3\u30af\u3067\u6e80\u305f\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'fill -12 70 -5 12 76 19 minecraft:air'] -> {"chat": ["79\u500b\u306e\u30d6\u30ed\u30c3\u30af\u3067\u6e80\u305f\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '5'] -> {"ok": true, "ticks": 409}
+[host] ['command', 'summon sample_mobs:cinder_fox 0.5 70 2.5'] -> {"chat": ["\u65b0\u3057\u304fentity.sample_mobs.cinder_fox\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'summon minecraft:chicken -2.5 70 9.5 {Tags:["c1"]}'] -> {"chat": ["\u65b0\u3057\u304f\u30cb\u30ef\u30c8\u30ea\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'summon minecraft:chicken -1.5 70 9.5 {Tags:["c2"]}'] -> {"chat": ["\u65b0\u3057\u304f\u30cb\u30ef\u30c8\u30ea\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'summon minecraft:chicken -0.5 70 9.5 {Tags:["c3"]}'] -> {"chat": ["\u65b0\u3057\u304f\u30cb\u30ef\u30c8\u30ea\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'summon minecraft:chicken 0.5 70 9.5 {Tags:["c4"]}'] -> {"chat": ["\u65b0\u3057\u304f\u30cb\u30ef\u30c8\u30ea\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '20'] -> {"ok": true, "ticks": 472}
+[host] ['command', 'ride @e[tag=c1,limit=1] mount @e[type=sample_mobs:cinder_fox,limit=1]'] -> {"chat": ["\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox\u306b\u9a0e\u4e57\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '4'] -> {"ok": true, "ticks": 491}
+[host] ['command', 'ride @e[tag=c2,limit=1] mount @e[type=sample_mobs:cinder_fox,limit=1]'] -> {"chat": ["\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox\u306b\u9a0e\u4e57\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '4'] -> {"ok": true, "ticks": 509}
+[host] ['command', 'ride @e[tag=c3,limit=1] mount @e[type=sample_mobs:cinder_fox,limit=1]'] -> {"chat": ["\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox\u306b\u9a0e\u4e57\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '4'] -> {"ok": true, "ticks": 525}
+[host] ['command', 'ride @e[tag=c4,limit=1] mount @e[type=sample_mobs:cinder_fox,limit=1]'] -> {"chat": ["\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox\u306b\u9a0e\u4e57\u3055\u305b\u308b\u3053\u3068\u306b\u5931\u6557\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '4'] -> {"ok": true, "ticks": 537}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 552}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 2.0, "health": 4.0, "hurt_time": 0, "id": 26, "kind": "mob", "pos": [0.5, 70.0, 9.5], "type": "minecraft:chicken"}, {"baby": false, "distance": 4.827683971884532, "health": 4.0, "hurt_time": 0, "id": 25, "kind": "mob", "pos": [0.07191477666468071, 70.8, 2.758346746760918], "type": "minecraft:chicken"}, {"baby": false, "distance": 5.0, "health": 14.0, "hurt
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 2.0, "health": 4.0, "hurt_time": 0, "id": 26, "kind": "mob", "pos": [0.5, 70.0, 9.5], "type": "minecraft:chicken"}, {"baby": false, "distance": 4.827683971884532, "health": 4.0, "hurt_time": 0, "id": 25, "kind": "mob", "pos": [0.07191477666468071, 70.8, 2.758346746760918], "type": "minecraft:chicken"}, {"baby": false, "distance": 5.0, "health": 14.0, "hurt
+[guest] ['launch', '--offscreen', '--no-focus', '--no-pause', '--pregen', '--dev-mod', 'C:\\Users\\USER\\AppData\\Local\\Temp\\hzseat-86j7e11p\\cinder_fox\\content'] -> {"game": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\debug\\horizon-client.exe", "home": null, "log": "C:\\Users\\USER\\AppData\\Local\\Temp\\hzlan-guest-4ky_twhj\\c.log", "ok": true, "pid": 21100, "resources": null, "socket": "C:\\Users\\USER\\AppData\\Local\\Temp\\hzlan-guest-4ky_twhj\\c.sock", "source": "beside horizon-ctl", "version": null}
+[host] ['lan', 'open', 0, 'commands'] -> {"ok": true, "port": 49350}
+[guest] ['connect', '127.0.0.1:49350', 'Guest'] -> {"ok": true}
+[guest] ['wait-for', 'loaded', '--timeout', 300] -> {"ok": true, "screen": "playing", "waited_seconds": 3.0221531}
+[guest] ['command', 'tp @s 0.5 70 5.5'] -> {"ok": true}
+[guest] ['wait', '60'] -> {"ok": true, "ticks": 136}
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.7760567931408516, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.3920212978085796, 70.0, 6.053708511863522], "type": "minecraft:player"}, {"baby": false, "distance": 2.6883945356987384, "health": 4.0, "hurt_time": 0, "id": 25, "kind": "mob", "pos": [0.07757321737514644, 70.8, 2.7674988099435485], "type": "minecraft:chicken"}, {"baby": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.7760567931408516, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.3920212978085796, 70.0, 6.053708511863522], "type": "minecraft:player"}, {"baby": false, "distance": 2.6883945356987384, "health": 4.0, "hurt_time": 0, "id": 25, "kind": "mob", "pos": [0.07757321737514644, 70.8, 2.7674988099435485], "type": "minecraft:chicken"}, {"baby": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.9394083724068866, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5405620726863541, 70.0, 5.292000047699723], "type": "minecraft:player"}, {"baby": false, "distance": 3.5588262166461777, "health": 4.0, "hurt_time": 0, "id": 25, "kind": "mob", "pos": [0.07191477666468071, 70.8, 2.758346746760918], "type": "minecraft:chicken"}, {"baby":
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.9394083724068866, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5405620726863541, 70.0, 5.292000047699723], "type": "minecraft:player"}, {"baby": false, "distance": 3.5588262166461777, "health": 4.0, "hurt_time": 0, "id": 25, "kind": "mob", "pos": [0.07191477666468071, 70.8, 2.758346746760918], "type": "minecraft:chicken"}, {"baby":
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.9394083724068866, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5405620726863541, 70.0, 5.292000047699723], "type": "minecraft:player"}, {"baby": false, "distance": 3.5588262166461777, "health": 4.0, "hurt_time": 0, "id": 25, "kind": "mob", "pos": [0.07191477666468071, 70.8, 2.758346746760918], "type": "minecraft:chicken"}, {"baby":
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.9394083724068866, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5405620726863541, 70.0, 5.292000047699723], "type": "minecraft:player"}, {"baby": false, "distance": 3.5588262166461777, "health": 4.0, "hurt_time": 0, "id": 25, "kind": "mob", "pos": [0.07191477666468071, 70.8, 2.758346746760918], "type": "minecraft:chicken"}, {"baby":
+[host] ['command', 'kill @e[type=minecraft:chicken,sort=nearest,limit=1,x=0.07191477666468071,y=70.8,z=2.758346746760918,distance=..0.3]'] -> {"chat": ["\u30cb\u30ef\u30c8\u30ea\u3092\u30ad\u30eb\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '40'] -> {"ok": true, "ticks": 4175}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.9394083724068866, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5405620726863541, 70.0, 5.292000047699723], "type": "minecraft:player"}, {"distance": 3.674815311840782, "id": 284, "item": {"count": 2, "item": "minecraft:feather"}, "kind": "item", "pos": [0.02964997948403223, 70.0, 2.554171482941622], "type": "minecraft:item"}, {"bab
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.9394083724068866, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5405620726863541, 70.0, 5.292000047699723], "type": "minecraft:player"}, {"distance": 3.674815311840782, "id": 284, "item": {"count": 2, "item": "minecraft:feather"}, "kind": "item", "pos": [0.02964997948403223, 70.0, 2.554171482941622], "type": "minecraft:item"}, {"bab
+[host] ['command', 'kill @e[type=sample_mobs:cinder_fox,limit=1]'] -> {"chat": ["entity.sample_mobs.cinder_fox\u3092\u30ad\u30eb\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '60'] -> {"ok": true, "ticks": 4255}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.9394083724068866, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5405620726863541, 70.0, 5.292000047699723], "type": "minecraft:player"}, {"distance": 3.674815311840782, "id": 284, "item": {"count": 2, "item": "minecraft:feather"}, "kind": "item", "pos": [0.02964997948403223, 70.0, 2.554171482941622], "type": "minecraft:item"}, {"bab
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.9394083724068866, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5405620726863541, 70.0, 5.292000047699723], "type": "minecraft:player"}, {"distance": 3.674815311840782, "id": 284, "item": {"count": 2, "item": "minecraft:feather"}, "kind": "item", "pos": [0.02964997948403223, 70.0, 2.554171482941622], "type": "minecraft:item"}, {"bab
+[host] ['command', 'kill @e[type=sample_mobs:cinder_fox]'] -> {"chat": ["\u30a8\u30f3\u30c6\u30a3\u30c6\u30a3\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3067\u3057\u305f"], "ok": true}
+[host] ['command', 'kill @e[type=sample_mobs:cinder_fox_mouth]'] -> {"chat": ["\u30a8\u30f3\u30c6\u30a3\u30c6\u30a3\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3067\u3057\u305f"], "ok": true}
+[host] ['command', 'kill @e[type=minecraft:chicken]'] -> {"chat": ["3\u4f53\u306e\u30a8\u30f3\u30c6\u30a3\u30c6\u30a3\u3092\u30ad\u30eb\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '25'] -> {"ok": true, "ticks": 4306}
+[host] ['command', 'clear @s'] -> {"chat": ["\u30d7\u30ec\u30a4\u30e4\u30fcPlayer43466\u306f\u30a2\u30a4\u30c6\u30e0\u3092\u6301\u3063\u3066\u3044\u307e\u305b\u3093\u3067\u3057\u305f"], "ok": true}
+[guest] ['command', 'clear @s'] -> {"ok": true}
+[host] ['select', 1] -> {"held": null, "ok": true, "selected": 1}
+[guest] ['select', 1] -> {"held": null, "ok": true, "selected": 1}
+[host] ['command', 'summon sample_mobs:cinder_fox 0.5 70 2.5'] -> {"chat": ["\u65b0\u3057\u304fentity.sample_mobs.cinder_fox\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 4341}
+[host] ['command', 'tp @s 0.5 70 4.7'] -> {"chat": ["Player43466\u30920.500000, 70.000000, 4.700000\u306b\u30c6\u30ec\u30dd\u30fc\u30c8\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 4360}
+[host] ['use-entity', '--type', 'sample_mobs:cinder_fox'] -> {"ok": true, "riding": 292, "screen": "playing", "target": 292, "type": "sample_mobs:cinder_fox"}
+[host] ['wait', '8'] -> {"ok": true, "ticks": 4383}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.20000000000000284, "health": 14.0, "hurt_time": 0, "id": 292, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox"}, {"baby": false, "distance": 2.799448079192731, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5405620726863541, 70.0, 5.292000047699723], "type": "minecraft:player"}, {"distance": 9.020988736630496,
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "creative", "held": {"count": 2, "item": "minecraft:chicken"}, "input": {"counts": {"agent": 40, "game": 0, "user": 0}, "events": 40, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": {"block": "minecraft:stone", ...
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.20000000000000284, "health": 14.0, "hurt_time": 0, "id": 292, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox"}, {"baby": false, "distance": 2.799448079192731, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5405620726863541, 70.0, 5.292000047699723], "type": "minecraft:player"}, {"distance": 9.020988736630496,
+[host] ['move', 'forward', 0.9] -> {"from": [0.5, 70.2, 2.5], "moved": 1.315740173445213, "ok": true, "position": [0.757568359375, 70.2, 1.209716796875]}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 4441}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.20000000000000284, "health": 14.0, "hurt_time": 0, "id": 292, "kind": "mob", "pos": [2.21142578125, 70.0, -4.699951171875], "type": "sample_mobs:cinder_fox"}, {"distance": 7.505536404575625, "id": 288, "item": {"count": 1, "item": "minecraft:feather"}, "kind": "item", "pos": [-5.286145921999012, 70.0, -4.418002107237932], "type": "minecraft:item"}, {"dis
+[host] ['move', 'forward', 0.0] -> {"from": [2.21142578125, 70.2, -4.699951171875], "moved": 0.0, "ok": true, "position": [2.21142578125, 70.2, -4.699951171875]}
+[host] ['wait', '5'] -> {"ok": true, "ticks": 4486}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.20000000000000284, "health": 14.0, "hurt_time": 0, "id": 292, "kind": "mob", "pos": [2.3037109375, 70.0, -4.699951171875], "type": "sample_mobs:cinder_fox"}, {"distance": 7.597724818834512, "id": 288, "item": {"count": 1, "item": "minecraft:feather"}, "kind": "item", "pos": [-5.286145921999012, 70.0, -4.418002107237932], "type": "minecraft:item"}, {"dist
+[guest] ['command', 'tp @s 2.30 70.00 -2.50'] -> {"ok": true}
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 2.1999543017279506, "health": 14.0, "hurt_time": 0, "id": 292, "kind": "mob", "pos": [2.3037109375, 70.0, -4.699951171875], "type": "sample_mobs:cinder_fox"}, {"baby": false, "distance": 2.2090266928426456, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [2.3037109375, 70.2, -4.699951171875], "type": "minecraft:player"}, {"distance": 7.82485
+[guest] ['use-entity', '292'] -> {"error": "that entity is out of reach or hidden; get closer"}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.20000000000000284, "health": 14.0, "hurt_time": 0, "id": 292, "kind": "mob", "pos": [2.3037109375, 70.0, -4.699951171875], "type": "sample_mobs:cinder_fox"}, {"baby": false, "distance": 2.2090266928426456, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [2.3, 70.0, -2.5], "type": "minecraft:player"}, {"distance": 7.597724818834512, "id":
+[guest] ['command', 'tp @s 2.30 70.00 -2.50'] -> {"ok": true}
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 2.1999543017279506, "health": 14.0, "hurt_time": 0, "id": 292, "kind": "mob", "pos": [2.3037109375, 70.0, -4.699951171875], "type": "sample_mobs:cinder_fox"}, {"baby": false, "distance": 2.2090266928426456, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [2.3037109375, 70.2, -4.699951171875], "type": "minecraft:player"}, {"distance": 7.82485
+[guest] ['use-entity', '292'] -> {"error": "that entity is out of reach or hidden; get closer"}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.20000000000000284, "health": 14.0, "hurt_time": 0, "id": 292, "kind": "mob", "pos": [2.3037109375, 70.0, -4.699951171875], "type": "sample_mobs:cinder_fox"}, {"baby": false, "distance": 2.2090266928426456, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [2.3, 70.0, -2.5], "type": "minecraft:player"}, {"distance": 7.597724818834512, "id":
+[guest] ['command', 'tp @s 2.30 70.00 -2.50'] -> {"ok": true}
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 2.1999543017279506, "health": 14.0, "hurt_time": 0, "id": 292, "kind": "mob", "pos": [2.3037109375, 70.0, -4.699951171875], "type": "sample_mobs:cinder_fox"}, {"baby": false, "distance": 2.2090266928426456, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [2.3037109375, 70.2, -4.699951171875], "type": "minecraft:player"}, {"distance": 7.82485
+[guest] ['use-entity', '292'] -> {"error": "that entity is out of reach or hidden; get closer"}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.20000000000000284, "health": 14.0, "hurt_time": 0, "id": 292, "kind": "mob", "pos": [2.3037109375, 70.0, -4.699951171875], "type": "sample_mobs:cinder_fox"}, {"baby": false, "distance": 2.2090266928426456, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [2.3, 70.0, -2.5], "type": "minecraft:player"}, {"distance": 7.597724818834512, "id":
+[guest] ['command', 'tp @s 2.30 70.00 -2.50'] -> {"ok": true}
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 2.1999543017279506, "health": 14.0, "hurt_time": 0, "id": 292, "kind": "mob", "pos": [2.3037109375, 70.0, -4.699951171875], "type": "sample_mobs:cinder_fox"}, {"baby": false, "distance": 2.2090266928426456, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [2.3037109375, 70.2, -4.699951171875], "type": "minecraft:player"}, {"distance": 7.82485
+[guest] ['use-entity', '292'] -> {"error": "that entity is out of reach or hidden; get closer"}
+[host] ['key', 'lshift', 'tap'] -> {"ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 4591}
+[host] ['command', 'kill @e[tag=m4,limit=1]'] -> {"chat": ["\u30a8\u30f3\u30c6\u30a3\u30c6\u30a3\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3067\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 4606}
+[host] ['command', 'summon minecraft:chicken 0 70 10.0 {Tags:["m0"]}'] -> {"chat": ["\u65b0\u3057\u304f\u30cb\u30ef\u30c8\u30ea\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 4622}
+[host] ['command', 'ride @e[tag=m0,limit=1] mount @e[type=sample_mobs:cinder_fox,limit=1]'] -> {"chat": ["\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox\u306b\u9a0e\u4e57\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 4638}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.20000000000000284, "health": 14.0, "hurt_time": 0, "id": 292, "kind": "mob", "pos": [2.3037109375, 70.0, -4.699951171875], "type": "sample_mobs:cinder_fox"}, {"baby": false, "distance": 0.7810249675906612, "health": 4.0, "hurt_time": 0, "id": 293, "kind": "mob", "pos": [1.8091226825176097, 70.8, -4.773316409102681], "type": "minecraft:chicken"}, {"baby":
+[host] ['command', 'tp @s 2.30 70.00 -2.50'] -> {"chat": ["Player43466\u30922.300000, 70.000000, -2.500000\u306b\u30c6\u30ec\u30dd\u30fc\u30c8\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '8'] -> {"ok": true, "ticks": 4654}
+[host] ['use-entity', '--type', 'sample_mobs:cinder_fox'] -> {"error": "that entity is out of reach or hidden; get closer"}
+[host] ['key', 'lshift', 'tap'] -> {"ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 4672}
+[host] ['command', 'kill @e[type=sample_mobs:cinder_fox]'] -> {"chat": ["entity.sample_mobs.cinder_fox\u3092\u30ad\u30eb\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'kill @e[type=sample_mobs:cinder_fox_mouth]'] -> {"chat": ["\u30a8\u30f3\u30c6\u30a3\u30c6\u30a3\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3067\u3057\u305f"], "ok": true}
+[host] ['command', 'kill @e[type=minecraft:chicken]'] -> {"chat": ["\u30cb\u30ef\u30c8\u30ea\u3092\u30ad\u30eb\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '25'] -> {"ok": true, "ticks": 4708}
+[host] ['command', 'summon sample_mobs:cinder_fox_mouth 0.5 70 2.5'] -> {"chat": ["\u65b0\u3057\u304fentity.sample_mobs.cinder_fox_mouth\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'summon minecraft:chicken 0.5 70 9.5 {Tags:["ml"]}'] -> {"chat": ["\u65b0\u3057\u304f\u30cb\u30ef\u30c8\u30ea\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 4726}
+[host] ['command', 'ride @e[tag=ml,limit=1] mount @e[type=sample_mobs:cinder_fox_mouth,limit=1]'] -> {"chat": ["\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox_mouth\u306b\u9a0e\u4e57\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 4741}
+[host] ['command', 'tp @s 0.5 70 5.5'] -> {"chat": ["Player43466\u30920.500000, 70.000000, 5.500000\u306b\u30c6\u30ec\u30dd\u30fc\u30c8\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '6'] -> {"ok": true, "ticks": 4754}
+[host] ['look-at', '0.50', '70.50', '2.50'] -> {"ok": true, "pitch": 20.472280502319336, "yaw": -180.0}
+[guest] ['command', 'tp @s 0.5 70 5.5'] -> {"ok": true}
+[guest] ['wait', '6'] -> {"ok": true, "ticks": 805}
+[guest] ['look-at', '0.50', '70.50', '2.50'] -> {"ok": true, "pitch": 20.472280502319336, "yaw": -180.0}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 4786}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['command', 'horizon custommobs trigger @e[type=sample_mobs:cinder_fox_mouth,limit=1] pounce'] -> {"chat": ["Fired pounce on 1 custom mob(s)"], "ok": true}
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4801}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.7372963276315545, "health": 4.0, "hurt_time": 0, "id":
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.736009731098611, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.74411340616684, "health": 4.0, "hurt_time": 0, "id": 297
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.746346254304925, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4814}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4826}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4839}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4852}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4865}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4878}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4891}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4904}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4916}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4928}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4941}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4954}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4967}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4980}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['wait', '1'] -> {"ok": true, "ticks": 4992}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[guest] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 1, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 296, "kind": "mob", "pos": [0.5, 70.0, 2.5], "type": "sample_mobs:cinder_fox_mouth"}, {"baby": false, "distance": 3.743058810566106, "health": 4.0, "hurt_time": 0, "id": 29
+[host] ['command', 'kill @e[type=sample_mobs:cinder_fox]'] -> {"chat": ["\u30a8\u30f3\u30c6\u30a3\u30c6\u30a3\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3067\u3057\u305f"], "ok": true}
+[host] ['command', 'kill @e[type=sample_mobs:cinder_fox_mouth]'] -> {"chat": ["entity.sample_mobs.cinder_fox_mouth\u3092\u30ad\u30eb\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'kill @e[type=minecraft:chicken]'] -> {"chat": ["\u30cb\u30ef\u30c8\u30ea\u3092\u30ad\u30eb\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '25'] -> {"ok": true, "ticks": 5036}
+[host] ['command', 'summon sample_mobs:cinder_fox_mouth 0.5 70 2.5 {Age:-24000}'] -> {"chat": ["\u65b0\u3057\u304fentity.sample_mobs.cinder_fox_mouth\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'summon minecraft:chicken 0.5 70 9.5 {Tags:["mb"]}'] -> {"chat": ["\u65b0\u3057\u304f\u30cb\u30ef\u30c8\u30ea\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 5055}
+[host] ['command', 'ride @e[tag=mb,limit=1] mount @e[type=sample_mobs:cinder_fox_mouth,limit=1]'] -> {"chat": ["\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox_mouth\u306b\u9a0e\u4e57\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '15'] -> {"ok": true, "ticks": 5075}
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 2.271597730673281, "health": 4.0, "hurt_time": 0, "id": 302, "kind": "mob", "pos": [0.5, 70.3125, 3.25], "type": "minecraft:chicken"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 301, "k
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 2.271597730673281, "health": 4.0, "hurt_time": 0, "id": 302, "kind": "mob", "pos": [0.5, 70.3125, 3.25], "type": "minecraft:chicken"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 301, "k
+[host] ['entities', 40] -> {"entities": [{"baby": false, "distance": 0.0, "health": 20.0, "hurt_time": 0, "id": 283, "kind": "mob", "pos": [0.5, 70.0, 5.5], "type": "minecraft:player"}, {"baby": false, "distance": 2.271597730673281, "health": 4.0, "hurt_time": 0, "id": 302, "kind": "mob", "pos": [0.5, 70.3125, 3.25], "type": "minecraft:chicken"}, {"baby": false, "distance": 3.0, "health": 14.0, "hurt_time": 0, "id": 301, "k
+[host] ['screenshot', 'C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\e3-seats-nowasm\\host-end.png'] -> {"height": 900, "ok": true, "width": 1600}
+[guest] ['screenshot', 'C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\e3-seats-nowasm\\guest-end.png'] -> {"height": 900, "ok": true, "width": 1600}
+[guest] ['quit'] -> {"ok": true}
+[host] ['quit'] -> {"ok": true}
+{
+ "ride3": {
+  "pass": true,
+  "detail": {
+   "offsets_from_vehicle": [
+    [
+     0.0,
+     0.8
+    ],
+    [
+     0.5,
+     0.8
+    ],
+    [
+     0.5,
+     0.8
+    ],
+    [
+     7.0,
+     0.0
+    ]
+   ],
+   "ride_replies": [
+    [
+     "\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox\u306b\u9a0e\u4e57\u3055\u305b\u307e\u3057\u305f"
+    ],
+    [
+     "\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox\u306b\u9a0e\u4e57\u3055\u305b\u307e\u3057\u305f"
+    ],
+    [
+     "\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox\u306b\u9a0e\u4e57\u3055\u305b\u307e\u3057\u305f"
+    ],
+    [
+     "\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox\u306b\u9a0e\u4e57\u3055\u305b\u308b\u3053\u3068\u306b\u5931\u6557\u3057\u307e\u3057\u305f"
+    ]
+   ]
+  }
+ },
+ "guest": {
+  "pass": true,
+  "detail": {
+   "offsets_on_the_guest": [
+    [
+     0.0,
+     0.8
+    ],
+    [
+     0.5,
+     0.8
+    ],
+    [
+     0.5,
+     0.8
+    ],
+    [
+     28.91,
+     -4.0
+    ]
+   ]
+  }
+ },
+ "stay": {
+  "pass": true,
+  "detail": {
+   "before": [
+    [
+     0.0,
+     0.8
+    ],
+    [
+     0.5,
+     0.8
+    ],
+    [
+     0.5,
+     0.8
+    ]
+   ],
+   "after": [
+    [
+     0.0,
+     0.8
+    ],
+    [
+     0.5,
+     0.8
+    ]
+   ]
+  }
+ },
+ "vehicle": {
+  "pass": true,
+  "detail": {
+   "vehicle_removed": true,
+   "chickens_left": 3
+  }
+ },
+ "use_entity": {
+  "pass": true,
+  "detail": {
+   "reply": {
+    "ok": true,
+    "riding": 292,
+    "screen": "playing",
+    "target": 292,
+    "type": "sample_mobs:cinder_fox"
+   },
+   "host_offset": [
+    0.0,
+    0.2
+   ],
+   "steer_dist": 7.401
+  }
+ },
+ "multi_player": {
+  "pass": false,
+  "detail": {
+   "guest_reply": {
+    "error": "use-entity 292: {'error': 'that entity is out of reach or hidden; get closer'}"
+   },
+   "guest_replies": [
+    {
+     "error": "use-entity 292: {'error': 'that entity is out of reach or hidden; get closer'}"
+    },
+    {
+     "error": "use-entity 292: {'error': 'that entity is out of reach or hidden; get closer'}"
+    },
+    {
+     "error": "use-entity 292: {'error': 'that entity is out of reach or hidden; get closer'}"
+    },
+    {
+     "error": "use-entity 292: {'error': 'that entity is out of reach or hidden; get closer'}"
+    }
+   ],
+   "error": "AssertionError('guest use-entity failed after retries: [{\\'error\\': \"use-entity 292: {\\'error\\': \\'that entity is out of reach or hidden; get closer\\'}\"}, {\\'error\\': \"use-entity 292: {\\'error\\': \\'that entity is out of reach or hidden; get closer\\'}\"}, {\\'error\\': \"use-entity 292: {\\'error\\': \\'that entity is out of reach or hidden; get closer\\'}\"}, {\\'error\\': \"use-entity 292: {\\'error\\': \\'that entity is out of reach or hidden; get closer\\'}\"}]')"
+  }
+ },
+ "reload": {
+  "pass": false,
+  "detail": {
+   "reply": null,
+   "error": "Failed(\"use-entity --type sample_mobs:cinder_fox: {'error': 'that entity is out of reach or hidden; get closer'}\")"
+  }
+ },
+ "locator": {
+  "pass": false,
+  "detail": {
+   "host_rest": [
+    0.75,
+    0.31
+   ],
+   "guest_rest": [
+    0.75,
+    0.31
+   ],
+   "host_pounce_delta": 0.25,
+   "guest_pounce_delta": 0.11,
+   "baby_flag": false,
+   "baby_offset": [
+    0.75,
+    0.31
+   ]
+  }
+ }
+}

@@ -171,3 +171,13 @@ Merged vps/yoake-free/f4m-fix3 (770009182) and vps/yoake-free/f4m-seats2 (377496
 - custom_mob_render_e2e.py --wasm: strike FAIL (0 server frames; host and guest health 20 -> 20). After "target: mob 361 picked Player" the guest still logs `pounce can_use None (... target Some((None, true)), visible Some(true), has target_position Some(true)) target distance Some(3.16)`: the target uuid is still None in-game, so no "script attack" line. Other checks pass.
 - custom_mob_seats_e2e.py: ride3, guest, stay, vehicle pass in both runs. use_entity now boards (`ok: true, riding: 316`, steer distance 11.2) but FAILs on the offset check (host offset (0.0, 0.2)). The run then aborts: the guest's `use-entity` gets "that entity is out of reach or hidden; get closer" (the host steered the vehicle ~11 blocks away first), so multi_player, reload and locator did not run.
 - --seat-wasm seat_set: FAIL, offset (0.0, 0.8) (seat 0) while the server log says `seat-set vehicle 19 seat 1 rider Some(13): mob 13 now holds seat Some(1)`: the server holds seat 1 but clients place the rider at seat 0.
+
+## WASM-CPU-LIMIT + SEATS2 (afc240763) rerun (GALLERIA, 2026-11-21)
+
+Merged vps/yoake-free/wasm-cpu-limit (c3672808d) and vps/yoake-free/f4m-seats2 (afc240763), no conflicts (HEAD 513ab83ec). Rebuilt horizon-client/ctl, and fox_ai / seat_fox guests fresh in separate targets (target/fox-ai-e2e, target/seat-fox-e2e). `cargo test -p horizon-client-lib --lib custom`: 254 passed. Logs: `logs/e3-{data,wasm,seats-wasm,seats-nowasm}.log`.
+
+- render, data goal: all checks pass (strike included).
+- render --wasm: the mod is no longer disabled (no "disabled" line; can_use returns Some(..)). The pounce strike lands once (server frame tick 5890) but on the guest (guest 20 -> 17, host 20 -> 20); the check expects the host, so strike FAILs. All other checks pass.
+- seats --seat-wasm: seat_set, ride3, guest, stay, vehicle, use_entity pass. multi_player and reload FAIL: the guest's use-entity still gets "that entity is out of reach or hidden; get closer" after the retries. locator FAIL: pounce delta host 0.29 / guest 0.10, baby_flag false.
+- seats without --seat-wasm: same as above minus seat_set (locator pounce delta host 0.25 / guest 0.11).
+- Earlier "wasm trap: interrupt" on the first mob_goal_can_use (wall-clock limit) did not recur with the per-call CPU-time limit.
