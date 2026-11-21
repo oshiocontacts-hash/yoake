@@ -500,6 +500,23 @@ pub fn rewrite_dep_info(dep: &Path, overlay_root: &Path, cwd: &Path, workspace: 
     for ((from, _), (to, _)) in forms(overlay_root).into_iter().zip(workspace_forms) {
         text = text.replace(&from, &to);
     }
+    // The generated bridge files exist only in the overlay: after the paths are mapped to the workspace they name files
+    // that are not there, and cargo then calls the crate dirty ("the file is missing") on every build. They are
+    // functions of the sources and the ledger, which are dependencies already.
+    let is_generated = |token: &str| token.contains("yoake_glue/hook_bridge_") || token.contains("yoake_glue\\hook_bridge_");
+    let text = text
+        .lines()
+        .filter(|line| !(line.ends_with(':') && is_generated(line)))
+        .map(|line| {
+            if line.contains(": ") {
+                line.split(' ').filter(|t| !is_generated(t)).collect::<Vec<_>>().join(" ")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(char::from(10).to_string().as_str())
+        + char::from(10).to_string().as_str();
     let ledger = workspace.join("hook-ledger");
     let mut extra_deps: Vec<String> = Vec::new();
     for name in [format!("{ident}.json"), "stamp-config.txt".to_string(), "stamp-allow.txt".to_string()] {
