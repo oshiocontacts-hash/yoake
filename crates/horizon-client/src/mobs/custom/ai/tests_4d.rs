@@ -25,7 +25,7 @@ fn at(x: f64, z: f64) -> Vec3 {
     Vec3::new(x, 1.0, z)
 }
 
-/// The fox type with `seats` (and no `tameable`, so anyone may ride it).
+/// The fox type with `seats`, without the fixture's taming and owner goals.
 fn seated(seats: Value) -> Arc<CustomType> {
     fox_type_with(json!({"navigator": "ground", "goals": []}), |v| {
         v.as_object_mut().unwrap().remove("tameable");
@@ -400,6 +400,21 @@ fn the_seat_set_command_seats_and_frees_a_rider() {
     // Freeing an empty seat does nothing.
     riding::seat_set(&mut mobs, 1, 0, None);
     assert_eq!(claims(&mobs[0]), [(3, 1)]);
+}
+
+/// A nonzero index survives settlement and selects that seat's attachment, not the first seat's.
+#[test]
+fn seat_set_keeps_the_requested_nonzero_seat() {
+    let t = seated(json!([
+        {"offset": [0.0, 0.8, 0.0], "controls": "player"},
+        {"offset": [0.5, 0.8, 0.0]}
+    ]));
+    let mut mobs = vec![vehicle(&t), chicken(2)];
+    riding::seat_set(&mut mobs, 1, 1, Some(2));
+    sync(&mut mobs);
+    assert_eq!(claims(&mobs[0]), [(2, 1)]);
+    let aboard = [&mobs[1]];
+    assert_eq!(riding::mob_rider_attachment(&mobs[0], &mobs[1], &aboard), [0.5, 0.8, 0.0]);
 }
 
 /// A native mod that vetoes (`EntityMountEvent` canceled) stops `seat-set` boarding and freeing, and the AI

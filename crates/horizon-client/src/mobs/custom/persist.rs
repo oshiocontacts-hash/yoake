@@ -160,6 +160,7 @@ pub fn write(tag: &mut Tag, m: &Mob) {
 }
 
 /// Reads the `yoake` compound of a saved custom mob into `m` (which `Mob::new` gave the defaults).
+/// Vanilla's top-level `Age` is also accepted, so summon NBT can make a baby.
 pub fn read(m: &mut Mob, tag: &Tag) {
     let Some(t) = m.kind.custom.clone() else {
         return;
@@ -168,6 +169,7 @@ pub fn read(m: &mut Mob, tag: &Tag) {
         .extra
         .custom
         .get_or_insert_with(|| Box::new(CustomState::new(&t)));
+    m.extra.age = number(tag.get("Age")).unwrap_or(0) as i32;
     let Some(yoake @ Tag::Compound(_)) = tag.get("yoake") else {
         return;
     };
@@ -203,7 +205,7 @@ pub fn read(m: &mut Mob, tag: &Tag) {
     m.extra.owner = crate::save::uuid_from_tag(yoake.get("owner"));
     m.extra.tame = m.extra.owner.is_some();
     m.extra.sitting = m.extra.tame && number(yoake.get("sitting")).is_some_and(|n| n != 0);
-    m.extra.age = number(yoake.get("age")).unwrap_or(0) as i32;
+    m.extra.age = number(yoake.get("age")).unwrap_or(i64::from(m.extra.age)) as i32;
     m.extra.in_love = number(yoake.get("love")).unwrap_or(0).max(0) as i32;
     if let Some(rest @ Tag::Compound(_)) = yoake.get("rest") {
         state.rest.home = block_pos(rest.get("home"));
@@ -455,6 +457,23 @@ mod tests {
         // The entity compound of a vanilla mob never gets any of it.
         let cow = Mob::new(1, crate::mobs::sensor_scan_tests::kind(), Vec3::ZERO, 0.0);
         assert!(mob_to_nbt(&cow, UUID, None, None).get("yoake").is_none());
+    }
+
+    /// Vanilla summon NBT makes a custom mob a baby even before it has a `yoake` compound; a saved
+    /// `yoake.age` still wins over the stale input key on a later load.
+    #[test]
+    fn vanilla_age_nbt_makes_a_custom_mob_a_baby() {
+        let types = types();
+        let mut tag = mob_to_nbt(&fox(&types), UUID, None, None);
+        let Tag::Compound(root) = &mut tag else { panic!("entity compound") };
+        root.remove(&"yoake".into());
+        root.insert("Age".into(), Tag::Int(-24000));
+        let baby = mob_from_nbt(&tag, &types, 9, None).unwrap();
+        assert_eq!(baby.extra.age, -24000);
+        assert!(baby.is_baby());
+        let saved = mob_to_nbt(&baby, UUID, Some(&tag), None);
+        assert_eq!(number(saved.get("yoake").unwrap().get("age")), Some(-24000));
+        assert_eq!(mob_from_nbt(&saved, &types, 9, None).unwrap().extra.age, -24000);
     }
 
     /// The rest place and home of `sleep_in_bed_like` are saved in `yoake.rest`, read back, and
