@@ -499,3 +499,58 @@ fn the_seats_of_a_vehicle_reach_the_client_and_the_newest_frame_wins() {
     let done = c.apply_payload(&other, &kinds(&s)).unwrap();
     assert_eq!((done.seats, done.dropped), (0, 1));
 }
+
+/// F4M-SEATS3: a client puts a mob rider on the seat the server's `Seats` names (late join and a later
+/// change), not on the one its order among the riders gives.
+mod seat_claims {
+    use super::super::RemoteCustomMobs;
+    use crate::lan::mob_sync;
+    use crate::mobs::custom::{
+        ai::riding,
+        anim_sync::tests::{fox_mob, fox_type_with},
+    };
+    use horizon_core::geometry::Vec3;
+    use horizon_protocol::mob_sync::{Frame, Message, SeatEntry, Seats};
+    use serde_json::json;
+
+    #[test]
+    fn client_uses_seat_claims_from_snapshot_and_changes() {
+        let kind = fox_type_with(json!({"navigator": "ground", "goals": []}), |v| {
+            v["seats"] = json!([
+                {"offset": [0.0, 0.8, 0.0]},
+                {"offset": [0.5, 0.8, 0.0]}
+            ]);
+        });
+        let vehicle = fox_mob(&kind, Vec3::ZERO);
+        let mut rider = fox_mob(&kind, Vec3::ZERO);
+        rider.id = 13;
+        rider.extra.mount = Some(1);
+        let mut mobs = vec![vehicle, rider];
+        let aboard = [&mobs[1]];
+        assert_eq!(riding::mob_rider_seat(&mobs[0], &mobs[1], &aboard), Some(0));
+
+        let mut remote = RemoteCustomMobs::default();
+        let kinds = |entity| (entity == 1).then(|| kind.clone());
+        let mut join = Frame::new(10);
+        join.messages = vec![
+            Message::Snapshot(mob_sync::snapshot(&mobs[0]).unwrap()),
+            Message::Seats(Seats { entity: 1, seats: vec![SeatEntry { rider: 13, seat: 1 }] }),
+        ];
+        remote.apply(&join, &kinds);
+        remote.copy_seat_claims(&mut mobs, [0; 4], 99);
+        let aboard = [&mobs[1]];
+        assert_eq!(riding::mob_rider_seat(&mobs[0], &mobs[1], &aboard), Some(1));
+        assert_eq!(riding::mob_rider_attachment(&mobs[0], &mobs[1], &aboard), [0.5, 0.8, 0.0]);
+
+        let mut change = Frame::new(11);
+        change.messages = vec![Message::Seats(Seats {
+            entity: 1,
+            seats: vec![SeatEntry { rider: 13, seat: 0 }],
+        })];
+        remote.apply(&change, &kinds);
+        remote.copy_seat_claims(&mut mobs, [0; 4], 99);
+        let aboard = [&mobs[1]];
+        assert_eq!(riding::mob_rider_seat(&mobs[0], &mobs[1], &aboard), Some(0));
+        assert_eq!(riding::mob_rider_attachment(&mobs[0], &mobs[1], &aboard), [0.0, 0.8, 0.0]);
+    }
+}

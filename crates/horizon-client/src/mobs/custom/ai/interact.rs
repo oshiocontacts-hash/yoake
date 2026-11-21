@@ -13,7 +13,9 @@
 //! 3. the **implicit shortcuts** of the type's data, in this order: put on the `saddle_item`; `tame`
 //!    with a `tameable.items` item; `feed` with `breedable.food`; the owner's click on a tamed mob
 //!    that `sits_on_command` makes it sit or stand; `ride` when the type has seats and the player
-//!    may sit on one.
+//!    may sit on one. On a tamed mob **with seats** (a vehicle) the owner's plain click rides (when a
+//!    seat is free, else nothing) and the owner's sneaking click toggles sit (Yoake's decision,
+//!    F4M-SEATS2); anyone else's click does nothing there (a tameable type is ridden by its owner).
 //!
 //! [`dispatch`] changes the mob (owner, love, sitting) and returns the [`Outcome`]: the reply and the
 //! [`Action`]s only the game can do (use up the item, give an item, seat the player, show hearts).
@@ -189,9 +191,20 @@ fn implicit(m: &mut Mob, ctx: &Context) -> Outcome {
     {
         return o;
     }
+    let owner = tame::is_tamed(m) && crate::mobs::tame::owned_by(m.extra.owner, ctx.player);
+    // A tamed vehicle: the owner's plain click rides, the sneaking click is the sit order.
+    if owner && riding::has_seats(m) {
+        if ctx.sneaking {
+            if tame::toggle_sit(m).is_some() {
+                return Outcome::done(Reply::Success, Vec::new());
+            }
+        } else if let Some(o) = ride(ctx) {
+            return o;
+        }
+        return Outcome::pass();
+    }
     // The owner's order to sit or stand: a click that is not food.
-    if tame::is_tamed(m)
-        && crate::mobs::tame::owned_by(m.extra.owner, ctx.player)
+    if owner
         && !ctx.sneaking
         && let Some(on) = tame::toggle_sit(m)
     {

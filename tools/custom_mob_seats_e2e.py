@@ -226,86 +226,124 @@ def run(ctl, out, resources, seat_wasm=None):
         host.wait(10)
         host('command', command=f'tp @s {hx + 0.5} {hy} {hz - 2.3}')
         host.wait(10)
-        use_h = host.raw('use-entity', '--type', r.FOX)
-        host.wait(8)
-        h_off = player_offset(host)
-        v0 = vehicle(host)['pos']
-        host.raw('move', 'forward', 0.9)
-        host.wait(10)
-        v1 = vehicle(host)['pos']
-        steer_dist = round(math.hypot(v1[0] - v0[0], v1[2] - v0[2]), 3)
-        results['use_entity'] = {
-            'pass': h_off[0] < 0.25 and h_off[1] > 0.2 and steer_dist > 0.25,
-            'detail': {'reply': use_h, 'host_offset': h_off, 'steer_dist': steer_dist},
-        }
+        use_h = None
+        try:
+            use_h = host.raw('use-entity', '--type', r.FOX)
+            host.wait(8)
+            h_off = player_offset(host)
+            v0 = vehicle(host)['pos']
+            host.raw('move', 'forward', 0.9)
+            host.wait(10)
+            v1 = vehicle(host)['pos']
+            steer_dist = round(math.hypot(v1[0] - v0[0], v1[2] - v0[2]), 3)
+            results['use_entity'] = {
+                # Seat 0 is 0.8 above the vehicle's feet; Player.DEFAULT_VEHICLE_ATTACHMENT puts
+                # the player's feet 0.6 below that attachment point, hence 0.2 above the vehicle.
+                'pass': h_off[0] < 0.25 and abs(h_off[1] - 0.2) < 0.05 and steer_dist > 0.25,
+                'detail': {'reply': use_h, 'host_offset': h_off, 'steer_dist': steer_dist},
+            }
+        except (Failed, AssertionError, KeyError, StopIteration, IndexError, TypeError) as e:
+            results['use_entity'] = {'pass': False, 'detail': {'reply': use_h, 'error': repr(e)}}
 
-        vx, vy, vz = vehicle(guest)['pos']
-        guest('command', command=f'tp @s {vx:.2f} {vy:.2f} {vz + 2.2:.2f}')
-        guest.wait(10)
-        gv_id = vehicle(guest)['id']
-        use_g = guest.raw('use-entity', str(gv_id))
-        guest.wait(8)
-        g_off = player_offset(guest)
-        g0 = vehicle(host)['pos']
-        guest.raw('move', 'forward', 0.8)
-        guest.wait(10)
-        g1 = vehicle(host)['pos']
-        g_steer = round(math.hypot(g1[0] - g0[0], g1[2] - g0[2]), 3)
-        host('command', command=f'summon {CHICKEN} {hx} {hy} {hz + 3.0} {{Tags:["m3"]}}')
-        host('command', command=f'summon {CHICKEN} {hx + 1.0} {hy} {hz + 3.0} {{Tags:["m4"]}}')
-        host.wait(10)
-        host('command', command=f'ride @e[tag=m3,limit=1] mount {VEHICLE}')
-        host('command', command=f'ride @e[tag=m4,limit=1] mount {VEHICLE}')
-        host.wait(10)
-        full_offs = offsets(host)
-        guest.raw('disconnect')
-        time.sleep(2)
-        host.wait(20)
-        h_after_dc = player_offset(host)
-        host('command', command=f'ride @e[tag=m4,limit=1] mount {VEHICLE}')
-        host.wait(10)
-        freed_offs = offsets(host)
-        results['multi_player'] = {
-            'pass': (abs(g_off[0] - 0.5) < 0.2 and g_steer < 0.15 and full_offs[0][0] == 0.5
-                     and full_offs[1][0] >= 1.0 and h_after_dc[0] < 0.25 and freed_offs == [(0.5, 0.8), (0.5, 0.8)]),
-            'detail': {'guest_reply': use_g, 'guest_offset': g_off, 'guest_steer': g_steer,
-                       'full_offsets': full_offs, 'host_after_dc': h_after_dc, 'after_freed': freed_offs},
-        }
+        host.raw('move', 'forward', 0.0)
+        host.wait(5)
+        use_g = None
+        guest_replies = []
+        try:
+            for _ in range(4):
+                # The host drove away in use_entity. Use its current server-side vehicle position,
+                # then wait until the guest's own tracked copy agrees before clicking it.
+                hv = vehicle(host)
+                assert hv is not None, 'host has no vehicle'
+                hv_pos = hv['pos']
+                vx, vy, vz = hv_pos
+                guest('command', command=f'tp @s {vx:.2f} {vy:.2f} {vz + 2.2:.2f}')
+                gv = guest.until(lambda: vehicle(guest),
+                                 lambda v: v is not None and math.dist(v['pos'], hv_pos) < 0.25, ticks=60)
+                try:
+                    use_g = guest.raw('use-entity', str(gv['id']))
+                    guest_replies.append(use_g)
+                    break
+                except Failed as e:
+                    use_g = {'error': str(e)}
+                    guest_replies.append(use_g)
+            else:
+                raise AssertionError(f'guest use-entity failed after retries: {guest_replies}')
+            guest.wait(8)
+            g_off = player_offset(guest)
+            g0 = vehicle(host)['pos']
+            guest.raw('move', 'forward', 0.8)
+            guest.wait(10)
+            guest.raw('move', 'forward', 0.0)
+            g1 = vehicle(host)['pos']
+            g_steer = round(math.hypot(g1[0] - g0[0], g1[2] - g0[2]), 3)
+            host('command', command=f'summon {CHICKEN} {hx} {hy} {hz + 3.0} {{Tags:["m3"]}}')
+            host('command', command=f'summon {CHICKEN} {hx + 1.0} {hy} {hz + 3.0} {{Tags:["m4"]}}')
+            host.wait(10)
+            host('command', command=f'ride @e[tag=m3,limit=1] mount {VEHICLE}')
+            host('command', command=f'ride @e[tag=m4,limit=1] mount {VEHICLE}')
+            host.wait(10)
+            full_offs = offsets(host)
+            guest.raw('disconnect')
+            time.sleep(2)
+            host.wait(20)
+            h_after_dc = player_offset(host)
+            host('command', command=f'ride @e[tag=m4,limit=1] mount {VEHICLE}')
+            host.wait(10)
+            freed_offs = offsets(host)
+            results['multi_player'] = {
+                'pass': (abs(g_off[0] - 0.5) < 0.2 and g_steer < 0.15 and full_offs[0][0] == 0.5
+                         and full_offs[1][0] >= 1.0 and h_after_dc[0] < 0.25
+                         and freed_offs == [(0.5, 0.8), (0.5, 0.8)]),
+                'detail': {'guest_reply': use_g, 'guest_replies': guest_replies, 'guest_offset': g_off,
+                           'guest_steer': g_steer, 'full_offsets': full_offs, 'host_after_dc': h_after_dc,
+                           'after_freed': freed_offs},
+            }
+        except (Failed, AssertionError, KeyError, StopIteration, IndexError, TypeError) as e:
+            results['multi_player'] = {
+                'pass': False,
+                'detail': {'guest_reply': use_g, 'guest_replies': guest_replies, 'error': repr(e)},
+            }
 
         # checks 4 & 10: save and reload preserves chicken seats and host seat 1 claim
-        host.raw('key', 'lshift', 'tap')
-        host.wait(10)
-        host('command', command='kill @e[tag=m4,limit=1]')
-        host.wait(10)
-        host('command', command=f'summon {CHICKEN} {hx} {hy} {hz + 3.0} {{Tags:["m0"]}}')
-        host.wait(10)
-        host('command', command=f'ride @e[tag=m0,limit=1] mount {VEHICLE}')
-        host.wait(10)
-        vx, vy, vz = vehicle(host)['pos']
-        host('command', command=f'tp @s {vx:.2f} {vy:.2f} {vz + 2.2:.2f}')
-        host.wait(8)
-        host.raw('use-entity', '--type', r.FOX)
-        host.wait(8)
-        pre_host = player_offset(host)
-        host('command', command='save-all')
-        host.wait(20)
-        reopen_world(host, guest)
-        post_chicks = offsets(host)
-        post_host = player_offset(host)
-        if post_host[0] > 0.8:
-            host('command', command='kill @e[tag=m0,limit=1]')
+        reload_reply = None
+        try:
+            host.raw('key', 'lshift', 'tap')
+            host.wait(10)
+            host('command', command='kill @e[tag=m4,limit=1]')
+            host.wait(10)
+            host('command', command=f'summon {CHICKEN} {hx} {hy} {hz + 3.0} {{Tags:["m0"]}}')
+            host.wait(10)
+            host('command', command=f'ride @e[tag=m0,limit=1] mount {VEHICLE}')
             host.wait(10)
             vx, vy, vz = vehicle(host)['pos']
             host('command', command=f'tp @s {vx:.2f} {vy:.2f} {vz + 2.2:.2f}')
             host.wait(8)
-            host.raw('use-entity', '--type', r.FOX)
+            reload_reply = host.raw('use-entity', '--type', r.FOX)
             host.wait(8)
+            pre_host = player_offset(host)
+            host('command', command='save-all')
+            host.wait(20)
+            reopen_world(host, guest)
+            post_chicks = offsets(host)
             post_host = player_offset(host)
-        results['reload'] = {
-            'pass': abs(pre_host[0] - 0.5) < 0.2 and post_chicks == [(0.0, 0.8), (0.5, 0.8)]
-                    and abs(post_host[0] - 0.5) < 0.2,
-            'detail': {'pre_host': pre_host, 'post_chickens': post_chicks, 'post_host': post_host},
-        }
+            if post_host[0] > 0.8:
+                host('command', command='kill @e[tag=m0,limit=1]')
+                host.wait(10)
+                vx, vy, vz = vehicle(host)['pos']
+                host('command', command=f'tp @s {vx:.2f} {vy:.2f} {vz + 2.2:.2f}')
+                host.wait(8)
+                reload_reply = host.raw('use-entity', '--type', r.FOX)
+                host.wait(8)
+                post_host = player_offset(host)
+            results['reload'] = {
+                'pass': abs(pre_host[0] - 0.5) < 0.2 and post_chicks == [(0.0, 0.8), (0.5, 0.8)]
+                        and abs(post_host[0] - 0.5) < 0.2,
+                'detail': {'reply': reload_reply, 'pre_host': pre_host, 'post_chickens': post_chicks,
+                           'post_host': post_host},
+            }
+        except (Failed, AssertionError, KeyError, StopIteration, IndexError, TypeError) as e:
+            results['reload'] = {'pass': False, 'detail': {'reply': reload_reply, 'error': repr(e)}}
         host.raw('key', 'lshift', 'tap')
         host.wait(10)
         clear_mobs(host)

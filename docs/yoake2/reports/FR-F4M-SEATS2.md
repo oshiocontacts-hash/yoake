@@ -60,3 +60,35 @@ The engine path keeps seat 1 in-process (`seat_set_keeps_the_requested_nonzero_s
 `Horizon custom-mob seat:` lines: a script's `seat-set` (nothing to do / vetoed / the seat the mob now holds) and any
 AI boarding (`AI boarding: mob R takes seat S of V`). The seats harness records them in `seat_set.detail.seat_lines`
 and no longer aborts the run when the check fails.
+
+## SEATS3
+
+### Causes
+
+The `horizon:mob_sync` client store was not losing the server's claim. It already applied `Seats` after a tracking snapshot,
+accepted later claim changes, and ordered them by frame time. The missing step was in the game loop: the claims were copied
+from `Remote.custom_mobs` into the client's `Mob` state only by `sync_riders`, the server-side path. A remote client tick went
+straight to `position_riders`, so placement still derived a sole rider's seat from its order and chose seat 0. This also
+explains why the server could log seat 1 while the host's client view showed seat 0.
+
+The player-height failure was a bad expectation: the seat attachment is 0.8 above the vehicle and the player's default vehicle
+attachment is 0.6, so the player's feet are correctly 0.2 above it. The later abort was harness state: the host had steered the
+vehicle about 11 blocks away before the guest tried to click it.
+
+### Source changes
+
+* `crates/horizon-client/src/game/remote.rs`: copy remote seat claims before every remote client rider-placement pass.
+* `crates/horizon-client/src/game/remote_custom_mob.rs`: factor the claim copy into a testable helper and add
+  `client_uses_seat_claims_from_snapshot_and_changes`. It proves the old local derivation gives seat 0, a join snapshot plus
+  `Seats` selects the seat-1 attachment `[0.5, 0.8, 0.0]`, and a later claim change selects seat 0.
+* `tools/custom_mob_seats_e2e.py`: expect player height 0.2 (with tolerance); stop host steering; teleport the guest from the
+  host's current vehicle position; wait until the guest's own view agrees; retry `use-entity` four times. Failures in
+  `use_entity`, `multi_player`, and `reload` retain replies as `pass: false` details and allow subsequent checks to run.
+
+No generated file or vanilla behavior was changed.
+
+### Tests
+
+Not run in this worktree by Kimi (shell execution was prohibited). Formatting, focused unit tests, Python syntax, quick PR
+checks, rebuilt binaries/WASM, and the full seats e2e with `--seat-wasm` are listed under **Commands for Claude** in
+`.lane/TASK.md`. Real-game confirmation is still required, especially `seat_set`, `multi_player`, `reload`, and `locator`.

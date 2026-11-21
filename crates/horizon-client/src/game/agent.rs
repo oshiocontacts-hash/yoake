@@ -193,6 +193,16 @@ pub(super) fn parse_use_entity_target(a: &Args<'_>) -> Result<EntityTarget> {
     }
 }
 
+/// Where `use-entity` aims: low on the mob's box, so a rider sitting on top of a vehicle does not take
+/// the click (the centre of a small vehicle is inside its rider's box).
+fn low_point(m: &horizon_client::mobs::Mob) -> [f64; 3] {
+    use horizon_core::geometry::Axis;
+    let b = m.bounds();
+    let c = m.center();
+    let (low, high) = (b.min(Axis::Y), b.max(Axis::Y));
+    [c[0], low + (high - low) * 0.25, c[2]]
+}
+
 fn namespaced(name: &str) -> String {
     if name.contains(':') {
         name.to_owned()
@@ -1501,7 +1511,7 @@ impl Game<'_> {
                             .iter()
                             .find(|m| !m.removed && m.id == id)
                             .ok_or_else(|| format!("no entity {id}"))?;
-                        (m.id, m.kind.id.to_string(), m.center())
+                        (m.id, m.kind.id.to_string(), low_point(m))
                     }
                     EntityTarget::Type(kind) => {
                         let m = self
@@ -1510,7 +1520,7 @@ impl Game<'_> {
                             .filter(|m| !m.removed && m.kind.id == kind)
                             .min_by(|a, b| dist(eye, a.center()).total_cmp(&dist(eye, b.center())))
                             .ok_or_else(|| format!("no {kind} nearby"))?;
-                        (m.id, m.kind.id.to_string(), m.center())
+                        (m.id, m.kind.id.to_string(), low_point(m))
                     }
                 };
                 self.face_point(center)?;
