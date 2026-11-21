@@ -107,6 +107,16 @@ fn stat_line(path: &Path) -> String {
     }
 }
 
+/// Size and time of every overlay file of a crate, as it was when the crate's overlay was written (F1 gate).
+fn overlay_snapshot(files: &[PathBuf]) -> String {
+    let mut text = String::new();
+    for f in files {
+        text.push_str(&stat_line(f));
+        text.push(char::from(10));
+    }
+    text
+}
+
 /// Builds (or reuses) the overlay of one crate.
 pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
     let workspace = canon(&args.workspace_root)?;
@@ -139,6 +149,7 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
     let ident = crate::key::normalize_crate_name(&args.crate_name);
     let state_dir = args.overlay_root.join(".state");
     let state_file = state_dir.join(format!("{ident}.{}.txt", if args.frozen { "frozen" } else { "sync" }));
+    let snapshot_file = state_dir.join(format!("{ident}.overlay.txt"));
     let mut state = String::new();
     for (f, _) in &rels {
         state.push_str(&stat_line(f));
@@ -170,7 +181,12 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
     }
     if !args.frozen {
         // a sync run always runs: it is how ids are assigned
-    } else if std::fs::read_to_string(&state_file).is_ok_and(|old| old == state) && result.root_file.is_file() {
+    } else if std::fs::read_to_string(&state_file).is_ok_and(|old| old == state)
+        && result.root_file.is_file()
+        && std::fs::read_to_string(&snapshot_file).is_ok_and(|old| old == overlay_snapshot(&result.overlay_files))
+    {
+        // the inputs are as they were AND the overlay files are as this crate left them: another crate's overlay
+        // that shares a source file (stamped differently, or an include_str! of it) may have replaced one since
         return Ok(result);
     }
 
@@ -178,6 +194,14 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
         let dest = args.overlay_root.join(rel);
         if let Some(parent) = dest.parent() {
             std::fs::create_dir_all(parent).map_err(|e| format!("cannot create {}: {e}", parent.display()))?;
+        }
+        // A file of ANOTHER crate that this crate only reads (`include_str!("../../../horizon-world/src/loot.rs")` in a
+        // test of horizon-client) is a plain copy: it must never replace the stamped copy its own crate's overlay made
+        // (the lost-bridge-include bug of the FR-F1 gate: horizon-world's loot.rs came back unstamped while its bridge
+        // file and the chain call stayed, so the next build of horizon-world failed). It is copied when absent only.
+        let own_tree = src.starts_with(&crate_root) || root_file.parent().is_some_and(|dir| src.starts_with(dir));
+        if dest.exists() && !own_tree {
+            continue;
         }
         std::fs::copy(src, &dest).map_err(|e| format!("cannot copy {} to {}: {e}", src.display(), dest.display()))?;
     }
@@ -226,6 +250,7 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
     if args.frozen {
         // the state describes inputs as they were when the overlay was written
         std::fs::write(&state_file, state).map_err(|e| format!("cannot write {}: {e}", state_file.display()))?;
+        std::fs::write(&snapshot_file, overlay_snapshot(&result.overlay_files)).map_err(|e| format!("cannot write {}: {e}", snapshot_file.display()))?;
     }
     Ok(result)
 }
