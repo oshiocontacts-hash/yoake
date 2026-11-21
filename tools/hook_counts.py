@@ -72,13 +72,23 @@ def main():
         print(f"{mark} {pf:10.2f}/frame {n:12d}  {slot:8d}  {keys.get(slot, '?')}")
     if args.write:
         out = os.path.join(LEDGER, "hot-exclusions.txt")
-        with open(out, "w", encoding="utf-8", newline="\n") as f:
-            f.write("# W6: functions the cost gate measured as hot (tools/hook_counts.py, > %g entries per frame in the pinned benchmark).\n" % args.per_frame)
-            f.write("# Not stamped; read like stamp-exclude.txt. Regenerate after a benchmark run with the `hook-count` feature.\n")
-            for pf, slot, n in sorted(hot, key=lambda r: keys.get(r[1], "")):
-                if slot in keys:
-                    f.write(f"{keys[slot]} # hot: {pf:.1f} entries per frame\n")
-        print("wrote", out)
+        # cumulative: an earlier round's keys stay (their ids are tombstoned, so the next count never sees them)
+        kept = {}
+        if os.path.exists(out):
+            with open(out, encoding="utf-8") as f:
+                for line in f:
+                    if line.strip() and not line.startswith("#"):
+                        key, _, why = line.rstrip().partition(" # ")
+                        kept[key] = why
+        for pf, slot, n in hot:
+            if slot in keys:
+                kept[keys[slot]] = "hot: %.2f entries per frame" % pf
+        with open(out, "w", encoding="utf-8", newline=chr(10)) as f:
+            f.write("# W6: functions the cost gate measured as hot (tools/hook_counts.py): rounds so far > 2 and > 0.5 entries per frame\n")
+            f.write("# in the pinned benchmark (flights and world loads). Not stamped; read like stamp-exclude.txt. Cumulative.\n")
+            for key in sorted(kept):
+                f.write(f"{key} # {kept[key]}\n")
+        print("wrote", out, len(kept), "keys")
 
 
 if __name__ == "__main__":

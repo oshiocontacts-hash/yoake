@@ -775,7 +775,7 @@
       "id": 8585,
       "key": "horizon_client_render::block_entities::BlockEntities::put",
       "sig": "9a5fc53c9efb7c20",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -908,7 +908,7 @@
       "id": 8604,
       "key": "horizon_client_render::block_entity_render::StaticGeometry::snapshot",
       "sig": "68f01f79d2bf1b6c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1244,7 +1244,7 @@
       "id": 8652,
       "key": "horizon_client_render::border_render::extract",
       "sig": "b84806a8eeadd92c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1258,7 +1258,7 @@
       "id": 8654,
       "key": "horizon_client_render::border_render::BorderRenderer::prepare",
       "sig": "520a0ee5ab72d2d5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1307,7 +1307,7 @@
       "id": 8661,
       "key": "horizon_client_render::camera::wrap_degrees",
       "sig": "ae0fd2f22e0978c2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1342,21 +1342,21 @@
       "id": 8666,
       "key": "horizon_client_render::camera::joml::Mat4::translation",
       "sig": "4d833619b33ea72d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8667,
       "key": "horizon_client_render::camera::joml::Mat4::set_translation",
       "sig": "9538e260e7647652",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8668,
       "key": "horizon_client_render::camera::joml::Mat4::rotation_axis",
       "sig": "4c211b5656d51ab2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1391,7 +1391,7 @@
       "id": 8673,
       "key": "horizon_client_render::camera::Camera::set_rotation",
       "sig": "4a8b468c825537be",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1419,7 +1419,7 @@
       "id": 8677,
       "key": "horizon_client_render::camera::near_plane_bounds",
       "sig": "fa1d1a4f7d37b525",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1433,28 +1433,28 @@
       "id": 8679,
       "key": "horizon_client_render::camera::bob_hurt",
       "sig": "8918b56f6f371d4e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8680,
       "key": "horizon_client_render::camera::bob_view",
       "sig": "fd494cc73f5e19b1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8681,
       "key": "horizon_client_render::camera::bob_matrix",
       "sig": "d5a1e589fa1af145",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8682,
       "key": "horizon_client_render::camera::spinning_effect_matrix",
       "sig": "b1e066e0773cbcb8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1517,7 +1517,7 @@
       "id": 8691,
       "key": "horizon_client_render::chat::Chat::layout",
       "sig": "43a9605e90720ffd",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1699,7 +1699,7 @@
       "id": 8717,
       "key": "horizon_client_render::chunk::Light::packed",
       "sig": "b9a1abccf37d847d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1937,7 +1937,7 @@
       "id": 8751,
       "key": "horizon_client_render::clouds::Input::state",
       "sig": "f95ef136a6ab2a51",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1958,14 +1958,14 @@
       "id": 8754,
       "key": "horizon_client_render::clouds::Mesh::prepare",
       "sig": "daba1646391b69b1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8755,
       "key": "horizon_client_render::collisions::SceneCollisions::cells_without_collision",
       "sig": "9e3750cf2bfec4d5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1986,7 +1986,7 @@
       "id": 8758,
       "key": "horizon_client_render::collisions::<SceneCollisions as EntityMovementWorld>::movement_border",
       "sig": "ddae80cdae15babf",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2378,7 +2378,7 @@
       "id": 8814,
       "key": "horizon_client_render::crash::mod_guard::Registry::maintenance",
       "sig": "78f11a882d8fce95",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2553,7 +2553,7 @@
       "id": 8839,
       "key": "horizon_client_render::dynamic_light::select",
       "sig": "1f9e90d8f9e8aed3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2602,14 +2602,14 @@
       "id": 8846,
       "key": "horizon_client_render::environment::Environment::sample",
       "sig": "7845b9171e6bba20",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8847,
       "key": "horizon_client_render::environment::apply_weather",
       "sig": "55b4a9c678b4f4a1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2651,7 +2651,7 @@
       "id": 8853,
       "key": "horizon_client_render::fog::FogState::water_vision",
       "sig": "46a42cb0fb17fcf3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2665,7 +2665,7 @@
       "id": 8855,
       "key": "horizon_client_render::fog::setup_fog",
       "sig": "ea64e1f5057b6040",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2917,14 +2917,14 @@
       "id": 8891,
       "key": "horizon_client_render::gfx::Renderer::draw_hand",
       "sig": "4c4684e42dd93c37",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8892,
       "key": "horizon_client_render::gfx::Renderer::mark_clouds",
       "sig": "b3dff7bbd306438b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2980,21 +2980,21 @@
       "id": 8900,
       "key": "horizon_client_render::gfx::Renderer::upload",
       "sig": "85fb1c6639a557db",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8901,
       "key": "horizon_client_render::gfx::Renderer::upload_mesh",
       "sig": "8a25c99e28eba109",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8902,
       "key": "horizon_client_render::gfx::Renderer::take_section_copies",
       "sig": "0948ae6846b68cfb",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3008,21 +3008,21 @@
       "id": 8904,
       "key": "horizon_client_render::gfx::Renderer::release_mesh",
       "sig": "ecd94450934b3ef1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8905,
       "key": "horizon_client_render::gfx::Renderer::compact_arena",
       "sig": "b062b350b750a9c1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8906,
       "key": "horizon_client_render::gfx::Renderer::shrink_translucent",
       "sig": "57c5de02c3a80bbf",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3036,14 +3036,14 @@
       "id": 8908,
       "key": "horizon_client_render::gfx::Renderer::follow_translucent_layout",
       "sig": "0f546ff81e1d227c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8909,
       "key": "horizon_client_render::gfx::Renderer::set_detail",
       "sig": "60f04f65527deedf",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3057,7 +3057,7 @@
       "id": 8911,
       "key": "horizon_client_render::gfx::Renderer::release_meshes",
       "sig": "c785d19826d0c853",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3085,7 +3085,7 @@
       "id": 8915,
       "key": "horizon_client_render::gfx::Renderer::display_changed",
       "sig": "b81250ef46a4a530",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3134,7 +3134,7 @@
       "id": 8922,
       "key": "horizon_client_render::gfx::Renderer::update_lightmap",
       "sig": "b99cb1a976096a7f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3155,14 +3155,14 @@
       "id": 8925,
       "key": "horizon_client_render::gfx::Renderer::render",
       "sig": "7bf783cdbbea70ee",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8926,
       "key": "horizon_client_render::gfx::Renderer::screenshot_size",
       "sig": "3c81348e42bc3de5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3176,14 +3176,14 @@
       "id": 8928,
       "key": "horizon_client_render::gfx::Renderer::draw_frame",
       "sig": "b4c4a8594f6eaec9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8929,
       "key": "horizon_client_render::gfx::Renderer::draw_overlay",
       "sig": "64fe9d7a2c0f549d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3267,7 +3267,7 @@
       "id": 8941,
       "key": "horizon_client_render::gfx::projection_center",
       "sig": "eb357d03f8dc0cbf",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3281,7 +3281,7 @@
       "id": 8943,
       "key": "horizon_client_render::gfx::DisplayWatch::changed",
       "sig": "b941a05a851d8ebb",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3295,7 +3295,7 @@
       "id": 8945,
       "key": "horizon_client_render::gfx::entity_batch::EntityBatch::update",
       "sig": "67bef72e443e2790",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3309,14 +3309,14 @@
       "id": 8947,
       "key": "horizon_client_render::gfx::entity_outline::EntityOutline::prepare",
       "sig": "212068409ca55129",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8948,
       "key": "horizon_client_render::gfx::entity_outline::EntityOutline::draw",
       "sig": "f3254ec1aeac6799",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3330,7 +3330,7 @@
       "id": 8950,
       "key": "horizon_client_render::gfx::weather::Weather::prepare",
       "sig": "f3f831bd87952ab9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3344,7 +3344,7 @@
       "id": 8952,
       "key": "horizon_client_render::gfx::weather::Weather::draw",
       "sig": "9fb6c11e444a546e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3365,14 +3365,14 @@
       "id": 8955,
       "key": "horizon_client_render::gfx::animate::SpriteAnimator::animate",
       "sig": "e59d18392baa7fc0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8956,
       "key": "horizon_client_render::gfx::animate::SpriteAnimator::collect",
       "sig": "b9152d614565f425",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3393,14 +3393,14 @@
       "id": 8959,
       "key": "horizon_client_render::gfx::arena::FreeList::take",
       "sig": "38cb250ff62fb9fc",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8960,
       "key": "horizon_client_render::gfx::arena::FreeList::give",
       "sig": "dcccf5205dce5114",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3428,14 +3428,14 @@
       "id": 8964,
       "key": "horizon_client_render::gfx::arena::Arena::alloc",
       "sig": "c529682f4416a4d4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8965,
       "key": "horizon_client_render::gfx::arena::Arena::sparsest_from",
       "sig": "f2ce3146cde7e92e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3512,35 +3512,35 @@
       "id": 8976,
       "key": "horizon_client_render::gfx::cull::Cull::begin",
       "sig": "2a770a458e9addeb",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8977,
       "key": "horizon_client_render::gfx::cull::Cull::upload",
       "sig": "23d65d13c883da94",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8978,
       "key": "horizon_client_render::gfx::cull::Cull::test",
       "sig": "7e67b6966114be61",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8979,
       "key": "horizon_client_render::gfx::cull::Cull::test_pass",
       "sig": "e99c7030611ee023",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8980,
       "key": "horizon_client_render::gfx::cull::Cull::end",
       "sig": "1ec6faf5af569f68",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3561,7 +3561,7 @@
       "id": 8983,
       "key": "horizon_client_render::gfx::entity_skin::SkinFrame::clear_draws",
       "sig": "c80b66e65aa13fd1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3575,7 +3575,7 @@
       "id": 8985,
       "key": "horizon_client_render::gfx::entity_skin::Grow::ensure",
       "sig": "e5f03c0e68e54cd0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3589,14 +3589,14 @@
       "id": 8987,
       "key": "horizon_client_render::gfx::entity_skin::EntitySkin::register",
       "sig": "3cf420ccea5db882",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8988,
       "key": "horizon_client_render::gfx::flat::Flat::place",
       "sig": "a3b7377420413b3f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3610,7 +3610,7 @@
       "id": 8990,
       "key": "horizon_client_render::gfx::frame_gen::FrameGen::stop",
       "sig": "332a0413ba6617d6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3918,7 +3918,7 @@
       "id": 9034,
       "key": "horizon_client_render::gfx::lightning::Renderer::prepare",
       "sig": "d50eb6dd9329c64c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4625,7 +4625,7 @@
       "id": 9135,
       "key": "horizon_client_render::gfx::occlusion::Columns::set",
       "sig": "0fd20b84c7372ea5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4681,7 +4681,7 @@
       "id": 9143,
       "key": "horizon_client_render::gfx::occlusion::Occlusion::changed",
       "sig": "6b5c277f73cf5bc4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5395,7 +5395,7 @@
       "id": 9245,
       "key": "horizon_client_render::gfx::sunrise_fan::normals",
       "sig": "0e9e2e54689bdfb5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5409,7 +5409,7 @@
       "id": 9247,
       "key": "horizon_client_render::gfx::sunrise_fan::vertices",
       "sig": "7fd8cc8c9de69a6d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5423,35 +5423,35 @@
       "id": 9249,
       "key": "horizon_client_render::gfx::timing::GpuTimer::begin",
       "sig": "04e636157a1bdc7d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9250,
       "key": "horizon_client_render::gfx::timing::GpuTimer::end",
       "sig": "0f789ca5ebab9cbe",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9251,
       "key": "horizon_client_render::gfx::timing::GpuTimer::resolve",
       "sig": "bde4c4604c066bb4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9252,
       "key": "horizon_client_render::gfx::timing::GpuTimer::submitted",
       "sig": "b5c7f5ea6c922032",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9253,
       "key": "horizon_client_render::gfx::upload::Uploads::texture",
       "sig": "fed4ee31cd0e8833",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5479,7 +5479,7 @@
       "id": 9257,
       "key": "horizon_client_render::gfx::world_post::Post::jitter",
       "sig": "d605f347a3c5d200",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5822,7 +5822,7 @@
       "id": 9306,
       "key": "horizon_client_render::hud::HudAtlas::pack_pixels",
       "sig": "660e8ed50dbb2b2f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5941,7 +5941,7 @@
       "id": 9323,
       "key": "horizon_client_render::hud::HudRenderer::prepare",
       "sig": "6711cb22415bbfd6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6088,7 +6088,7 @@
       "id": 9344,
       "key": "horizon_client_render::hud_layout::hotbar",
       "sig": "a76f5a05084127df",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6123,7 +6123,7 @@
       "id": 9349,
       "key": "horizon_client_render::hud_overlays::SavingIndicator::draw",
       "sig": "2245a8bd58ff5bdc",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6144,28 +6144,28 @@
       "id": 9352,
       "key": "horizon_client_render::hud_overlays::Titles::overlay_message",
       "sig": "d518bac848ee19c0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9353,
       "key": "horizon_client_render::hud_overlays::Titles::title",
       "sig": "ffa63d30d6df7d17",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9354,
       "key": "horizon_client_render::hud_overlays::ToolHighlight::draw",
       "sig": "a2cfd9c79d115382",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9355,
       "key": "horizon_client_render::hud_overlays::boss_overlay",
       "sig": "1b684dacfa146201",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6214,14 +6214,14 @@
       "id": 9362,
       "key": "horizon_client_render::hud_overlays::camera_overlays",
       "sig": "9d8cff4724fa9611",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9363,
       "key": "horizon_client_render::hud_overlays::sleep_overlay",
       "sig": "e2b0c8c22826ee3c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6235,7 +6235,7 @@
       "id": 9365,
       "key": "horizon_client_render::hud_overlays::SubtitleOverlay::extract",
       "sig": "08da2c7d3a1d9368",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6879,7 +6879,7 @@
       "id": 9457,
       "key": "horizon_client_render::mesher::<SectionMesh as Default>::default",
       "sig": "e829b3691095158c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6893,7 +6893,7 @@
       "id": 9459,
       "key": "horizon_client_render::mesher::SectionMesh::compute_bounds",
       "sig": "d1958c4348a4fb34",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6907,7 +6907,7 @@
       "id": 9461,
       "key": "horizon_client_render::mesher::visibility_rows",
       "sig": "4421a4026da86bf4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6942,7 +6942,7 @@
       "id": 9466,
       "key": "horizon_client_render::mesher::Padded::fill",
       "sig": "84f74c208ea88b33",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6970,7 +6970,7 @@
       "id": 9470,
       "key": "horizon_client_render::mesher::Mesher::mesh_reusing",
       "sig": "fcc66291ea165623",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -7103,7 +7103,7 @@
       "id": 9489,
       "key": "horizon_client_render::mesher::sides::sort_with",
       "sig": "b55af14aec61287c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -8181,7 +8181,7 @@
       "id": 9643,
       "key": "horizon_client_render::particles::Particle::base_moving",
       "sig": "9eae87c8b20c8d1d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -8223,7 +8223,7 @@
       "id": 9649,
       "key": "horizon_client_render::particles::ParticleLevel::collide",
       "sig": "2a24f51dacc16419",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -8237,7 +8237,7 @@
       "id": 9651,
       "key": "horizon_client_render::particles::<ParticleLightCache as Default>::default",
       "sig": "e829b3691095158c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -8279,14 +8279,14 @@
       "id": 9657,
       "key": "horizon_client_render::particles::ParticleEngine::add_with",
       "sig": "182ea2e2374c246e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9658,
       "key": "horizon_client_render::particles::ParticleEngine::calculate_particle_level",
       "sig": "066a278e4a27a535",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -8307,7 +8307,7 @@
       "id": 9661,
       "key": "horizon_client_render::particles::ParticleEngine::make",
       "sig": "0869132da0fa62d5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -8398,7 +8398,7 @@
       "id": 9674,
       "key": "horizon_client_render::post_chain::PostEffects::preload",
       "sig": "8be3b7ff607b5771",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -8419,7 +8419,7 @@
       "id": 9677,
       "key": "horizon_client_render::post_chain::PostEffects::apply",
       "sig": "a3e97ed1a900d88a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -8531,7 +8531,7 @@
       "id": 9693,
       "key": "horizon_client_render::preedit::draw_overlay",
       "sig": "428f01ffde62212d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -8671,7 +8671,7 @@
       "id": 9713,
       "key": "horizon_client_render::screen_effects::ScreenEffects::build",
       "sig": "f872da78cfbd1f49",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -8713,7 +8713,7 @@
       "id": 9719,
       "key": "horizon_client_render::section_mask::<SectionMask as BitOrAssign>::bitor_assign",
       "sig": "a34997a5d6d94ed4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9105,7 +9105,7 @@
       "id": 9775,
       "key": "horizon_client_render::skins::SkinSlots::next_frame",
       "sig": "bfd7620555b892ec",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9602,7 +9602,7 @@
       "id": 9846,
       "key": "horizon_client_render::sprites::SpriteAnimation::resized_pixels",
       "sig": "cd8761c701f1ab86",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9707,7 +9707,7 @@
       "id": 9861,
       "key": "horizon_client_render::streaming::MeshPool::put",
       "sig": "63ee7ae58c97765e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9728,7 +9728,7 @@
       "id": 9864,
       "key": "horizon_client_render::streaming::GenerationScan::candidates",
       "sig": "4644dab00f4e9af7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9763,14 +9763,14 @@
       "id": 9869,
       "key": "horizon_client_render::streaming::Streaming::submit",
       "sig": "40422b188e6a163b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9870,
       "key": "horizon_client_render::streaming::Streaming::requeue",
       "sig": "5eb422cb16637a64",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9805,14 +9805,14 @@
       "id": 9875,
       "key": "horizon_client_render::streaming::Streaming::update",
       "sig": "c1c8db7ccd3e4980",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 9876,
       "key": "horizon_client_render::streaming::Streaming::relight_edits",
       "sig": "fddbe43d77404e5f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9861,7 +9861,7 @@
       "id": 9883,
       "key": "horizon_client_render::streaming::ExtraCover::new",
       "sig": "a4c74cea67ba8c70",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9987,7 +9987,7 @@
       "id": 9901,
       "key": "horizon_client_render::telemetry::Session::frame",
       "sig": "f9aa7cca8def2c27",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -10155,7 +10155,7 @@
       "id": 9925,
       "key": "horizon_client_render::ui::draw_nine_slice",
       "sig": "1dd9354d3783acc4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -10575,7 +10575,7 @@
       "id": 10702,
       "key": "horizon_client_render::biome::gaussian_weights",
       "sig": "de9c32a2d40cebc0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -10729,7 +10729,7 @@
       "id": 10724,
       "key": "horizon_client_render::mesher::MeshTables::flat_light",
       "sig": "7e1a62ab6a2a43fd",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -10792,7 +10792,7 @@
       "id": 10733,
       "key": "horizon_client_render::streaming::ViewArrival::arriving",
       "sig": "f4572bef10b33aaa",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11502,6 +11502,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::biome::gaussian_weights",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::biome::identifier_order",
       "reason": "small body",
       "kind": "fn"
@@ -11645,6 +11651,12 @@
       "key": "horizon_client_render::block_entities::BlockEntities::note_box",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::block_entities::BlockEntities::put",
+      "reason": "hot: 1.51 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::block_entities::BlockEntities::remove",
@@ -12043,6 +12055,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::block_entity_render::StaticGeometry::snapshot",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::block_entity_render::StaticGeometry::sweep",
       "reason": "small body",
       "kind": "fn"
@@ -12418,6 +12436,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::border_render::BorderRenderer::prepare",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::border_render::BorderRenderer::sides",
       "reason": "small body",
       "kind": "fn"
@@ -12436,6 +12460,12 @@
       "key": "horizon_client_render::border_render::ceil",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::border_render::extract",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::border_render::floor",
@@ -12604,6 +12634,12 @@
       "manual": true
     },
     {
+      "key": "horizon_client_render::camera::Camera::set_rotation",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::camera::CameraEntity::view_x_rot",
       "reason": "small body",
       "kind": "fn"
@@ -12632,6 +12668,24 @@
       "key": "horizon_client_render::camera::NearPlane::points",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::camera::bob_hurt",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::camera::bob_matrix",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::camera::bob_view",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::camera::clamp",
@@ -12690,14 +12744,32 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::camera::joml::Mat4::rotation_axis",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::camera::joml::Mat4::set",
       "reason": "small body",
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::camera::joml::Mat4::set_translation",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::camera::joml::Mat4::translate",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::camera::joml::Mat4::translation",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::camera::joml::Quat::rotation_yxz",
@@ -12738,6 +12810,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::camera::near_plane_bounds",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::camera::perspective",
       "reason": "hot: 2.0 entries per frame",
       "kind": "fn",
@@ -12749,6 +12827,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::camera::spinning_effect_matrix",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::camera::view_matrix",
       "reason": "small body",
       "kind": "fn"
@@ -12757,6 +12841,12 @@
       "key": "horizon_client_render::camera::view_matrix_with_roll",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::camera::wrap_degrees",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::capture_time::AnimationInstant::elapsed",
@@ -12852,6 +12942,12 @@
       "key": "horizon_client_render::chat::Chat::hover_at",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::chat::Chat::layout",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::chat::Chat::line_at",
@@ -13275,6 +13371,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::chunk::Light::packed",
+      "reason": "hot: 3.82 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::chunk::Light::same_as",
       "reason": "small body",
       "kind": "fn"
@@ -13660,6 +13762,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::clouds::Input::state",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::clouds::Mesh::prepare",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::clouds::cells",
       "reason": "small body",
       "kind": "fn"
@@ -13784,6 +13898,12 @@
       "manual": true
     },
     {
+      "key": "horizon_client_render::collisions::<SceneCollisions as EntityMovementWorld>::movement_border",
+      "reason": "hot: 2.50 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::collisions::EntityCollisions<W>::resolve",
       "reason": "generic impl",
       "kind": "fn"
@@ -13797,6 +13917,12 @@
       "key": "horizon_client_render::collisions::EntityCollisions<W>::with_border",
       "reason": "generic impl",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::collisions::SceneCollisions::cells_without_collision",
+      "reason": "hot: 1.30 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::collisions::SceneCollisions::context",
@@ -14245,6 +14371,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::crash::mod_guard::Registry::maintenance",
+      "reason": "hot: 1.43 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::crash::mod_guard::Registry::new",
       "reason": "small body",
       "kind": "fn"
@@ -14505,6 +14637,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::dynamic_light::select",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::dynamic_light::select_colored",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -14655,6 +14793,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::environment::Environment::sample",
+      "reason": "hot: 1.74 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::environment::Environment::value",
       "reason": "small body",
       "kind": "fn"
@@ -14662,6 +14806,12 @@
     {
       "key": "horizon_client_render::environment::Track::sample",
       "reason": "hot: 14.1 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::environment::apply_weather",
+      "reason": "hot: 1.49 entries per frame",
       "kind": "fn",
       "manual": true
     },
@@ -14846,6 +14996,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::fog::FogState::water_vision",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::fog::FogTables::load",
       "reason": "small body",
       "kind": "fn"
@@ -14876,6 +15032,12 @@
       "key": "horizon_client_render::fog::rgb",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::fog::setup_fog",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::fog::update_rain_fog",
@@ -15066,6 +15228,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::DisplayWatch::changed",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Frustum::contains",
       "reason": "small body",
       "kind": "fn"
@@ -15151,6 +15319,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::Renderer::compact_arena",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Renderer::complete_column",
       "reason": "small body",
       "kind": "fn"
@@ -15181,6 +15355,30 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::Renderer::display_changed",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::draw_frame",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::draw_hand",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::draw_overlay",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Renderer::draw_sections",
       "reason": "hot: 2.7 entries per frame",
       "kind": "fn",
@@ -15194,6 +15392,12 @@
     {
       "key": "horizon_client_render::gfx::Renderer::flush_block_sprite_uploads",
       "reason": "hot: 2.0 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::follow_translucent_layout",
+      "reason": "hot: 1.37 entries per frame",
       "kind": "fn",
       "manual": true
     },
@@ -15267,6 +15471,12 @@
       "key": "horizon_client_render::gfx::Renderer::lod_quads",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::mark_clouds",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::Renderer::mark_translucent_terrain",
@@ -15359,6 +15569,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::Renderer::release_mesh",
+      "reason": "hot: 0.75 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::release_meshes",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Renderer::release_section",
       "reason": "small body",
       "kind": "fn"
@@ -15374,6 +15596,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::Renderer::render",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Renderer::resident_sections",
       "reason": "small body",
       "kind": "fn"
@@ -15382,6 +15610,12 @@
       "key": "horizon_client_render::gfx::Renderer::screen_view",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::screenshot_size",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::Renderer::section_count",
@@ -15417,6 +15651,12 @@
       "key": "horizon_client_render::gfx::Renderer::send_hdr_metadata",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::set_detail",
+      "reason": "hot: 2.67 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::Renderer::set_flat_draws",
@@ -15464,6 +15704,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::Renderer::shrink_translucent",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Renderer::skinned_models",
       "reason": "small body",
       "kind": "fn"
@@ -15509,9 +15755,33 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::Renderer::take_section_copies",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::update_lightmap",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Renderer::update_native_world",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::upload",
+      "reason": "hot: 2.67 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::upload_mesh",
+      "reason": "hot: 2.67 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::Renderer::views",
@@ -15574,9 +15844,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::animate::SpriteAnimator::animate",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::animate::SpriteAnimator::changed",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::animate::SpriteAnimator::collect",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::animate::SpriteAnimator::compute",
@@ -15602,6 +15884,12 @@
       "key": "horizon_client_render::gfx::arena::<Graveyard<T> as Default>::default",
       "reason": "generic impl",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::arena::Arena::alloc",
+      "reason": "hot: 2.53 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::arena::Arena::alloc_existing",
@@ -15709,6 +15997,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::arena::Arena::sparsest_from",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::arena::Arena::stride",
       "reason": "small body",
       "kind": "fn"
@@ -15740,9 +16034,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::arena::FreeList::give",
+      "reason": "hot: 1.56 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::arena::FreeList::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::arena::FreeList::take",
+      "reason": "hot: 2.68 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::arena::Graveyard<T>::add",
@@ -15915,6 +16221,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::cull::Cull::begin",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::cull::Cull::bind_depth",
       "reason": "small body",
       "kind": "fn"
@@ -15928,6 +16240,12 @@
       "key": "horizon_client_render::gfx::cull::Cull::drawn",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::cull::Cull::end",
+      "reason": "hot: 1.05 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::cull::Cull::features",
@@ -15958,6 +16276,24 @@
       "key": "horizon_client_render::gfx::cull::Cull::supported",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::cull::Cull::test",
+      "reason": "hot: 0.85 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::cull::Cull::test_pass",
+      "reason": "hot: 0.85 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::cull::Cull::upload",
+      "reason": "hot: 1.05 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::cull::buffer",
@@ -16000,6 +16336,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::entity_batch::EntityBatch::update",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::entity_batch::mark_oit",
       "reason": "small body",
       "kind": "fn"
@@ -16008,6 +16350,18 @@
       "key": "horizon_client_render::gfx::entity_batch::material",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::entity_outline::EntityOutline::draw",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::entity_outline::EntityOutline::prepare",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::entity_outline::EntityOutline::vertex_buffer",
@@ -16040,6 +16394,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::entity_skin::EntitySkin::register",
+      "reason": "hot: 0.67 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::entity_skin::EntitySkin::stored",
       "reason": "small body",
       "kind": "fn"
@@ -16048,6 +16408,18 @@
       "key": "horizon_client_render::gfx::entity_skin::EntitySkin::usage",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::entity_skin::Grow::ensure",
+      "reason": "hot: 1.34 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::entity_skin::SkinFrame::clear_draws",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::entity_skin::SkinFrame::handed",
@@ -16145,6 +16517,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::flat::Flat::place",
+      "reason": "hot: 1.99 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::flat::Flat::prepare",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -16218,6 +16596,12 @@
       "key": "horizon_client_render::gfx::frame_gen::FrameGen::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::frame_gen::FrameGen::stop",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::frame_gen::FrameGen::track_entities",
@@ -16538,6 +16922,12 @@
       "key": "horizon_client_render::gfx::lightning::Renderer::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::lightning::Renderer::prepare",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::lightning::offset",
@@ -17830,6 +18220,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::occlusion::Columns::set",
+      "reason": "hot: 3.56 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::occlusion::Graph::contains",
       "reason": "small body",
       "kind": "fn"
@@ -17860,6 +18256,12 @@
     {
       "key": "horizon_client_render::gfx::occlusion::Graph::walk",
       "reason": "hot: 81.9 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::occlusion::Occlusion::changed",
+      "reason": "hot: 0.99 entries per frame",
       "kind": "fn",
       "manual": true
     },
@@ -18687,6 +19089,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::projection_center",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::reported[cfg(target_os=\"linux\")]",
       "reason": "small body",
       "kind": "fn"
@@ -18968,6 +19376,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::sunrise_fan::normals",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::sunrise_fan::vertices",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::surface_format",
       "reason": "small body",
       "kind": "fn"
@@ -18983,14 +19403,38 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::timing::GpuTimer::begin",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::timing::GpuTimer::collect",
       "reason": "small body",
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::timing::GpuTimer::end",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::timing::GpuTimer::features",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::timing::GpuTimer::resolve",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::timing::GpuTimer::submitted",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::timing::end_pipeline",
@@ -19059,6 +19503,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::upload::Uploads::texture",
+      "reason": "hot: 2.52 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::upload::Uploads::with_chunk",
       "reason": "small body",
       "kind": "fn"
@@ -19104,9 +19554,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::weather::Weather::draw",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::weather::Weather::pipeline",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::weather::Weather::prepare",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::weather::depth_stencil",
@@ -19142,6 +19604,12 @@
       "key": "horizon_client_render::gfx::world_post::Post::build_target",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::world_post::Post::jitter",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::world_post::Post::jitter_pixels",
@@ -19864,6 +20332,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud::HudAtlas::pack_pixels",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::hud::HudAtlas::pixels",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -20076,6 +20550,12 @@
       "key": "horizon_client_render::hud::HudRenderer::native_world_texture_restore",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud::HudRenderer::prepare",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::hud::HudRenderer::set_cit_glints",
@@ -20454,6 +20934,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud_layout::hotbar",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::hud_layout::lerp_discrete",
       "reason": "small body",
       "kind": "fn"
@@ -20505,6 +20991,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud_overlays::SavingIndicator::draw",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::hud_overlays::SavingIndicator::tick",
       "reason": "small body",
       "kind": "fn"
@@ -20530,6 +21022,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud_overlays::SubtitleOverlay::extract",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::hud_overlays::SubtitleOverlay::listening",
       "reason": "small body",
       "kind": "fn"
@@ -20543,6 +21041,12 @@
       "key": "horizon_client_render::hud_overlays::Titles::clear",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud_overlays::Titles::overlay_message",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::hud_overlays::Titles::reset_times",
@@ -20570,6 +21074,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud_overlays::Titles::title",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::hud_overlays::ToolHighlight::draw",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::hud_overlays::ToolHighlight::tick",
       "reason": "small body",
       "kind": "fn"
@@ -20578,6 +21094,18 @@
       "key": "horizon_client_render::hud_overlays::border_warning",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud_overlays::boss_overlay",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::hud_overlays::camera_overlays",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::hud_overlays::closer_than",
@@ -20633,6 +21161,12 @@
       "key": "horizon_client_render::hud_overlays::screen_blit",
       "reason": "impl Trait argument",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud_overlays::sleep_overlay",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::hud_overlays::text",
@@ -21706,6 +22240,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::<SectionMesh as Default>::default",
+      "reason": "hot: 0.59 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::MeshTables::block_tints",
       "reason": "impl Trait return",
       "kind": "fn"
@@ -21719,6 +22259,12 @@
       "key": "horizon_client_render::mesher::MeshTables::facts",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::mesher::MeshTables::flat_light",
+      "reason": "hot: 1.38 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::mesher::MeshTables::hdr_tier",
@@ -21762,6 +22308,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::Mesher::mesh_reusing",
+      "reason": "hot: 2.69 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::Mesher::quad",
       "reason": "small body",
       "kind": "fn"
@@ -21783,6 +22335,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::Padded::fill",
+      "reason": "hot: 1.60 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::SectionMesh::capacity_bytes",
       "reason": "small body",
       "kind": "fn"
@@ -21790,6 +22348,12 @@
     {
       "key": "horizon_client_render::mesher::SectionMesh::clear",
       "reason": "hot: 2.4 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::mesher::SectionMesh::compute_bounds",
+      "reason": "hot: 2.69 entries per frame",
       "kind": "fn",
       "manual": true
     },
@@ -22132,6 +22696,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::sides::sort_with",
+      "reason": "hot: 2.69 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::sides::total_order_key",
       "reason": "small body",
       "kind": "fn"
@@ -22150,6 +22720,12 @@
       "key": "horizon_client_render::mesher::stem_color",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::mesher::visibility_rows",
+      "reason": "hot: 1.60 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::minimap::Minimap::clear",
@@ -23837,6 +24413,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::particles::<ParticleLightCache as Default>::default",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::particles::ModBehaviour::parse",
       "reason": "small body",
       "kind": "fn"
@@ -23855,6 +24437,12 @@
       "key": "horizon_client_render::particles::Particle::base_at",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::particles::Particle::base_moving",
+      "reason": "hot: 0.70 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::particles::Particle::base_tick",
@@ -23929,6 +24517,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::particles::ParticleEngine::add_with",
+      "reason": "hot: 1.09 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::particles::ParticleEngine::calculate_particle_level",
+      "reason": "hot: 1.09 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::particles::ParticleEngine::clear",
       "reason": "small body",
       "kind": "fn"
@@ -23987,6 +24587,12 @@
       "key": "horizon_client_render::particles::ParticleEngine::made",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::particles::ParticleEngine::make",
+      "reason": "hot: 0.56 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::particles::ParticleEngine::new",
@@ -24102,6 +24708,12 @@
       "key": "horizon_client_render::particles::ParticleLevel::block_at",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::particles::ParticleLevel::collide",
+      "reason": "hot: 1.30 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::particles::ParticleLevel::collision_top",
@@ -24280,6 +24892,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::post_chain::PostEffects::apply",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::post_chain::PostEffects::collect_preloaded",
       "reason": "small body",
       "kind": "fn"
@@ -24288,6 +24906,12 @@
       "key": "horizon_client_render::post_chain::PostEffects::pipeline",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::post_chain::PostEffects::preload",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::post_chain::PostEffects::standin_pass",
@@ -24378,6 +25002,12 @@
       "key": "horizon_client_render::preedit::composing",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::preedit::draw_overlay",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::preedit::offset_by_codepoints",
@@ -24610,6 +25240,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::screen_effects::ScreenEffects::build",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::screen_effects::ScreenEffects::tick_spinning",
       "reason": "small body",
       "kind": "fn"
@@ -24829,6 +25465,12 @@
       "key": "horizon_client_render::section_mask::<SectionMask as BitOr>::bitor",
       "reason": "by-value or typed self",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::section_mask::<SectionMask as BitOrAssign>::bitor_assign",
+      "reason": "hot: 0.79 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::section_mask::<SectionMask as FromIterator<usize>>::from_iter",
@@ -25324,6 +25966,12 @@
       "key": "horizon_client_render::skins::SkinSlots::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::skins::SkinSlots::next_frame",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::skins::base64_decode",
@@ -26313,6 +26961,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::sprites::SpriteAnimation::resized_pixels",
+      "reason": "hot: 3.71 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::sprites::Sprites::count",
       "reason": "small body",
       "kind": "fn"
@@ -26460,9 +27114,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::streaming::ExtraCover::new",
+      "reason": "hot: 1.77 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::streaming::ExtraCover::refresh",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::streaming::GenerationScan::candidates",
+      "reason": "hot: 1.77 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::streaming::GenerationScan::invalidate",
@@ -26508,6 +27174,12 @@
       "key": "horizon_client_render::streaming::Mailbox::try_recv",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::streaming::MeshPool::put",
+      "reason": "hot: 2.69 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::streaming::MeshPool::take",
@@ -26702,9 +27374,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::streaming::Streaming::relight_edits",
+      "reason": "hot: 1.77 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::streaming::Streaming::relight_on_workers",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::streaming::Streaming::requeue",
+      "reason": "hot: 1.77 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::streaming::Streaming::save_checked_out",
@@ -26727,6 +27411,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::streaming::Streaming::submit",
+      "reason": "hot: 3.42 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::streaming::Streaming::terrain_loading",
       "reason": "small body",
       "kind": "fn"
@@ -26737,9 +27427,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::streaming::Streaming::update",
+      "reason": "hot: 1.77 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::streaming::Streaming::wait",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::streaming::ViewArrival::arriving",
+      "reason": "hot: 1.77 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::streaming::ViewArrival::recent",
@@ -27011,6 +27713,12 @@
       "key": "horizon_client_render::telemetry::Session::finish",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::telemetry::Session::frame",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::telemetry::Session::summary",
@@ -27486,6 +28194,12 @@
       "key": "horizon_client_render::ui::draw_native_nine_slice",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::ui::draw_nine_slice",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::ui::draw_sprite",

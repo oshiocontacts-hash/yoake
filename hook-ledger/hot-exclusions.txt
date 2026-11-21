@@ -1,35 +1,169 @@
-# W6: functions the cost gate measured as hot (tools/hook_counts.py, > 2 entries per frame in the pinned benchmark).
-# Not stamped; read like stamp-exclude.txt. Regenerate after a benchmark run with the `hook-count` feature.
+# W6: functions the cost gate measured as hot (tools/hook_counts.py): rounds so far > 2 and > 0.5 entries per frame
+# in the pinned benchmark (flights and world loads). Not stamped; read like stamp-exclude.txt. Cumulative.
+horizon_client::game::<Game as ApplicationHandler>::about_to_wait # hot: 1.37 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::adjust_has_analog_output # hot: 3.9 entries per frame
+horizon_client::game::<GameLevel as LevelAccess>::allow_spread # hot: 1.04 entries per frame
+horizon_client::game::<GameLevel as LevelAccess>::before_can_survive # hot: 2.41 entries per frame
+horizon_client::game::<GameLevel as LevelAccess>::before_may_place_on # hot: 1.05 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::before_neighbor_changed # hot: 23.5 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::before_random_tick # hot: 3.1 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::before_tick_block # hot: 11.9 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::before_update_shape # hot: 86.2 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::block_light # hot: 2.2 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::block_state # hot: 325.2 entries per frame
+horizon_client::game::<GameLevel as LevelAccess>::can_spread_fire_around # hot: 2.52 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::game_rules # hot: 17.3 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::game_time # hot: 15.2 entries per frame
+horizon_client::game::<GameLevel as LevelAccess>::has_mod_block_entity # hot: 1.34 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::is_loaded # hot: 15.1 entries per frame
+horizon_client::game::<GameLevel as LevelAccess>::is_raining # hot: 1.55 entries per frame
+horizon_client::game::<GameLevel as LevelAccess>::is_ticking_chunk # hot: 2.24 entries per frame
+horizon_client::game::<GameLevel as LevelAccess>::level_rules # hot: 4.66 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::max_y # hot: 72.5 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::min_y # hot: 33.7 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::observe_block_changed # hot: 4.0 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::observe_neighbor_changed # hot: 23.5 entries per frame
+horizon_client::game::<GameLevel as LevelAccess>::precipitation # hot: 1.55 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::redstone_experiments # hot: 27.4 entries per frame
 horizon_client::game::<GameLevel as LevelAccess>::set_raw # hot: 4.0 entries per frame
+horizon_client::game::<GameLevel as LevelAccess>::sky_darken # hot: 2.39 entries per frame
+horizon_client::game::<GameLevel as LevelAccess>::sky_light # hot: 2.42 entries per frame
+horizon_client::game::<GameLevel as LevelAccess>::world_surface # hot: 1.55 entries per frame
+horizon_client::game::Game::apply_cursor_icon # hot: 1.37 entries per frame
+horizon_client::game::Game::apply_mouse_look # hot: 1.37 entries per frame
+horizon_client::game::Game::block_face_sprite # hot: 1.53 entries per frame
+horizon_client::game::Game::border_draw # hot: 1.37 entries per frame
+horizon_client::game::Game::celestial_geometry # hot: 1.37 entries per frame
+horizon_client::game::Game::clip_ray # hot: 1.46 entries per frame
+horizon_client::game::Game::cracks # hot: 1.37 entries per frame
+horizon_client::game::Game::entity_geometry # hot: 1.37 entries per frame
 horizon_client::game::Game::far_terrain_choice # hot: 2.4 entries per frame
+horizon_client::game::Game::fire_screen_render_post # hot: 1.37 entries per frame
+horizon_client::game::Game::first_person_arm # hot: 1.37 entries per frame
+horizon_client::game::Game::hand_geometry # hot: 1.37 entries per frame
+horizon_client::game::Game::handle_window_event # hot: 1.37 entries per frame
+horizon_client::game::Game::handle_window_event_inner # hot: 1.37 entries per frame
+horizon_client::game::Game::heal_hold_latches # hot: 1.37 entries per frame
+horizon_client::game::Game::hud # hot: 1.37 entries per frame
+horizon_client::game::Game::hud_layers # hot: 1.37 entries per frame
+horizon_client::game::Game::idle # hot: 1.37 entries per frame
 horizon_client::game::Game::mob_hit_at # hot: 2.1 entries per frame
+horizon_client::game::Game::pick # hot: 1.57 entries per frame
+horizon_client::game::Game::poll_world_creation # hot: 1.37 entries per frame
+horizon_client::game::Game::prepare_lod # hot: 1.77 entries per frame
+horizon_client::game::Game::recover_device # hot: 1.37 entries per frame
+horizon_client::game::Game::render # hot: 1.37 entries per frame
+horizon_client::game::Game::resume_world_entry # hot: 1.37 entries per frame
 horizon_client::game::Game::sky_darken # hot: 2.0 entries per frame
+horizon_client::game::Game::spawn_player # hot: 1.37 entries per frame
+horizon_client::game::Game::tick_world_icon # hot: 1.37 entries per frame
+horizon_client::game::Game::track_toggle_screens # hot: 1.37 entries per frame
+horizon_client::game::Game::update_world # hot: 1.77 entries per frame
+horizon_client::game::Game::weather_geometry # hot: 1.37 entries per frame
+horizon_client::game::advancements::Game::draw_toasts # hot: 1.37 entries per frame
+horizon_client::game::agent::Game::advance_agent # hot: 1.37 entries per frame
+horizon_client::game::agent::Game::advance_glide # hot: 1.37 entries per frame
+horizon_client::game::agent::Game::screen_label # hot: 1.37 entries per frame
+horizon_client::game::armor_stands::Game::armor_stand_hit_at # hot: 1.49 entries per frame
+horizon_client::game::armor_stands::Game::prepare_trims # hot: 1.37 entries per frame
+horizon_client::game::beacon::Game::beacon_geometry # hot: 1.37 entries per frame
+horizon_client::game::boats::Game::boat_hit_at # hot: 1.49 entries per frame
+horizon_client::game::books::Game::draw_book # hot: 1.37 entries per frame
+horizon_client::game::chat::Game::draw_chat # hot: 1.37 entries per frame
+horizon_client::game::chat::Game::draw_link_prompt # hot: 1.37 entries per frame
+horizon_client::game::code_of_conduct::Game::draw_code_of_conduct # hot: 1.37 entries per frame
+horizon_client::game::commands::pregen::Game::tick_pregen # hot: 1.77 entries per frame
+horizon_client::game::control::Game::advance_flight # hot: 1.37 entries per frame
+horizon_client::game::control::Game::poll_control # hot: 1.37 entries per frame
+horizon_client::game::cosmetics::Game::cosmetics_frame # hot: 1.37 entries per frame
+horizon_client::game::creatures::Game::cull_skinned # hot: 5.20 entries per frame
 horizon_client::game::creatures::Game::local_difficulty # hot: 5.1 entries per frame
+horizon_client::game::creatures::Game::mob_geometry # hot: 1.37 entries per frame
 horizon_client::game::creatures::Game::player_view # hot: 2.2 entries per frame
+horizon_client::game::debug_keys::Game::debug_gizmos # hot: 1.37 entries per frame
+horizon_client::game::debug_keys::Game::draw_debug_overlay_under # hot: 1.37 entries per frame
+horizon_client::game::debug_renderers::Game::debug_renderer_geometry # hot: 1.37 entries per frame
+horizon_client::game::debug_renderers::Game::debug_renderer_gizmos # hot: 1.37 entries per frame
+horizon_client::game::dialogs::Game::draw_dialog # hot: 1.37 entries per frame
+horizon_client::game::discord::Game::discord_status # hot: 1.37 entries per frame
+horizon_client::game::dragon::Game::dragon_fireball_geometry # hot: 1.37 entries per frame
+horizon_client::game::dragon::Game::dragon_geometry # hot: 1.37 entries per frame
+horizon_client::game::dragon::Game::dragon_hit_at # hot: 1.49 entries per frame
+horizon_client::game::dragon::Game::special_targets # hot: 1.49 entries per frame
+horizon_client::game::dynamic_lights::Game::dynamic_light_sources # hot: 1.37 entries per frame
+horizon_client::game::dynamic_lights::Game::gather_dynamic_lights # hot: 1.37 entries per frame
+horizon_client::game::end::Game::end_crystal_geometry # hot: 1.37 entries per frame
+horizon_client::game::end::Game::eye_geometry # hot: 1.37 entries per frame
+horizon_client::game::entity::<FallingBlock as Entity>::bounds # hot: 1.18 entries per frame
+horizon_client::game::entity::<Minecart as Entity>::bounds # hot: 0.57 entries per frame
+horizon_client::game::entity::<Minecart as Entity>::is_vehicle # hot: 0.53 entries per frame
+horizon_client::game::entity::<Minecart as Entity>::portal_size # hot: 0.79 entries per frame
+horizon_client::game::entity::tick_item # hot: 1.35 entries per frame
+horizon_client::game::entity_culling::Game::cull_entity_vertices # hot: 5.21 entries per frame
+horizon_client::game::entity_culling::Game::prepare_entity_culling # hot: 1.37 entries per frame
+horizon_client::game::events::Game::watch_events # hot: 1.37 entries per frame
+horizon_client::game::extras::Game::draw_extras # hot: 1.37 entries per frame
+horizon_client::game::extras::Game::effect_rows_height # hot: 1.37 entries per frame
+horizon_client::game::extras::Game::extras_frame # hot: 1.37 entries per frame
 horizon_client::game::extras::Game::minimap_shown # hot: 2.0 entries per frame
+horizon_client::game::extras::Game::update_minimap # hot: 1.37 entries per frame
+horizon_client::game::fangs::Game::fangs_geometry # hot: 1.40 entries per frame
+horizon_client::game::fishing::Game::fishing_geometry # hot: 1.37 entries per frame
+horizon_client::game::fishing::Game::fishing_line # hot: 1.37 entries per frame
+horizon_client::game::fishing::Game::rod_hand_position # hot: 1.37 entries per frame
+horizon_client::game::fov::Game::bob_matrix # hot: 1.37 entries per frame
+horizon_client::game::fov::Game::draw_spyglass # hot: 1.37 entries per frame
 horizon_client::game::fov::Game::fov_degrees # hot: 2.0 entries per frame
+horizon_client::game::fov::Game::spinning_matrix # hot: 1.37 entries per frame
+horizon_client::game::frames::Game::frame_geometry # hot: 1.37 entries per frame
 horizon_client::game::frames::Game::frame_hit_at # hot: 2.1 entries per frame
+horizon_client::game::hand::Game::crosshair_living # hot: 1.37 entries per frame
+horizon_client::game::ime::Game::flush_ime # hot: 1.37 entries per frame
+horizon_client::game::ime::Game::text_field_focused # hot: 1.37 entries per frame
+horizon_client::game::integrated::Game::poll_integrated_start # hot: 1.37 entries per frame
+horizon_client::game::item_draw::Game::dropped_item_geometry # hot: 1.37 entries per frame
 horizon_client::game::lan::mob_meta # hot: 4.5 entries per frame
 horizon_client::game::lan_attributes::Game::mob_attributes # hot: 4.5 entries per frame
+horizon_client::game::lan_attributes::Game::mob_knockback_resistance # hot: 0.66 entries per frame
 horizon_client::game::lan_mobs::choose # hot: 4.5 entries per frame
 horizon_client::game::lan_mobs::player_for # hot: 4.5 entries per frame
+horizon_client::game::leads::Game::leash_geometry # hot: 1.37 entries per frame
+horizon_client::game::minecarts::Game::block_model_vertices # hot: 1.53 entries per frame
+horizon_client::game::minecarts::Game::cart_geometry # hot: 1.37 entries per frame
+horizon_client::game::minecarts::Game::cart_hit_at # hot: 1.49 entries per frame
+horizon_client::game::minecarts::Game::rail # hot: 0.85 entries per frame
+horizon_client::game::mob_blocks::Game::antenna_block_geometry # hot: 5.20 entries per frame
+horizon_client::game::mob_blocks::Game::captain_banner_geometry # hot: 5.20 entries per frame
+horizon_client::game::mob_blocks::Game::elder_apparition_geometry # hot: 1.37 entries per frame
+horizon_client::game::mob_blocks::Game::golem_flower_geometry # hot: 5.20 entries per frame
+horizon_client::game::mob_blocks::Game::head_item_geometry # hot: 5.20 entries per frame
+horizon_client::game::mob_blocks::Game::mob_block_geometry # hot: 5.20 entries per frame
+horizon_client::game::mob_blocks::Game::worn_block_geometry # hot: 5.20 entries per frame
+horizon_client::game::mounts::Game::draw_mount_hud # hot: 1.37 entries per frame
+horizon_client::game::moving_pistons::Game::moving_piston_geometry # hot: 1.37 entries per frame
+horizon_client::game::music::Game::draw_music_toast # hot: 1.37 entries per frame
+horizon_client::game::music::Game::now_playing_song # hot: 1.37 entries per frame
+horizon_client::game::names::Game::name_tag_geometry # hot: 1.37 entries per frame
+horizon_client::game::names::Game::name_tags # hot: 1.40 entries per frame
+horizon_client::game::narrator::Game::draw_narrator_toast # hot: 1.37 entries per frame
+horizon_client::game::narrator::Game::narrate_screen # hot: 1.37 entries per frame
+horizon_client::game::narrator::draw_toast # hot: 1.37 entries per frame
+horizon_client::game::native_deferred::Game::native_drain_lan_requests # hot: 1.37 entries per frame
+horizon_client::game::native_hooks::Game::native_chunks_changed # hot: 1.77 entries per frame
+horizon_client::game::native_hooks::Game::native_frame # hot: 1.37 entries per frame
+horizon_client::game::native_hooks::Game::native_shake_matrix # hot: 1.37 entries per frame
+horizon_client::game::native_hooks::Game::native_slot_tick # hot: 2.30 entries per frame
 horizon_client::game::native_hooks::Game::native_zoom_now # hot: 2.0 entries per frame
 horizon_client::game::native_hooks::Game::new_block_entity # hot: 2.3 entries per frame
+horizon_client::game::native_hooks::Game::observe_screen # hot: 1.37 entries per frame
+horizon_client::game::native_hooks::Game::screen_chars_typed # hot: 1.37 entries per frame
+horizon_client::game::native_item_render::Game::refresh_native_item_render # hot: 1.37 entries per frame
+horizon_client::game::native_mob_player::Game::native_prepare_mob_players # hot: 1.37 entries per frame
+horizon_client::game::native_session::Game::native_run_session_request # hot: 1.37 entries per frame
+horizon_client::game::native_streams::Game::maintain_native_streams # hot: 1.37 entries per frame
+horizon_client::game::native_streams::Game::update_native_streams # hot: 1.37 entries per frame
+horizon_client::game::native_title_screen::Game::handle_title_mod_screen_event # hot: 1.37 entries per frame
+horizon_client::game::native_visuals::Game::native_frame_visuals # hot: 1.37 entries per frame
 horizon_client::game::natural_spawning::<GameLevel as NaturalLevel>::can_spawn_in_chunk # hot: 8.0 entries per frame
 horizon_client::game::natural_spawning::<GameLevel as NaturalLevel>::heightmap # hot: 21.6 entries per frame
 horizon_client::game::natural_spawning::<GameLevel as NaturalLevel>::min_y # hot: 21.6 entries per frame
@@ -37,32 +171,132 @@ horizon_client::game::natural_spawning::<GameLevel as NaturalLevel>::mob_type # 
 horizon_client::game::natural_spawning::<GameLevel as NaturalLevel>::respawn # hot: 23.2 entries per frame
 horizon_client::game::natural_spawning::<GameLevel as NaturalLevel>::spawn_cost # hot: 4.4 entries per frame
 horizon_client::game::natural_spawning::<GameLevel as NaturalLevel>::spawn_hooks # hot: 13.9 entries per frame
+horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::biome_tag # hot: 2.64 entries per frame
+horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::block_tag # hot: 2.89 entries per frame
+horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::peaceful # hot: 0.51 entries per frame
 horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::state # hot: 36.0 entries per frame
 horizon_client::game::nether_portal::Game::may_hold_portal # hot: 5.6 entries per frame
 horizon_client::game::nether_portal::Game::swept_portal # hot: 5.6 entries per frame
+horizon_client::game::options::Game::framerate_limit # hot: 1.37 entries per frame
+horizon_client::game::options::Game::observe_fullscreen # hot: 1.37 entries per frame
+horizon_client::game::packs::Game::drive_pack_browser # hot: 1.37 entries per frame
+horizon_client::game::packs::Game::drive_pack_reload # hot: 1.37 entries per frame
+horizon_client::game::pad::Game::pad_look # hot: 1.37 entries per frame
+horizon_client::game::pad::Game::poll_pads # hot: 1.37 entries per frame
+horizon_client::game::pad::hardware::Game::pad_output_frame[cfg(feature="controllers")] # hot: 1.37 entries per frame
+horizon_client::game::pad::hardware::Game::pad_show[cfg(feature="controllers")] # hot: 1.37 entries per frame
+horizon_client::game::pad::hardware::Pads::read[cfg(feature="controllers")] # hot: 1.37 entries per frame
+horizon_client::game::pad_menu::Game::draw_pad_cursor # hot: 1.37 entries per frame
+horizon_client::game::pad_menu::Game::pad_menu_frame # hot: 1.37 entries per frame
+horizon_client::game::pad_menu::Game::pad_show_os_pointer # hot: 1.37 entries per frame
+horizon_client::game::paintings::Game::painting_hit_at # hot: 1.49 entries per frame
+horizon_client::game::persist::Game::unload_entities # hot: 1.77 entries per frame
+horizon_client::game::perspective::Game::camera_view # hot: 1.37 entries per frame
+horizon_client::game::perspective::Game::player_camera_entity # hot: 1.37 entries per frame
+horizon_client::game::perspective::Game::player_model_geometry # hot: 1.37 entries per frame
+horizon_client::game::potions::Game::draw_effect_icons # hot: 1.37 entries per frame
 horizon_client::game::ray_box # hot: 194.7 entries per frame
 horizon_client::game::remote::Game::forget_remote_columns # hot: 2.4 entries per frame
+horizon_client::game::remote::Game::move_entity # hot: 0.77 entries per frame
+horizon_client::game::remote::Game::poll_remote # hot: 1.77 entries per frame
+horizon_client::game::remote::Game::remote_hud # hot: 1.37 entries per frame
+horizon_client::game::remote::Game::remote_overlay # hot: 1.37 entries per frame
+horizon_client::game::remote::Game::remote_tab_players # hot: 1.37 entries per frame
+horizon_client::game::remote::Game::send_suggestion_request # hot: 1.37 entries per frame
 horizon_client::game::remote::Game::set_block # hot: 2.2 entries per frame
+horizon_client::game::remote::Game::update_mannequin_skins # hot: 1.37 entries per frame
+horizon_client::game::remote::Game::update_remote_skins # hot: 1.37 entries per frame
+horizon_client::game::remote::skin_entries # hot: 1.37 entries per frame
+horizon_client::game::remote_chat::Game::draw_command_prompt # hot: 1.37 entries per frame
+horizon_client::game::remote_vehicles::Game::remote_minecart_rider_position # hot: 1.37 entries per frame
+horizon_client::game::render_tick::Game::frame_fog # hot: 1.37 entries per frame
+horizon_client::game::render_tick::Game::native_fog_now # hot: 1.37 entries per frame
+horizon_client::game::render_tick::Game::screen_quads # hot: 1.37 entries per frame
+horizon_client::game::repro::Game::advance_replay # hot: 1.37 entries per frame
+horizon_client::game::repro::Game::poll_pending_replay # hot: 1.37 entries per frame
+horizon_client::game::scoreboard::Game::draw_scoreboard # hot: 1.37 entries per frame
+horizon_client::game::scoreboard::Game::draw_tab_list # hot: 1.37 entries per frame
+horizon_client::game::scoreboard::Game::flush_skin_slots # hot: 1.37 entries per frame
+horizon_client::game::sculk::Game::darkness_lighting # hot: 1.37 entries per frame
 horizon_client::game::sculk::Game::entity_motion_events # hot: 4.5 entries per frame
 horizon_client::game::sculk::Game::mount_events # hot: 4.5 entries per frame
+horizon_client::game::sculk::Game::night_vision_intensity # hot: 1.37 entries per frame
 horizon_client::game::sculk::Game::sculk_prepare # hot: 8.1 entries per frame
 horizon_client::game::sculk::Game::step_on_redstone_ore # hot: 3.6 entries per frame
+horizon_client::game::server_packs::Game::draw_pack_prompt # hot: 1.37 entries per frame
+horizon_client::game::server_packs::Game::draw_pack_toasts # hot: 1.37 entries per frame
+horizon_client::game::server_packs::Game::tick_server_packs # hot: 1.37 entries per frame
 horizon_client::game::shader_packs::Game::mark_entity_part # hot: 27.8 entries per frame
+horizon_client::game::shader_packs::Game::shader_pack_inputs # hot: 1.37 entries per frame
+horizon_client::game::sign_edit::Game::draw_sign_editor # hot: 1.37 entries per frame
+horizon_client::game::social_relay::Game::social_relay_tick # hot: 1.37 entries per frame
+horizon_client::game::spawner::Game::server_tick_spawner_of # hot: 0.68 entries per frame
+horizon_client::game::spawner::Game::tick_spawner # hot: 0.68 entries per frame
+horizon_client::game::spill::Game::flush_spill # hot: 0.69 entries per frame
+horizon_client::game::split::<Split as ApplicationHandler>::about_to_wait # hot: 1.37 entries per frame
+horizon_client::game::split::hud::Game::draw_split_hud # hot: 1.37 entries per frame
+horizon_client::game::split::setup::Split::sync_setup # hot: 1.37 entries per frame
+horizon_client::game::subtitle_hud::Game::draw_subtitles # hot: 1.37 entries per frame
+horizon_client::game::test_instances::Game::test_instance_marker_geometry # hot: 1.37 entries per frame
+horizon_client::game::text_displays::Game::block_item_display_geometry # hot: 1.37 entries per frame
+horizon_client::game::text_displays::Game::text_display_geometry # hot: 1.37 entries per frame
 horizon_client::game::ticking_chunk # hot: 23.7 entries per frame
+horizon_client::game::titles::Game::draw_overlay_message # hot: 1.37 entries per frame
+horizon_client::game::titles::Game::draw_title # hot: 1.37 entries per frame
+horizon_client::game::tnt::Game::tnt_geometry # hot: 1.37 entries per frame
+horizon_client::game::totem::Game::item_activation_geometry # hot: 1.37 entries per frame
+horizon_client::game::transient_blocks::Game::transient_block_geometry # hot: 1.37 entries per frame
+horizon_client::game::trial_spawner::<GameLevel as TrialSpawnerLevel>::game_time # hot: 0.62 entries per frame
+horizon_client::game::trident::Game::trident_geometry # hot: 1.37 entries per frame
+horizon_client::game::tutorial::Game::draw_tutorial_toasts # hot: 1.37 entries per frame
 horizon_client_lib::animate_tick::do_animate_tick # hot: 43.0 entries per frame
 horizon_client_lib::block_contact::dispatch # hot: 18.8 entries per frame
 horizon_client_lib::breathing::drown # hot: 3.3 entries per frame
+horizon_client_lib::clock::FixedStep::advance # hot: 1.37 entries per frame
+horizon_client_lib::control::FrameStats::record_block_entities # hot: 1.37 entries per frame
+horizon_client_lib::entities::ItemEntity::tick_move # hot: 1.35 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement # hot: 0.72 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::is_player_class # hot: 0.72 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::velocity # hot: 0.72 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::block # hot: 2.60 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::blocks_fluid_flow # hot: 2.06 entries per frame
 horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::fluid # hot: 3.5 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::fluid # hot: 2.70 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_x # hot: 2.83 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_z # hot: 2.83 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::bounding_box_min_y # hot: 2.83 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::camera_height # hot: 1.19 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::eye_y # hot: 2.83 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::flow # hot: 1.52 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_height # hot: 1.56 entries per frame
 horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_state # hot: 2.6 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box # hot: 2.83 entries per frame
 horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::loaded_chunk # hot: 2.3 entries per frame
+horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidMembership>::fluid_in_tag # hot: 3.48 entries per frame
+horizon_client_lib::first_person::hands_to_render # hot: 1.37 entries per frame
+horizon_client_lib::first_person::player_arm_pose # hot: 1.37 entries per frame
+horizon_client_lib::item_render::FaceNormals::face # hot: 2.49 entries per frame
+horizon_client_lib::item_render::ItemRenderer::grass_color # hot: 1.53 entries per frame
+horizon_client_lib::item_render::shaded # hot: 2.49 entries per frame
+horizon_client_lib::lan::chunks::ChunkEncoder::occupied # hot: 0.79 entries per frame
+horizon_client_lib::lan::chunks::ChunkEncoder::section_wire # hot: 2.22 entries per frame
+horizon_client_lib::lan::chunks::SectionCoder::biomes # hot: 1.32 entries per frame
+horizon_client_lib::lan::chunks::SectionCoder::section # hot: 1.32 entries per frame
+horizon_client_lib::lan::chunks::SectionCoder::wire # hot: 1.32 entries per frame
+horizon_client_lib::lan::chunks::network_palette # hot: 0.98 entries per frame
 horizon_client_lib::lan::entity::EntityState::reset # hot: 5.3 entries per frame
 horizon_client_lib::lan::entity::ServerEntity::send_changes # hot: 6.3 entries per frame
+horizon_client_lib::lan::entity::full_precision_required # hot: 0.91 entries per frame
+horizon_client_lib::lan::guest::Guest::bounds # hot: 3.18 entries per frame
+horizon_client_lib::lan::hub::Hub::item_id # hot: 1.78 entries per frame
+horizon_client_lib::lan::hub::Hub::stack # hot: 1.78 entries per frame
 horizon_client_lib::mobs::ModelNormals::new # hot: 2.9 entries per frame
 horizon_client_lib::mobs::ModelNormals::part # hot: 19.5 entries per frame
 horizon_client_lib::mobs::ModelNormals::rotation # hot: 19.5 entries per frame
 horizon_client_lib::mobs::ai::ai_step # hot: 3.6 entries per frame
 horizon_client_lib::mobs::ai::base_tick # hot: 3.6 entries per frame
 horizon_client_lib::mobs::ai::check_despawn # hot: 4.5 entries per frame
+horizon_client_lib::mobs::ai::custom_move_control # hot: 0.75 entries per frame
 horizon_client_lib::mobs::ai::effects_from_blocks # hot: 3.6 entries per frame
 horizon_client_lib::mobs::ai::flower_contact_effects # hot: 3.6 entries per frame
 horizon_client_lib::mobs::ai::freeze_tick # hot: 3.6 entries per frame
@@ -70,21 +304,65 @@ horizon_client_lib::mobs::ai::in_powder_snow # hot: 3.7 entries per frame
 horizon_client_lib::mobs::ai::in_wall # hot: 3.6 entries per frame
 horizon_client_lib::mobs::ai::push_entities # hot: 3.6 entries per frame
 horizon_client_lib::mobs::ai::server_ai_step # hot: 3.6 entries per frame
+horizon_client_lib::mobs::ai::sun_burn_tick # hot: 1.45 entries per frame
 horizon_client_lib::mobs::ai::tick # hot: 3.7 entries per frame
 horizon_client_lib::mobs::ai::tick_effects # hot: 3.6 entries per frame
 horizon_client_lib::mobs::ai::tick_inner # hot: 3.7 entries per frame
 horizon_client_lib::mobs::ambient::client_ai_step # hot: 3.4 entries per frame
 horizon_client_lib::mobs::anim::<PooledPoses as Drop>::drop # hot: 3.5 entries per frame
+horizon_client_lib::mobs::anim::Poses::copy_from # hot: 2.64 entries per frame
 horizon_client_lib::mobs::anim::Poses::reset # hot: 2.2 entries per frame
+horizon_client_lib::mobs::anim::humanoid # hot: 1.12 entries per frame
+horizon_client_lib::mobs::anim::humanoid_state # hot: 0.76 entries per frame
 horizon_client_lib::mobs::anim::key # hot: 76.0 entries per frame
+horizon_client_lib::mobs::anim::quadruped # hot: 2.29 entries per frame
 horizon_client_lib::mobs::anim::state # hot: 4.2 entries per frame
+horizon_client_lib::mobs::aquatic::glow_squid_ai_step # hot: 0.53 entries per frame
+horizon_client_lib::mobs::aquatic::squid_step # hot: 0.67 entries per frame
 horizon_client_lib::mobs::axolotl::tick_animation # hot: 3.7 entries per frame
+horizon_client_lib::mobs::bat::server_ai_step # hot: 0.65 entries per frame
+horizon_client_lib::mobs::cem_anim::<Frame as Default>::default # hot: 1.37 entries per frame
+horizon_client_lib::mobs::cem_anim::set_frame # hot: 1.37 entries per frame
+horizon_client_lib::mobs::control::LookControl::set_look_at # hot: 0.94 entries per frame
 horizon_client_lib::mobs::control::Mob::body_rotation_tick # hot: 7.0 entries per frame
 horizon_client_lib::mobs::control::Mob::look_angles # hot: 3.6 entries per frame
 horizon_client_lib::mobs::control::Mob::look_control_tick # hot: 3.6 entries per frame
 horizon_client_lib::mobs::control::Mob::move_control_tick # hot: 3.6 entries per frame
+horizon_client_lib::mobs::control::rotlerp # hot: 1.11 entries per frame
+horizon_client_lib::mobs::equine::anim # hot: 1.17 entries per frame
+horizon_client_lib::mobs::equine::markings # hot: 1.17 entries per frame
+horizon_client_lib::mobs::farm::chicken_flap # hot: 0.77 entries per frame
+horizon_client_lib::mobs::finalize::compute # hot: 0.80 entries per frame
+horizon_client_lib::mobs::goals::<AvoidEntity as Goal>::can_use # hot: 1.74 entries per frame
+horizon_client_lib::mobs::goals::<AvoidEntity as Goal>::flags # hot: 1.74 entries per frame
+horizon_client_lib::mobs::goals::<Breed as Goal>::can_use # hot: 1.26 entries per frame
+horizon_client_lib::mobs::goals::<Breed as Goal>::flags # hot: 1.26 entries per frame
+horizon_client_lib::mobs::goals::<Float as Goal>::can_use # hot: 1.74 entries per frame
+horizon_client_lib::mobs::goals::<Float as Goal>::flags # hot: 1.74 entries per frame
+horizon_client_lib::mobs::goals::<FollowParent as Goal>::can_use # hot: 1.10 entries per frame
+horizon_client_lib::mobs::goals::<FollowParent as Goal>::flags # hot: 1.10 entries per frame
+horizon_client_lib::mobs::goals::<HurtByTarget as Goal>::can_use # hot: 1.34 entries per frame
+horizon_client_lib::mobs::goals::<HurtByTarget as Goal>::flags # hot: 1.34 entries per frame
+horizon_client_lib::mobs::goals::<LookAtPlayer as Goal>::can_use # hot: 2.27 entries per frame
+horizon_client_lib::mobs::goals::<LookAtPlayer as Goal>::flags # hot: 2.50 entries per frame
+horizon_client_lib::mobs::goals::<MeleeAttack as Goal>::can_use # hot: 1.01 entries per frame
+horizon_client_lib::mobs::goals::<MeleeAttack as Goal>::flags # hot: 1.02 entries per frame
+horizon_client_lib::mobs::goals::<NearestTarget as Goal>::can_use # hot: 3.38 entries per frame
+horizon_client_lib::mobs::goals::<NearestTarget as Goal>::flags # hot: 3.39 entries per frame
+horizon_client_lib::mobs::goals::<Panic as Goal>::can_use # hot: 1.41 entries per frame
+horizon_client_lib::mobs::goals::<Panic as Goal>::flags # hot: 1.43 entries per frame
+horizon_client_lib::mobs::goals::<RandomLookAround as Goal>::can_use # hot: 1.62 entries per frame
+horizon_client_lib::mobs::goals::<RandomLookAround as Goal>::flags # hot: 2.79 entries per frame
+horizon_client_lib::mobs::goals::<RandomLookAround as Goal>::tick # hot: 0.88 entries per frame
+horizon_client_lib::mobs::goals::<RestrictSun as Goal>::flags # hot: 0.63 entries per frame
+horizon_client_lib::mobs::goals::<Stroll as Goal>::can_use # hot: 2.19 entries per frame
+horizon_client_lib::mobs::goals::<Stroll as Goal>::flags # hot: 3.13 entries per frame
+horizon_client_lib::mobs::goals::<Tempt as Goal>::can_use # hot: 1.52 entries per frame
+horizon_client_lib::mobs::goals::<Tempt as Goal>::flags # hot: 1.52 entries per frame
 horizon_client_lib::mobs::goals::GoalSelector::tick # hot: 3.7 entries per frame
 horizon_client_lib::mobs::guardian::beam # hot: 23.9 entries per frame
+horizon_client_lib::mobs::hostile::creeper_client_tick # hot: 0.92 entries per frame
+horizon_client_lib::mobs::hostile::creeper_tick # hot: 0.82 entries per frame
 horizon_client_lib::mobs::leash::tick # hot: 3.6 entries per frame
 horizon_client_lib::mobs::living::<MobRestitution as RestitutionWorld>::effective_gravity # hot: 2.8 entries per frame
 horizon_client_lib::mobs::living::<MobRestitution as RestitutionWorld>::entity_bounciness # hot: 2.9 entries per frame
@@ -107,85 +385,212 @@ horizon_client_lib::mobs::living::MobWorld::fluid_height # hot: 18.9 entries per
 horizon_client_lib::mobs::living::MobWorld::fluids # hot: 9.9 entries per frame
 horizon_client_lib::mobs::living::MobWorld::supporting_block # hot: 2.8 entries per frame
 horizon_client_lib::mobs::living::wrap # hot: 28.1 entries per frame
+horizon_client_lib::mobs::nav::Mob::do_stuck_detection_at # hot: 0.95 entries per frame
+horizon_client_lib::mobs::nav::Mob::follow_the_path # hot: 0.95 entries per frame
 horizon_client_lib::mobs::nav::Mob::nav_tick # hot: 3.6 entries per frame
+horizon_client_lib::mobs::nav::Mob::should_recompute_path # hot: 2.00 entries per frame
+horizon_client_lib::mobs::nav::Mob::should_target_next_node # hot: 0.88 entries per frame
+horizon_client_lib::mobs::path::Finder::best_h # hot: 2.13 entries per frame
 horizon_client_lib::mobs::path::Finder::cached # hot: 6.9 entries per frame
+horizon_client_lib::mobs::path::Finder::diagonal_pair_valid # hot: 3.94 entries per frame
+horizon_client_lib::mobs::path::Finder::down_heap # hot: 1.15 entries per frame
 horizon_client_lib::mobs::path::Finder::find_accepted # hot: 3.7 entries per frame
+horizon_client_lib::mobs::path::Finder::heap_insert # hot: 1.72 entries per frame
+horizon_client_lib::mobs::path::Finder::heap_pop # hot: 1.17 entries per frame
 horizon_client_lib::mobs::path::Finder::node # hot: 5.1 entries per frame
 horizon_client_lib::mobs::path::Finder::node_update_max # hot: 5.1 entries per frame
 horizon_client_lib::mobs::path::Finder::path_type # hot: 4.0 entries per frame
 horizon_client_lib::mobs::path::Finder::path_type_of_mob # hot: 2.0 entries per frame
+horizon_client_lib::mobs::path::Finder::swim_accepted # hot: 1.41 entries per frame
+horizon_client_lib::mobs::path::Finder::try_jump_on # hot: 0.80 entries per frame
+horizon_client_lib::mobs::path::Finder::up_heap # hot: 2.11 entries per frame
+horizon_client_lib::mobs::path::Finder::walk_neighbors # hot: 0.98 entries per frame
+horizon_client_lib::mobs::path::Finder::within_bb # hot: 3.62 entries per frame
 horizon_client_lib::mobs::render::attachment_matrix # hot: 2.5 entries per frame
 horizon_client_lib::mobs::render::base_transform_at # hot: 2.1 entries per frame
 horizon_client_lib::mobs::render::enderman_render_offset # hot: 2.1 entries per frame
+horizon_client_lib::mobs::render::humanoid_armor # hot: 5.20 entries per frame
+horizon_client_lib::mobs::render::layers # hot: 5.20 entries per frame
 horizon_client_lib::mobs::render::part_matrix # hot: 2.1 entries per frame
+horizon_client_lib::mobs::render::render_visible # hot: 5.20 entries per frame
+horizon_client_lib::mobs::render::sheep_wool_rgb # hot: 0.73 entries per frame
 horizon_client_lib::mobs::riders::drive # hot: 3.6 entries per frame
 horizon_client_lib::mobs::seen_grid::SeenGrid::candidates # hot: 7.6 entries per frame
 horizon_client_lib::mobs::seen_grid::SeenGrid::update # hot: 3.7 entries per frame
 horizon_client_lib::mobs::skin::Skin::draw # hot: 2.6 entries per frame
+horizon_client_lib::mobs::skin::SkinModels::begin # hot: 1.37 entries per frame
 horizon_client_lib::mobs::skin::Walk::emit # hot: 15.5 entries per frame
 horizon_client_lib::mobs::skin::Walk::part # hot: 17.5 entries per frame
+horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::biome_tag # hot: 2.64 entries per frame
+horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::block_tag # hot: 2.89 entries per frame
+horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::peaceful # hot: 0.51 entries per frame
 horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::state # hot: 36.0 entries per frame
 horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::world_surface # hot: 21.7 entries per frame
 horizon_client_lib::mobs::spawning::LocalDifficulty::new # hot: 5.1 entries per frame
 horizon_client_lib::mobs::spear_use::update_using_item # hot: 3.6 entries per frame
+horizon_client_lib::mobs::undead::in_powder_snow # hot: 0.63 entries per frame
+horizon_client_lib::mobs::villager::anim # hot: 1.30 entries per frame
+horizon_client_lib::mobs::villager_brain::state_poi # hot: 0.87 entries per frame
 horizon_client_lib::mobs::warden::pre_tick # hot: 3.6 entries per frame
 horizon_client_lib::mobs::world::MobWorld::brightness # hot: 2.1 entries per frame
+horizon_client_lib::mobs::world::MobWorld::precipitation_at # hot: 2.98 entries per frame
 horizon_client_lib::motion::environment::fire_contact # hot: 4.4 entries per frame
+horizon_client_lib::motion::fluids::<FluidTags as FluidMembership>::fluid_in_tag # hot: 3.48 entries per frame
+horizon_client_lib::motion::fluids::<MotionWorld as FluidInteractionWorld>::fluid_state # hot: 1.39 entries per frame
 horizon_client_lib::motion::fluids::bubble_column_at # hot: 17.5 entries per frame
+horizon_client_lib::old_world::<SavedOldWorld as OldWorld>::is_old_chunk_around # hot: 0.50 entries per frame
+horizon_client_lib::perf_overlay::FrameGraph::draw # hot: 1.37 entries per frame
 horizon_client_lib::random_tick_sections::<Sections as Iterator>::next # hot: 73.5 entries per frame
+horizon_client_lib::save::<HeightmapView as HeightmapChunk>::height # hot: 0.82 entries per frame
 horizon_client_lib::save::<HeightmapView as HeightmapChunk>::min_y # hot: 428.1 entries per frame
+horizon_client_lib::screen_narrator::ScreenNarrator::frame_with # hot: 1.37 entries per frame
+horizon_client_lib::screen_narrator::ScreenNarrator::step # hot: 1.37 entries per frame
 horizon_client_lib::shadows::mob_shadow_radius # hot: 95.7 entries per frame
 horizon_client_lib::shadows::shadow_gates # hot: 104.6 entries per frame
 horizon_client_lib::shadows::shadow_params # hot: 193.3 entries per frame
 horizon_client_render::assets::<Properties as TerrainBlockStates>::heightmap_state # hot: 427.8 entries per frame
 horizon_client_render::biome::blend_rgb # hot: 3.0 entries per frame
+horizon_client_render::biome::gaussian_weights # hot: 1.37 entries per frame
+horizon_client_render::block_entities::BlockEntities::put # hot: 1.51 entries per frame
 horizon_client_render::block_entities::BlockEntities::remove # hot: 2.2 entries per frame
+horizon_client_render::block_entity_render::StaticGeometry::snapshot # hot: 1.37 entries per frame
+horizon_client_render::border_render::BorderRenderer::prepare # hot: 1.37 entries per frame
+horizon_client_render::border_render::extract # hot: 1.37 entries per frame
 horizon_client_render::camera::Camera::near_plane # hot: 6.0 entries per frame
+horizon_client_render::camera::Camera::set_rotation # hot: 1.37 entries per frame
+horizon_client_render::camera::bob_hurt # hot: 1.37 entries per frame
+horizon_client_render::camera::bob_matrix # hot: 1.37 entries per frame
+horizon_client_render::camera::bob_view # hot: 1.37 entries per frame
 horizon_client_render::camera::joml::Mat4::rotate_axis # hot: 2.0 entries per frame
+horizon_client_render::camera::joml::Mat4::rotation_axis # hot: 1.37 entries per frame
+horizon_client_render::camera::joml::Mat4::set_translation # hot: 1.37 entries per frame
+horizon_client_render::camera::joml::Mat4::translation # hot: 1.37 entries per frame
 horizon_client_render::camera::joml::Quat::rotation_yxz # hot: 7.0 entries per frame
 horizon_client_render::camera::joml::Quat::transform # hot: 3.0 entries per frame
 horizon_client_render::camera::joml::cos_from_sin # hot: 23.0 entries per frame
+horizon_client_render::camera::near_plane_bounds # hot: 1.37 entries per frame
 horizon_client_render::camera::perspective # hot: 2.0 entries per frame
+horizon_client_render::camera::spinning_effect_matrix # hot: 1.37 entries per frame
+horizon_client_render::camera::wrap_degrees # hot: 1.37 entries per frame
+horizon_client_render::chat::Chat::layout # hot: 1.37 entries per frame
 horizon_client_render::chunk::Chunk::set # hot: 6.2 entries per frame
+horizon_client_render::chunk::Light::packed # hot: 3.82 entries per frame
+horizon_client_render::clouds::Input::state # hot: 1.37 entries per frame
+horizon_client_render::clouds::Mesh::prepare # hot: 1.37 entries per frame
 horizon_client_render::clouds::emit_face # hot: 87.0 entries per frame
 horizon_client_render::clouds::face_mask # hot: 59.5 entries per frame
 horizon_client_render::collisions::<SceneCollisions as BlockCollisionWorld>::context_shape # hot: 11.4 entries per frame
 horizon_client_render::collisions::<SceneCollisions as EntityMovementWorld>::entity_collisions # hot: 5.6 entries per frame
+horizon_client_render::collisions::<SceneCollisions as EntityMovementWorld>::movement_border # hot: 2.50 entries per frame
+horizon_client_render::collisions::SceneCollisions::cells_without_collision # hot: 1.30 entries per frame
 horizon_client_render::containers::BlockEntity::for_block # hot: 2.4 entries per frame
+horizon_client_render::crash::mod_guard::Registry::maintenance # hot: 1.43 entries per frame
+horizon_client_render::dynamic_light::select # hot: 1.37 entries per frame
+horizon_client_render::environment::Environment::sample # hot: 1.74 entries per frame
 horizon_client_render::environment::Track::sample # hot: 14.1 entries per frame
+horizon_client_render::environment::apply_weather # hot: 1.49 entries per frame
+horizon_client_render::fog::FogState::water_vision # hot: 1.37 entries per frame
 horizon_client_render::fog::camera_fluid_height # hot: 36.2 entries per frame
 horizon_client_render::fog::camera_fog_type # hot: 6.0 entries per frame
+horizon_client_render::fog::setup_fog # hot: 1.37 entries per frame
 horizon_client_render::font::Font::glyph_of # hot: 26.0 entries per frame
 horizon_client_render::gfx::<Frusta as Cull>::contains # hot: 530.6 entries per frame
 horizon_client_render::gfx::<Frusta as Cull>::intersects # hot: 843.8 entries per frame
+horizon_client_render::gfx::DisplayWatch::changed # hot: 1.37 entries per frame
+horizon_client_render::gfx::Renderer::compact_arena # hot: 1.37 entries per frame
+horizon_client_render::gfx::Renderer::display_changed # hot: 1.37 entries per frame
+horizon_client_render::gfx::Renderer::draw_frame # hot: 1.37 entries per frame
+horizon_client_render::gfx::Renderer::draw_hand # hot: 1.37 entries per frame
+horizon_client_render::gfx::Renderer::draw_overlay # hot: 1.37 entries per frame
 horizon_client_render::gfx::Renderer::draw_sections # hot: 2.7 entries per frame
 horizon_client_render::gfx::Renderer::flush_block_sprite_uploads # hot: 2.0 entries per frame
+horizon_client_render::gfx::Renderer::follow_translucent_layout # hot: 1.37 entries per frame
 horizon_client_render::gfx::Renderer::land_frame # hot: 2.0 entries per frame
+horizon_client_render::gfx::Renderer::mark_clouds # hot: 1.37 entries per frame
+horizon_client_render::gfx::Renderer::release_mesh # hot: 0.75 entries per frame
+horizon_client_render::gfx::Renderer::release_meshes # hot: 1.37 entries per frame
+horizon_client_render::gfx::Renderer::render # hot: 1.37 entries per frame
+horizon_client_render::gfx::Renderer::screenshot_size # hot: 1.37 entries per frame
+horizon_client_render::gfx::Renderer::set_detail # hot: 2.67 entries per frame
+horizon_client_render::gfx::Renderer::shrink_translucent # hot: 1.37 entries per frame
+horizon_client_render::gfx::Renderer::take_section_copies # hot: 1.37 entries per frame
+horizon_client_render::gfx::Renderer::update_lightmap # hot: 1.37 entries per frame
+horizon_client_render::gfx::Renderer::upload # hot: 2.67 entries per frame
+horizon_client_render::gfx::Renderer::upload_mesh # hot: 2.67 entries per frame
+horizon_client_render::gfx::animate::SpriteAnimator::animate # hot: 1.37 entries per frame
+horizon_client_render::gfx::animate::SpriteAnimator::collect # hot: 1.37 entries per frame
+horizon_client_render::gfx::arena::Arena::alloc # hot: 2.53 entries per frame
+horizon_client_render::gfx::arena::Arena::sparsest_from # hot: 1.37 entries per frame
 horizon_client_render::gfx::arena::Arena::trim # hot: 3.0 entries per frame
+horizon_client_render::gfx::arena::FreeList::give # hot: 1.56 entries per frame
+horizon_client_render::gfx::arena::FreeList::take # hot: 2.68 entries per frame
+horizon_client_render::gfx::cull::Cull::begin # hot: 1.37 entries per frame
+horizon_client_render::gfx::cull::Cull::end # hot: 1.05 entries per frame
+horizon_client_render::gfx::cull::Cull::test # hot: 0.85 entries per frame
+horizon_client_render::gfx::cull::Cull::test_pass # hot: 0.85 entries per frame
+horizon_client_render::gfx::cull::Cull::upload # hot: 1.05 entries per frame
+horizon_client_render::gfx::entity_batch::EntityBatch::update # hot: 1.37 entries per frame
+horizon_client_render::gfx::entity_outline::EntityOutline::draw # hot: 1.37 entries per frame
+horizon_client_render::gfx::entity_outline::EntityOutline::prepare # hot: 1.37 entries per frame
+horizon_client_render::gfx::entity_skin::EntitySkin::register # hot: 0.67 entries per frame
+horizon_client_render::gfx::entity_skin::Grow::ensure # hot: 1.34 entries per frame
+horizon_client_render::gfx::entity_skin::SkinFrame::clear_draws # hot: 1.37 entries per frame
+horizon_client_render::gfx::flat::Flat::place # hot: 1.99 entries per frame
+horizon_client_render::gfx::frame_gen::FrameGen::stop # hot: 1.37 entries per frame
+horizon_client_render::gfx::lightning::Renderer::prepare # hot: 1.37 entries per frame
+horizon_client_render::gfx::occlusion::Columns::set # hot: 3.56 entries per frame
 horizon_client_render::gfx::occlusion::Graph::index # hot: 2556.8 entries per frame
 horizon_client_render::gfx::occlusion::Graph::key # hot: 63.0 entries per frame
 horizon_client_render::gfx::occlusion::Graph::sees_camera # hot: 152.1 entries per frame
 horizon_client_render::gfx::occlusion::Graph::walk # hot: 81.9 entries per frame
+horizon_client_render::gfx::occlusion::Occlusion::changed # hot: 0.99 entries per frame
 horizon_client_render::gfx::occlusion::Occlusion::collect # hot: 2.0 entries per frame
 horizon_client_render::gfx::occlusion::Occlusion::propagate_changes # hot: 2.0 entries per frame
 horizon_client_render::gfx::occlusion::Occlusion::update # hot: 2.0 entries per frame
+horizon_client_render::gfx::projection_center # hot: 1.37 entries per frame
 horizon_client_render::gfx::submit::Queue::wait # hot: 6.0 entries per frame
+horizon_client_render::gfx::sunrise_fan::normals # hot: 1.37 entries per frame
+horizon_client_render::gfx::sunrise_fan::vertices # hot: 1.37 entries per frame
+horizon_client_render::gfx::timing::GpuTimer::begin # hot: 1.37 entries per frame
+horizon_client_render::gfx::timing::GpuTimer::end # hot: 1.37 entries per frame
+horizon_client_render::gfx::timing::GpuTimer::resolve # hot: 1.37 entries per frame
+horizon_client_render::gfx::timing::GpuTimer::submitted # hot: 1.37 entries per frame
 horizon_client_render::gfx::upload::Uploads::buffer # hot: 15.4 entries per frame
+horizon_client_render::gfx::upload::Uploads::texture # hot: 2.52 entries per frame
+horizon_client_render::gfx::weather::Weather::draw # hot: 1.37 entries per frame
+horizon_client_render::gfx::weather::Weather::prepare # hot: 1.37 entries per frame
+horizon_client_render::gfx::world_post::Post::jitter # hot: 1.37 entries per frame
+horizon_client_render::hud::HudAtlas::pack_pixels # hot: 1.37 entries per frame
 horizon_client_render::hud::HudBatch::fill # hot: 2.0 entries per frame
 horizon_client_render::hud::HudBatch::new # hot: 2.0 entries per frame
 horizon_client_render::hud::HudBatch::styled_text # hot: 2.0 entries per frame
 horizon_client_render::hud::HudRenderer::draw_range # hot: 2.0 entries per frame
+horizon_client_render::hud::HudRenderer::prepare # hot: 1.37 entries per frame
 horizon_client_render::hud::native_textures::<HudBatch as Drop>::drop # hot: 2.0 entries per frame
+horizon_client_render::hud_layout::hotbar # hot: 1.37 entries per frame
 horizon_client_render::hud_layout::multiply # hot: 3.0 entries per frame
+horizon_client_render::hud_overlays::SavingIndicator::draw # hot: 1.37 entries per frame
+horizon_client_render::hud_overlays::SubtitleOverlay::extract # hot: 1.37 entries per frame
+horizon_client_render::hud_overlays::Titles::overlay_message # hot: 1.37 entries per frame
+horizon_client_render::hud_overlays::Titles::title # hot: 1.37 entries per frame
+horizon_client_render::hud_overlays::ToolHighlight::draw # hot: 1.37 entries per frame
+horizon_client_render::hud_overlays::boss_overlay # hot: 1.37 entries per frame
+horizon_client_render::hud_overlays::camera_overlays # hot: 1.37 entries per frame
+horizon_client_render::hud_overlays::sleep_overlay # hot: 1.37 entries per frame
 horizon_client_render::light::LightTables::blocked # hot: 163.0 entries per frame
 horizon_client_render::light::Region::cell # hot: 376.7 entries per frame
 horizon_client_render::light::Region::light # hot: 430.5 entries per frame
 horizon_client_render::light::Region::load # hot: 154.8 entries per frame
 horizon_client_render::light::Region::slot # hot: 1065.8 entries per frame
 horizon_client_render::light::lowest_sky_source # hot: 3.7 entries per frame
+horizon_client_render::mesher::<SectionMesh as Default>::default # hot: 0.59 entries per frame
+horizon_client_render::mesher::MeshTables::flat_light # hot: 1.38 entries per frame
 horizon_client_render::mesher::Mesher::face # hot: 498.7 entries per frame
+horizon_client_render::mesher::Mesher::mesh_reusing # hot: 2.69 entries per frame
 horizon_client_render::mesher::Mesher::quad_as # hot: 498.7 entries per frame
+horizon_client_render::mesher::Padded::fill # hot: 1.60 entries per frame
 horizon_client_render::mesher::SectionMesh::clear # hot: 2.4 entries per frame
+horizon_client_render::mesher::SectionMesh::compute_bounds # hot: 2.69 entries per frame
 horizon_client_render::mesher::Tints::get # hot: 204.3 entries per frame
 horizon_client_render::mesher::Tints::uniform_biome # hot: 204.3 entries per frame
 horizon_client_render::mesher::fill_row # hot: 95.5 entries per frame
@@ -199,17 +604,42 @@ horizon_client_render::mesher::lighting::ambient_occlusion # hot: 466.2 entries 
 horizon_client_render::mesher::lighting::shape # hot: 498.5 entries per frame
 horizon_client_render::mesher::offset # hot: 245.2 entries per frame
 horizon_client_render::mesher::sides::Sides::runs # hot: 479.3 entries per frame
+horizon_client_render::mesher::sides::sort_with # hot: 2.69 entries per frame
+horizon_client_render::mesher::visibility_rows # hot: 1.60 entries per frame
+horizon_client_render::particles::<ParticleLightCache as Default>::default # hot: 1.37 entries per frame
+horizon_client_render::particles::Particle::base_moving # hot: 0.70 entries per frame
 horizon_client_render::particles::Particle::base_tick # hot: 4.3 entries per frame
 horizon_client_render::particles::Particle::move_by # hot: 4.1 entries per frame
+horizon_client_render::particles::ParticleEngine::add_with # hot: 1.09 entries per frame
+horizon_client_render::particles::ParticleEngine::calculate_particle_level # hot: 1.09 entries per frame
+horizon_client_render::particles::ParticleEngine::make # hot: 0.56 entries per frame
+horizon_client_render::particles::ParticleLevel::collide # hot: 1.30 entries per frame
 horizon_client_render::particles::ParticleLightCache::get # hot: 76.8 entries per frame
+horizon_client_render::post_chain::PostEffects::apply # hot: 1.37 entries per frame
+horizon_client_render::post_chain::PostEffects::preload # hot: 1.37 entries per frame
+horizon_client_render::preedit::draw_overlay # hot: 1.37 entries per frame
+horizon_client_render::screen_effects::ScreenEffects::build # hot: 1.37 entries per frame
 horizon_client_render::section_mask::<Indexes as Iterator>::next # hot: 78.1 entries per frame
+horizon_client_render::section_mask::<SectionMask as BitOrAssign>::bitor_assign # hot: 0.79 entries per frame
+horizon_client_render::skins::SkinSlots::next_frame # hot: 1.37 entries per frame
 horizon_client_render::spans::Laps::lap # hot: 28.0 entries per frame
 horizon_client_render::sprites::SpriteAnimation::blend # hot: 62.3 entries per frame
+horizon_client_render::sprites::SpriteAnimation::resized_pixels # hot: 3.71 entries per frame
 horizon_client_render::streaming::<Queued as Ord>::cmp # hot: 9.2 entries per frame
 horizon_client_render::streaming::<Queued as PartialOrd>::partial_cmp # hot: 9.2 entries per frame
+horizon_client_render::streaming::ExtraCover::new # hot: 1.77 entries per frame
+horizon_client_render::streaming::GenerationScan::candidates # hot: 1.77 entries per frame
+horizon_client_render::streaming::MeshPool::put # hot: 2.69 entries per frame
 horizon_client_render::streaming::Ranges::in_main_range # hot: 164.8 entries per frame
 horizon_client_render::streaming::Ranges::near_finished # hot: 16.9 entries per frame
+horizon_client_render::streaming::Streaming::relight_edits # hot: 1.77 entries per frame
+horizon_client_render::streaming::Streaming::requeue # hot: 1.77 entries per frame
+horizon_client_render::streaming::Streaming::submit # hot: 3.42 entries per frame
+horizon_client_render::streaming::Streaming::update # hot: 1.77 entries per frame
+horizon_client_render::streaming::ViewArrival::arriving # hot: 1.77 entries per frame
 horizon_client_render::tab_list::default_skin # hot: 2.0 entries per frame
+horizon_client_render::telemetry::Session::frame # hot: 1.37 entries per frame
+horizon_client_render::ui::draw_nine_slice # hot: 1.37 entries per frame
 horizon_client_render::world::World::may_hold # hot: 12.6 entries per frame
 horizon_client_render::world::World::set # hot: 6.2 entries per frame
 horizon_core::biome::BiomeZoom::corner_jitter # hot: 17.9 entries per frame
@@ -237,6 +667,7 @@ horizon_core::density::arithmetic::UnaryOp::apply_bulk # hot: 17.6 entries per f
 horizon_core::density::beardifier::Beardifier::sample_unchecked # hot: 123.0 entries per frame
 horizon_core::density::beardifier::beard # hot: 3492.4 entries per frame
 horizon_core::density::beardifier::fast_inverse_sqrt # hot: 437.9 entries per frame
+horizon_core::density::cache::<CacheCell as Default>::default # hot: 4.40 entries per frame
 horizon_core::density::cache::<CachingDensitySampler as DensitySampler>::sample_value # hot: 125.2 entries per frame
 horizon_core::density::cache::<CachingDensitySampler as DensitySampler>::sample_volume # hot: 11.1 entries per frame
 horizon_core::density::cache::SamplerContext::prepare_cache # hot: 136.3 entries per frame
@@ -244,15 +675,20 @@ horizon_core::density::interpolation::<InterpolatedSampler as DensitySampler>::s
 horizon_core::density::interpolation::InterpolatedSampler::fill_cell # hot: 190.6 entries per frame
 horizon_core::density::interpolation::InterpolatedSampler::sample_block_volume # hot: 3.0 entries per frame
 horizon_core::density::selection::<LerpSampler as DensitySampler>::sample_value # hot: 31.0 entries per frame
+horizon_core::density::selection::<LerpSampler as DensitySampler>::sample_volume # hot: 3.15 entries per frame
 horizon_core::density::selection::<RangeChoiceSampler as DensitySampler>::sample_volume # hot: 5.1 entries per frame
 horizon_core::density::slice::<SliceSampler as DensitySampler>::sample_value # hot: 115.5 entries per frame
 horizon_core::density::slice::<SliceSampler as DensitySampler>::sample_volume # hot: 8.7 entries per frame
 horizon_core::density::spline::<SplineSampler as DensitySampler>::sample_value # hot: 11.4 entries per frame
+horizon_core::density::spline::<SplineSampler as DensitySampler>::sample_volume # hot: 2.72 entries per frame
 horizon_core::density::surface::<FindTopSurfaceSampler as DensitySampler>::sample_value # hot: 3.8 entries per frame
+horizon_core::density::surface::<FindTopSurfaceSampler as DensitySampler>::sample_volume # hot: 1.07 entries per frame
 horizon_core::density::surface::FindTopSurfaceSampler::find_surface_from # hot: 9.8 entries per frame
 horizon_core::density::terrain_noise::<ShiftBSampler as DensitySampler>::sample_value # hot: 20.7 entries per frame
+horizon_core::density::terrain_noise::<ShiftBSampler as DensitySampler>::sample_volume # hot: 5.63 entries per frame
 horizon_core::density::visit # hot: 2.6 entries per frame
 horizon_core::density::world_fields::<ContextBoundSampler as DensitySampler>::sample_value # hot: 11.4 entries per frame
+horizon_core::density::world_fields::<ContextBoundSampler as DensitySampler>::sample_volume # hot: 4.22 entries per frame
 horizon_core::fast_hash::<FxHasher as Hasher>::finish # hot: 3987.9 entries per frame
 horizon_core::fast_hash::<FxHasher as Hasher>::write # hot: 85.5 entries per frame
 horizon_core::fast_hash::<FxHasher as Hasher>::write_i32 # hot: 8103.7 entries per frame
@@ -267,6 +703,9 @@ horizon_core::geometry::shape::VoxelShape::collide # hot: 7.3 entries per frame
 horizon_core::geometry::shape::VoxelShape::find_index # hot: 36.7 entries per frame
 horizon_core::geometry::shape::VoxelShape::moved # hot: 8.3 entries per frame
 horizon_core::geometry::shape::join::VoxelShape::join_is_not_empty # hot: 87.4 entries per frame
+horizon_core::geometry::shape::join::VoxelShape::mergers # hot: 1.15 entries per frame
+horizon_core::geometry::shape::join::merge # hot: 3.46 entries per frame
+horizon_core::geometry::sweep::sweep_intersected_blocks # hot: 0.52 entries per frame
 horizon_core::geometry::trig::atan2 # hot: 9.0 entries per frame
 horizon_core::noise::perlin::PerlinNoise::gradients_at # hot: 2936.4 entries per frame
 horizon_core::noise::perlin::add_four # hot: 906.1 entries per frame
@@ -274,9 +713,15 @@ horizon_core::noise::simplex::SimplexNoise::get2 # hot: 8.0 entries per frame
 horizon_core::noise::stack::<NoiseStack as Noise>::add_to_volume # hot: 8.1 entries per frame
 horizon_core::noise::stack::<NoiseStack as Noise>::get3 # hot: 146.8 entries per frame
 horizon_core::noise::volume::DensityVolume::new # hot: 14.3 entries per frame
+horizon_core::paletted::<PalettedContainer as PartialEq>::eq # hot: 2.57 entries per frame
 horizon_core::paletted::PalettedContainer::all_equal # hot: 9.0 entries per frame
+horizon_core::paletted::PalettedContainer::check_indices # hot: 1.10 entries per frame
+horizon_core::paletted::PalettedContainer::from_wire # hot: 2.22 entries per frame
+horizon_core::paletted::PalettedContainer::has # hot: 2.97 entries per frame
 horizon_core::paletted::PalettedContainer::pack # hot: 2.3 entries per frame
 horizon_core::paletted::palette_ids # hot: 5.1 entries per frame
+horizon_core::position::iter::BlockBoxIter::new # hot: 1.10 entries per frame
+horizon_core::random::<LegacyRandom as RandomSource>::next_boolean # hot: 0.64 entries per frame
 horizon_core::random::<LegacyRandom as RandomSource>::next_double # hot: 2.2 entries per frame
 horizon_core::random::<LegacyRandom as RandomSource>::next_float # hot: 829.8 entries per frame
 horizon_core::random::<LegacyRandom as RandomSource>::next_int_bound # hot: 886.4 entries per frame
@@ -289,42 +734,83 @@ horizon_core::random::<XoroshiroRandom as RandomSource>::next_int_bound # hot: 1
 horizon_core::random::<XoroshiroRandom as RandomSource>::next_long # hot: 743.5 entries per frame
 horizon_core::random::<XoroshiroRandom as RandomSource>::set_seed # hot: 3.5 entries per frame
 horizon_core::random::LegacyRandom::bits # hot: 1878.4 entries per frame
+horizon_core::random::hash::Md5::block # hot: 1.40 entries per frame
+horizon_core::random::hash::Md5::update # hot: 4.21 entries per frame
 horizon_core::random::worldgen::<LegacyRandom as WorldgenSource>::worldgen_bits # hot: 4.8 entries per frame
 horizon_core::random::worldgen::<XoroshiroRandom as WorldgenSource>::worldgen_bits # hot: 610.9 entries per frame
+horizon_core::storage::PackedStorage::from_words # hot: 5.31 entries per frame
 horizon_core::storage::PackedStorage::set # hot: 161.4 entries per frame
 horizon_core::storage::PackedStorage::write # hot: 2720.8 entries per frame
 horizon_core::ticks::LevelTicks::next_tick # hot: 13.8 entries per frame
 horizon_core::ticks::LevelTicks::schedule # hot: 15.2 entries per frame
+horizon_core::ticks::index::DeadlineIndex::find # hot: 1.30 entries per frame
+horizon_core::ticks::index::DeadlineIndex::put # hot: 1.00 entries per frame
+horizon_items::item_data::components_tag # hot: 0.68 entries per frame
+horizon_items::random_sequences::<RandomSequences as Default>::default # hot: 0.66 entries per frame
+horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::read # hot: 0.69 entries per frame
+horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::write # hot: 0.69 entries per frame
+horizon_protocol::buf::Reader::count # hot: 4.58 entries per frame
+horizon_protocol::chunk::Paletted::from_palette # hot: 1.60 entries per frame
+horizon_protocol::chunk::Paletted::from_values # hot: 0.62 entries per frame
+horizon_protocol::chunk::Paletted::read # hot: 4.44 entries per frame
+horizon_protocol::chunk::Section::write # hot: 1.32 entries per frame
 horizon_protocol::chunk::storage_get # hot: 13.6 entries per frame
+horizon_protocol::connection::<Pipe as Write>::write # hot: 2.92 entries per frame
+horizon_protocol::connection::<Stream as Write>::write # hot: 2.92 entries per frame
+horizon_protocol::connection::ConnWriter::send_contents # hot: 2.92 entries per frame
+horizon_protocol::frame::body # hot: 2.92 entries per frame
+horizon_protocol::frame::prefixed # hot: 2.92 entries per frame
+horizon_protocol::item::<WirePatch as PartialEq>::eq # hot: 1.78 entries per frame
 horizon_world::attributes::live::<Key as ObjectKey>::object_hash # hot: 6.2 entries per frame
 horizon_world::attributes::live::<Key as PartialEq>::eq # hot: 2.5 entries per frame
 horizon_world::block_collision_scan::cells # hot: 10.0 entries per frame
 horizon_world::block_render::FaceVisibility::should_render_face # hot: 499.7 entries per frame
 horizon_world::block_render::FaceVisibility::skips # hot: 499.7 entries per frame
+horizon_world::block_state_properties::<BlockProperties as Debug>::fmt # hot: 1.12 entries per frame
+horizon_world::block_state_properties::<BlockProperties as PartialEq>::eq # hot: 1.64 entries per frame
+horizon_world::block_state_properties::<Iter as Iterator>::size_hint # hot: 2.22 entries per frame
 horizon_world::chunk::BlockSection::fill_run # hot: 101.8 entries per frame
 horizon_world::chunk::BlockSection::set # hot: 1080.5 entries per frame
+horizon_world::chunk::BlockState::from_nbt # hot: 1.12 entries per frame
+horizon_world::chunk::BlockState::to_nbt # hot: 2.22 entries per frame
 horizon_world::chunk::id_in # hot: 1170.5 entries per frame
 horizon_world::entity_fluid::<CurrentAccumulator as Default>::default # hot: 8.0 entries per frame
+horizon_world::fluid::FluidBlockBindings::block # hot: 1.08 entries per frame
+horizon_world::level::fluids::Behaviours::can_place_liquid # hot: 0.67 entries per frame
+horizon_world::level::tick::RandomTickMask::of # hot: 0.78 entries per frame
 horizon_world::nbt::<JavaString as From<&str>>::from # hot: 49.5 entries per frame
+horizon_world::nbt::Reader::count # hot: 2.96 entries per frame
 horizon_world::nbt::Reader::payload # hot: 12.4 entries per frame
 horizon_world::nbt::Writer::payload # hot: 37.9 entries per frame
 horizon_world::nbt::Writer::put # hot: 538.5 entries per frame
 horizon_world::nbt::Writer::string # hot: 40.1 entries per frame
 horizon_world::nbt::modified_utf8 # hot: 12.2 entries per frame
+horizon_world::registry::BlockRegistry::resolve # hot: 0.96 entries per frame
+horizon_world::registry::state_key # hot: 1.71 entries per frame
+horizon_world::stepped_interpolation::SteppedInterpolation::advance # hot: 2.13 entries per frame
 horizon_world::stepped_interpolation::SteppedInterpolation::interpolate # hot: 3.3 entries per frame
+horizon_world::stepped_interpolation::SteppedInterpolation::interpolate_to # hot: 0.75 entries per frame
+horizon_world::stepped_interpolation::wrap_degrees # hot: 1.60 entries per frame
 horizon_world::worldgen::aquifer::<GlobalFluidPicker as FluidPicker>::compute # hot: 544.0 entries per frame
 horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::air # hot: 1522.4 entries per frame
 horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::is_air # hot: 4.4 entries per frame
 horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::is_lava # hot: 786.3 entries per frame
 horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::is_water # hot: 398.1 entries per frame
+horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::lava # hot: 4.47 entries per frame
 horizon_world::worldgen::biome_temperature::BiomeTemperature::temperature # hot: 16.2 entries per frame
 horizon_world::worldgen::blending::Blender::carving_filter # hot: 45.3 entries per frame
 horizon_world::worldgen::carver::generation::large_feature_random # hot: 32.9 entries per frame
+horizon_world::worldgen::climate::ClimateSampler::sample # hot: 4.37 entries per frame
 horizon_world::worldgen::decoration_order::ticket_hash # hot: 19.4 entries per frame
+horizon_world::worldgen::dripstone::Wind::offset # hot: 5.22 entries per frame
+horizon_world::worldgen::dripstone::speleothem_height # hot: 1.75 entries per frame
 horizon_world::worldgen::generator::<GenBlockStates as TerrainBlockStates>::heightmap_state # hot: 5940.2 entries per frame
 horizon_world::worldgen::generator::UniformSurfaceBiomes::cell # hot: 11.9 entries per frame
+horizon_world::worldgen::generator::lap # hot: 1.05 entries per frame
 horizon_world::worldgen::generator_decoration::<ShapeLevel as LevelAccess>::block_state # hot: 3.8 entries per frame
 horizon_world::worldgen::generator_decoration::<ShapeLevel as LevelAccess>::game_time # hot: 12.3 entries per frame
+horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::chunk_biomes # hot: 1.07 entries per frame
+horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::set_currently_generating # hot: 6.81 entries per frame
 horizon_world::worldgen::generator_decoration::<World as FeatureWorld>::block # hot: 2154.6 entries per frame
 horizon_world::worldgen::generator_decoration::<World as FeatureWorld>::scan_column # hot: 2.8 entries per frame
 horizon_world::worldgen::generator_decoration::<World as FeatureWorld>::set_block # hot: 60.7 entries per frame
@@ -338,6 +824,7 @@ horizon_world::worldgen::generator_decoration::<World as PlacementContext>::bloc
 horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_matches_tag # hot: 29.6 entries per frame
 horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_state # hot: 300.1 entries per frame
 horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_survives # hot: 4.2 entries per frame
+horizon_world::worldgen::generator_decoration::<World as PlacementContext>::collision_full_block # hot: 1.58 entries per frame
 horizon_world::worldgen::generator_decoration::<World as PlacementContext>::ensure_can_write # hot: 234.3 entries per frame
 horizon_world::worldgen::generator_decoration::<World as PlacementContext>::face_sturdy # hot: 7.3 entries per frame
 horizon_world::worldgen::generator_decoration::<World as PlacementContext>::fluid_state # hot: 5.7 entries per frame
@@ -352,14 +839,22 @@ horizon_world::worldgen::generator_decoration::<World as PlacementContext>::set_
 horizon_world::worldgen::generator_decoration::<World as PlacementContext>::state_face_sturdy # hot: 208.9 entries per frame
 horizon_world::worldgen::generator_decoration::<World as PlacementContext>::update_shape_at_face # hot: 17.2 entries per frame
 horizon_world::worldgen::generator_decoration::<World as SurvivalWorld>::block_state # hot: 112.8 entries per frame
+horizon_world::worldgen::generator_decoration::<World as SurvivalWorld>::fluid_state # hot: 0.88 entries per frame
 horizon_world::worldgen::generator_decoration::World::shape_update # hot: 34.4 entries per frame
 horizon_world::worldgen::generator_decoration::World::uniform_biome # hot: 41.9 entries per frame
 horizon_world::worldgen::generator_decoration::World::uniform_section # hot: 100.7 entries per frame
 horizon_world::worldgen::generator_structures::StartCache::get # hot: 11.6 entries per frame
 horizon_world::worldgen::material_condition::codec::identifier # hot: 7.6 entries per frame
 horizon_world::worldgen::material_condition::density::block_index # hot: 2777.2 entries per frame
+horizon_world::worldgen::state_provider::properties::StateProperties::set_integer # hot: 0.61 entries per frame
 horizon_world::worldgen::state_provider::properties::StateProperties::with_value # hot: 38.9 entries per frame
 horizon_world::worldgen::structure::jigsaw::Pools::get # hot: 2.5 entries per frame
+horizon_world::worldgen::structure::legacy::PieceFrame::place # hot: 7.62 entries per frame
+horizon_world::worldgen::structure::legacy::state # hot: 0.89 entries per frame
+horizon_world::worldgen::structure::mineshaft::<MineshaftPiece as LegacyPiece>::bounding_box # hot: 5.77 entries per frame
+horizon_world::worldgen::structure::start::StructureRegistry::structure_chunk # hot: 3.79 entries per frame
+horizon_world::worldgen::structure::template::StructureTemplate::bounding_box # hot: 7.31 entries per frame
 horizon_world::worldgen::structure::template::StructureTemplate::transform # hot: 32.4 entries per frame
+horizon_world::worldgen::tags::identifier # hot: 2.34 entries per frame
 horizon_world::worldgen::tree_blocks::<JavaPos as JavaKey>::java_hash # hot: 41.1 entries per frame
 horizon_world::worldgen::tree_blocks::PosSet::pop_first # hot: 9.8 entries per frame

@@ -306,7 +306,7 @@
       "id": 753,
       "key": "horizon_world::block_state_properties::<Iter as Iterator>::size_hint",
       "sig": "4da1290d615ab7ae",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -334,7 +334,7 @@
       "id": 757,
       "key": "horizon_world::block_state_properties::<BlockProperties as PartialEq>::eq",
       "sig": "80b1e3a9ef698711",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -362,7 +362,7 @@
       "id": 761,
       "key": "horizon_world::block_state_properties::<BlockProperties as Debug>::fmt",
       "sig": "8dd7587632612893",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -418,14 +418,14 @@
       "id": 769,
       "key": "horizon_world::chunk::BlockState::to_nbt",
       "sig": "11adb6e78f86eed1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 770,
       "key": "horizon_world::chunk::BlockState::from_nbt",
       "sig": "c0811065ddfd3919",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1699,7 +1699,7 @@
       "id": 952,
       "key": "horizon_world::fluid::FluidBlockBindings::block",
       "sig": "cd8b139489d09d83",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2098,7 +2098,7 @@
       "id": 1009,
       "key": "horizon_world::level::fluids::Behaviours::can_place_liquid",
       "sig": "9ef5b9a6064d2f7f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2315,7 +2315,7 @@
       "id": 1040,
       "key": "horizon_world::nbt::Reader::count",
       "sig": "7fa96502f7ff99b5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2539,7 +2539,7 @@
       "id": 1072,
       "key": "horizon_world::registry::state_key",
       "sig": "16e17e72236ed534",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2560,7 +2560,7 @@
       "id": 1075,
       "key": "horizon_world::registry::BlockRegistry::resolve",
       "sig": "57d70fbf1b06b210",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2735,7 +2735,7 @@
       "id": 1100,
       "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::lava",
       "sig": "d03b2e1ea71184d0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3155,7 +3155,7 @@
       "id": 1160,
       "key": "horizon_world::worldgen::climate::ClimateSampler::sample",
       "sig": "46e4f06590adeed0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3302,14 +3302,14 @@
       "id": 1181,
       "key": "horizon_world::worldgen::dripstone::Wind::offset",
       "sig": "84488b517a541d14",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1182,
       "key": "horizon_world::worldgen::dripstone::speleothem_height",
       "sig": "47be132d3266c694",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3512,7 +3512,7 @@
       "id": 1211,
       "key": "horizon_world::worldgen::generator::lap",
       "sig": "9a6213680322beef",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3694,14 +3694,14 @@
       "id": 1237,
       "key": "horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::chunk_biomes",
       "sig": "829f3978d74721c2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1238,
       "key": "horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::set_currently_generating",
       "sig": "e28f9e11eed9c829",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3743,7 +3743,7 @@
       "id": 1244,
       "key": "horizon_world::worldgen::generator_decoration::<World as SurvivalWorld>::fluid_state",
       "sig": "801b9de84868c9e9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3848,7 +3848,7 @@
       "id": 1259,
       "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::collision_full_block",
       "sig": "8c25d9d705784df4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4576,7 +4576,7 @@
       "id": 1363,
       "key": "horizon_world::worldgen::state_provider::properties::StateProperties::set_integer",
       "sig": "32dae37ce08942b5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4884,14 +4884,14 @@
       "id": 1407,
       "key": "horizon_world::worldgen::structure::legacy::state",
       "sig": "af0092c7f1a3253e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1408,
       "key": "horizon_world::worldgen::structure::legacy::PieceFrame::place",
       "sig": "e864a75a89763af7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5031,7 +5031,7 @@
       "id": 1428,
       "key": "horizon_world::worldgen::structure::mineshaft::<MineshaftPiece as LegacyPiece>::bounding_box",
       "sig": "6761e146840e5c30",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5444,7 +5444,7 @@
       "id": 1487,
       "key": "horizon_world::worldgen::structure::start::StructureRegistry::structure_chunk",
       "sig": "fe3be5439f783ce6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5640,7 +5640,7 @@
       "id": 1515,
       "key": "horizon_world::worldgen::structure::template::StructureTemplate::bounding_box",
       "sig": "0da250827011a6a3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5738,7 +5738,7 @@
       "id": 1529,
       "key": "horizon_world::worldgen::tags::identifier",
       "sig": "fcf29d1f50d511d4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5969,14 +5969,14 @@
       "id": 1562,
       "key": "horizon_world::stepped_interpolation::wrap_degrees",
       "sig": "b56b0345789868f8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1563,
       "key": "horizon_world::stepped_interpolation::SteppedInterpolation::interpolate_to",
       "sig": "ab0711c3fa637fe5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5990,7 +5990,7 @@
       "id": 1565,
       "key": "horizon_world::stepped_interpolation::SteppedInterpolation::advance",
       "sig": "9ed5729d37023cbf",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6095,7 +6095,7 @@
       "id": 10694,
       "key": "horizon_world::level::tick::RandomTickMask::of",
       "sig": "0e742f0a58f8ce33",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -7608,6 +7608,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::block_state_properties::<BlockProperties as Debug>::fmt",
+      "reason": "hot: 1.12 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::block_state_properties::<BlockProperties as Deserialize>::deserialize",
       "reason": "calls trait method without trait in scope",
       "kind": "fn"
@@ -7643,6 +7649,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::block_state_properties::<BlockProperties as PartialEq>::eq",
+      "reason": "hot: 1.64 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::block_state_properties::<BlockProperties as Serialize>::serialize",
       "reason": "generic type params",
       "kind": "fn"
@@ -7656,6 +7668,12 @@
       "key": "horizon_world::block_state_properties::<Iter as Iterator>::next",
       "reason": "uses trait Self:: item",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::block_state_properties::<Iter as Iterator>::size_hint",
+      "reason": "hot: 2.22 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::block_state_properties::<Text as Deref>::deref",
@@ -8023,6 +8041,18 @@
       "key": "horizon_world::chunk::BlockSection::uniform",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::chunk::BlockState::from_nbt",
+      "reason": "hot: 1.12 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::chunk::BlockState::to_nbt",
+      "reason": "hot: 2.22 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::chunk::ChunkData::into_nbt",
@@ -11922,6 +11952,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::fluid::FluidBlockBindings::block",
+      "reason": "hot: 1.08 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::fluid::FluidBlockBindings::new",
       "reason": "small body",
       "kind": "fn"
@@ -14380,6 +14416,12 @@
       "key": "horizon_world::level::feature_world::pos",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::fluids::Behaviours::can_place_liquid",
+      "reason": "hot: 0.67 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::level::fluids::Behaviours::is_liquid_container",
@@ -17237,6 +17279,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::level::tick::RandomTickMask::of",
+      "reason": "hot: 0.78 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::level::tick::Sim<L>::bamboo_grow",
       "reason": "generic impl",
       "kind": "fn"
@@ -18763,6 +18811,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::nbt::Reader::count",
+      "reason": "hot: 2.96 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::nbt::Reader::error",
       "reason": "small body",
       "kind": "fn"
@@ -19753,6 +19807,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::registry::BlockRegistry::resolve",
+      "reason": "hot: 0.96 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::registry::BlockRegistry::state",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -19836,6 +19896,12 @@
       "key": "horizon_world::registry::snapshot::Strings::state",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::registry::state_key",
+      "reason": "hot: 1.71 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::registry_collision_scan::<RegistryCollisionWorld<W> as BlockCollisionWorld>::collision_block",
@@ -20818,6 +20884,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::stepped_interpolation::SteppedInterpolation::advance",
+      "reason": "hot: 2.13 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::stepped_interpolation::SteppedInterpolation::cancel",
       "reason": "small body",
       "kind": "fn"
@@ -20830,6 +20902,12 @@
     {
       "key": "horizon_world::stepped_interpolation::SteppedInterpolation::interpolate",
       "reason": "hot: 3.3 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::stepped_interpolation::SteppedInterpolation::interpolate_to",
+      "reason": "hot: 0.75 entries per frame",
       "kind": "fn",
       "manual": true
     },
@@ -20857,6 +20935,12 @@
       "key": "horizon_world::stepped_interpolation::same_position",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::stepped_interpolation::wrap_degrees",
+      "reason": "hot: 1.60 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::stored_consume::<StoredConsume<H,W> as EffectWorld<H,S,Set>>::add_effect",
@@ -21245,6 +21329,12 @@
     {
       "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::is_water",
       "reason": "hot: 398.1 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::lava",
+      "reason": "hot: 4.47 entries per frame",
       "kind": "fn",
       "manual": true
     },
@@ -22357,6 +22447,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::climate::ClimateSampler::sample",
+      "reason": "hot: 4.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::climate::ClimateVolume::target",
       "reason": "small body",
       "kind": "fn"
@@ -22768,6 +22864,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::dripstone::Wind::offset",
+      "reason": "hot: 5.22 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::dripstone::block_state",
       "reason": "small body",
       "kind": "fn"
@@ -22791,6 +22893,12 @@
       "key": "horizon_world::worldgen::dripstone::query",
       "reason": "generic type params",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::dripstone::speleothem_height",
+      "reason": "hot: 1.75 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::end_gateway::<EndGatewayError<E> as Display>::fmt",
@@ -24170,6 +24278,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::generator::lap",
+      "reason": "hot: 1.05 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::generator::loading",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -24235,6 +24349,18 @@
       "key": "horizon_world::worldgen::generator_decoration::<ShapeLevel as LevelAccess>::random",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::chunk_biomes",
+      "reason": "hot: 1.07 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::set_currently_generating",
+      "reason": "hot: 6.81 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::generator_decoration::<World as FeatureWorld>::block",
@@ -24311,6 +24437,12 @@
     {
       "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_survives",
       "reason": "hot: 4.2 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::collision_full_block",
+      "reason": "hot: 1.58 entries per frame",
       "kind": "fn",
       "manual": true
     },
@@ -24400,6 +24532,12 @@
     {
       "key": "horizon_world::worldgen::generator_decoration::<World as SurvivalWorld>::block_state",
       "reason": "hot: 112.8 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as SurvivalWorld>::fluid_state",
+      "reason": "hot: 0.88 entries per frame",
       "kind": "fn",
       "manual": true
     },
@@ -26225,6 +26363,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::state_provider::properties::StateProperties::set_integer",
+      "reason": "hot: 0.61 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::state_provider::properties::StateProperties::value",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -26972,6 +27116,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::structure::legacy::PieceFrame::place",
+      "reason": "hot: 7.62 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::structure::legacy::PieceFrame::world_pos",
       "reason": "small body",
       "kind": "fn"
@@ -27050,6 +27200,12 @@
       "key": "horizon_world::worldgen::structure::legacy::solid_render",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::structure::legacy::state",
+      "reason": "hot: 0.89 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::structure::mansion::Grid::edges_to",
@@ -27205,6 +27361,12 @@
       "key": "horizon_world::worldgen::structure::mansion::up",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::structure::mineshaft::<MineshaftPiece as LegacyPiece>::bounding_box",
+      "reason": "hot: 5.77 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::structure::mineshaft::Builder::add",
@@ -28037,6 +28199,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::structure::start::StructureRegistry::structure_chunk",
+      "reason": "hot: 3.79 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::structure::start::StructureRegistry::zone_reach",
       "reason": "small body",
       "kind": "fn"
@@ -28277,6 +28445,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::structure::template::StructureTemplate::bounding_box",
+      "reason": "hot: 7.31 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::structure::template::StructureTemplate::empty",
       "reason": "small body",
       "kind": "fn"
@@ -28361,6 +28535,12 @@
       "key": "horizon_world::worldgen::tags::hash",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::tags::identifier",
+      "reason": "hot: 2.34 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::tags::java_bucket_order",

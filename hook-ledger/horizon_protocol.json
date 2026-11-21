@@ -208,7 +208,7 @@
       "id": 10232,
       "key": "horizon_protocol::buf::Reader::count",
       "sig": "f7129e00659f1889",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -383,14 +383,14 @@
       "id": 10257,
       "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::read",
       "sig": "73d0b8c54e77448a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10258,
       "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::write",
       "sig": "f94211f8a330c09a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -418,21 +418,21 @@
       "id": 10262,
       "key": "horizon_protocol::chunk::Paletted::read",
       "sig": "e4f29598440a3530",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10263,
       "key": "horizon_protocol::chunk::Paletted::from_values",
       "sig": "f12707d5260bf19f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10264,
       "key": "horizon_protocol::chunk::Paletted::from_palette",
       "sig": "3cfbca972b67cded",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -446,7 +446,7 @@
       "id": 10266,
       "key": "horizon_protocol::chunk::Section::write",
       "sig": "fe4751f411c957d1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -523,7 +523,7 @@
       "id": 10277,
       "key": "horizon_protocol::connection::<Pipe as Write>::write",
       "sig": "b52052a5c9a93de9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -544,7 +544,7 @@
       "id": 10280,
       "key": "horizon_protocol::connection::<Stream as Write>::write",
       "sig": "b52052a5c9a93de9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -579,7 +579,7 @@
       "id": 10285,
       "key": "horizon_protocol::connection::ConnWriter::send_contents",
       "sig": "81d99699a76be66b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -656,7 +656,7 @@
       "id": 10296,
       "key": "horizon_protocol::frame::prefixed",
       "sig": "79d69723aad999d6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -677,7 +677,7 @@
       "id": 10299,
       "key": "horizon_protocol::frame::body",
       "sig": "8efff987c58affca",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -733,7 +733,7 @@
       "id": 10307,
       "key": "horizon_protocol::item::<WirePatch as PartialEq>::eq",
       "sig": "398ce4253199ec58",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2327,6 +2327,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::read",
+      "reason": "hot: 0.69 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::write",
+      "reason": "hot: 0.69 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_protocol::buf::<BytesN<N> as Codec<Vec<u8>>>::read",
       "reason": "generic impl",
       "kind": "fn"
@@ -2405,6 +2417,12 @@
       "key": "horizon_protocol::buf::Reader::bytes",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::count",
+      "reason": "hot: 4.58 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::buf::Reader::f32",
@@ -2652,9 +2670,27 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_protocol::chunk::Paletted::from_palette",
+      "reason": "hot: 1.60 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::chunk::Paletted::from_values",
+      "reason": "hot: 0.62 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_protocol::chunk::Paletted::get",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::Paletted::read",
+      "reason": "hot: 4.44 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::chunk::Paletted::write",
@@ -2665,6 +2701,12 @@
       "key": "horizon_protocol::chunk::Section::read",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::Section::write",
+      "reason": "hot: 1.32 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::chunk::Strategy::configuration",
@@ -2696,6 +2738,18 @@
       "key": "horizon_protocol::chunk::storage_len",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::<Pipe as Write>::write",
+      "reason": "hot: 2.92 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::connection::<Stream as Write>::write",
+      "reason": "hot: 2.92 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::connection::CaptureFenceId::decode[cfg(feature=\"dev-capture\")]",
@@ -2761,6 +2815,12 @@
       "key": "horizon_protocol::connection::ConnWriter::send",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::ConnWriter::send_contents",
+      "reason": "hot: 2.92 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::connection::ConnWriter::shutdown",
@@ -3018,6 +3078,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_protocol::frame::body",
+      "reason": "hot: 2.92 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_protocol::frame::contents",
       "reason": "small body",
       "kind": "fn"
@@ -3031,6 +3097,12 @@
       "key": "horizon_protocol::frame::header",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::frame::prefixed",
+      "reason": "hot: 2.92 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::hash_ops::HashCode::as_bytes",
@@ -3171,6 +3243,12 @@
       "key": "horizon_protocol::ids::name",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::<WirePatch as PartialEq>::eq",
+      "reason": "hot: 1.78 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::item::Component::read",

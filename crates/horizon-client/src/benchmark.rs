@@ -210,6 +210,8 @@ fn run(control: &Control, setup: Setup) -> Result<PathBuf, String> {
         let generated = control.status()["generated_chunks"].as_f64().unwrap_or(0.0);
         let [x, y, z] = start;
         control.call(&format!("tp {x} {y} {z}"))?;
+        #[cfg(feature = "hook-count")]
+        yoake_hook_rt::reset_counts();
         let teleported = Instant::now();
         // A zero-length flight holds the player at the start, flying.
         control.call(&format!("fly {x} {y} {z} {x} {y} {z} 0.1 {pitch}"))?;
@@ -226,6 +228,10 @@ fn run(control: &Control, setup: Setup) -> Result<PathBuf, String> {
         let loaded = wait_loaded(control, near)?;
         let load = loaded - teleported;
         report.metric(&format!("chunks.{name}.load_ms"), &[ms(load)]);
+        // W6: the slot entries of the world-load phase (generation, lighting, meshing), written like a flight's with
+        // the load time counted as frames at 60 per second so the same per-frame threshold applies
+        #[cfg(feature = "hook-count")]
+        write_hook_counts(&setup.game_dir, &format!("{name}.load"), (load.as_secs_f64() * 60.0).round() as usize);
         let status = control.status();
         let meshes = status["meshed_sections"].as_f64().unwrap_or(0.0) - meshed;
         let chunks = status["generated_chunks"].as_f64().unwrap_or(0.0) - generated;

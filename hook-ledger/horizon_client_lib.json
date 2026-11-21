@@ -8862,7 +8862,7 @@
       "id": 1703,
       "key": "horizon_client_lib::clock::FixedStep::advance",
       "sig": "fb1756f1b1859e65",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9037,7 +9037,7 @@
       "id": 1728,
       "key": "horizon_client_lib::control::FrameStats::record_block_entities",
       "sig": "ba47d35a0f41594a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9492,7 +9492,7 @@
       "id": 1793,
       "key": "horizon_client_lib::entities::ItemEntity::tick_move",
       "sig": "13fb2fc204dc31b4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9506,35 +9506,35 @@
       "id": 1795,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidMembership>::fluid_in_tag",
       "sig": "d10163a4e86e569b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1796,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::is_player_class",
       "sig": "7a4cef07f54c3f0c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1797,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::velocity",
       "sig": "1dfeb84774de027c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1798,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement",
       "sig": "eac164b89d525b52",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1799,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box",
       "sig": "9ba3a37208232739",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9548,28 +9548,28 @@
       "id": 1801,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::bounding_box_min_y",
       "sig": "cb0e90960d77d004",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1802,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_x",
       "sig": "fff3f629f590e8e5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1803,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::eye_y",
       "sig": "2ffab87f4d2a0639",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1804,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_z",
       "sig": "53654c05bd7ee90f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9583,28 +9583,28 @@
       "id": 1806,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_height",
       "sig": "447d179a23b6105f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1807,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::camera_height",
       "sig": "dba689e3baba3738",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1808,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::flow",
       "sig": "2783a8a3c07b258d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1809,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::fluid",
       "sig": "da2d05a4e21c09c3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9625,14 +9625,14 @@
       "id": 1812,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::block",
       "sig": "8df9946cb387d523",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1813,
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::blocks_fluid_flow",
       "sig": "a561e7a3b56c043b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9989,7 +9989,7 @@
       "id": 1864,
       "key": "horizon_client_lib::first_person::player_arm_pose",
       "sig": "83c4f62867f810c1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -10010,7 +10010,7 @@
       "id": 1867,
       "key": "horizon_client_lib::first_person::hands_to_render",
       "sig": "7b722b6b0dc62dbe",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -10920,7 +10920,7 @@
       "id": 1997,
       "key": "horizon_client_lib::item_render::FaceNormals::face",
       "sig": "06710ee915ccd9b8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -10990,7 +10990,7 @@
       "id": 2007,
       "key": "horizon_client_lib::item_render::ItemRenderer::grass_color",
       "sig": "49399c87b78a0b0e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11004,7 +11004,7 @@
       "id": 2009,
       "key": "horizon_client_lib::item_render::shaded",
       "sig": "8842c62ea59a9152",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11445,28 +11445,28 @@
       "id": 2072,
       "key": "horizon_client_lib::lan::chunks::network_palette",
       "sig": "81087b6a0e27dcce",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2073,
       "key": "horizon_client_lib::lan::chunks::SectionCoder::wire",
       "sig": "e000e4d2023ac3c1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2074,
       "key": "horizon_client_lib::lan::chunks::SectionCoder::section",
       "sig": "9b5e868e1858c61e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2075,
       "key": "horizon_client_lib::lan::chunks::SectionCoder::biomes",
       "sig": "038228aa54ceda3b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11480,7 +11480,7 @@
       "id": 2077,
       "key": "horizon_client_lib::lan::chunks::ChunkEncoder::section_wire",
       "sig": "712c13a2532a4fd7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11494,7 +11494,7 @@
       "id": 2079,
       "key": "horizon_client_lib::lan::chunks::ChunkEncoder::occupied",
       "sig": "4a1c61430bcc8dda",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11900,7 +11900,7 @@
       "id": 2137,
       "key": "horizon_client_lib::lan::entity::full_precision_required",
       "sig": "1162f20704454709",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11991,7 +11991,7 @@
       "id": 2150,
       "key": "horizon_client_lib::lan::guest::Guest::bounds",
       "sig": "d5d4a18b3e019846",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -12068,14 +12068,14 @@
       "id": 2161,
       "key": "horizon_client_lib::lan::hub::Hub::item_id",
       "sig": "5e4b75f82842a596",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2162,
       "key": "horizon_client_lib::lan::hub::Hub::stack",
       "sig": "46cba626e5fc7a84",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -13685,7 +13685,7 @@
       "id": 2392,
       "key": "horizon_client_lib::mobs::ai::custom_move_control",
       "sig": "285c4f86af1df102",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -13776,7 +13776,7 @@
       "id": 2405,
       "key": "horizon_client_lib::mobs::ai::sun_burn_tick",
       "sig": "0f032903fa8c0c1b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -13986,7 +13986,7 @@
       "id": 2435,
       "key": "horizon_client_lib::mobs::anim::Poses::copy_from",
       "sig": "447ffa9e667e1b0a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -14007,7 +14007,7 @@
       "id": 2438,
       "key": "horizon_client_lib::mobs::anim::quadruped",
       "sig": "fa62e52ce4a34bf7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -14021,7 +14021,7 @@
       "id": 2440,
       "key": "horizon_client_lib::mobs::anim::humanoid_state",
       "sig": "8dac67751bf05c7c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -14042,7 +14042,7 @@
       "id": 2443,
       "key": "horizon_client_lib::mobs::anim::humanoid",
       "sig": "5b15f6ae00c7379f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -14238,14 +14238,14 @@
       "id": 2471,
       "key": "horizon_client_lib::mobs::aquatic::glow_squid_ai_step",
       "sig": "b99d57630351b94e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2472,
       "key": "horizon_client_lib::mobs::aquatic::squid_step",
       "sig": "8eec4541041ebd65",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -14679,7 +14679,7 @@
       "id": 2534,
       "key": "horizon_client_lib::mobs::bat::server_ai_step",
       "sig": "b978acf91ee6c212",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -15715,14 +15715,14 @@
       "id": 2682,
       "key": "horizon_client_lib::mobs::cem_anim::<Frame as Default>::default",
       "sig": "e829b3691095158c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2683,
       "key": "horizon_client_lib::mobs::cem_anim::set_frame",
       "sig": "11fbb6cc8fbccf76",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -15771,14 +15771,14 @@
       "id": 2690,
       "key": "horizon_client_lib::mobs::control::rotlerp",
       "sig": "02d73c6160c3405e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2691,
       "key": "horizon_client_lib::mobs::control::LookControl::set_look_at",
       "sig": "d92772bcf8995307",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -16905,14 +16905,14 @@
       "id": 2852,
       "key": "horizon_client_lib::mobs::equine::markings",
       "sig": "2a10b32f22bd753c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2853,
       "key": "horizon_client_lib::mobs::equine::anim",
       "sig": "bf64f186b913ffb2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -16940,7 +16940,7 @@
       "id": 2857,
       "key": "horizon_client_lib::mobs::farm::chicken_flap",
       "sig": "4f021fb17f05ecbc",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -16954,7 +16954,7 @@
       "id": 2859,
       "key": "horizon_client_lib::mobs::finalize::compute",
       "sig": "bfdea6f86bcb8102",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17682,14 +17682,14 @@
       "id": 2963,
       "key": "horizon_client_lib::mobs::goals::<Float as Goal>::flags",
       "sig": "0d50fb592e65324d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2964,
       "key": "horizon_client_lib::mobs::goals::<Float as Goal>::can_use",
       "sig": "437e1c7713912498",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17738,14 +17738,14 @@
       "id": 2971,
       "key": "horizon_client_lib::mobs::goals::<Panic as Goal>::flags",
       "sig": "0d50fb592e65324d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2972,
       "key": "horizon_client_lib::mobs::goals::<Panic as Goal>::can_use",
       "sig": "34043727e77c915a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17780,14 +17780,14 @@
       "id": 2977,
       "key": "horizon_client_lib::mobs::goals::<Stroll as Goal>::flags",
       "sig": "0d50fb592e65324d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2978,
       "key": "horizon_client_lib::mobs::goals::<Stroll as Goal>::can_use",
       "sig": "34043727e77c915a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17815,7 +17815,7 @@
       "id": 2982,
       "key": "horizon_client_lib::mobs::goals::<LookAtPlayer as Goal>::flags",
       "sig": "0d50fb592e65324d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17829,7 +17829,7 @@
       "id": 2984,
       "key": "horizon_client_lib::mobs::goals::<LookAtPlayer as Goal>::can_use",
       "sig": "34043727e77c915a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17864,14 +17864,14 @@
       "id": 2989,
       "key": "horizon_client_lib::mobs::goals::<RandomLookAround as Goal>::flags",
       "sig": "0d50fb592e65324d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2990,
       "key": "horizon_client_lib::mobs::goals::<RandomLookAround as Goal>::can_use",
       "sig": "437e1c7713912498",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17899,21 +17899,21 @@
       "id": 2994,
       "key": "horizon_client_lib::mobs::goals::<RandomLookAround as Goal>::tick",
       "sig": "01aab44fcf1d7c9e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2995,
       "key": "horizon_client_lib::mobs::goals::<MeleeAttack as Goal>::flags",
       "sig": "0d50fb592e65324d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 2996,
       "key": "horizon_client_lib::mobs::goals::<MeleeAttack as Goal>::can_use",
       "sig": "34043727e77c915a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18004,14 +18004,14 @@
       "id": 3009,
       "key": "horizon_client_lib::mobs::goals::<NearestTarget as Goal>::flags",
       "sig": "0d50fb592e65324d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3010,
       "key": "horizon_client_lib::mobs::goals::<NearestTarget as Goal>::can_use",
       "sig": "34043727e77c915a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18053,14 +18053,14 @@
       "id": 3016,
       "key": "horizon_client_lib::mobs::goals::<HurtByTarget as Goal>::flags",
       "sig": "0d50fb592e65324d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3017,
       "key": "horizon_client_lib::mobs::goals::<HurtByTarget as Goal>::can_use",
       "sig": "34043727e77c915a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18088,14 +18088,14 @@
       "id": 3021,
       "key": "horizon_client_lib::mobs::goals::<AvoidEntity as Goal>::flags",
       "sig": "0d50fb592e65324d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3022,
       "key": "horizon_client_lib::mobs::goals::<AvoidEntity as Goal>::can_use",
       "sig": "34043727e77c915a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18123,14 +18123,14 @@
       "id": 3026,
       "key": "horizon_client_lib::mobs::goals::<Tempt as Goal>::flags",
       "sig": "0d50fb592e65324d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3027,
       "key": "horizon_client_lib::mobs::goals::<Tempt as Goal>::can_use",
       "sig": "34043727e77c915a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18165,14 +18165,14 @@
       "id": 3032,
       "key": "horizon_client_lib::mobs::goals::<Breed as Goal>::flags",
       "sig": "0d50fb592e65324d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3033,
       "key": "horizon_client_lib::mobs::goals::<Breed as Goal>::can_use",
       "sig": "34043727e77c915a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18200,14 +18200,14 @@
       "id": 3037,
       "key": "horizon_client_lib::mobs::goals::<FollowParent as Goal>::flags",
       "sig": "0d50fb592e65324d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3038,
       "key": "horizon_client_lib::mobs::goals::<FollowParent as Goal>::can_use",
       "sig": "34043727e77c915a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18291,7 +18291,7 @@
       "id": 3050,
       "key": "horizon_client_lib::mobs::goals::<RestrictSun as Goal>::flags",
       "sig": "0d50fb592e65324d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -19215,14 +19215,14 @@
       "id": 3182,
       "key": "horizon_client_lib::mobs::hostile::creeper_client_tick",
       "sig": "d566eb687028f271",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3183,
       "key": "horizon_client_lib::mobs::hostile::creeper_tick",
       "sig": "b6d93a94c14cd9be",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20503,7 +20503,7 @@
       "id": 3366,
       "key": "horizon_client_lib::mobs::nav::Mob::should_recompute_path",
       "sig": "a7a093de04e1172f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20517,21 +20517,21 @@
       "id": 3368,
       "key": "horizon_client_lib::mobs::nav::Mob::follow_the_path",
       "sig": "1901d06b459bbb98",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3369,
       "key": "horizon_client_lib::mobs::nav::Mob::should_target_next_node",
       "sig": "469b5526369edd19",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3370,
       "key": "horizon_client_lib::mobs::nav::Mob::do_stuck_detection_at",
       "sig": "dafbf3f3cf2aaee8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -21161,7 +21161,7 @@
       "id": 3460,
       "key": "horizon_client_lib::mobs::path::Finder::within_bb",
       "sig": "820f9863ecc6c295",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -21238,28 +21238,28 @@
       "id": 3471,
       "key": "horizon_client_lib::mobs::path::Finder::try_jump_on",
       "sig": "4819d73c32926dc7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3472,
       "key": "horizon_client_lib::mobs::path::Finder::diagonal_pair_valid",
       "sig": "ac178269f931f695",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3473,
       "key": "horizon_client_lib::mobs::path::Finder::walk_neighbors",
       "sig": "6a1b36ff4f779b15",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3474,
       "key": "horizon_client_lib::mobs::path::Finder::swim_accepted",
       "sig": "8c80267a251a9669",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -21287,14 +21287,14 @@
       "id": 3478,
       "key": "horizon_client_lib::mobs::path::Finder::heap_insert",
       "sig": "be9781c2c9985e40",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3479,
       "key": "horizon_client_lib::mobs::path::Finder::heap_pop",
       "sig": "249321a0cd1759a1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -21308,21 +21308,21 @@
       "id": 3481,
       "key": "horizon_client_lib::mobs::path::Finder::up_heap",
       "sig": "42b3c563cf18648d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3482,
       "key": "horizon_client_lib::mobs::path::Finder::down_heap",
       "sig": "c9cb1f55d8c7452e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3483,
       "key": "horizon_client_lib::mobs::path::Finder::best_h",
       "sig": "9db0d892c1e5e566",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22491,7 +22491,7 @@
       "id": 3650,
       "key": "horizon_client_lib::mobs::render::sheep_wool_rgb",
       "sig": "4ad3a2fe895d2ede",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22505,14 +22505,14 @@
       "id": 3652,
       "key": "horizon_client_lib::mobs::render::layers",
       "sig": "7daf79d41eab7ac3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3653,
       "key": "horizon_client_lib::mobs::render::humanoid_armor",
       "sig": "e2637cdd3b929911",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22603,7 +22603,7 @@
       "id": 3666,
       "key": "horizon_client_lib::mobs::render::render_visible",
       "sig": "658c0d3bf7470157",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22897,7 +22897,7 @@
       "id": 3708,
       "key": "horizon_client_lib::mobs::skin::SkinModels::begin",
       "sig": "bd78729130c9b29d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22995,14 +22995,14 @@
       "id": 3722,
       "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::block_tag",
       "sig": "c850baaf8ba35d8c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3723,
       "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::biome_tag",
       "sig": "c7e78328c8e35058",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -23051,7 +23051,7 @@
       "id": 3730,
       "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::peaceful",
       "sig": "ef96695c2e4a2494",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -25165,7 +25165,7 @@
       "id": 4032,
       "key": "horizon_client_lib::mobs::undead::in_powder_snow",
       "sig": "8862e68137bc3dfb",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -25557,7 +25557,7 @@
       "id": 4088,
       "key": "horizon_client_lib::mobs::villager::anim",
       "sig": "bf64f186b913ffb2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -25690,7 +25690,7 @@
       "id": 4107,
       "key": "horizon_client_lib::mobs::villager_brain::state_poi",
       "sig": "fe739335ad9a5f5e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26166,7 +26166,7 @@
       "id": 4175,
       "key": "horizon_client_lib::mobs::world::MobWorld::precipitation_at",
       "sig": "af1f2c5f5d519e7a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26621,7 +26621,7 @@
       "id": 4240,
       "key": "horizon_client_lib::motion::fluids::<FluidTags as FluidMembership>::fluid_in_tag",
       "sig": "d10163a4e86e569b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26719,7 +26719,7 @@
       "id": 4254,
       "key": "horizon_client_lib::motion::fluids::<MotionWorld as FluidInteractionWorld>::fluid_state",
       "sig": "b86621110dd02ebc",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -27370,7 +27370,7 @@
       "id": 4347,
       "key": "horizon_client_lib::old_world::<SavedOldWorld as OldWorld>::is_old_chunk_around",
       "sig": "c1ed04ec93aa6114",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -27433,7 +27433,7 @@
       "id": 4356,
       "key": "horizon_client_lib::perf_overlay::FrameGraph::draw",
       "sig": "b0b470a0d010f061",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -28007,7 +28007,7 @@
       "id": 4438,
       "key": "horizon_client_lib::save::<HeightmapView as HeightmapChunk>::height",
       "sig": "91d20d58e956e7ec",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -28434,14 +28434,14 @@
       "id": 4499,
       "key": "horizon_client_lib::screen_narrator::ScreenNarrator::frame_with",
       "sig": "724ee600354d702c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 4500,
       "key": "horizon_client_lib::screen_narrator::ScreenNarrator::step",
       "sig": "650eb3046cba280b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -35111,6 +35111,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::clock::FixedStep::advance",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::clock::FixedStep::average_nanos",
       "reason": "small body",
       "kind": "fn"
@@ -35529,6 +35535,12 @@
       "key": "horizon_client_lib::control::FrameStats::record",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::control::FrameStats::record_block_entities",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::control::FrameStats::record_cpu",
@@ -36741,8 +36753,74 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::ItemEntity::tick_move",
+      "reason": "hot: 1.35 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::add_delta_movement",
+      "reason": "hot: 0.72 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::is_player_class",
+      "reason": "hot: 0.72 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as CurrentTarget>::velocity",
+      "reason": "hot: 0.72 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::block",
+      "reason": "hot: 2.60 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::blocks_fluid_flow",
+      "reason": "hot: 2.06 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidFlowWorld>::fluid",
       "reason": "hot: 3.5 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidHeightWorld>::fluid",
+      "reason": "hot: 2.70 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_x",
+      "reason": "hot: 2.83 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::block_z",
+      "reason": "hot: 2.83 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::bounding_box_min_y",
+      "reason": "hot: 2.83 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::camera_height",
+      "reason": "hot: 1.19 entries per frame",
       "kind": "fn",
       "manual": true
     },
@@ -36752,14 +36830,44 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::eye_y",
+      "reason": "hot: 2.83 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::flow",
+      "reason": "hot: 1.52 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_height",
+      "reason": "hot: 1.56 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::fluid_state",
       "reason": "hot: 2.6 entries per frame",
       "kind": "fn",
       "manual": true
     },
     {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::interaction_box",
+      "reason": "hot: 2.83 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidInteractionWorld>::loaded_chunk",
       "reason": "hot: 2.3 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::entities::fluids::<EntityFluidWorld as FluidMembership>::fluid_in_tag",
+      "reason": "hot: 3.48 entries per frame",
       "kind": "fn",
       "manual": true
     },
@@ -37167,9 +37275,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::first_person::hands_to_render",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::first_person::map_arm_poses",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::first_person::player_arm_pose",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::first_person::swing_duration",
@@ -37787,6 +37907,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::item_render::FaceNormals::face",
+      "reason": "hot: 2.49 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::item_render::FaceNormals::new",
       "reason": "small body",
       "kind": "fn"
@@ -37845,6 +37971,12 @@
       "key": "horizon_client_lib::item_render::ItemRenderState::uses_block_light",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::item_render::ItemRenderer::grass_color",
+      "reason": "hot: 1.53 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::item_render::ItemRenderer::item_id",
@@ -38040,6 +38172,12 @@
       "key": "horizon_client_lib::item_render::rendered_amount",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::item_render::shaded",
+      "reason": "hot: 2.49 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::item_render::special::book_pose",
@@ -39072,6 +39210,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::lan::chunks::ChunkEncoder::occupied",
+      "reason": "hot: 0.79 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::lan::chunks::ChunkEncoder::section_wire",
+      "reason": "hot: 2.22 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::lan::chunks::ChunkEncoder::update_tag",
       "reason": "small body",
       "kind": "fn"
@@ -39085,6 +39235,24 @@
       "key": "horizon_client_lib::lan::chunks::ChunkEncoder::with_signs",
       "reason": "impl Trait argument",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::chunks::SectionCoder::biomes",
+      "reason": "hot: 1.32 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::lan::chunks::SectionCoder::section",
+      "reason": "hot: 1.32 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::lan::chunks::SectionCoder::wire",
+      "reason": "hot: 1.32 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::lan::chunks::SectionLight::any",
@@ -39145,6 +39313,12 @@
       "key": "horizon_client_lib::lan::chunks::light_sections",
       "reason": "impl Trait argument",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::chunks::network_palette",
+      "reason": "hot: 0.98 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::lan::chunks::pot_tag",
@@ -39819,6 +39993,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::lan::entity::full_precision_required",
+      "reason": "hot: 0.91 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::lan::entity::is_arrow",
       "reason": "small body",
       "kind": "fn"
@@ -39897,6 +40077,12 @@
       "key": "horizon_client_lib::lan::guest::Guest::accept_move_flags",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::guest::Guest::bounds",
+      "reason": "hot: 3.18 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::lan::guest::Guest::chunk",
@@ -40169,6 +40355,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::lan::hub::Hub::item_id",
+      "reason": "hot: 1.78 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::lan::hub::Hub::item_name",
       "reason": "small body",
       "kind": "fn"
@@ -40352,6 +40544,12 @@
       "key": "horizon_client_lib::lan::hub::Hub::spawn_info",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::hub::Hub::stack",
+      "reason": "hot: 1.78 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::lan::hub::Hub::stack_from_network",
@@ -42215,6 +42413,12 @@
       "manual": true
     },
     {
+      "key": "horizon_client_lib::mobs::ai::custom_move_control",
+      "reason": "hot: 0.75 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::ai::custom_server_ai_step",
       "reason": "small body",
       "kind": "fn"
@@ -42382,6 +42586,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::ai::sun_burn_tick",
+      "reason": "hot: 1.45 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::ai::swim_sound",
       "reason": "small body",
       "kind": "fn"
@@ -42542,6 +42752,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::anim::Poses::copy_from",
+      "reason": "hot: 2.64 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::anim::Poses::get",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -42633,9 +42849,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::anim::humanoid",
+      "reason": "hot: 1.12 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::anim::humanoid_pub",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::anim::humanoid_state",
+      "reason": "hot: 0.76 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::anim::key",
@@ -42652,6 +42880,12 @@
       "key": "horizon_client_lib::mobs::anim::pose_arm",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::anim::quadruped",
+      "reason": "hot: 2.29 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::anim::setup",
@@ -43095,6 +43329,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::aquatic::glow_squid_ai_step",
+      "reason": "hot: 0.53 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::aquatic::glow_squid_block_light",
       "reason": "small body",
       "kind": "fn"
@@ -43168,6 +43408,12 @@
       "key": "horizon_client_lib::mobs::aquatic::squid_cycle_event",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::aquatic::squid_step",
+      "reason": "hot: 0.67 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::aquatic::tick",
@@ -43369,6 +43615,12 @@
       "key": "horizon_client_lib::mobs::bat::resting",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::bat::server_ai_step",
+      "reason": "hot: 0.65 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::bat::set_resting",
@@ -44006,6 +44258,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::cem_anim::<Frame as Default>::default",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::cem_anim::Animation::run",
       "reason": "small body",
       "kind": "fn"
@@ -44066,9 +44324,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::cem_anim::set_frame",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::combat::Tracker::recheck",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::control::LookControl::set_look_at",
+      "reason": "hot: 0.94 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::control::Mob::body_rotation_tick",
@@ -44148,6 +44418,12 @@
       "key": "horizon_client_lib::mobs::control::rotate_towards",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::control::rotlerp",
+      "reason": "hot: 1.11 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::copper_golem::ai_step",
@@ -46285,6 +46561,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::equine::anim",
+      "reason": "hot: 1.17 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::equine::can_rear",
       "reason": "small body",
       "kind": "fn"
@@ -46338,6 +46620,12 @@
       "key": "horizon_client_lib::mobs::equine::jump_sound",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::equine::markings",
+      "reason": "hot: 1.17 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::equine::max_temper",
@@ -46473,6 +46761,12 @@
       "key": "horizon_client_lib::mobs::farm::chicken_egg_step",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::farm::chicken_flap",
+      "reason": "hot: 0.77 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::farm::chicken_process_flapping",
@@ -46738,6 +47032,12 @@
       "key": "horizon_client_lib::mobs::finalize::block",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::finalize::compute",
+      "reason": "hot: 0.80 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::finalize::cube_size",
@@ -47455,9 +47755,165 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::goals::<AvoidEntity as Goal>::can_use",
+      "reason": "hot: 1.74 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<AvoidEntity as Goal>::flags",
+      "reason": "hot: 1.74 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::goals::<Box<dynGoal> as Clone>::clone",
       "reason": "trait impl on a type that cannot take an inherent impl",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<Breed as Goal>::can_use",
+      "reason": "hot: 1.26 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<Breed as Goal>::flags",
+      "reason": "hot: 1.26 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<Float as Goal>::can_use",
+      "reason": "hot: 1.74 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<Float as Goal>::flags",
+      "reason": "hot: 1.74 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<FollowParent as Goal>::can_use",
+      "reason": "hot: 1.10 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<FollowParent as Goal>::flags",
+      "reason": "hot: 1.10 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<HurtByTarget as Goal>::can_use",
+      "reason": "hot: 1.34 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<HurtByTarget as Goal>::flags",
+      "reason": "hot: 1.34 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<LookAtPlayer as Goal>::can_use",
+      "reason": "hot: 2.27 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<LookAtPlayer as Goal>::flags",
+      "reason": "hot: 2.50 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<MeleeAttack as Goal>::can_use",
+      "reason": "hot: 1.01 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<MeleeAttack as Goal>::flags",
+      "reason": "hot: 1.02 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<NearestTarget as Goal>::can_use",
+      "reason": "hot: 3.38 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<NearestTarget as Goal>::flags",
+      "reason": "hot: 3.39 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<Panic as Goal>::can_use",
+      "reason": "hot: 1.41 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<Panic as Goal>::flags",
+      "reason": "hot: 1.43 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<RandomLookAround as Goal>::can_use",
+      "reason": "hot: 1.62 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<RandomLookAround as Goal>::flags",
+      "reason": "hot: 2.79 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<RandomLookAround as Goal>::tick",
+      "reason": "hot: 0.88 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<RestrictSun as Goal>::flags",
+      "reason": "hot: 0.63 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<Stroll as Goal>::can_use",
+      "reason": "hot: 2.19 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<Stroll as Goal>::flags",
+      "reason": "hot: 3.13 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<Tempt as Goal>::can_use",
+      "reason": "hot: 1.52 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::<Tempt as Goal>::flags",
+      "reason": "hot: 1.52 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::goals::AvoidEntity::new",
@@ -48235,6 +48691,18 @@
       "key": "horizon_client_lib::mobs::happy_ghast::wearing_harness",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::hostile::creeper_client_tick",
+      "reason": "hot: 0.92 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::hostile::creeper_tick",
+      "reason": "hot: 0.82 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::hostile::dark_enough",
@@ -49512,6 +49980,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::nav::Mob::do_stuck_detection_at",
+      "reason": "hot: 0.95 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::nav::Mob::follow_the_path",
+      "reason": "hot: 0.95 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::nav::Mob::malus",
       "reason": "small body",
       "kind": "fn"
@@ -49571,6 +50051,18 @@
       "key": "horizon_client_lib::mobs::nav::Mob::set_required_path_length",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::nav::Mob::should_recompute_path",
+      "reason": "hot: 2.00 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::nav::Mob::should_target_next_node",
+      "reason": "hot: 0.88 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::nav::Mob::stuck_detection_time",
@@ -49983,6 +50475,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::path::Finder::best_h",
+      "reason": "hot: 2.13 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::path::Finder::cached",
       "reason": "hot: 6.9 entries per frame",
       "kind": "fn",
@@ -50004,9 +50502,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::path::Finder::diagonal_pair_valid",
+      "reason": "hot: 3.94 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::path::Finder::diagonal_valid",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::path::Finder::down_heap",
+      "reason": "hot: 1.15 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::path::Finder::find_accepted",
@@ -50033,6 +50543,18 @@
       "key": "horizon_client_lib::mobs::path::Finder::fluid",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::path::Finder::heap_insert",
+      "reason": "hot: 1.72 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::path::Finder::heap_pop",
+      "reason": "hot: 1.17 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::path::Finder::is_air",
@@ -50099,14 +50621,38 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::path::Finder::swim_accepted",
+      "reason": "hot: 1.41 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::path::Finder::swim_path_type",
       "reason": "small body",
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::path::Finder::try_jump_on",
+      "reason": "hot: 0.80 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::path::Finder::type_from_state",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::path::Finder::up_heap",
+      "reason": "hot: 2.11 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::path::Finder::walk_neighbors",
+      "reason": "hot: 0.98 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::path::Finder::walk_path_type",
@@ -50117,6 +50663,12 @@
       "key": "horizon_client_lib::mobs::path::Finder::wall_beside",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::path::Finder::within_bb",
+      "reason": "hot: 3.62 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::path::MobWorld::check_neighbours",
@@ -51037,9 +51589,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::render::humanoid_armor",
+      "reason": "hot: 5.20 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::render::interned",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::render::layers",
+      "reason": "hot: 5.20 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::render::layers_shown",
@@ -51113,6 +51677,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::render::render_visible",
+      "reason": "hot: 5.20 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::render::render_with",
       "reason": "small body",
       "kind": "fn"
@@ -51131,6 +51701,12 @@
       "key": "horizon_client_lib::mobs::render::shaking",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::render::sheep_wool_rgb",
+      "reason": "hot: 0.73 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::render::shoulder_parrot_texture",
@@ -51397,6 +51973,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::skin::SkinModels::begin",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::skin::SkinModels::entry",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -51479,6 +52061,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::biome_tag",
+      "reason": "hot: 2.64 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::block_tag",
+      "reason": "hot: 2.89 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::facts",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -51492,6 +52086,12 @@
       "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::mob_data",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::peaceful",
+      "reason": "hot: 0.51 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::state",
@@ -53213,6 +53813,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::undead::in_powder_snow",
+      "reason": "hot: 0.63 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::undead::in_water_at",
       "reason": "small body",
       "kind": "fn"
@@ -53346,6 +53952,12 @@
       "key": "horizon_client_lib::mobs::villager::ai_step",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::villager::anim",
+      "reason": "hot: 1.30 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::villager::bed_facing_code",
@@ -54001,6 +54613,12 @@
       "key": "horizon_client_lib::mobs::villager_brain::show_trades_condition",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::villager_brain::state_poi",
+      "reason": "hot: 0.87 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::mobs::villager_brain::stroll",
@@ -54665,6 +55283,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::world::MobWorld::precipitation_at",
+      "reason": "hot: 2.98 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::world::MobWorld::prop",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -55196,9 +55820,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::motion::fluids::<FluidTags as FluidMembership>::fluid_in_tag",
+      "reason": "hot: 3.48 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::motion::fluids::<MotionWorld as FluidInteractionWorld>::chunk_sections",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::motion::fluids::<MotionWorld as FluidInteractionWorld>::fluid_state",
+      "reason": "hot: 1.39 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::motion::fluids::BubbleColumn::push",
@@ -56127,6 +56763,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::old_world::<SavedOldWorld as OldWorld>::is_old_chunk_around",
+      "reason": "hot: 0.50 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::old_world::SavedOldWorld::client_to_generator_biome",
       "reason": "small body",
       "kind": "fn"
@@ -56225,6 +56867,12 @@
       "key": "horizon_client_lib::patrol::spawn_member",
       "reason": "generic type params",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::perf_overlay::FrameGraph::draw",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::perf_overlay::FrameGraph::record",
@@ -57343,6 +57991,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::save::<HeightmapView as HeightmapChunk>::height",
+      "reason": "hot: 0.82 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::save::<HeightmapView as HeightmapChunk>::min_y",
       "reason": "hot: 428.1 entries per frame",
       "kind": "fn",
@@ -58134,6 +58788,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::screen_narrator::ScreenNarrator::frame_with",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::screen_narrator::ScreenNarrator::keyboard_action",
       "reason": "small body",
       "kind": "fn"
@@ -58167,6 +58827,12 @@
       "key": "horizon_client_lib::screen_narrator::ScreenNarrator::status_changed",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::screen_narrator::ScreenNarrator::step",
+      "reason": "hot: 1.37 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_lib::screen_narrator::ScreenNarrator::turned_on",

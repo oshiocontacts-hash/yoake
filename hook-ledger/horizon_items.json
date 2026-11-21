@@ -292,7 +292,7 @@
       "id": 10534,
       "key": "horizon_items::item_data::components_tag",
       "sig": "f3102b666d6cc141",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -397,7 +397,7 @@
       "id": 10549,
       "key": "horizon_items::random_sequences::<RandomSequences as Default>::default",
       "sig": "e829b3691095158c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1173,6 +1173,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_items::item_data::components_tag",
+      "reason": "hot: 0.68 entries per frame",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_items::item_data::encode_components",
       "reason": "small body",
       "kind": "fn"
@@ -1561,6 +1567,12 @@
       "key": "horizon_items::items::villager_food",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_items::random_sequences::<RandomSequences as Default>::default",
+      "reason": "hot: 0.66 entries per frame",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_items::random_sequences::RandomSequences::clear",
