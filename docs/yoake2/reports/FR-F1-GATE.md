@@ -2,7 +2,12 @@
 
 Branch `yoake-free/f1-gate` (from `vps/yoake-free/merge` @40bbb34be). Machine: 16 jobs, Windows, GNU toolchain 1.100.0 (`C:\Users\USER\NestgateHorizon\toolchain\mingw64\bin` on PATH or `ring` fails looking for gcc), fast profile, debug info off, `-p horizon-client --features yoake2-slice`.
 
-**Status of the 1% gate: NOT PASSED YET.** After the first exclusion round (363 hot functions) the stamped build costs **+2.73 % frame p50, 95 % CI [-1.43, +6.88]** (10 interleaved pairs, scene `village`). Before any exclusion it was +5.9 % [+1.5, +10.3]. A second round (lower threshold) and a 20-pair rerun are next; this file is updated after them.
+**Status of the 1% gate: NOT DEMONSTRATED (point estimates pass, the 95 % CI upper bounds do not).** After the second exclusion round (858 hot functions excluded, 10,067 live hooks left), 20 interleaved pairs per scene:
+
+* `village`: stamped frame p50 **+0.18 %, 95 % CI [-2.55, +2.91]**
+* `forest`: stamped frame p50 **+0.06 %, 95 % CI [-1.01, +1.14]**
+
+The point estimates are under the 1 % limit in both scenes, but the upper CI bound is above 1 % in both, so neither scene shows the cost is below 1 %. `hook_cost_gate.py` prints `PASS (point estimate)` and exits 0 in this case; read that as "undecided", not as a pass. The first round (363 exclusions, 10 pairs, `village`) was +2.73 % [-1.43, +6.88]; before any exclusion it was +5.9 % [+1.5, +10.3]. Full numbers in section 5.
 
 ## 1. Release gate
 
@@ -16,6 +21,12 @@ Branch `yoake-free/f1-gate` (from `vps/yoake-free/merge` @40bbb34be). Machine: 1
 | incremental, leaf file again | 52 s | 220 s |
 
 The stamped incremental builds are dominated by the stamped crates being recompiled from `horizon-core` up (see section 3); an unstamped leaf edit rebuilds only the library.
+
+Later numbers (second round):
+
+* Stamped `build -p horizon-client --features yoake2-slice` (fast profile, `-j 16`), a rebuild after the second exclusion round (not a clean build; its start log is in `%TEMP%\gate_stamped2.log`): exit 0 in **1,898 s**; stamped binary **347,966,451 B** (the earlier figure of 354,347,926 B was after the first round).
+* Incremental, no change: **9 s** (after the `horizon-core` fix, section 3 item 3).
+* Incremental, stamped leaf-file edit: **344 to 364 s**, against **43 s** unstamped.
 
 Release/LTO was not built (no time; the fast profile is the one developers use).
 
@@ -54,17 +65,67 @@ Reading: the exclusion round halved the point estimate, but the interval is abou
 
 1. **Lost bridge `include!` (first incremental stamped build after a clean one failed in horizon-world: `loot::__yoake_bridge_install` not found).** Reproduced (a no-change stamped build after the rebuild failed the same way). Cause: `horizon-client` has `include_str!("../../../horizon-world/src/loot.rs")` in a test; the overlay closure of horizon-client copies that file into the SHARED overlay root, over horizon-world's stamped `loot.rs`. horizon-world's state file still says fresh, so its next build takes the fast path and compiles the plain `loot.rs` against a `lib.rs` that still calls the bridge chain. Fixes (both in `overlay.rs`): (a) a foreign `.rs` file reached only through `include_str!` is copied only when absent; (b) the fast path now also compares a snapshot of the crate's overlay files (size and time) written at the end of its own overlay run, so any file another crate's overlay replaced forces a regeneration.
 2. **Same class, second form** (`yoake_glue_tables` not found in `motion` in horizon-client-lib after a no-change build): horizon-client-lib and horizon-client both own files under `crates/horizon-client/src`; their overlays share one root, so each can replace the other's stamped copy. The snapshot check in (b) covers it; a per-crate overlay root would remove the sharing, but verify's path translation and the e2e tests assume one root (`yoake-stamp/root`), so I did not change that.
-3. **`horizon-core` is recompiled by every stamped build, even with nothing changed.** (Reason: see the final section after the rerun; not yet known when this paragraph was written.)
+3. **`horizon-core` is recompiled by every stamped build, even with nothing changed.** Cause: the dep-info of the stamped crates listed overlay-only generated bridge files as inputs; they did not exist in the tree, so cargo saw them as missing and rebuilt `horizon-core` (and everything above it) on every run. Fixed by filtering those generated files out of the dep-info. After the fix a no-change stamped build takes **9 s**.
+4. **Test-only overlay gap (found by the `&Game` guest test, section 4).** `crates/horizon-client/src/wasm_mods/full.rs` declares `#[cfg(test)] #[path = "full/gpu_tests.rs"] mod gpu_tests;`. The overlay copies the stamped `.rs` files and does not copy a file reached only through a `#[path]` attribute, so the stamped `cargo test -p horizon-client` fails with "couldn't find file ... yoake-stamp\root\...\full\gpu_tests.rs". `apply --verify` builds (not tests) and never sees the module, so it reports clean. Not fixed in this run; the fix belongs in `overlay.rs` (copy `#[path]`-referenced files like the `include_str!` case in item 1) and should be followed by a verify with `--verify-arg test`.
 
 ## 4. `&Game` wasm guest test (W9c gap)
 
-Written, not yet run: `crates/yoake-guest-sdk/examples/engine_call_game_ref.rs` (hooks `Game::sleep_height(&self, head)`, ledger id 5380, reads `Game.world.day_time` and `Game.settings.fov` through the shared root, then calls original) and the ignored test `game_ref_example_reads_world_and_settings_through_a_stamped_shared_bridge` in `crates/horizon-client/src/game/yoake2_examples_tests.rs`. Run:
+Run in the second round: it does not compile yet (see the result below). `crates/yoake-guest-sdk/examples/engine_call_game_ref.rs` (hooks `Game::sleep_height(&self, head)`, ledger id 5380, reads `Game.world.day_time` and `Game.settings.fov` through the shared root, then calls original) and the ignored test `game_ref_example_reads_world_and_settings_through_a_stamped_shared_bridge` in `crates/horizon-client/src/game/yoake2_examples_tests.rs`. Run:
 
 ```
 HORIZON_TEST_RESOURCES=C:\Users\USER\NestgateHorizon\horizon\.local\horizon-client\26.3 \
 tools/yoake-stamped-cargo.sh test --offline --profile fast -p horizon-client --lib --features yoake2-slice yoake2_examples -- --ignored
 ```
 
-## 5. Not done yet
+**Run result: FAILED to compile** (exit 101, 2026-11-21 15:15): `error: couldn't find file ...\target-stamped\yoake-stamp\root\crates\horizon-client\src\wasm_mods\full\gpu_tests.rs` at `crates\horizon-client\src\wasm_mods\full.rs:1299`, then `could not compile horizon-client (lib test)`. The test was not executed. Cause: section 3 item 4. Not a failure of the bridge test itself, which has not run.
 
-Second exclusion round, 20-pair rerun (village and a generation-heavy scene), `apply --verify --overlay --verify-arg build`, the `&Game` guest test run, final deletion of targets and `gate-run`.
+## 5. Second round results (858 exclusions, 20 pairs per scene)
+
+Second exclusion round: 858 hot functions in `hook-ledger/hot-exclusions.txt` (cumulative, threshold 0.5 entries/frame in addition to 2), leaving 10,067 live hooks. Both scenes were run with `gate-run/runpair.sh <scene> 20 <tag>` after waiting for a quiet machine (no cargo/rustc/horizon-client other than the runs). All 82 runs exited 0 (41 per scene: one discarded stamped warm-up plus 20 interleaved pairs; `gate-run/village3.out`, `gate-run/forest3.out`).
+
+Frame times, 20 interleaved pairs (ms; from `analyze.py`, the full output is in the `%TEMP%` files listed below):
+
+| scene | metric | unstamped | stamped | diff | 95 % CI |
+|---|---|---|---|---|---|
+| village | frame p50 | 1.307 | 1.309 | **+0.18 %** | [-2.55, +2.91] |
+| village | cpu p50 | 1.246 | 1.249 | +0.20 % | [-2.56, +2.96] |
+| village | mean frame (1/avg fps) | 1.499 | 1.493 | -0.42 % | [-4.00, +3.16] |
+| village | frame p99 | 4.112 | 4.057 | -1.35 % | [-7.25, +4.56] |
+| village | chunk load (gen+mesh), ms | 5,921 | 5,429 | -8.32 % | [-18.17, +1.52] |
+| village | world open, ms | 20,037 | 22,535 | +12.47 % | [-6.51, +31.45] |
+| forest | frame p50 | 1.219 | 1.220 | **+0.06 %** | [-1.01, +1.14] |
+| forest | cpu p50 | 1.011 | 1.019 | +0.70 % | [-1.44, +2.84] |
+| forest | mean frame (1/avg fps) | 1.478 | 1.491 | +0.89 % | [-1.81, +3.60] |
+| forest | frame p99 | 4.873 | 4.995 | +2.51 % | [-4.31, +9.33] |
+| forest | chunk load (gen+mesh), ms | 9,718 | 9,247 | -4.85 % | [-11.36, +1.67] |
+| forest | world open, ms | 22,806 | 24,852 | +8.97 % | [-5.56, +23.49] |
+
+Gate (1 % limit, `tools/hook_cost_gate.py`): **village NOT DEMONSTRATED** (point +0.18 %, CI upper +2.91 %), **forest NOT DEMONSTRATED** (point +0.06 %, CI upper +1.14 %, only just above 1 %). The tool's `PASS (point estimate)` line is a label for the point estimate only. Going below the limit with confidence needs more pairs: the CI half-width at 20 pairs is about 2.7 points for village and 1.1 for forest, so forest is closest.
+
+Chunk-load and world-open: no effect distinguishable from noise at 20 pairs. The world-open intervals are about ±20 points wide.
+
+Outputs: `%TEMP%\village3_gate.txt`, `%TEMP%\village3_analyze.txt`, `%TEMP%\forest3_gate.txt`, `%TEMP%\forest3_analyze.txt`.
+
+### Verify through the overlay (`apply --verify --overlay --verify-arg build`)
+
+Run per crate from the repository root, with `YOAKE_STAMP_TARGET=<repo>/target-stamped`:
+
+```
+target-tools/release/yoake-hook-codemod.exe apply --crate-root crates/<crate> --crate-name <crate_name> --ledger hook-ledger --module '*' \
+  --stamp-config hook-ledger/stamp-config.txt --verify --overlay --verify-arg build --verify-arg --offline \
+  --verify-arg --profile --verify-arg fast --verify-arg -p --verify-arg <package> [--verify-arg --features --verify-arg yoake2-slice]
+```
+
+| crate | result | rounds | stamps withdrawn |
+|---|---|---|---|
+| horizon-world | build clean | 1 | 0 |
+| horizon-client-lib | build clean | 1 | 0 |
+| horizon-client (`yoake2-slice`) | build clean | 1 | 0 |
+
+Log: `%TEMP%\verify3.log`. Tracked files unchanged afterwards (`git status` shows only the untracked `target-unstamped/`). Verify does not compile test targets, which is why it missed item 4 of section 3.
+
+### Still to do
+
+* Fix the overlay `#[path]` gap (section 3 item 4), then rerun the `&Game` guest test (section 4 command) and the verify with `--verify-arg test`.
+* More pairs (or a quieter machine) to decide the 1 % gate, forest first.
+* Release/LTO build: not built.
