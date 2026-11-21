@@ -76,6 +76,8 @@ def patched_fixture(scratch, wasm=None):
     path = dest / TYPE
     data = json.loads(path.read_text(encoding='utf-8'))
     data['attributes']['attack_damage'] = 2
+    # One strike per run: the 600-tick interval must outlast the chase goal's restarts (vanilla clears it on restart).
+    data['cooldown_persists'] = True
     data['model']['particles'] = {'flame': 'minecraft:flame'}
     ai = data['ai']
     if wasm is not None:
