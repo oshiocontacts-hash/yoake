@@ -109,6 +109,7 @@ pub struct MobView {
     /// The attack target: a mob's id, or the player.
     pub target_mob: Option<u32>,
     pub target_player: bool,
+    pub target_player_uuid: Option<[i32; 4]>,
     pub owner: Option<[i32; 4]>,
     pub sitting: bool,
     pub baby: bool,
@@ -159,6 +160,10 @@ impl MobView {
                 _ => None,
             },
             target_player: matches!(m.ai.target, Some(crate::mobs::Who::Player)),
+            target_player_uuid: w
+                .and_then(|w| w.player.as_ref())
+                .filter(|_| matches!(m.ai.target, Some(crate::mobs::Who::Player)))
+                .map(|p| p.uuid),
             owner: m.extra.owner,
             sitting: m.extra.sitting,
             baby: m.is_baby(),

@@ -266,8 +266,17 @@ impl ServerHost for GameServerHost {
         mob::set_target(entity, player.as_deref(), target)
     }
     fn mob_attack(&mut self, damage: f32, entity: u32, knockback: f32, player: Option<String>, target: Option<u32>) -> Result<bool, String> {
-        mob::gate(mob::granted(&self.id))?;
-        mob::attack(damage, entity, knockback, player.as_deref(), target)
+        let answer = mob::gate(mob::granted(&self.id))
+            .and_then(|_| mob::attack(damage, entity, knockback, player.as_deref(), target));
+        match &answer {
+            Ok(true) => log::info!(
+                "Horizon custom-mob strike: mob {entity} script attack accepted (player {}, target {target:?}, damage {damage}, knockback {knockback})",
+                player.as_deref().is_some_and(|p| !p.is_empty())
+            ),
+            Ok(false) => log::info!("Horizon custom-mob strike: mob {entity} script attack refused: the command was not accepted"),
+            Err(reason) => log::info!("Horizon custom-mob strike: mob {entity} script attack refused: {reason}"),
+        }
+        answer
     }
     fn mob_attribute_get(&mut self, attribute: String, entity: u32) -> Result<st::AttributeValue, String> {
         mob::gate(mob::granted(&self.id))?;
