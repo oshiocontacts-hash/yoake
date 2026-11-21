@@ -785,6 +785,7 @@ impl Game<'_> {
             finalize = c.remove(&"horizon:finalize".into()).is_some();
         }
         let riders = self.take_mob_passengers(&mut tag);
+        let seats = horizon_client::mobs::custom::persist::read_passenger_seats(&tag);
         let mut m = entity_nbt::mob_from_nbt(
             &tag,
             self.res.mob_types(),
@@ -834,12 +835,22 @@ impl Game<'_> {
             self.enchant_spawn_equipment(id);
             self.halloween_spawn_head(id);
         }
+        let mut loaded = Vec::with_capacity(riders.len());
         for rider in riders {
-            if let Some(r) = self.load_mob(rider, Some(id))
+            let r = self.load_mob(rider, Some(id));
+            if let Some(r) = r
                 && let Some(v) = self.mobs.iter_mut().find(|m| m.id == id)
             {
                 v.extra.rider = Some(r);
             }
+            loaded.push(r);
+        }
+        // The seats of a custom vehicle's riders (F4M-4d), in the order they were saved.
+        if !seats.is_empty()
+            && let Some(v) = self.mobs.iter_mut().find(|m| m.id == id)
+            && let Some(state) = v.extra.custom.as_mut()
+        {
+            state.set_seat_claims(horizon_client::mobs::custom::persist::claims_from(&seats, &loaded));
         }
         Some(id)
     }
@@ -876,6 +887,12 @@ impl Game<'_> {
                     && !self.native_mannequins.contains(self.mobs[j].id)
             })
             .collect();
+        // A custom vehicle with seats saves which seat each rider holds, in the order of `Passengers`
+        // (F4M-4d); `write_passenger_seats` writes nothing for a vehicle that has none.
+        if let Some(v) = self.mobs.iter().find(|m| m.id == id) {
+            let ids: Vec<u32> = riders.iter().map(|&j| self.mobs[j].id).collect();
+            horizon_client::mobs::custom::persist::write_passenger_seats(tag, v, &ids);
+        }
         let riders: Vec<Tag> = riders.into_iter().map(|j| self.mob_tree_nbt(j)).collect();
         add_passengers(tag, riders);
     }

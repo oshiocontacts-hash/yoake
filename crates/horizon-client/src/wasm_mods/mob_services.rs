@@ -275,6 +275,21 @@ pub(super) fn impulse(entity: u32, velocity: &st::Vec3) -> Result<(), String> {
     simple(entity, Command::Impulse(v))
 }
 
+pub(super) fn seat_set(entity: u32, rider: Option<u32>, seat: u32) -> Result<bool, String> {
+    let v = view(entity)?;
+    if seat >= v.seats {
+        return Err(format!("{} has {} seats, not a seat {seat}", v.type_id, v.seats));
+    }
+    if rider == Some(entity) {
+        return Err("a mob does not ride itself".into());
+    }
+    if !v.alive {
+        return Ok(false);
+    }
+    script::push(entity, Command::SeatSet { seat, rider });
+    Ok(true)
+}
+
 pub(super) fn spawn(dimension: &str, options: &st::MobSpawnOptions, position: &st::Vec3, type_id: &str) -> Result<u32, String> {
     let at = finite3(position)?;
     if !type_id.contains(':') || type_id.len() > MAX_NAME {

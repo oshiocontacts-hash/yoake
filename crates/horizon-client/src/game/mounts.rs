@@ -447,6 +447,14 @@ impl Game<'_> {
                 self.audio.play(&sound, Some(at), 0.4, 1.0);
             }
         }
+        // A custom vehicle with several riders takes its input from the one on a seat that steers (a
+        // second player on a seat that only carries leaves it alone).
+        let acting = self.acting_player_uuid();
+        if horizon_client::mobs::custom::ai::riding::has_seats(&self.mobs[i])
+            && !horizon_client::mobs::custom::ai::riding::player_steers(&self.mobs[i], acting)
+        {
+            return true;
+        }
         let m = &mut self.mobs[i];
         let pending = m.rider.map_or(0.0, |r| r.jump);
         m.rider = Some(equine::Rider {
@@ -486,6 +494,7 @@ impl Game<'_> {
         let Some(i) = self.mount_index() else {
             return;
         };
+        let acting = self.acting_player_uuid();
         let m = &self.mobs[i];
         let mut at = Vec3::new(m.position.x, m.position.y + seat(m.species()), m.position.z);
         if horizon_client::mobs::camel::is_camel(m.species()) {
@@ -528,12 +537,17 @@ impl Game<'_> {
         // player's own vehicle attachment, turned with the mob; the seat's `yaw_lock` turns the
         // player with it. F4M-6 passes the smooth, locator-driven seat of the animated pose here.
         if m.kind.custom.is_some()
-            && let Some((seat, _)) = horizon_client::mobs::custom::ai::riding::player_seat(m)
-            && let Some(d) = m.kind.custom.as_deref().map(|t| &t.ride)
+            && let Some(seat) = horizon_client::mobs::custom::ai::riding::seat_of_player(m, acting)
+                .or_else(|| horizon_client::mobs::custom::ai::riding::player_seat(m).map(|(i, _)| i))
         {
-            at = horizon_client::mobs::custom::ai::riding::seat_position(d, seat, m.position, m.yaw, None);
+            // A seat that follows a locator sits where the animated pose puts it (F4M-6's render state),
+            // every tick, so the camera and the other players see it move with the animation.
+            let posed = self.posed_locators(m);
+            at = horizon_client::mobs::custom::ai::riding::seat_position_of(m, seat, &posed);
+            drop(posed);
             at.y -= 0.6;
-            if let Some(yaw) = horizon_client::mobs::custom::ai::riding::locked_yaw(m) {
+            if horizon_client::mobs::custom::ai::riding::seat_locks_yaw(m, seat) {
+                let yaw = m.yaw;
                 self.yaw = yaw;
             }
         }

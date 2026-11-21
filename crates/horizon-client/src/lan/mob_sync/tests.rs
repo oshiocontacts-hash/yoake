@@ -312,6 +312,8 @@ fn a_player_gets_snapshots_for_new_mobs_and_deltas_for_those_in_range_only() {
         }),
         owner_delta: None,
         owner: None,
+        seats: None,
+        players: vec![],
     };
     let snap = |e: i32| {
         Some(Snapshot {
@@ -335,6 +337,7 @@ fn a_player_gets_snapshots_for_new_mobs_and_deltas_for_those_in_range_only() {
                     Message::Snapshot(_) => "snapshot",
                     Message::Delta(_) => "delta",
                     Message::Trigger(_) => "trigger",
+                    Message::Seats(_) => "seats",
                 },
             )
         })
@@ -500,4 +503,45 @@ fn the_hosts_own_view_hides_owner_values_of_mobs_it_does_not_own() {
             assert_eq!(value_visible_to(&m, slot, Some(viewer)), sent.contains(&slot), "{viewer:?} slot {slot}");
         }
     }
+}
+
+/// F4M-4d: who sits where on a custom vehicle is sent once when it changes, at once, to everyone who tracks
+/// it, and to a player that starts tracking it after the snapshot.
+#[test]
+fn the_seats_of_a_vehicle_are_sent_when_they_change_and_to_a_new_viewer() {
+    use crate::mobs::custom::SeatClaim;
+    let mut w = World::new();
+    let mut m = fox(|_| {});
+    m.id = 5;
+    w.tick(&mut m, 0);
+    let _ = collect(&mut m, 0);
+    assert!(collect(&mut m, 1).is_none(), "a vehicle nobody sits on says nothing");
+    assert!(seats_message(&m).is_none());
+    // Two riders: one message at once (no rate limit), carrying the seats in seat order.
+    m.extra
+        .custom
+        .as_mut()
+        .unwrap()
+        .set_seat_claims(vec![SeatClaim { rider: 9, seat: 1 }, SeatClaim { rider: 8, seat: 0 }]);
+    let c = collect(&mut m, 2).expect("the seats changed");
+    let sent: Vec<Message> = c.messages().collect();
+    let expected = wire::Seats {
+        entity: 5,
+        seats: vec![wire::SeatEntry { rider: 8, seat: 0 }, wire::SeatEntry { rider: 9, seat: 1 }],
+    };
+    assert_eq!(sent, [Message::Seats(expected.clone())]);
+    // Said once: the same list set again changes nothing; a different one is said again.
+    m.extra.custom.as_mut().unwrap().set_seat_claims(vec![SeatClaim { rider: 8, seat: 0 }, SeatClaim { rider: 9, seat: 1 }]);
+    assert!(collect(&mut m, 3).is_none());
+    m.extra.custom.as_mut().unwrap().set_seat_claims(vec![]);
+    let c = collect(&mut m, 4).unwrap();
+    assert_eq!(c.messages().collect::<Vec<_>>(), [Message::Seats(wire::Seats { entity: 5, seats: vec![] })]);
+    // A player that starts tracking gets the current seats (its snapshot has no room for them).
+    m.extra.custom.as_mut().unwrap().set_seat_claims(vec![SeatClaim { rider: 8, seat: 0 }, SeatClaim { rider: 9, seat: 1 }]);
+    assert_eq!(seats_message(&m), Some(Message::Seats(expected)));
+    // Frames carry it and a client decodes it.
+    let frames = frames(7, seats_message(&m));
+    assert_eq!(frames.len(), 1);
+    let back = wire::decode(&frames[0]).unwrap();
+    assert!(matches!(back.messages[..], [Message::Seats(_)]));
 }

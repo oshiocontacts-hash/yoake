@@ -156,6 +156,11 @@ pub fn apply_in(m: &mut Mob, w: Option<&MobWorld>, events: Option<&mut Vec<MobEv
                 m.velocity.z += v[2].clamp(-4.0, 4.0);
             }
         }
+        Command::SeatSet { seat, rider } => {
+            // Other mobs are reached through the event queue (the vehicle alone is in hand here).
+            let Some(events) = events else { return false };
+            events.push(MobEvent::SeatSet { vehicle: m.id, seat, rider });
+        }
     }
     true
 }

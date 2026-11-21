@@ -1460,3 +1460,58 @@ fn yoake_water_slowdown_sets_the_engines_water_slowdown() {
     assert_eq!(super::super::build::mob_type(&t).water_slowdown, 0.9);
     assert_eq!(mob("{}", at(0.5, 0.5)).kind.water_slowdown, 0.8, "the default is the neutral row's");
 }
+
+// ---- F4M-4d: the attack cooldown across a goal restart --------------------------------------------
+
+/// A melee mob with a long `interval` strikes the player once, loses the target (the goal stops) and gets it
+/// back after 30 ticks; returns the blows it dealt in all.
+fn strikes_across_a_restart(extra: &str) -> usize {
+    let fx = flat();
+    let w0 = fx.world();
+    let others = [];
+    let w = player_view(&w0, &others, at(0.5, 1.4));
+    let row = r#"{"type":"melee_attack","priority":3,"interval":200}"#;
+    let mut m = mob_with("creature", &ai(row), extra, at(0.5, 0.5));
+    let mut ctx = Ctx::new();
+    m.ai.target = Some(Who::Player);
+    run(&mut m, &w, &mut ctx, 5);
+    assert_eq!(hits(&ctx.events), 1, "the first blow");
+    // The goal stops when the target is gone, and starts again when it is back.
+    m.ai.target = None;
+    run(&mut m, &w, &mut ctx, 30);
+    m.ai.target = Some(Who::Player);
+    run(&mut m, &w, &mut ctx, 40);
+    hits(&ctx.events)
+}
+
+#[test]
+fn a_restarted_melee_goal_strikes_at_once_as_vanilla_does() {
+    // The goal also restarts by itself whenever the chase is over, so a mob that keeps striking is the
+    // vanilla picture: every restart clears the 200-tick interval.
+    assert!(strikes_across_a_restart("") >= 2, "the restart cleared the cooldown");
+    assert!(strikes_across_a_restart(r#","cooldown_persists":false"#) >= 2);
+}
+
+#[test]
+fn with_cooldown_persists_a_restart_keeps_the_attack_cooldown() {
+    assert_eq!(strikes_across_a_restart(r#","cooldown_persists":true"#), 1, "70 ticks are no 200");
+}
+
+#[test]
+fn a_kept_cooldown_runs_out_in_game_time_while_the_goal_is_stopped() {
+    let fx = flat();
+    let w0 = fx.world();
+    let others = [];
+    let w = player_view(&w0, &others, at(0.5, 1.4));
+    let row = r#"{"type":"melee_attack","priority":3,"interval":60}"#;
+    let mut m = mob_with("creature", &ai(row), r#","cooldown_persists":true"#, at(0.5, 0.5));
+    let mut ctx = Ctx::new();
+    m.ai.target = Some(Who::Player);
+    run(&mut m, &w, &mut ctx, 5);
+    m.ai.target = None;
+    // The goal is stopped for 100 ticks: the cooldown elapses meanwhile.
+    run(&mut m, &w, &mut ctx, 100);
+    m.ai.target = Some(Who::Player);
+    run(&mut m, &w, &mut ctx, 40);
+    assert_eq!(hits(&ctx.events), 2, "a restart after the interval strikes at once");
+}

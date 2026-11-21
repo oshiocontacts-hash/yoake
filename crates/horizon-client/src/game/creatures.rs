@@ -2944,8 +2944,15 @@ impl Game<'_> {
                     }
                 }
                 MobEvent::StartRiding { rider, vehicle } => {
-                    horizon_client::mobs::riders::start_riding(&mut self.mobs, rider, vehicle);
+                    if self.mob_has_seats(vehicle) {
+                        // The AI boards a custom vehicle with seats: the native mods may veto it.
+                        self.board_seated_mob(rider, vehicle);
+                    } else {
+                        horizon_client::mobs::riders::start_riding(&mut self.mobs, rider, vehicle);
+                    }
                 }
+                // A script's `seat-set`, after the vehicle's tick; the native mods may veto it.
+                MobEvent::SeatSet { vehicle, seat, rider } => self.script_seat_set(vehicle, seat as usize, rider),
                 // Applied after the fish's tick (`apply_brain_events`).
                 MobEvent::StartFollowing { .. } | MobEvent::SchoolSize { .. } => {}
                 MobEvent::LeashBreak { mob, drop, sound } => self.break_leash(mob, drop, sound),

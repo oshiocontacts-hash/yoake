@@ -1747,6 +1747,13 @@ pub enum MobEvent {
         rider: u32,
         vehicle: u32,
     },
+    /// A script's `seat-set` (F4M-4d): `rider` (none: whoever sits there gets off) takes seat `seat` of
+    /// the custom vehicle `vehicle`.
+    SeatSet {
+        vehicle: u32,
+        seat: u32,
+        rider: Option<u32>,
+    },
     Projectile(crate::projectiles::Projectile),
     /// An arrow `mob` shot with `weapon` (`AbstractSkeleton.performRangedAttack`):
     /// the game asks for the ammunition (`getProjectile`) before it flies.
@@ -2574,9 +2581,20 @@ pub fn apply_brain_events(mobs: &mut [Mob], events: &mut Vec<MobEvent>, from: us
                 }
                 events.remove(i);
             }
+            // A custom vehicle with seats is boarded by the game, which asks the native mods first
+            // (`native_mob_may_ride`, the veto `/ride` honours); the event stays for it.
+            MobEvent::StartRiding { vehicle, .. }
+                if mobs.iter().any(|m| m.id == vehicle && custom::ai::riding::has_seats(m)) =>
+            {
+                i += 1;
+            }
             MobEvent::StartRiding { rider, vehicle } => {
                 riders::start_riding(mobs, rider, vehicle);
                 events.remove(i);
+            }
+            // Likewise a script's `seat-set`.
+            MobEvent::SeatSet { .. } => {
+                i += 1;
             }
             MobEvent::StartFollowing { fish, leader } => {
                 aquatic::start_following(mobs, fish, leader);

@@ -154,6 +154,11 @@ pub fn start_riding(mobs: &mut [Mob], rider: u32, vehicle: u32) -> bool {
     let Some(r) = mobs.iter().find(|m| m.id == rider) else {
         return false;
     };
+    // A custom vehicle with seats (F4M-4d) takes riders up to its seat count; every other vehicle
+    // keeps the one-rider rules below.
+    if mobs.iter().any(|m| m.id == vehicle && super::custom::ai::riding::has_seats(m)) {
+        return super::custom::ai::riding::board(mobs, rider, vehicle, None, true).is_ok();
+    }
     let on_hoglin = mobs
         .iter()
         .any(|m| m.id == vehicle && m.species() == Species::Hoglin);
@@ -182,6 +187,46 @@ pub fn start_riding(mobs: &mut [Mob], rider: u32, vehicle: u32) -> bool {
     }
     link(mobs, rider, vehicle);
     true
+}
+/// Which mobs ride which vehicle, once per tick (`Game::sync_riders`): a mob whose vehicle is dead,
+/// removed or gone lets go, and `extra.rider` of every vehicle names its rider. `other_vehicles` are the
+/// ids of the vehicles that are no mobs (boats, minecarts, primed TNT). A vehicle carries one rider as
+/// far as this reads (the last one in the list wins, as it always did), except a custom vehicle with
+/// seats (F4M-4d), whose riders are seated by `custom::ai::riding::settle`: any number up to its seat
+/// count, `extra.rider` the one in the lowest seat.
+pub fn sync_links(mobs: &mut [Mob], other_vehicles: &std::collections::HashSet<u32>) {
+    let index: std::collections::HashMap<u32, usize> =
+        mobs.iter().enumerate().map(|(i, m)| (m.id, i)).collect();
+    let mut riding: std::collections::HashMap<u32, u32> = std::collections::HashMap::new();
+    for i in 0..mobs.len() {
+        let Some(v) = mobs[i].extra.mount else {
+            continue;
+        };
+        // Not a text display: a server's display mounts come through
+        // `remote_set_passengers`, which seats them in `position_riders`.
+        let valid = mobs[i].alive()
+            && !mobs[i].removed
+            && (other_vehicles.contains(&v)
+                || index.get(&v).is_some_and(|&j| mobs[j].alive() && !mobs[j].removed));
+        if valid {
+            // Seated vehicles keep every rider (`settle` below); the others the last one.
+            if !index.get(&v).is_some_and(|&j| super::custom::ai::riding::has_seats(&mobs[j])) {
+                riding.insert(v, mobs[i].id);
+            }
+        } else {
+            let m = &mut mobs[i];
+            m.extra.mount = None;
+            m.extra.passenger = false;
+        }
+    }
+    for m in mobs.iter_mut() {
+        m.extra.rider = riding.get(&m.id).copied();
+    }
+    for vi in 0..mobs.len() {
+        if mobs[vi].kind.custom.is_some() {
+            super::custom::ai::riding::settle(mobs, vi);
+        }
+    }
 }
 /// `LivingEntity.stopRiding` for the mob itself: it leaves its vehicle (which
 /// forgets it when the riders are next synced), cannot board again for 60
@@ -283,6 +328,11 @@ pub fn drive(m: &mut Mob, w: &MobWorld) {
         m.ai.goals.disabled &= !CONTROLLED;
         return;
     };
+    // A custom vehicle's mob in a seat that does not steer is only carried (F4M-4d).
+    if !super::custom::ai::riding::mob_may_steer(m) {
+        m.ai.goals.disabled &= !CONTROLLED;
+        return;
+    }
     let seen = w.seen(rider).filter(|s| s.alive);
     let info = seen
         .and_then(|s| s.target)

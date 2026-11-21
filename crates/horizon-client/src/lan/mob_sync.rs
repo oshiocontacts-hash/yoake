@@ -31,7 +31,8 @@ use crate::mobs::{
     custom::{CustomState, CustomType, SyncedDef, SyncedValue, anim_sync, attrs::Sync},
 };
 use horizon_protocol::mob_sync::{
-    self as wire, Delta, Frame, MAX_FRAME, Message, Snapshot, TICKS_PER_SECOND, TriggerStart, Value, ValueSet,
+    self as wire, Delta, Frame, MAX_FRAME, Message, SeatEntry, Seats, Snapshot, TICKS_PER_SECOND, TriggerStart,
+    Value, ValueSet,
 };
 
 /// The custom payload channel.
@@ -126,6 +127,11 @@ pub struct Collected {
     pub owner_delta: Option<Delta>,
     /// The mob's owner when this was collected.
     pub owner: Option<[i32; 4]>,
+    /// Who sits where, when that changed (F4M-4d); sent at once, not rate limited.
+    pub seats: Option<Seats>,
+    /// The players that sit on the vehicle with `seats` (their UUID and seat), which the game turns into
+    /// entity ids and adds to `seats` ([`add_player_seats`]) because only it knows them.
+    pub players: Vec<([i32; 4], u8)>,
 }
 
 impl Collected {
@@ -136,6 +142,7 @@ impl Collected {
             .copied()
             .map(Message::Trigger)
             .chain(self.delta.clone().map(Message::Delta))
+            .chain(self.seats.clone().map(Message::Seats))
     }
     /// What only the owner gets besides [`messages`](Self::messages).
     pub fn owner_messages(&self) -> impl Iterator<Item = Message> + '_ {
@@ -151,6 +158,10 @@ pub fn collect(m: &mut Mob, now: i64) -> Option<Collected> {
     let entity = m.id as i32;
     let owner = m.extra.owner.filter(|_| m.extra.tame);
     let state = m.extra.custom.as_mut()?;
+    let (seats, players) = match state.take_seat_claims() {
+        Some((c, p)) => (Some(seats_of(entity, &c)), p.iter().map(|c| (c.player, c.seat)).collect()),
+        None => (None, Vec::new()),
+    };
     let announced = announced_mask(&t);
     let owned = owner_mask(&t);
     // What nobody is told is not pending: not a value of `sync: none`, and not an owner value while
@@ -184,9 +195,9 @@ pub fn collect(m: &mut Mob, now: i64) -> Option<Collected> {
     if anchors_pending || state.hitbox_dirty {
         rate = rate.max(wire::DEFAULT_SYNC_RATE);
     }
-    let mut out = Collected { entity, triggers, delta: None, owner_delta: None, owner };
+    let mut out = Collected { entity, triggers, delta: None, owner_delta: None, owner, seats, players };
     if rate == 0 || now - state.sync_out.last_delta < interval(rate) {
-        return (!out.triggers.is_empty()).then_some(out);
+        return (!out.triggers.is_empty() || out.seats.is_some()).then_some(out);
     }
     let anchors = match state.anim.as_mut() {
         Some(a) => a.take_anchor_changes(anim_sync::ANCHOR_TOLERANCE),
@@ -204,7 +215,47 @@ pub fn collect(m: &mut Mob, now: i64) -> Option<Collected> {
     let delta = Delta { entity, values, anchors, hitbox_mask };
     out.delta = (!delta.is_empty()).then_some(delta);
     out.owner_delta = owner_values.map(|v| Delta { entity, values: Some(v), anchors: Vec::new(), hitbox_mask: None });
-    (out.delta.is_some() || out.owner_delta.is_some() || !out.triggers.is_empty()).then_some(out)
+    (out.delta.is_some() || out.owner_delta.is_some() || !out.triggers.is_empty() || out.seats.is_some()).then_some(out)
+}
+
+/// The wire form of the seat claims of vehicle `entity`.
+fn seats_of(entity: i32, claims: &[crate::mobs::custom::SeatClaim]) -> Seats {
+    Seats {
+        entity,
+        seats: claims.iter().take(wire::MAX_SEATS).map(|c| SeatEntry { rider: c.rider as i32, seat: c.seat }).collect(),
+    }
+}
+
+/// Adds the players in `players` (UUID and seat) to `seats` as their entity ids, `entity_of` says (a
+/// player it does not know, such as the host in the window, is not on the wire). Never more entries than
+/// the wire allows.
+pub fn add_player_seats(seats: &mut Seats, players: &[([i32; 4], u8)], entity_of: &dyn Fn([i32; 4]) -> Option<i32>) {
+    for &(player, seat) in players {
+        if seats.seats.len() >= wire::MAX_SEATS {
+            break;
+        }
+        if let Some(rider) = entity_of(player) {
+            seats.seats.push(SeatEntry { rider, seat });
+        }
+    }
+}
+
+/// The seats message a player that starts tracking custom vehicle `m` is sent after its snapshot (F4M-4d):
+/// `None` when nobody sits on it.
+pub fn seats_message(m: &Mob) -> Option<Message> {
+    seats_message_with(m, &|_| None)
+}
+
+/// [`seats_message`] with the players aboard as the entity ids `entity_of` gives.
+pub fn seats_message_with(m: &Mob, entity_of: &dyn Fn([i32; 4]) -> Option<i32>) -> Option<Message> {
+    let state = m.extra.custom.as_ref()?;
+    let players: Vec<([i32; 4], u8)> = state.player_claims.iter().map(|c| (c.player, c.seat)).collect();
+    if state.seat_claims.is_empty() && players.is_empty() {
+        return None;
+    }
+    let mut seats = seats_of(m.id as i32, &state.seat_claims);
+    add_player_seats(&mut seats, &players, entity_of);
+    Some(Message::Seats(seats))
 }
 
 /// The whole state of custom mob `m`, for a player that starts tracking it: every announced

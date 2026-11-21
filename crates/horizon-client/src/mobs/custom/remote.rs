@@ -96,6 +96,9 @@ pub struct RemoteCustomMob {
     pub triggers: Vec<RemoteTrigger>,
     pub hitbox_mask: u32,
     hitbox_time: i64,
+    /// Which seat each mob rider holds (F4M-4d): rider entity id and seat index, as the server last sent.
+    pub seats: Vec<(i32, u8)>,
+    seats_time: i64,
     /// The server's type does not match this client's: nothing is applied.
     pub incompatible: bool,
 }
@@ -113,6 +116,8 @@ impl RemoteCustomMob {
             layers: (0..MAX_LAYERS).map(|_| None).collect(),
             triggers: Vec::new(),
             hitbox_time: i64::MIN,
+            seats: Vec::new(),
+            seats_time: i64::MIN,
             incompatible: false,
         }
     }
@@ -187,6 +192,8 @@ pub struct Applied {
     pub snapshots: usize,
     pub deltas: usize,
     pub triggers: usize,
+    /// `Seats` messages applied (F4M-4d).
+    pub seats: usize,
     /// Messages for an entity the client has no store for (or a type it does not have).
     pub dropped: usize,
     /// Messages for a mob whose type differs from the server's.
@@ -206,6 +213,10 @@ impl RemoteCustomMobs {
     }
     pub fn get_mut(&mut self, entity: i32) -> Option<&mut RemoteCustomMob> {
         self.mobs.get_mut(&entity)
+    }
+    /// The seats of the mob riders of vehicle `entity`, as the server last told (empty: none or unknown).
+    pub fn seats(&self, entity: i32) -> &[(i32, u8)] {
+        self.mobs.get(&entity).map_or(&[], |m| m.seats.as_slice())
     }
     pub fn len(&self) -> usize {
         self.mobs.len()
@@ -269,6 +280,18 @@ impl RemoteCustomMobs {
                     Some(mob) => {
                         add_trigger(mob, arrival, t, false);
                         done.triggers += 1;
+                    }
+                    None => done.dropped += 1,
+                },
+                Message::Seats(s) => match self.mobs.get_mut(&s.entity) {
+                    Some(mob) if mob.incompatible => done.incompatible += 1,
+                    Some(mob) => {
+                        // The newest frame wins, like the hitbox mask.
+                        if frame.game_time >= mob.seats_time {
+                            mob.seats = s.seats.iter().map(|e| (e.rider, e.seat)).collect();
+                            mob.seats_time = frame.game_time;
+                        }
+                        done.seats += 1;
                     }
                     None => done.dropped += 1,
                 },

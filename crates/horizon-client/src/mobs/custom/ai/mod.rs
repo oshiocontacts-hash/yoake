@@ -221,3 +221,5 @@ mod tests;
 mod tests_4c;
 #[cfg(test)]
 mod tests_script;
+#[cfg(test)]
+mod tests_4d;

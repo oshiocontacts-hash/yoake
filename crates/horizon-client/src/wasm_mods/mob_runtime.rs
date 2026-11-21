@@ -584,6 +584,39 @@ mod tests {
         assert!(e.contains("service.mobs"), "{e}");
         script::reset();
     }
+
+    /// F4M-4d: `mob-seat-set` queues its command for a vehicle that has the seat, refuses a seat the type
+    /// does not have, a mob that rides itself and an unknown vehicle, and needs `service.mobs`.
+    #[test]
+    fn the_seat_set_service_queues_its_command_and_is_gated_by_service_mobs() {
+        use yoake_wasm::ServerHost;
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        script::reset();
+        let m = fox(1, Vec3::new(0.5, 1.0, 0.5));
+        let mut view = script::MobView::of(&m).unwrap();
+        view.seats = 3;
+        script::publish(view);
+        mob_services::grant("seat_granted");
+        let mut host = GameServerHost { id: "seat_granted".into(), commands: false };
+        assert_eq!(host.mob_seat_set(1, Some(7), 2), Ok(true));
+        assert_eq!(host.mob_seat_set(1, None, 0), Ok(true));
+        assert_eq!(
+            script::take_for(1),
+            vec![
+                script::Command::SeatSet { seat: 2, rider: Some(7) },
+                script::Command::SeatSet { seat: 0, rider: None },
+            ]
+        );
+        let e = host.mob_seat_set(1, Some(7), 3).unwrap_err();
+        assert!(e.contains("3 seats"), "{e}");
+        assert!(host.mob_seat_set(1, Some(1), 0).is_err(), "a mob does not ride itself");
+        assert!(host.mob_seat_set(99, Some(7), 0).is_err(), "no such vehicle");
+        assert!(script::take_for(1).is_empty(), "nothing was queued by the refusals");
+        let mut ungranted = GameServerHost { id: "seat_ungranted".into(), commands: false };
+        let e = ungranted.mob_seat_set(1, Some(7), 0).unwrap_err();
+        assert!(e.contains("service.mobs"), "{e}");
+        script::reset();
+    }
 }
 
 #[cfg(test)]

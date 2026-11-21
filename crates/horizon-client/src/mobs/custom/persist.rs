@@ -123,6 +123,20 @@ pub fn write(tag: &mut Tag, m: &Mob) {
             }
         }
     }
+    // F4M-4d: the seats the players on it hold (and the ones a load named for players not back yet),
+    // `player_seats: [{ uuid: [int; 4], seat: int }]`, so a player restored into the vehicle (its
+    // `RootVehicle`) gets its seat back.
+    let mut player_seats: Vec<Tag> = Vec::new();
+    for c in state.player_claims.iter().chain(&state.saved_player_seats) {
+        if !player_seats.iter().any(|t| crate::save::uuid_from_tag(t.get("uuid")) == Some(c.player)) {
+            player_seats.push(Tag::compound([("uuid", Tag::IntArray(c.player.to_vec())), ("seat", Tag::Int(i32::from(c.seat)))]));
+        }
+    }
+    if player_seats.is_empty() {
+        yoake.remove(&"player_seats".into());
+    } else {
+        yoake.insert("player_seats".into(), Tag::List(player_seats));
+    }
     // F4M-10: what the scripts keep with the mob (`mob-save` may replace it), opaque bytes.
     let script_data = super::script::data_to_save(m);
     if script_data.is_empty() {
@@ -169,6 +183,18 @@ pub fn read(m: &mut Mob, tag: &Tag) {
     if let Some(Tag::List(list)) = yoake.get("attributes") {
         state.attrs.read_nbt(list);
     }
+    if let Some(Tag::List(list)) = yoake.get("player_seats") {
+        state.saved_player_seats = list
+            .iter()
+            .filter_map(|t| {
+                Some(super::PlayerClaim {
+                    player: crate::save::uuid_from_tag(t.get("uuid"))?,
+                    seat: u8::try_from(number(t.get("seat"))?).ok()?,
+                })
+            })
+            .take(16)
+            .collect();
+    }
     if let Some(Tag::ByteArray(bytes)) = yoake.get("script")
         && bytes.len() <= super::script::MAX_DATA_BYTES
     {
@@ -202,6 +228,55 @@ fn block_pos(tag: Option<&Tag>) -> Option<[i32; 3]> {
 /// is understood).
 pub fn saved_format(tag: &Tag) -> Option<i64> {
     number(tag.get("yoake")?.get("v"))
+}
+
+/// The key of the seats of the riders, in the `yoake` compound of a custom vehicle (F4M-4d).
+const PASSENGER_SEATS: &str = "passenger_seats";
+
+/// The seat of each rider of custom vehicle `m` in `riders` (their entity ids, in the order they are
+/// saved under `Passengers`): the seat index, or -1 for one that holds none. The engine's own
+/// `Passengers` list carries the riders themselves (it already supports a list); this is only which seat
+/// of the type each one sits on, so the riders keep their seats across a save.
+pub fn passenger_seats(m: &Mob, riders: &[u32]) -> Vec<i32> {
+    riders
+        .iter()
+        .map(|&r| super::ai::riding::claim_of(m, r).and_then(|s| i32::try_from(s).ok()).unwrap_or(-1))
+        .collect()
+}
+
+/// Writes `passenger_seats` of the riders `riders` of `m` into the `yoake` compound of `tag` (nothing, and
+/// a stale list removed, when no rider holds a seat or `m` is no custom mob).
+pub fn write_passenger_seats(tag: &mut Tag, m: &Mob, riders: &[u32]) {
+    if m.kind.custom.is_none() {
+        return;
+    }
+    let seats = passenger_seats(m, riders);
+    let Some(Tag::Compound(yoake)) = tag.get_mut("yoake") else { return };
+    if seats.iter().all(|&s| s < 0) {
+        yoake.remove(&PASSENGER_SEATS.into());
+    } else {
+        yoake.insert(PASSENGER_SEATS.into(), Tag::List(seats.into_iter().map(Tag::Int).collect()));
+    }
+}
+
+/// The saved seats of a custom vehicle's riders, in `Passengers` order (empty when it has none).
+pub fn read_passenger_seats(tag: &Tag) -> Vec<i32> {
+    match tag.get("yoake").and_then(|y| y.get(PASSENGER_SEATS)) {
+        Some(Tag::List(l)) => {
+            l.iter().map(|t| number(Some(t)).and_then(|n| i32::try_from(n).ok()).unwrap_or(-1)).collect()
+        }
+        _ => Vec::new(),
+    }
+}
+
+/// The seat claims of the riders that were loaded (`loaded[n]` is the entity id of the n-th saved
+/// rider, `None` for one that did not load) from the saved `seats` of the same order.
+pub fn claims_from(seats: &[i32], loaded: &[Option<u32>]) -> Vec<super::SeatClaim> {
+    seats
+        .iter()
+        .zip(loaded)
+        .filter_map(|(&s, r)| Some(super::SeatClaim { rider: (*r)?, seat: u8::try_from(s).ok()? }))
+        .collect()
 }
 
 #[allow(dead_code)]
