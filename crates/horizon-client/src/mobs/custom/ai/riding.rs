@@ -51,8 +51,11 @@ pub enum Controls {
 pub struct SeatDef {
     /// Where the rider's attachment point sits relative to the mob's feet (blocks; unturned).
     pub offset: [f64; 3],
-    /// The model locator the client's seat follows, kept for F4M-6.
+    /// The model locator the seat follows (the client's smooth seat is its animated position).
     pub locator: Option<String>,
+    /// The seat has a `locator` and no static `offset`: `offset` is then the locator's rest position in
+    /// the mob's frame (unscaled), and the seat is placed by it times the mob's scale.
+    pub locator_driven: bool,
     pub controls: Controls,
     /// Empty: anything may sit.
     pub allowed: TypeList,
@@ -92,6 +95,8 @@ pub struct RideDef {
     pub seats: Vec<SeatDef>,
     pub saddle_item: Option<String>,
     pub when: Option<When>,
+    /// The type's `model.scale`: a locator seat's rest position is scaled by it (and the mob's own scale).
+    pub model_scale: f64,
 }
 
 impl RideDef {
@@ -112,6 +117,7 @@ impl RideDef {
             seats,
             saddle_item: f.saddle_item.clone(),
             when,
+            model_scale: f.model.scale,
         })
     }
     pub fn is_rideable_type(&self) -> bool {
@@ -136,6 +142,7 @@ fn resolve(
     Ok(SeatDef {
         offset,
         locator: s.locator.clone(),
+        locator_driven: s.offset.is_none() && s.locator.is_some(),
         controls: if s.controls.as_deref() == Some("player") {
             Controls::Player
         } else {
@@ -440,31 +447,68 @@ pub fn seat_position(
     riders::seat(off, 0.0, at, yaw)
 }
 
-/// `riders::passenger_attachment` of a custom mob: the first seat's static offset, or the top of
+/// Where seat `seat` of `m` puts a rider's attachment point, in the mob's frame (blocks, unturned).
+/// A seat with a static `offset` uses it as written. A seat that follows a `locator` uses the locator's
+/// REST position in the model (worked out when the type loads: half a turn about Y, pixels to blocks)
+/// times the mob's scale (the type's `model.scale` times the mob's own), which is what the server does;
+/// the client passes `animated`, the same locator in the animated pose (F4M-6's render state, same frame
+/// and unscaled), and gets that times the scale instead.
+pub fn seat_offset(m: &Mob, seat: usize, animated: Option<[f64; 3]>) -> [f64; 3] {
+    seat_offset_k(m, seat, animated, f64::from(m.model_scale()))
+}
+
+/// [`seat_offset`] with the mob's own scale given (`riders::passenger_attachment` multiplies the
+/// attachment by it afterwards, so the first seat passes 1 there).
+fn seat_offset_k(m: &Mob, seat: usize, animated: Option<[f64; 3]>, mob_scale: f64) -> [f64; 3] {
+    let Some(d) = def(m) else { return [0.0, f64::from(m.height()), 0.0] };
+    let Some(s) = d.seats.get(seat) else { return [0.0, f64::from(m.height()), 0.0] };
+    if !s.locator_driven {
+        return s.offset;
+    }
+    let k = d.model_scale * mob_scale;
+    let p = animated.unwrap_or(s.offset);
+    [p[0] * k, p[1] * k, p[2] * k]
+}
+
+/// [`seat_offset`] for the client: `animated` gives the animated locator of a name (mob frame, blocks, unscaled).
+pub fn seat_offset_posed(m: &Mob, seat: usize, animated: &dyn Fn(&str) -> Option<[f64; 3]>) -> [f64; 3] {
+    let name = def(m).and_then(|d| d.seats.get(seat)).and_then(|s| s.locator_driven.then(|| s.locator.clone())).flatten();
+    seat_offset(m, seat, name.and_then(|n| animated(&n)))
+}
+
+/// Where a rider's attachment point sits for seat `seat` of `m` now (the mob's position, turned with its yaw).
+pub fn seat_position_of(m: &Mob, seat: usize, animated: &dyn Fn(&str) -> Option<[f64; 3]>) -> horizon_core::geometry::Vec3 {
+    riders::seat(seat_offset_posed(m, seat, animated), 0.0, m.position, m.yaw)
+}
+
+/// `riders::passenger_attachment` of a custom mob: the first seat's offset, or the top of
 /// its box when it has no seat.
 pub fn attachment(m: &Mob) -> [f64; 3] {
-    match def(m).and_then(|d| d.seats.first()) {
-        Some(s) => s.offset,
-        None => [0.0, f64::from(m.height()), 0.0],
-    }
+    seat_offset_k(m, 0, None, 1.0)
 }
 
 /// The attachment of seat `i` as a passenger mob would use it (`game/passengers.rs`).
 pub fn attachment_at(m: &Mob, seat: usize) -> [f64; 3] {
-    match def(m).and_then(|d| d.seats.get(seat)) {
-        Some(s) => s.offset,
-        None => attachment(m),
-    }
+    seat_offset_k(m, seat, None, 1.0)
 }
 
 /// The seat of the mob rider `rider` among the mobs aboard `vehicle` (`aboard`, the riders in id
 /// order, `rider` one of them): its offset, for `passengers.rs`. The players aboard hold their claims.
 pub fn mob_rider_attachment(vehicle: &Mob, rider: &Mob, aboard: &[&Mob]) -> [f64; 3] {
-    let Some(d) = def(vehicle) else {
-        return attachment(vehicle);
-    };
-    mob_rider_seat(vehicle, rider, aboard)
-        .map_or_else(|| attachment(vehicle), |s| d.seats[s].offset)
+    mob_rider_attachment_posed(vehicle, rider, aboard, &|_| None)
+}
+
+/// [`mob_rider_attachment`] on the client, which gives the animated locators (see [`seat_offset_posed`]).
+pub fn mob_rider_attachment_posed(
+    vehicle: &Mob,
+    rider: &Mob,
+    aboard: &[&Mob],
+    animated: &dyn Fn(&str) -> Option<[f64; 3]>,
+) -> [f64; 3] {
+    match mob_rider_seat(vehicle, rider, aboard) {
+        Some(s) => seat_offset_posed(vehicle, s, animated),
+        None => attachment(vehicle),
+    }
 }
 
 /// The seats the players aboard `m` claimed, in claim order.

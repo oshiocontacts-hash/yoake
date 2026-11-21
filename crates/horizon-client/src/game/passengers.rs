@@ -157,7 +157,10 @@ impl Game<'_> {
                         .iter()
                         .filter(|k| k.extra.mount == Some(v))
                         .collect();
-                    attach = riding::mob_rider_attachment(vehicle, &self.mobs[i], &aboard);
+                    // A seat that follows a locator takes the animated pose's position (the rest
+                    // position on a server nobody draws on).
+                    let posed = self.posed_locators(vehicle);
+                    attach = riding::mob_rider_attachment_posed(vehicle, &self.mobs[i], &aboard, &posed);
                     locked = riding::mob_rider_seat(vehicle, &self.mobs[i], &aboard)
                         .is_some_and(|s| riding::seat_locks_yaw(vehicle, s));
                 }

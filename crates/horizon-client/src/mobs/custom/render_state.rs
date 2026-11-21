@@ -867,6 +867,16 @@ impl CustomRender {
         self.frame
     }
 
+    /// Locator `name` of mob `id` in the pose it was last drawn in, in the mob's frame (blocks, unturned and
+    /// unscaled: the half turn about Y and pixels to blocks, as the server's rest position is made), for a
+    /// rider's seat. `None` when the mob has no state yet (never drawn) or the type has no such locator.
+    pub fn animated_locator(&self, id: u32, t: &TypeRender, name: &str) -> Option<[f64; 3]> {
+        let m = self.mobs.get(&id)?;
+        let i = t.locators.iter().position(|l| l.name == name)?;
+        let p = t.locator_point(i, &m.matrices)?;
+        Some(crate::mobs::custom::hitbox::model_to_mob([f64::from(p.x), f64::from(p.y), f64::from(p.z)]))
+    }
+
     /// The render state of mob `id`, made on first use.
     pub fn mob(&mut self, id: u32, t: &TypeRender) -> &mut MobRender {
         let frame = self.frame;

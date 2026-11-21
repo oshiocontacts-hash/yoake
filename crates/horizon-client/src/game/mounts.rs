@@ -539,9 +539,12 @@ impl Game<'_> {
         if m.kind.custom.is_some()
             && let Some(seat) = horizon_client::mobs::custom::ai::riding::seat_of_player(m, acting)
                 .or_else(|| horizon_client::mobs::custom::ai::riding::player_seat(m).map(|(i, _)| i))
-            && let Some(d) = m.kind.custom.as_deref().map(|t| &t.ride)
         {
-            at = horizon_client::mobs::custom::ai::riding::seat_position(d, seat, m.position, m.yaw, None);
+            // A seat that follows a locator sits where the animated pose puts it (F4M-6's render state),
+            // every tick, so the camera and the other players see it move with the animation.
+            let posed = self.posed_locators(m);
+            at = horizon_client::mobs::custom::ai::riding::seat_position_of(m, seat, &posed);
+            drop(posed);
             at.y -= 0.6;
             if horizon_client::mobs::custom::ai::riding::seat_locks_yaw(m, seat) {
                 let yaw = m.yaw;

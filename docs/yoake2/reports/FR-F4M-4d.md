@@ -84,10 +84,45 @@ Not run (no game resources here): the `Game` glue (a real click boarding with `p
 
 ## 6. Open questions
 
-1. **Guests (LAN players) riding a custom vehicle** are not in the claims (`player_seat` is the host window's). A host and a guest on one vehicle could be given the same seat. `interact_custom_mob` used to count a guest as "the player aboard"; the claim-based free seat does not. Does a guest riding a custom mob need seats now?
-2. **Native mods and forced boardings:** `seat-set` and the AI boarding of a seated vehicle do not call `native_mob_may_ride` (the event is applied without the `Game`); `/ride` does. Should they ask the mods?
-3. **A mob rider steers only from a `player` seat** (the 4c change above). If you want `controls: none` seats to keep a steering mob, `mob_may_steer` is the one place.
-4. **Locators for mob riders (F4M-6):** mob riders use the static `offset` on server and client; the pose-driven locator seat is only wired for the player's seat in the hook that exists. A smooth locator for mob riders needs the render state's locator per seat.
-5. **Stock clients** see riders by the proxy entity's own attachment points (no seats). Is that enough?
+1. (Answered in 7.1) **Guests (LAN players) riding a custom vehicle** are not in the claims (`player_seat` is the host window's). A host and a guest on one vehicle could be given the same seat. `interact_custom_mob` used to count a guest as "the player aboard"; the claim-based free seat does not. Does a guest riding a custom mob need seats now?
+2. (Answered in 7.2) **Native mods and forced boardings:** `seat-set` and the AI boarding of a seated vehicle do not call `native_mob_may_ride` (the event is applied without the `Game`); `/ride` does. Should they ask the mods?
+3. (Accepted, 7.4) **A mob rider steers only from a `player` seat** (the 4c change above). If you want `controls: none` seats to keep a steering mob, `mob_may_steer` is the one place.
+4. (Answered in 7.3) **Locators for mob riders (F4M-6):** mob riders use the static `offset` on server and client; the pose-driven locator seat is only wired for the player's seat in the hook that exists. A smooth locator for mob riders needs the render state's locator per seat.
+5. (Accepted, 7.4) **Stock clients** see riders by the proxy entity's own attachment points (no seats). Is that enough?
 6. `cooldown_persists` covers melee and area attacks only (reasons above). Ranged and leap already keep a cooldown across a restart.
 7. The `/ride` path for the player (`self.riding = Some(..)` without a click) does not set `player_seat`; the player takes the first free seat that allows it.
+
+## 7. Follow-up: reviewer decisions (commits after 4d8626d0b)
+
+Answers to open questions 1 to 5 above (3 and 5 are recorded as accepted). No bindgen-annotated struct or function changed: `Mob`, `Extra` and `MobEvent` have the same shape, and `apply_brain_events` keeps its signature and hook id (only its body leaves two event kinds for the game).
+
+### 7.1 Players on seats (decision 1)
+
+* `CustomState.player_seat` is gone. `CustomState.player_claims: Vec<PlayerClaim { player: [i32; 4] (UUID), seat }>` is the reservation of the host in the window and of every LAN guest, next to `seat_claims` (mobs). `riding::claim_player(mobs, vehicle, uuid, seat)` gives a player the seat asked for or the first free seat that allows a player (`allowed_types`), refusing `Taken`, `NoSuchSeat`, `NotAllowed`, `Full`; a player that already has a claim keeps it. `assign_with` takes any number of players, and `board`, `settle`, `mob_rider_seat`, `free_seat_for_player` count them, so no two riders ever share a seat (tests `host_guest_and_mob_riders_never_share_a_seat`, `players_obey_allowed_types_and_each_other`). `board` lost its `player_aboard` flag (the claims say it).
+* Who claims: the boarding click (`interact_custom_mob`, the seat the click picked, reserved before `self.riding` is set; a click that cannot be reserved does nothing) and `/ride <player> mount <custom vehicle>` (first free seat; a full vehicle is `commands.ride.mount.failure.generic`). Guests go through the same code in their swapped-in turn (`acting_player_uuid`). A guest may now board a custom vehicle the host rides (`guest_boarded` only bounces it from vehicles without seats).
+* Release: `Game::sync_player_seats` (once a tick from `sync_riders`, before the mob riders are settled so players keep priority) calls the pure `riding::sync_players(mobs, riders)`: the claim of a player that no longer rides the vehicle (dismounted, disconnected, died; the game's `riding_players` is the host's `riding` plus every guest with a vehicle that is not dead) is freed, a rider that came without a claim takes one, a player no seat is left for is returned and put off, and the vehicle's rider input is dropped when no claimant steers. Test `a_disconnect_frees_the_seat`.
+* Steering: only a player on a `controls: player` seat feeds `Mob.rider` (`tick_mount_riding`), so a guest on a carrying seat no longer overwrites the driver's input.
+* Persistence: the vehicle's `yoake` compound gets `player_seats: [{ uuid, seat }]` (players aboard, plus names a load gave to players not back yet); on load they go to `saved_player_seats`, and a player that boards later gets its saved seat while it is free (the `RootVehicle` restore of the host or a guest). Test `the_seat_of_a_player_survives_a_save`.
+* Network: `horizon:mob_sync` kind 4 `Seats` is unchanged on the wire; players are listed as their entity id next to the mob ids (a guest by its connection's entity id; the host in the window has no id its guests know, so it is not listed, but it still reserves the seat on the server). The server turns UUIDs into ids in `lan_mob_sync.rs` (`mob_sync::add_player_seats`, `seats_message_with`; `Collected.players` carries the UUIDs). The client splits the list: ids that are mobs become mob claims, its own entity id its own player claim, any other id a player claim under a made-up UUID, so its own seat is placed correctly even when other players or mobs hold earlier seats.
+
+### 7.2 Native veto (decision 2)
+
+`apply_brain_events` now leaves `MobEvent::StartRiding` (when the vehicle has seats) and `MobEvent::SeatSet` in the queue; `handle_mob_events` takes them after the tick, when `self.mobs` is whole again (inside the tick the mobs live in a local list and `native_mob_may_ride` could not read their kinds). `Game::board_seated_mob` (AI boarding, honours the cooldown) and `Game::script_seat_set` plan the change without making it (`riding::plan_board`, `plan_seat_set`), ask `native_mob_may_ride` (boarding: `mounting = true`; `seat-set` with `none`: `mounting = false` for the rider on that seat, as `/ride dismount` asks), and only then `commit_board` / `seat_set`. A vetoed or impossible change changes nothing, and the mods are not asked for what would not happen. Vanilla vehicles keep their old paths with no new question to the mods. Tests (`a_native_veto_stops_seat_set_and_ai_boarding`, `the_seat_set_command_seats_and_frees_a_rider`) use a veto test double (a closure given the rider, the vehicle and `mounting`) in place of `native_mob_may_ride`, since a `Game` cannot be built here; the glue (plan, ask, commit) is the three lines in `game/player_seats.rs`.
+
+### 7.3 Locator seats (decision 3)
+
+* Server: a seat with a `locator` and no `offset` (the schema allows exactly one of them) is `locator_driven`. Its position is the locator's rest position in the model (through the type's model, made at load: half turn about Y, divided by 16) times the mob's scale, the type's `model.scale` times `Mob::model_scale()` (`riding::seat_offset`). A seat with a static `offset` is used as written. `riders::passenger_attachment` (first seat, multiplied by the mob scale afterwards) gets the type scale only, so nothing is scaled twice. Test `the_server_seats_a_locator_seat_at_the_rest_position_times_the_scale`.
+* Client: `CustomRender::animated_locator(mob, type, name)` returns the locator of the pose the mob was last drawn in (F4M-6's `MobRender.matrices`), in the same frame. `Game::posed_locators` gives it to `position_rider` (the player's seat, a guest's too) and `position_riders` (mob riders), through `riding::seat_position_of` / `mob_rider_attachment_posed`, times the same scale as the server. Before the first draw (a dedicated server, a mob nobody watches) the rest position is used. The seat is refreshed every game tick from the latest pose and the engine interpolates the rider between ticks, so its render position follows the animation smoothly; the pose is sampled once per tick, not re-evaluated inside a frame. Test `the_client_seats_a_rider_at_the_posed_locator` (a bone moved one block up and 8 px back moves the seat by exactly that, scaled for a baby, rest position before the first draw).
+
+### 7.4 Accepted behaviour (recorded)
+
+* Stock (non-Horizon) clients see riders at the proxy entity's own seat positions (vanilla `SetPassengers` places them by the proxy type's attachments); they get no seats and no animated locators. Accepted.
+* Only `controls: player` seats steer for mob riders (`mob_may_steer`); a mob on a `none` seat is carried. Accepted.
+
+### 7.5 In-game checks for Yoake (added)
+
+8. Host and a LAN guest both right-click the 3-seat vehicle: they take seats 0 and 1 (never the same), a chicken added with `/ride` takes seat 2, a fourth rider is refused. The guest leaves the game: its seat is free for the next rider and the host stays where it was.
+9. A guest on a `none` seat does not steer; the driver on seat 0 keeps control.
+10. Save with a player on seat 1 and reload: the player that rides again takes seat 1.
+11. A native mod that cancels `EntityMountEvent`: neither `seat-set` nor an AI mob boards a seated vehicle, nor is a rider taken off.
+12. A seat with `locator: "mouth"`: the rider moves with the mouth during the pounce animation (host and LAN client), and a baby of the type sits at half the distance.

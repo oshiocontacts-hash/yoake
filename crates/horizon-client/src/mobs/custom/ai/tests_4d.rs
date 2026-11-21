@@ -599,3 +599,98 @@ fn the_seat_of_a_player_survives_a_save() {
     assert_eq!(riding::claim_player(&mut mobs, 1, P2, None), Ok(2));
     assert_eq!(riding::claim_player(&mut mobs, 1, P1, None), Ok(1));
 }
+
+// ---- locator seats (reviewer decision 3) ----------------------------------------------------------
+
+/// The mouth locator of the fox in the mob's frame, unscaled: the model's rest position through the half turn.
+fn mouth_rest(t: &Arc<CustomType>) -> [f64; 3] {
+    let tr = t.render.as_ref().expect("the fixture has a model");
+    let i = tr.locators.iter().position(|l| l.name == "mouth").unwrap();
+    let p = tr.locator_point(i, &tr.rest_matrices).unwrap();
+    [-f64::from(p.x) / 16.0, f64::from(p.y) / 16.0, -f64::from(p.z) / 16.0]
+}
+
+/// The server seats a rider at the locator's REST position through the model (half turn about Y, pixels to
+/// blocks) times the mob's scale; a seat with a static `offset` keeps it as written.
+#[test]
+fn the_server_seats_a_locator_seat_at_the_rest_position_times_the_scale() {
+    let t = seated(json!([
+        {"locator": "mouth"},
+        {"offset": [0.0, 1.0, -0.8]}
+    ]));
+    let rest = mouth_rest(&t);
+    assert!(rest[2] > 0.5 && rest[1] > 0.0, "the mouth is ahead of and above the feet: {rest:?}");
+    let mut m = vehicle(&t);
+    let close = |a: [f64; 3], b: [f64; 3]| a.iter().zip(b).all(|(x, y)| (x - y).abs() < 1e-9);
+    assert!(t.ride.seats[0].locator_driven && !t.ride.seats[1].locator_driven);
+    assert!(close(riding::seat_offset(&m, 0, None), rest));
+    // The mob's own scale (a baby) scales the locator seat; the type's `model.scale` does too.
+    m.extra.model_scale = 0.5;
+    assert!(close(riding::seat_offset(&m, 0, None), rest.map(|v| v * 0.5)));
+    let big = fox_type_with(json!({"navigator": "ground", "goals": []}), |v| {
+        v.as_object_mut().unwrap().remove("tameable");
+        v["seats"] = json!([{"locator": "mouth"}, {"offset": [0.0, 1.0, -0.8]}]);
+        v["model"]["scale"] = json!(2.0);
+    });
+    let mb = vehicle(&big);
+    assert!(close(riding::seat_offset(&mb, 0, None), mouth_rest(&big).map(|v| v * 2.0)));
+    // A static offset is used as it is, whatever the scale.
+    assert!(close(riding::seat_offset(&m, 1, None), [0.0, 1.0, -0.8]));
+    // The rider's position: ahead of the feet at yaw 0, behind at a half turn.
+    let m = vehicle(&t);
+    let p0 = riding::seat_position_of(&m, 0, &|_| None);
+    assert!(close([p0.x, p0.y, p0.z], [10.0 + rest[0], 1.0 + rest[1], 20.0 + rest[2]]), "{p0:?}");
+    let mut turned = vehicle(&t);
+    turned.yaw = 180.0;
+    let p1 = riding::seat_position_of(&turned, 0, &|_| None);
+    assert!((p1.z - (20.0 - rest[2])).abs() < 1e-6, "{p1:?}");
+    // A mob rider is placed by it too.
+    let mut mobs = vec![vehicle(&t), chicken(2)];
+    riding::board(&mut mobs, 2, 1, None, false).unwrap();
+    let aboard: Vec<&Mob> = mobs.iter().filter(|m| m.extra.mount == Some(1)).collect();
+    assert!(close(riding::mob_rider_attachment(&mobs[0], aboard[0], &aboard), rest));
+}
+
+/// The client puts the rider at the ANIMATED locator of the render state: when the pose moves the mouth, the
+/// seat moves with it; before the mob was ever drawn (or for a name the model lacks) it is the rest position.
+#[test]
+fn the_client_seats_a_rider_at_the_posed_locator() {
+    use crate::mobs::custom::render_state::CustomRender;
+    use glam::{Mat4, Vec3 as V3};
+    let t = seated(json!([{"locator": "mouth"}]));
+    let tr = t.render.as_ref().unwrap();
+    let rest = mouth_rest(&t);
+    let m = vehicle(&t);
+    let mut render = CustomRender::default();
+    fn posed<'a>(
+        render: &'a CustomRender,
+        tr: &'a crate::mobs::custom::render_state::TypeRender,
+    ) -> impl Fn(&str) -> Option<[f64; 3]> + 'a {
+        move |name| render.animated_locator(1, tr, name)
+    }
+    // Never drawn: no animated locator, the rest position.
+    assert_eq!(render.animated_locator(1, tr, "mouth"), None);
+    let none = riding::seat_offset_posed(&m, 0, &posed(&render, tr));
+    assert_eq!(none, rest);
+    // Drawn at rest: the same point. Then the pose lifts the mouth's bone 16 px (one block) and turns the
+    // model 0.5 block back.
+    let state = render.mob(1, tr);
+    state.matrices = tr.rest_matrices.clone();
+    let at_rest = render.animated_locator(1, tr, "mouth").unwrap();
+    assert!((0..3).all(|k| (at_rest[k] - rest[k]).abs() < 1e-6), "{at_rest:?} vs {rest:?}");
+    let bone = tr.locators.iter().find(|l| l.name == "mouth").unwrap().bone.index();
+    let state = render.mob(1, tr);
+    state.matrices[bone] = Mat4::from_translation(V3::new(0.0, 16.0, 8.0)) * state.matrices[bone];
+    let moved = riding::seat_offset_posed(&m, 0, &posed(&render, tr));
+    assert!((moved[1] - (rest[1] + 1.0)).abs() < 1e-5, "one block higher: {moved:?}");
+    assert!((moved[2] - (rest[2] - 0.5)).abs() < 1e-5, "model +z 8 px is half a block back: {moved:?}");
+    // The rider follows it, scaled by the mob's scale like the server's rest seat, and turns with the mob.
+    let mut baby = vehicle(&t);
+    baby.extra.model_scale = 0.5;
+    let half = riding::seat_offset_posed(&baby, 0, &posed(&render, tr));
+    assert!((half[1] - moved[1] * 0.5).abs() < 1e-5);
+    let p = riding::seat_position_of(&m, 0, &posed(&render, tr));
+    assert!((p.y - (1.0 + moved[1])).abs() < 1e-5 && (p.z - (20.0 + moved[2])).abs() < 1e-5, "{p:?}");
+    // A name the model lacks falls back to the rest position.
+    assert_eq!(render.animated_locator(1, tr, "nowhere"), None);
+}

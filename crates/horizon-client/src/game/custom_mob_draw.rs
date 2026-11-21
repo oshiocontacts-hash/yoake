@@ -26,6 +26,17 @@ use std::sync::Arc;
 const EVENT_RANGE: f64 = 64.0;
 
 impl Game<'_> {
+    /// The animated locators of `vehicle` as the renderer last posed them (F4M-4d): a name gives the
+    /// locator in the mob's frame (blocks, unturned, unscaled), `None` before the first draw or for a name
+    /// the model lacks. A rider on a seat that follows a locator sits where the model's pose puts it.
+    pub(super) fn posed_locators<'a>(&'a self, vehicle: &'a Mob) -> impl Fn(&str) -> Option<[f64; 3]> + 'a {
+        move |name| {
+            let tr = vehicle.kind.custom.as_ref()?.render.as_ref()?;
+            let render = self.custom_mob_render.try_borrow().ok()?;
+            render.animated_locator(vehicle.id, tr, name)
+        }
+    }
+
     /// Draws custom mob `mob` of type `ct` (whose model is `tr`) into `out`: pose, body, layers and
     /// items. `distance` is the camera's distance to it (the LOD), `light` the packed light of the
     /// entity pass. The cull test, the shadow, the name tag and the outline are the caller's.
