@@ -1,0 +1,111 @@
+Horizon 0.1.0
+wasm: no mods (engine not started)
+Horizon: content from 1 mod(s) in C:\Users\USER\AppData\Local\Temp\hzlan-host-s4jyv5ad\.horizon-cache\mod-content
+Horizon: block sprites: 1291 layers at 64 px (largest 64 px, budget 256 MiB)
+load core tables: 90.26s
+load pack tables: 90.80s
+load items: 95.53s
+Horizon: resources loaded in 99.3s; 35723 block states, 1660 items, 67 biomes; 15 worker threads
+Horizon: no sounds in C:\Users\USER\AppData\Local\Temp\hzlan-host-s4jyv5ad\.horizon-cache\mod-content\assets: they were not copied from your Minecraft install; prepare the game again in the launcher (or run horizon-prepare sounds)
+Horizon: no sound: audio off: HORIZON_NO_AUDIO is set
+Horizon: control socket C:\Users\USER\AppData\Local\Temp\hzlan-host-s4jyv5ad\c.sock
+Horizon renderer: NVIDIA GeForce RTX 2060 (Vulkan, DiscreteGpu)
+Horizon renderer: requesting the device (driver NVIDIA 610.47) with features [TEXTURE_FORMAT_16BIT_NORM | TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES | TIMESTAMP_QUERY_INSIDE_ENCODERS | MAPPABLE_PRIMARY_BUFFERS | MULTI_DRAW_INDIRECT_COUNT | VERTEX_WRITABLE_STORAGE | CLEAR_TEXTURE | TEXTURE_ATOMIC | SHADER_EARLY_DEPTH_TEST | SUBGROUP | TIMESTAMP_QUERY | INDIRECT_FIRST_INSTANCE | RG11B10UFLOAT_RENDERABLE | FLOAT32_FILTERABLE | FLOAT32_BLENDABLE] and the adapter's limits (buffers up to 4294967295 bytes, storage bindings up to 2147483644 bytes, 2048 texture layers)
+Horizon renderer: creating the pipelines
+Horizon renderer: pipelines ready (multi-draw on, occlusion culling on, GPU culling available, GPU timer on)
+Horizon: the player's level  is not one of this world's levels; using the Overworld
+Horizon: worldgen data loaded in 6.3746628s
+Horizon: live features ready in 7.3443644s
+Horizon renderer: acquiring the first frame
+Horizon renderer: submitting the first frame
+Horizon: first frame after 18049 ms
+[14:29:32] [Server thread/INFO]: Player23400[/127.0.0.1:0] logged in with entity id 1 at (9.5, 65.0, 9.5)
+[14:29:32] [Server thread/INFO]: System chat: Player23400 joined the game
+[14:29:33] [Server thread/INFO]: System chat: ［Player23400：難易度がピースフルに設定されました］
+[14:29:34] [Server thread/INFO]: System chat: ［Player23400：minecraft:overworldをタイムマーカー「minecraft:day」に設定しました］
+[14:29:34] [Server thread/INFO]: System chat: ［Player23400：ゲームルール「spawn_mobs」がfalseに設定されました］
+[14:29:35] [Server thread/INFO]: System chat: ［Player23400：625個のブロックで満たしました］
+[14:29:36] [Server thread/INFO]: System chat: ［Player23400：1310個のブロックで満たしました］
+[14:29:36] [Server thread/INFO]: System chat: ［Player23400：新しくentity.sample_mobs.cinder_foxを召喚しました］
+Horizon mob-sync: snapshots=1 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:29:37] [Server thread/INFO]: System chat: ［Player23400：新しくニワトリを召喚しました］
+[14:29:37] [Server thread/INFO]: System chat: ［Player23400：新しくニワトリを召喚しました］
+[14:29:37] [Server thread/INFO]: System chat: ［Player23400：新しくニワトリを召喚しました］
+[14:29:38] [Server thread/INFO]: System chat: ［Player23400：新しくニワトリを召喚しました］
+[14:29:39] [Server thread/INFO]: System chat: ［Player23400：ニワトリをentity.sample_mobs.cinder_foxに騎乗させました］
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:29:40] [Server thread/INFO]: System chat: ［Player23400：ニワトリをentity.sample_mobs.cinder_foxに騎乗させました］
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:29:40] [Server thread/INFO]: System chat: ［Player23400：ニワトリをentity.sample_mobs.cinder_foxに騎乗させました］
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Published LAN server on port 64370
+[14:31:01] [Server thread/INFO]: Guest[/127.0.0.1:64374] logged in with entity id 316 at (10.5, 69.0, -6.5)
+[14:31:01] [Server thread/INFO]: System chat: Guest joined the game
+[14:31:02] [Server thread/INFO]: System chat: ［Guest：Guestを9.500000, 65.000000, 7.500000にテレポートさせました］
+[14:31:06] [Server thread/INFO]: System chat: ［Player23400：ニワトリをキルしました］
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:31:09] [Server thread/INFO]: System chat: ［Player23400：entity.sample_mobs.cinder_foxをキルしました］
+Horizon custom-mob death: mob 46 dies, death_time 1 (limit 20) tick 1890
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon custom-mob death: mob 46 removed at death_time 20 (limit 20) tick 1908
+[14:31:12] [Server thread/INFO]: System chat: ［Player23400：3体のエンティティをキルしました］
+[14:31:14] [Server thread/INFO]: System chat: ［Player23400：新しくentity.sample_mobs.cinder_foxを召喚しました］
+Horizon mob-sync: snapshots=1 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:31:15] [Server thread/INFO]: System chat: ［Player23400：Player23400を9.500000, 65.000000, 6.700000にテレポートさせました］
+Horizon mob-sync: snapshots=0 deltas=1 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=1 triggers=0 dropped=0 incompatible=0 known=1
+[14:31:19] [Server thread/INFO]: System chat: ［Guest：Guestを9.500000, 65.000000, 6.710000にテレポートさせました］
+Horizon mob-sync: snapshots=0 deltas=1 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=1 triggers=0 dropped=0 incompatible=0 known=1
+[14:31:22] [Server thread/INFO]: System chat: ［Player23400：新しくニワトリを召喚しました］
+[14:31:22] [Server thread/INFO]: System chat: ［Player23400：新しくニワトリを召喚しました］
+[14:31:23] [Server thread/INFO]: System chat: ［Player23400：ニワトリをentity.sample_mobs.cinder_foxに騎乗させました］
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:31:23] [Server thread/INFO]: System chat: ［Player23400：ニワトリをentity.sample_mobs.cinder_foxに騎乗させました］
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:31:24] [Server thread/INFO]: Guest lost connection: Disconnected
+[14:31:24] [Server thread/INFO]: System chat: Guest left the game
+[14:31:29] [Server thread/INFO]: System chat: ［Player23400：ニワトリをキルしました］
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:31:30] [Server thread/INFO]: System chat: ［Player23400：新しくニワトリを召喚しました］
+[14:31:31] [Server thread/INFO]: System chat: ［Player23400：ニワトリをentity.sample_mobs.cinder_foxに騎乗させました］
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:31:32] [Server thread/INFO]: System chat: ［Player23400：Player23400を9.500000, 65.000000, 6.590000にテレポートさせました］
+[14:31:56] [Server thread/INFO]: Player23400[/127.0.0.1:0] logged in with entity id 1 at (9.5, 65.0, 6.59)
+[14:31:56] [Server thread/INFO]: System chat: Player23400 joined the game
+Horizon mob-sync: snapshots=1 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Published LAN server on port 64508
+[14:32:01] [Server thread/INFO]: Guest[/127.0.0.1:64516] logged in with entity id 68 at (9.5, 65.0, 3.549276541850107)
+[14:32:01] [Server thread/INFO]: System chat: Guest joined the game
+[14:32:10] [Server thread/INFO]: System chat: ［Player23400：ニワトリをキルしました］
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:32:12] [Server thread/INFO]: System chat: ［Player23400：Player23400を9.500000, 65.000000, 6.580000にテレポートさせました］
+[14:32:17] [Server thread/INFO]: System chat: ［Player23400：entity.sample_mobs.cinder_foxをキルしました］
+Horizon custom-mob death: mob 6 dies, death_time 1 (limit 20) tick 2842
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:32:17] [Server thread/INFO]: System chat: ［Player23400：ニワトリをキルしました］
+Horizon custom-mob death: mob 6 removed at death_time 20 (limit 20) tick 2860
+[14:32:20] [Server thread/INFO]: System chat: ［Player23400：新しくentity.sample_mobs.cinder_fox_mouthを召喚しました］
+Horizon mob-sync: snapshots=1 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:32:20] [Server thread/INFO]: System chat: ［Player23400：新しくニワトリを召喚しました］
+[14:32:21] [Server thread/INFO]: System chat: ［Player23400：ニワトリをentity.sample_mobs.cinder_fox_mouthに騎乗させました］
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:32:23] [Server thread/INFO]: System chat: ［Player23400：Player23400を9.500000, 65.000000, 7.500000にテレポートさせました］
+[14:32:24] [Server thread/INFO]: System chat: ［Guest：Guestを9.500000, 65.000000, 7.500000にテレポートさせました］
+Horizon mob-sync: snapshots=0 deltas=0 triggers=1 dropped=0 incompatible=0 known=1
+Horizon custom-mob server frame: mob 126 "hit" tick 3064
+Horizon custom-mob events: mob 126 tick 3064 count 1
+Horizon custom-mob event: mob 126 "hit" at [9.5, 65.0, 4.5]
+[14:32:34] [Server thread/INFO]: System chat: ［Player23400：entity.sample_mobs.cinder_fox_mouthをキルしました］
+Horizon custom-mob death: mob 126 dies, death_time 1 (limit 20) tick 3187
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:32:34] [Server thread/INFO]: System chat: ［Player23400：ニワトリをキルしました］
+Horizon custom-mob death: mob 126 removed at death_time 20 (limit 20) tick 3205
+[14:32:36] [Server thread/INFO]: System chat: ［Player23400：新しくentity.sample_mobs.cinder_fox_mouthを召喚しました］
+Horizon mob-sync: snapshots=1 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:32:36] [Server thread/INFO]: System chat: ［Player23400：新しくニワトリを召喚しました］
+[14:32:37] [Server thread/INFO]: System chat: ［Player23400：ニワトリをentity.sample_mobs.cinder_fox_mouthに騎乗させました］
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+[14:32:43] [Server thread/INFO]: Guest lost connection: Disconnected
+[14:32:43] [Server thread/INFO]: System chat: Guest left the game
+Horizon: disconnected: サーバーが閉鎖されました

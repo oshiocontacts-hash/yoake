@@ -134,3 +134,31 @@ Target acquired: **yes** (previously never, now a player at 3.16 blocks with `ca
 Death checks passed in both variants (`death_time 0`, removed at `death_time 20`).
 
 Results: `logs/f4m-fix2-data-results.json`, `logs/f4m-fix2-wasm-results.json`.
+
+## F4M-E2E seats follow-up (`yoake-free/f4m-e2e` @13ef01e02)
+
+Merged into `yoake-free/merge` as merge commit beac372af (fetch 13ef01e02). Built debug `horizon-ctl` (`horizon-client-lib`) and `horizon-client`, and `seat_fox` for `wasm32-wasip2` (`target/seat-fox`). Benchmark gate clear before every build and game run.
+
+### Run 1: with `--seat-wasm` (aborted)
+
+Check 7 (`seat_set`) failed and the run aborted at it (the harness `AssertionError` is not caught per check, so nothing after it ran). The packaged WASM guest seated the chicken on seat 0 (centre), not seat 1:
+```
+AssertionError('host: state did not arrive within 40 ticks: [(0.0, 0.8)]')
+```
+Expected `[(0.5, 0.8)]` (seat 1). Raw: `logs/f4m-e2e-seats-wasm-aborted.log`.
+
+### Run 2: without `--seat-wasm` (all other checks)
+
+| Check | Result | Key values |
+|---|---|---|
+| 1 ride3 | pass | offsets [[0.0,0.8],[0.5,0.8],[0.5,0.8]]; fourth `/ride` refused |
+| 5 guest | pass | guest sees [[0.0,0.8],[0.5,0.8],[0.5,0.8]] |
+| 3 stay | pass | 3 riders -> 2 after one killed, seats kept |
+| 3 vehicle | pass | vehicle removed, 3 chickens left |
+| 2 use_entity | **FAIL** | host `use-entity --type sample_mobs:cinder_fox` -> `"ok": true, "riding": null, "target": 325`; host offset 2.2, steer distance 0.012 (no boarding, no steering) |
+| 8, 9 multi_player | **FAIL** | guest `use-entity 325` -> `"ok": true, "riding": null`; guest offset 2.198; only two chickens on the vehicle |
+| 4, 10 reload | **FAIL** | post-reload riders [[0.0,0.8],[0.5,0.8]]; host position 2.205 before and after (player seat 1 claim not kept) |
+| 12 locator | **FAIL** | rest [0.75, 0.31] on host and guest; pounce delta host 0.04, guest 0.0; baby flag false |
+| 7 seat_set | not run in this variant (run 1 above: FAIL) |
+
+Guest-side `use-entity` did not stop with "no entity": it returned `ok: true` with target 325, but it did not board (`riding: null`). Raw: `logs/f4m-e2e-seats-nowasm-stdout.log`, `logs/f4m-e2e-seats-nowasm-host.log`, `logs/f4m-e2e-seats-nowasm-guest.log`, `logs/f4m-e2e-seats-nowasm-results.json`.

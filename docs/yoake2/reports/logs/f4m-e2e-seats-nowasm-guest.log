@@ -1,0 +1,40 @@
+Horizon 0.1.0
+wasm: no mods (engine not started)
+Horizon: content from 1 mod(s) in C:\Users\USER\AppData\Local\Temp\hzlan-guest-g0ojhog9\.horizon-cache\mod-content
+Horizon: block sprites: 1291 layers at 64 px (largest 64 px, budget 256 MiB)
+load core tables: 68.28s
+load pack tables: 68.64s
+load items: 70.78s
+Horizon: resources loaded in 72.6s; 35723 block states, 1660 items, 67 biomes; 15 worker threads
+Horizon: no sounds in C:\Users\USER\AppData\Local\Temp\hzlan-guest-g0ojhog9\.horizon-cache\mod-content\assets: they were not copied from your Minecraft install; prepare the game again in the launcher (or run horizon-prepare sounds)
+Horizon: no sound: audio off: HORIZON_NO_AUDIO is set
+Horizon: control socket C:\Users\USER\AppData\Local\Temp\hzlan-guest-g0ojhog9\c.sock
+Horizon renderer: NVIDIA GeForce RTX 2060 (Vulkan, DiscreteGpu)
+Horizon renderer: requesting the device (driver NVIDIA 610.47) with features [TEXTURE_FORMAT_16BIT_NORM | TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES | TIMESTAMP_QUERY_INSIDE_ENCODERS | MAPPABLE_PRIMARY_BUFFERS | MULTI_DRAW_INDIRECT_COUNT | VERTEX_WRITABLE_STORAGE | CLEAR_TEXTURE | TEXTURE_ATOMIC | SHADER_EARLY_DEPTH_TEST | SUBGROUP | TIMESTAMP_QUERY | INDIRECT_FIRST_INSTANCE | RG11B10UFLOAT_RENDERABLE | FLOAT32_FILTERABLE | FLOAT32_BLENDABLE] and the adapter's limits (buffers up to 4294967295 bytes, storage bindings up to 2147483644 bytes, 2048 texture layers)
+Horizon renderer: creating the pipelines
+Horizon renderer: pipelines ready (multi-draw on, occlusion culling on, GPU culling available, GPU timer on)
+Horizon renderer: acquiring the first frame
+Horizon renderer: submitting the first frame
+Horizon: first frame after 4370 ms
+Horizon mob-sync: snapshots=1 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon: worldgen data loaded in 6.4740139s
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=1 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=1 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=1 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=1 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=1 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=1 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=1 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=0 triggers=1 dropped=0 incompatible=0 known=1
+Horizon custom-mob events: mob 126 tick 3064 count 1
+Horizon custom-mob event: mob 126 "hit" at [9.5, 65.0, 4.5]
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=1 deltas=0 triggers=0 dropped=0 incompatible=0 known=1
+Horizon mob-sync: snapshots=0 deltas=0 triggers=0 dropped=0 incompatible=0 known=1

@@ -1,0 +1,197 @@
+{
+  "checks": {
+    "ride3": {
+      "pass": true,
+      "detail": {
+        "offsets_from_vehicle": [
+          [
+            0.0,
+            0.8
+          ],
+          [
+            0.5,
+            0.8
+          ],
+          [
+            0.5,
+            0.8
+          ],
+          [
+            11.64,
+            0.0
+          ]
+        ],
+        "ride_replies": [
+          [
+            "\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox\u306b\u9a0e\u4e57\u3055\u305b\u307e\u3057\u305f"
+          ],
+          [
+            "\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox\u306b\u9a0e\u4e57\u3055\u305b\u307e\u3057\u305f"
+          ],
+          [
+            "\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox\u306b\u9a0e\u4e57\u3055\u305b\u307e\u3057\u305f"
+          ],
+          [
+            "\u30cb\u30ef\u30c8\u30ea\u3092entity.sample_mobs.cinder_fox\u306b\u9a0e\u4e57\u3055\u305b\u308b\u3053\u3068\u306b\u5931\u6557\u3057\u307e\u3057\u305f"
+          ]
+        ]
+      }
+    },
+    "guest": {
+      "pass": true,
+      "detail": {
+        "offsets_on_the_guest": [
+          [
+            0.0,
+            0.8
+          ],
+          [
+            0.5,
+            0.8
+          ],
+          [
+            0.5,
+            0.8
+          ]
+        ]
+      }
+    },
+    "stay": {
+      "pass": true,
+      "detail": {
+        "before": [
+          [
+            0.0,
+            0.8
+          ],
+          [
+            0.5,
+            0.8
+          ],
+          [
+            0.5,
+            0.8
+          ]
+        ],
+        "after": [
+          [
+            0.0,
+            0.8
+          ],
+          [
+            0.5,
+            0.8
+          ]
+        ]
+      }
+    },
+    "vehicle": {
+      "pass": true,
+      "detail": {
+        "vehicle_removed": true,
+        "chickens_left": 3
+      }
+    },
+    "use_entity": {
+      "pass": false,
+      "detail": {
+        "reply": {
+          "ok": true,
+          "riding": null,
+          "screen": "playing",
+          "target": 325,
+          "type": "sample_mobs:cinder_fox"
+        },
+        "host_offset": [
+          2.2,
+          0.0
+        ],
+        "steer_dist": 0.012
+      }
+    },
+    "multi_player": {
+      "pass": false,
+      "detail": {
+        "guest_reply": {
+          "ok": true,
+          "riding": null,
+          "screen": "playing",
+          "target": 325,
+          "type": "sample_mobs:cinder_fox"
+        },
+        "guest_offset": [
+          2.198,
+          0.0
+        ],
+        "guest_steer": 0.127,
+        "full_offsets": [
+          [
+            0.0,
+            0.8
+          ],
+          [
+            0.5,
+            0.8
+          ]
+        ],
+        "host_after_dc": [
+          1.707,
+          0.0
+        ],
+        "after_freed": [
+          [
+            0.0,
+            0.8
+          ],
+          [
+            0.5,
+            0.8
+          ]
+        ]
+      }
+    },
+    "reload": {
+      "pass": false,
+      "detail": {
+        "pre_host": [
+          2.205,
+          0.0
+        ],
+        "post_chickens": [
+          [
+            0.0,
+            0.8
+          ],
+          [
+            0.5,
+            0.8
+          ]
+        ],
+        "post_host": [
+          2.205,
+          0.0
+        ]
+      }
+    },
+    "locator": {
+      "pass": false,
+      "detail": {
+        "host_rest": [
+          0.75,
+          0.31
+        ],
+        "guest_rest": [
+          0.75,
+          0.31
+        ],
+        "host_pounce_delta": 0.04,
+        "guest_pounce_delta": 0.0,
+        "baby_flag": false,
+        "baby_offset": [
+          0.75,
+          0.31
+        ]
+      }
+    }
+  }
+}
