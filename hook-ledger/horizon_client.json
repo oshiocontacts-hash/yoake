@@ -27344,7 +27344,7 @@
     {
       "id": 8444,
       "key": "horizon_client::game::world_loading::make_streaming",
-      "sig": "5056ca12bd8d8547",
+      "sig": "7fd56b119acfca67",
       "status": "live",
       "kind": "fn"
     },
@@ -27639,6 +27639,1105 @@
       "id": 10679,
       "key": "horizon_client::game::remote_projectiles::Game::tick_remote_projectiles",
       "sig": "cf19008efddccdd7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12053,
+      "key": "horizon_client::entry::wasm_mods::client_services::<GameHost as ClientServices>::mob_bone_index",
+      "sig": "33e36dbf8f51b393",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12054,
+      "key": "horizon_client::entry::wasm_mods::client_services::<GameHost as ClientServices>::mob_locator",
+      "sig": "077479d02929d10b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12055,
+      "key": "horizon_client::entry::wasm_mods::mob_services::set_synced",
+      "sig": "64172c791e84b469",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12056,
+      "key": "horizon_client::entry::wasm_mods::mob_services::trigger_anim",
+      "sig": "1d41b7309ca217e6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12057,
+      "key": "horizon_client::entry::wasm_mods::mob_services::set_controller_state",
+      "sig": "07b8137d90da90c8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12058,
+      "key": "horizon_client::entry::wasm_mods::mob_services::set_controller_state_hold",
+      "sig": "dcfeab6b4f589e39",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12059,
+      "key": "horizon_client::entry::wasm_mods::mob_services::release_controller_state",
+      "sig": "33478a84ae329983",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12060,
+      "key": "horizon_client::entry::wasm_mods::mob_services::navigate_to",
+      "sig": "69cde841e0ab28d3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12061,
+      "key": "horizon_client::entry::wasm_mods::mob_services::attack",
+      "sig": "cb5322e69d1b457f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12062,
+      "key": "horizon_client::entry::wasm_mods::mob_services::attribute_add_modifier",
+      "sig": "d8d13623ff718c5b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12063,
+      "key": "horizon_client::entry::wasm_mods::mob_services::attribute_remove_modifier",
+      "sig": "c8048fadd8764e9e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12064,
+      "key": "horizon_client::entry::wasm_mods::mob_services::seat_set",
+      "sig": "10226bd7f0afeb42",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12065,
+      "key": "horizon_client::entry::wasm_mods::mob_services::spawn",
+      "sig": "07ba15fee3fda137",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12066,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::live",
+      "sig": "1d057805fe180147",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12067,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::goal_can_use",
+      "sig": "196cedfd577bac82",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12068,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::goal_can_continue",
+      "sig": "105f0e7638714238",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12069,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::goal_start",
+      "sig": "0d06c098b77fa60e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12070,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::goal_tick",
+      "sig": "5d70f7e7b7c18927",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12071,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::goal_stop",
+      "sig": "0cb26943436f3fe0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12072,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::mob_tick",
+      "sig": "579edda0362e62f8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12073,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::mob_spawn_check",
+      "sig": "c681e1fb8866a717",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12074,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::mob_spawned",
+      "sig": "2c11ccbe86088e99",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12075,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::mob_hurt",
+      "sig": "15602dc31ef6720c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12076,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::mob_died",
+      "sig": "c003db775e665cde",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12077,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::mob_interact",
+      "sig": "e7e84db6b6b74f4e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12078,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::mob_anim_event",
+      "sig": "591c1bea9c3f4d55",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12079,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::mob_load",
+      "sig": "f44206be01473a78",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12080,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::mob_save",
+      "sig": "c24c78f944efadbc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12081,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::mob_tamed",
+      "sig": "77e186014cd0b2bc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12082,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::mob_bred",
+      "sig": "c9bd749df6d7a298",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12083,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Runtime>::synced_changed",
+      "sig": "0ea943ea35125ac2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12084,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as Hook>::mob_interact",
+      "sig": "d5246a7f8f0e40da",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12085,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::register_client",
+      "sig": "31900712218e1c7e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12086,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as ClientRuntime>::live",
+      "sig": "1d057805fe180147",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12087,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as ClientRuntime>::mob_pose",
+      "sig": "d82e3e008b38c510",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12088,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as ClientRuntime>::mob_anim_event",
+      "sig": "591c1bea9c3f4d55",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12089,
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::<WasmRuntime as ClientRuntime>::synced_changed",
+      "sig": "0ea943ea35125ac2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12090,
+      "key": "horizon_client::entry::wasm_mods::media_services::Browsers::close",
+      "sig": "db689bd20e2930ed",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12091,
+      "key": "horizon_client::entry::wasm_mods::media_services::<Browsers as Drop>::drop",
+      "sig": "43116095add2f77b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12092,
+      "key": "horizon_client::entry::wasm_mods::media_services::profile",
+      "sig": "d9f7f3456b37f9e7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12093,
+      "key": "horizon_client::entry::wasm_mods::media_services::check_allow",
+      "sig": "e155384a40b64273",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12094,
+      "key": "horizon_client::entry::wasm_mods::media_services::page_state",
+      "sig": "ed883844340a3c68",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12095,
+      "key": "horizon_client::entry::wasm_mods::media_services::input",
+      "sig": "e1593c0a401839b5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12096,
+      "key": "horizon_client::entry::wasm_mods::media_services::clipped",
+      "sig": "e0559e6ab6a15c11",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12097,
+      "key": "horizon_client::entry::wasm_mods::media_services::GameHost::write_rgba",
+      "sig": "8ff2457959b74fd6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12098,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_open",
+      "sig": "9b69c2e156882974",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12099,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_close",
+      "sig": "a5ee99256b2f246f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12100,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_set_visible",
+      "sig": "b4538bc387b0f04e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12101,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_navigate",
+      "sig": "d3cf95f6a60b6c16",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12102,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_history",
+      "sig": "e15b48d7977977b9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12103,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_input",
+      "sig": "4cd6a658ceb82dc5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12104,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_state",
+      "sig": "1deb82e3b2c48119",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12105,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_frame_to_texture",
+      "sig": "d2ea24d820606713",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12106,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_frame_jpeg",
+      "sig": "e3126185e106c186",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12107,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::jpeg_to_texture",
+      "sig": "50f5c4b893853028",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12108,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_audio_pcm",
+      "sig": "49da41d9af215255",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12109,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_eval",
+      "sig": "a81d0125093a48e2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12110,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_eval_result",
+      "sig": "0c9b13ed59f12d6f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12111,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_post",
+      "sig": "2c7f015c178c5f82",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12112,
+      "key": "horizon_client::entry::wasm_mods::media_services::<GameHost as MediaServices>::browser_messages",
+      "sig": "0ca57083048b2555",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12113,
+      "key": "horizon_client::entry::wasm_mods::level_services::<WasmGeneratorFactory as ModGeneratorFactory>::create",
+      "sig": "72a6cd722c59775e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12114,
+      "key": "horizon_client::entry::wasm_mods::level_services::WasmColumnSource::call",
+      "sig": "3c3dd11d85730904",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12115,
+      "key": "horizon_client::entry::wasm_mods::level_services::<WasmColumnSource as ModColumnSource>::generate",
+      "sig": "0031abc5a820d1cd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12116,
+      "key": "horizon_client::entry::wasm_mods::server_services::register_endpoint",
+      "sig": "9a158e80ca412e4e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12117,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_spawn",
+      "sig": "d4f489807c42424e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12118,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_info_call",
+      "sig": "976ae7a813aa424a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12119,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_set_synced",
+      "sig": "ad3c7ce61138a810",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12120,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_get_synced",
+      "sig": "62b87c3b9dff725d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12121,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_trigger_anim",
+      "sig": "f2f480cfd9865442",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12122,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_set_controller_state",
+      "sig": "02572670dd33b213",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12123,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_set_controller_state_hold",
+      "sig": "9aba8c8381b21bc2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12124,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_release_controller_state",
+      "sig": "07a6ab8781776c5a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12125,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_navigate_to",
+      "sig": "9b39f3236c414178",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12126,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_navigate_stop",
+      "sig": "1683279dec8cb078",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12127,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_look_at",
+      "sig": "5164e09961240355",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12128,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_jump",
+      "sig": "b85a6fc830b657d0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12129,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_set_target",
+      "sig": "571047eb58024d0a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12130,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_attack",
+      "sig": "0a90277deff7d26c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12131,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_attribute_get",
+      "sig": "c39d7e28ef83138f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12132,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_attribute_set_base",
+      "sig": "884d6e285058fc95",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12133,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_attribute_add_modifier",
+      "sig": "73eff3e450eddb28",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12134,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_attribute_remove_modifier",
+      "sig": "99bc9d9aefaa1157",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12135,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_set_hitbox_enabled",
+      "sig": "b326fad8b19c7f9e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12136,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_data_get",
+      "sig": "04e70eabe28ef76b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12137,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_data_put",
+      "sig": "290e56e5aa05bcb1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12138,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_despawn",
+      "sig": "2eb5dc2da4a27e6b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12139,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_claim_control",
+      "sig": "baa600407db7aef4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12140,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_impulse",
+      "sig": "2ad0f81c9fb23c32",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12141,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::mob_seat_set",
+      "sig": "1134f9539e76460d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12142,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::level_register_type",
+      "sig": "1b9acc3c318640b7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12143,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::level_register",
+      "sig": "d31c3ee807dcdd63",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12144,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::generator_register",
+      "sig": "d4b784cc3e8df875",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12145,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::level_create",
+      "sig": "c66544b2039d27cb",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12146,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::level_delete",
+      "sig": "6221ff79b0648a82",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12147,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::level_unload",
+      "sig": "48a3310a6729aa0a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12148,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::level_regenerate",
+      "sig": "497aca9889613a8c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12149,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::current_level",
+      "sig": "d8c9ace577304eba",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12150,
+      "key": "horizon_client::entry::wasm_mods::server_services::<GameServerHost as ServerHost>::level_list",
+      "sig": "b9756bc30d8d8111",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12151,
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::level_rules",
+      "sig": "b493df9d175f75a2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12152,
+      "key": "horizon_client::game::agent::parse_use_entity_target",
+      "sig": "e82e23f9cfc79177",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12153,
+      "key": "horizon_client::game::agent::low_point",
+      "sig": "9c4611921940afc5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12154,
+      "key": "horizon_client::game::commands::data::summon_tag",
+      "sig": "d390ce79ae2965b1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12155,
+      "key": "horizon_client::game::level_facts::BedRules::of_type",
+      "sig": "ced5a24ad6d79183",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12156,
+      "key": "horizon_client::game::level_facts::Game::ensure_level_ctx",
+      "sig": "3db22de41c87fcc0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12157,
+      "key": "horizon_client::game::level_manager::<LevelManagerError as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12158,
+      "key": "horizon_client::game::level_manager::<LevelManagerError as From<LevelError>>::from",
+      "sig": "7aa571840bcb6356",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12159,
+      "key": "horizon_client::game::level_manager::Game::level_control",
+      "sig": "f7e5b2e70a902123",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12160,
+      "key": "horizon_client::game::level_manager::Game::run_level_command",
+      "sig": "7d30a3a1c38f0eb8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12161,
+      "key": "horizon_client::game::level_manager::Game::create_level",
+      "sig": "cc20e1e19fcc7517",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12162,
+      "key": "horizon_client::game::level_manager::Game::delete_level",
+      "sig": "17139939d7e3ea82",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12163,
+      "key": "horizon_client::game::level_manager::Game::unload_level",
+      "sig": "2ea8362270886072",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12164,
+      "key": "horizon_client::game::level_manager::Game::regenerate_level",
+      "sig": "1deeaf9151011381",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12165,
+      "key": "horizon_client::game::level_manager::Game::unloadable",
+      "sig": "db2b0000460a30ae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12166,
+      "key": "horizon_client::game::native_levels::Game::native_levels_create",
+      "sig": "c6838b93533fecf2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12167,
+      "key": "horizon_client::game::native_levels::Game::native_levels_unload",
+      "sig": "f63986a4a5b237f7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12168,
+      "key": "horizon_client::game::lan_mob_sync::Game::flush_mob_sync",
+      "sig": "9d0cb94eadf2b3b6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12169,
+      "key": "horizon_client::game::levels::Game::register_mod_level",
+      "sig": "81b4715f34d9acf4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12170,
+      "key": "horizon_client::game::native_lifecycle::Game::script_session_open",
+      "sig": "853e9311241dae0e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12171,
+      "key": "horizon_client::game::passengers::Game::try_mount_mob",
+      "sig": "49aecc6ce174f7db",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12172,
+      "key": "horizon_client::game::player_seats::Game::riding_players",
+      "sig": "356709af2b0a2d4d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12173,
+      "key": "horizon_client::game::player_seats::Game::sync_player_seats",
+      "sig": "95be1a1d44cbd2ec",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12174,
+      "key": "horizon_client::game::player_seats::Game::board_seated_mob",
+      "sig": "e3cb6bf34c572f33",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12175,
+      "key": "horizon_client::game::player_seats::Game::script_seat_set",
+      "sig": "e5a6ad868c5b13e8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12176,
+      "key": "horizon_client::game::persist::Game::put_mob_passengers",
+      "sig": "257cc08f66b70143",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12177,
+      "key": "horizon_client::game::remote::remote_level_type",
+      "sig": "1bb873381511654e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12178,
+      "key": "horizon_client::game::remote_custom_mob::Game::remote_mob_sync",
+      "sig": "32ba09d09f288bd2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12179,
+      "key": "horizon_client::game::custom_mob_draw::Game::custom_mob_items",
+      "sig": "b8f57a94b181337e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12180,
+      "key": "horizon_client::game::custom_mob_draw::Game::tick_custom_mob_events",
+      "sig": "ae1104f865fa9fba",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12181,
+      "key": "horizon_client::game::custom_mob_draw::<GameSink as EventSink>::sound",
+      "sig": "387f022c64e54644",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12182,
+      "key": "horizon_client::game::custom_mob_draw::<GameSink as EventSink>::particle",
+      "sig": "2edc1ab171ebb991",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12183,
+      "key": "horizon_client::game::custom_mob_draw::<GameSink as EventSink>::custom",
+      "sig": "4f4b9c2cd0af0fca",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12184,
+      "key": "horizon_client::game::custom_mob_interact::Game::interact_custom_mob",
+      "sig": "707a30178a541300",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12185,
+      "key": "horizon_client::game::custom_mob_interact::Game::custom_breed",
+      "sig": "b9f4581bf0307398",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12186,
+      "key": "horizon_client::game::world_loading::build_level_registry",
+      "sig": "ae4ec241d0224eb0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12187,
+      "key": "horizon_client::game::world_loading::level_generator_settings",
+      "sig": "89316f0375c5fe6e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12188,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::live",
+      "sig": "1d057805fe180147",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12189,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::goal_can_use",
+      "sig": "196cedfd577bac82",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12190,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::goal_can_continue",
+      "sig": "105f0e7638714238",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12191,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::goal_start",
+      "sig": "0d06c098b77fa60e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12192,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::goal_tick",
+      "sig": "5d70f7e7b7c18927",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12193,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::goal_stop",
+      "sig": "0cb26943436f3fe0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12194,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::mob_tick",
+      "sig": "579edda0362e62f8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12195,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::mob_spawn_check",
+      "sig": "c681e1fb8866a717",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12196,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::mob_spawned",
+      "sig": "2c11ccbe86088e99",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12197,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::mob_hurt",
+      "sig": "15602dc31ef6720c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12198,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::mob_died",
+      "sig": "c003db775e665cde",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12199,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::mob_interact",
+      "sig": "e7e84db6b6b74f4e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12200,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::mob_anim_event",
+      "sig": "591c1bea9c3f4d55",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12201,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::mob_load",
+      "sig": "f44206be01473a78",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12202,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::mob_save",
+      "sig": "c24c78f944efadbc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12203,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::mob_tamed",
+      "sig": "77e186014cd0b2bc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12204,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::mob_bred",
+      "sig": "c9bd749df6d7a298",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12205,
+      "key": "horizon_client::mob_native::<NativeRuntime as Runtime>::synced_changed",
+      "sig": "0ea943ea35125ac2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12206,
+      "key": "horizon_client::mob_native::<NativeClientRuntime as ClientRuntime>::live",
+      "sig": "1d057805fe180147",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12207,
+      "key": "horizon_client::mob_native::<NativeClientRuntime as ClientRuntime>::mob_pose",
+      "sig": "d21eb3937eacf204",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12208,
+      "key": "horizon_client::mob_native::<NativeClientRuntime as ClientRuntime>::mob_anim_event",
+      "sig": "591c1bea9c3f4d55",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12209,
+      "key": "horizon_client::mob_native::<NativeClientRuntime as ClientRuntime>::synced_changed",
+      "sig": "0ea943ea35125ac2",
       "status": "live",
       "kind": "fn"
     }
@@ -28136,6 +29235,11 @@
     },
     {
       "key": "horizon_client::entry::wasm_mods::<GameHost as ClientHost>::gpu_services",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::<GameHost as ClientHost>::media_services",
       "reason": "borrowed return type",
       "kind": "fn"
     },
@@ -28685,7 +29789,52 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::entry::wasm_mods::install_script_runtimes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::entry::wasm_mods::installed_source",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::level_services::Cursor::str",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::level_services::Cursor::take",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::level_services::Cursor::u16",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::level_services::Cursor::u8",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::level_services::Fill::apply",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::level_services::Fill::decode",
+      "reason": "nested callable borrow",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::level_services::WasmColumnSource::request",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::level_services::generator_factory",
       "reason": "small body",
       "kind": "fn"
     },
@@ -28705,7 +29854,277 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::audio_pcm",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::audio_status",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::close",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::encoded_frame",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::eval_result",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::eval_value",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::frame",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::frames",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::info",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::input",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::poll",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::post",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::set_jpeg_quality",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::set_visible",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::<Panel as Page>::status",
+      "reason": "trait impl on a type that cannot take an inherent impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::Browsers::close_all",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::Browsers::free_slot",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::Browsers::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::GameHost::browsers",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::check_url",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::grant",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::granted",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::grants",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::open_real",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::media_services::opener",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::any_true",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::client_each",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::each",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::et_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::et_vec",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::install",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::install_client",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::one",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_runtime::world_runtime",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::attribute_get",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::attribute_set_base",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::data_get",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::data_put",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::finite3",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::from_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::gate",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::get_synced",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::grant",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::granted",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::impulse",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::info",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::look_at",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::set_hitbox_enabled",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::set_target",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::simple",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::to_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::mob_services::view",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::entry::wasm_mods::net_state",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::open_world_script_session",
       "reason": "small body",
       "kind": "fn"
     },
@@ -28925,6 +30344,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::entry::wasm_mods::server_services::endpoints",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::entry::wasm_mods::server_services::finite",
       "reason": "small body",
       "kind": "fn"
@@ -28940,12 +30364,17 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client::entry::wasm_mods::server_services::prepare_attachments",
+      "key": "horizon_client::entry::wasm_mods::server_services::level_id",
       "reason": "small body",
       "kind": "fn"
     },
     {
-      "key": "horizon_client::entry::wasm_mods::server_services::register_endpoint",
+      "key": "horizon_client::entry::wasm_mods::server_services::level_json",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::entry::wasm_mods::server_services::prepare_attachments",
       "reason": "small body",
       "kind": "fn"
     },
@@ -29036,6 +30465,11 @@
     },
     {
       "key": "horizon_client::game::<GameLevel as LevelAccess>::biome_name",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::level_id",
       "reason": "borrowed return type",
       "kind": "fn"
     },
@@ -32835,6 +34269,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::commands::horizon_cmd::Game::cmd_horizon",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::commands::items::Game::owner_holder",
       "reason": "small body",
       "kind": "fn"
@@ -33570,6 +35009,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::creatures::Game::log_custom_strike",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::creatures::Game::mob_died",
       "reason": "small body",
       "kind": "fn"
@@ -33847,6 +35291,16 @@
     {
       "key": "horizon_client::game::cushions::snap_yaw",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::custom_mob_draw::Game::custom_mob_geometry",
+      "reason": "nested callable borrow",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::custom_mob_draw::Game::posed_locators",
+      "reason": "impl Trait return",
       "kind": "fn"
     },
     {
@@ -39170,6 +40624,51 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::level_facts::Game::level_facts",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::level_facts::Game::level_type",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::level_facts::LevelFacts::of_type",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::level_facts::LevelFacts::shader_dimension",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::level_facts::environment_for",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::level_facts::type_json",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::level_manager::Game::is_occupied",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::level_manager::Game::list_levels",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::level_manager::Game::travel_scale",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::level_particles::Game::block_shape_top",
       "reason": "small body",
       "kind": "fn"
@@ -39250,6 +40749,26 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::levels::Game::level_after_open",
+      "reason": "wrapped by yoake_inject",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::levels::Game::level_before_close",
+      "reason": "wrapped by yoake_inject",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::levels::Game::level_before_open",
+      "reason": "wrapped by yoake_inject",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::levels::Game::level_dim",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::levels::Game::lod_source_in",
       "reason": "small body",
       "kind": "fn"
@@ -39275,12 +40794,27 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::levels::Game::register_mod_generator",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::levels::Game::registered_dims",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::levels::Game::tick_server_spans",
       "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::levels::Game::tick_server_timed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::levels::Levels::drop_parked",
       "reason": "small body",
       "kind": "fn"
     },
@@ -42915,6 +44449,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::native_hooks::Game::native_custom_mob_spawned",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::native_hooks::Game::native_data",
       "reason": "small body",
       "kind": "fn"
@@ -43745,12 +45284,67 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_anim_event",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_anim_event_client",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_bred",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_died",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::native_hooks::Game::native_mob_effect_added",
       "reason": "small body",
       "kind": "fn"
     },
     {
       "key": "horizon_client::game::native_hooks::Game::native_mob_find_path",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_goal_can_continue",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_goal_can_use",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_goal_start",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_goal_stop",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_goal_tick",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_hurt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_interact",
       "reason": "small body",
       "kind": "fn"
     },
@@ -43770,6 +45364,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_load",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::native_hooks::Game::native_mob_look_at",
       "reason": "small body",
       "kind": "fn"
@@ -43785,7 +45384,22 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_pose",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_save",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::native_hooks::Game::native_mob_set_control",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_spawn_check",
       "reason": "small body",
       "kind": "fn"
     },
@@ -43806,6 +45420,16 @@
     },
     {
       "key": "horizon_client::game::native_hooks::Game::native_mob_submit",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_tamed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_mob_tick",
       "reason": "small body",
       "kind": "fn"
     },
@@ -45015,6 +46639,16 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::native_hooks::Game::native_synced_changed_client",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_synced_changed_server",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::native_hooks::Game::native_tab_complete",
       "reason": "small body",
       "kind": "fn"
@@ -46035,6 +47669,46 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::native_levels::Game::native_levels_delete",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_levels::Game::native_levels_dim",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_levels::Game::native_levels_generator",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_levels::Game::native_levels_list",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_levels::Game::native_levels_regenerate",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_levels::Game::native_levels_register",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_levels::Game::run_pending_level_ops",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_levels::json_object",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::native_lifecycle::Game::native_lifecycle_authority",
       "reason": "small body",
       "kind": "fn"
@@ -46061,6 +47735,11 @@
     },
     {
       "key": "horizon_client::game::native_lifecycle::Game::native_lifecycle_world_ready",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::native_lifecycle::Game::script_session_close",
       "reason": "small body",
       "kind": "fn"
     },
@@ -46891,11 +48570,6 @@
     },
     {
       "key": "horizon_client::game::native_player_ops::clear_title_packet",
-      "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client::game::native_player_ops::dimension",
       "reason": "small body",
       "kind": "fn"
     },
@@ -47975,6 +49649,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::level_id",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::mob_data",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -48865,11 +50544,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client::game::passengers::Game::try_mount_mob",
-      "reason": "small body",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client::game::passengers::mount_rolls",
       "reason": "small body",
       "kind": "fn"
@@ -49017,11 +50691,6 @@
     {
       "key": "horizon_client::game::persist::Game::persist_raw",
       "reason": "borrowed return type",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client::game::persist::Game::put_mob_passengers",
-      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -49501,6 +51170,16 @@
     },
     {
       "key": "horizon_client::game::player_equip::same",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::player_seats::Game::mob_has_seats",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::player_seats::Game::put_player_off",
       "reason": "small body",
       "kind": "fn"
     },
@@ -51011,6 +52690,11 @@
     },
     {
       "key": "horizon_client::game::remote_chunks::Game::remote_chunks_biomes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::game::remote_custom_mob::Game::apply_remote_seat_claims",
       "reason": "small body",
       "kind": "fn"
     },
@@ -54840,6 +56524,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client::game::world_loading::level_fast_lava",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client::game::world_loading::preload_world_data",
       "reason": "small body",
       "kind": "fn"
@@ -54967,6 +56656,26 @@
     {
       "key": "horizon_client::game::zombie_villagers::is_zombie",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::mob_native::NativeClientRuntime::mods",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::mob_native::NativeClientRuntime::process",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::mob_native::NativeRuntime::mods",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client::mob_native::NativeRuntime::process",
+      "reason": "const fn",
       "kind": "fn"
     },
     {

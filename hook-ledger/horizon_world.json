@@ -6146,6 +6146,104 @@
       "sig": "c0ac2896e4b08e9a",
       "status": "live",
       "kind": "fn"
+    },
+    {
+      "id": 11762,
+      "key": "horizon_world::dimension::<DimensionError as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11763,
+      "key": "horizon_world::dimension::IntProvider::parse",
+      "sig": "71e9302dd67c92d6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11764,
+      "key": "horizon_world::dimension::DimensionType::vanilla",
+      "sig": "71f28828d6c8fbc3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11765,
+      "key": "horizon_world::dimension::DimensionType::validate",
+      "sig": "dfae74c5835a4603",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11766,
+      "key": "horizon_world::dimension::DimensionType::from_value",
+      "sig": "e0ce5d7099fa22cd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11767,
+      "key": "horizon_world::dimension::DimensionType::to_value",
+      "sig": "e4581087bcebb227",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11768,
+      "key": "horizon_world::dimension::LevelStem::from_value",
+      "sig": "70110b7f37130164",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11769,
+      "key": "horizon_world::dimension::<DimensionTypeRegistry as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11770,
+      "key": "horizon_world::dimension::DimensionTypeRegistry::load",
+      "sig": "e5600e3b92e23f64",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11771,
+      "key": "horizon_world::dimension::LevelRegistry::load_preset_stems",
+      "sig": "f91f161dc1980326",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11772,
+      "key": "horizon_world::worldgen::biome_source::codec::BiomeSourceCatalog::grid",
+      "sig": "b8604e207593e07e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11773,
+      "key": "horizon_world::worldgen::biome_source::grid::<GridError as Display>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11774,
+      "key": "horizon_world::worldgen::biome_source::grid::GridBiomeSource::new",
+      "sig": "f270c28d34d116ac",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11775,
+      "key": "horizon_world::worldgen::biome_source::runtime::<BiomeSourceError as From<GridError>>::from",
+      "sig": "7aa438a6341db884",
+      "status": "live",
+      "kind": "fn"
     }
   ],
   "excluded": [
@@ -11250,6 +11348,156 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::dimension::DimensionType::attr_bool",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionType::can_start_raid",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionType::fast_lava",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionType::from_json_str",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionType::level_height",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionType::nether_portal_spawns_piglin",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionType::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionType::piglins_zombify",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionType::respawn_anchor_works",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionType::set_attr",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionType::snow_golem_melts",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionType::water_evaporates",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionTypeRegistry::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionTypeRegistry::ids",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionTypeRegistry::insert",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionTypeRegistry::resolve",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::DimensionTypeRegistry::vanilla",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::IntProvider::to_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::LevelRegistry::insert_stem",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::LevelRegistry::level_height",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::LevelRegistry::level_type",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::LevelRegistry::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::LevelRegistry::remove_stem",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::LevelRegistry::stem",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::LevelRegistry::stem_ids",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::LevelStem::from_json_str",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::LevelStem::to_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::SettingsRef::parse",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::SettingsRef::to_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::invalid",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::dynamic_support::<DynamicSupportError<E> as Display>::fmt",
       "reason": "generic impl",
       "kind": "fn"
@@ -13307,6 +13555,16 @@
     {
       "key": "horizon_world::level::Behaviours::update_shape",
       "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::LevelRules::of",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::LevelRules::of_type",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -21140,6 +21398,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::biome_source::grid::GridBiomeSource::biomes",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::biome_source::grid::GridBiomeSource::noise_biome",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::biome_source::grid::GridBiomeSource::possible_biomes",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::worldgen::biome_source::runtime::BiomeSourceDefinition::resolve",
       "reason": "small body",
       "kind": "fn"
@@ -23352,6 +23625,11 @@
     {
       "key": "horizon_world::worldgen::generator::GeneratorData::registry",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::generator::GeneratorData::source_catalog",
+      "reason": "borrowed return type",
       "kind": "fn"
     },
     {

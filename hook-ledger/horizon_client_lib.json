@@ -26270,7 +26270,7 @@
     {
       "id": 4190,
       "key": "horizon_client_lib::mod_content::Plan::entity_types_json",
-      "sig": "a7a6f93a2d8806a2",
+      "sig": "339503ba03e1533a",
       "status": "live",
       "kind": "fn"
     },
@@ -30344,7 +30344,7 @@
     {
       "id": 10660,
       "key": "horizon_client_lib::mobs::path::Finder::find",
-      "sig": "a5842782b9953b56",
+      "sig": "1886c8c65db6a9f8",
       "status": "live",
       "kind": "fn"
     },
@@ -30394,6 +30394,1931 @@
       "id": 10667,
       "key": "horizon_client_lib::tick_chunk_membership::TickChunkMembership::start_ticking",
       "sig": "15574bb0bbbad58e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11778,
+      "key": "horizon_client_lib::lan::mob_sync::<SyncOut as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11779,
+      "key": "horizon_client_lib::lan::mob_sync::collect",
+      "sig": "4b71f0675e1e1eaf",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11780,
+      "key": "horizon_client_lib::lan::mob_sync::seats_message_with",
+      "sig": "274d7494e9fd197f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11781,
+      "key": "horizon_client_lib::lan::mob_sync::snapshot_for",
+      "sig": "5a56ba0e54d11b69",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11782,
+      "key": "horizon_client_lib::lan::mob_sync::for_viewer_as",
+      "sig": "36df409b21cc2172",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11783,
+      "key": "horizon_client_lib::lan::data::SyncData::announce_level",
+      "sig": "ca90beaaef34439d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11784,
+      "key": "horizon_client_lib::lan::data::SyncData::level_type_id",
+      "sig": "41282039e375b694",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11785,
+      "key": "horizon_client_lib::lan::data::SyncData::keep_registries",
+      "sig": "eea3adfdae4633da",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11786,
+      "key": "horizon_client_lib::mobs::custom::CustomType::new",
+      "sig": "38ea4843cc8c3ba4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11787,
+      "key": "horizon_client_lib::mobs::custom::CustomState::set_hitbox_enabled",
+      "sig": "ec5b4f9f0f933895",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11788,
+      "key": "horizon_client_lib::mobs::custom::ai::species_list",
+      "sig": "aeaa5f66c5b873c5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11789,
+      "key": "horizon_client_lib::mobs::custom::ai::type_list",
+      "sig": "c4e4e1ba1c245868",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11790,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::add",
+      "sig": "cd4b5a9ec34599fc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11791,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::resolve_due",
+      "sig": "61257cc6e759b61a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11792,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::tick_pending",
+      "sig": "13e69682db1d450c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11793,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<ChaseStrike as Goal>::name",
+      "sig": "138468f3bae7b014",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11794,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<ChaseStrike as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11795,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<ChaseStrike as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11796,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<ChaseStrike as Goal>::can_continue",
+      "sig": "e254f94c1dd6d5ac",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11797,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<ChaseStrike as Goal>::start",
+      "sig": "9b36427e1e93b681",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11798,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<ChaseStrike as Goal>::stop",
+      "sig": "4d9e4c57454100ef",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11799,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<ChaseStrike as Goal>::every_tick",
+      "sig": "ff04abb3850a2168",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11800,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<ChaseStrike as Goal>::tick",
+      "sig": "1ad6219a6a288cee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11801,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::in_shape",
+      "sig": "b885cbb24fd04f1f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11802,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::area_hit",
+      "sig": "cea517505e324dad",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11803,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::Shot::from_params",
+      "sig": "ba1393ae65c02ce7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11804,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::Shot::fire",
+      "sig": "409726a0fb42b887",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11805,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<RangedAttack as Goal>::name",
+      "sig": "138468f3bae7b014",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11806,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<RangedAttack as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11807,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<RangedAttack as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11808,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<RangedAttack as Goal>::can_continue",
+      "sig": "e254f94c1dd6d5ac",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11809,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<RangedAttack as Goal>::stop",
+      "sig": "7f1015ae57edcbf3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11810,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<RangedAttack as Goal>::every_tick",
+      "sig": "ff04abb3850a2168",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11811,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<RangedAttack as Goal>::tick",
+      "sig": "1ad6219a6a288cee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11812,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::LeapAttack::jump",
+      "sig": "057883d7b6b08c23",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11813,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<LeapAttack as Goal>::name",
+      "sig": "138468f3bae7b014",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11814,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<LeapAttack as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11815,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<LeapAttack as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11816,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<LeapAttack as Goal>::can_continue",
+      "sig": "550804334271b63e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11817,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<LeapAttack as Goal>::start",
+      "sig": "9b36427e1e93b681",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11818,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<LeapAttack as Goal>::stop",
+      "sig": "44d66d7b8a860ea1",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11819,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<LeapAttack as Goal>::every_tick",
+      "sig": "ff04abb3850a2168",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11820,
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::<LeapAttack as Goal>::tick",
+      "sig": "1ad6219a6a288cee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11821,
+      "key": "horizon_client_lib::mobs::custom::ai::blocks::<EatCustomBlock as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11822,
+      "key": "horizon_client_lib::mobs::custom::ai::blocks::<EatCustomBlock as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11823,
+      "key": "horizon_client_lib::mobs::custom::ai::blocks::<EatCustomBlock as Goal>::can_continue",
+      "sig": "038af21acdc70cb0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11824,
+      "key": "horizon_client_lib::mobs::custom::ai::blocks::<EatCustomBlock as Goal>::start",
+      "sig": "0b9ba44055ba4f13",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11825,
+      "key": "horizon_client_lib::mobs::custom::ai::blocks::<EatCustomBlock as Goal>::stop",
+      "sig": "7f1015ae57edcbf3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11826,
+      "key": "horizon_client_lib::mobs::custom::ai::blocks::<EatCustomBlock as Goal>::every_tick",
+      "sig": "ff04abb3850a2168",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11827,
+      "key": "horizon_client_lib::mobs::custom::ai::blocks::<EatCustomBlock as Goal>::tick",
+      "sig": "1ad6219a6a288cee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11828,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::complete",
+      "sig": "635000b63241207a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11829,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::add",
+      "sig": "9a1f6e3e83808643",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11830,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::<Breed as Goal>::name",
+      "sig": "138468f3bae7b014",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11831,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::<Breed as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11832,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::<Breed as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11833,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::<Breed as Goal>::can_continue",
+      "sig": "5ab7ba1357c5a782",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11834,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::<Breed as Goal>::stop",
+      "sig": "7f1015ae57edcbf3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11835,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::<Breed as Goal>::tick",
+      "sig": "1ad6219a6a288cee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11836,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::<FollowParent as Goal>::name",
+      "sig": "138468f3bae7b014",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11837,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::<FollowParent as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11838,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::<FollowParent as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11839,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::<FollowParent as Goal>::can_continue",
+      "sig": "e254f94c1dd6d5ac",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11840,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::<FollowParent as Goal>::start",
+      "sig": "63ddebf2e2ed40dd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11841,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::<FollowParent as Goal>::stop",
+      "sig": "7f1015ae57edcbf3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11842,
+      "key": "horizon_client_lib::mobs::custom::ai::breed::<FollowParent as Goal>::tick",
+      "sig": "1ad6219a6a288cee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11843,
+      "key": "horizon_client_lib::mobs::custom::ai::budget::jitter_for",
+      "sig": "7ce05780126ca9e0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11844,
+      "key": "horizon_client_lib::mobs::custom::ai::budget::<PathBudget as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11845,
+      "key": "horizon_client_lib::mobs::custom::ai::budget::PathBudget::roll",
+      "sig": "c793454d6311b079",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11846,
+      "key": "horizon_client_lib::mobs::custom::ai::budget::PathBudget::request",
+      "sig": "db066e57d595d20f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11847,
+      "key": "horizon_client_lib::mobs::custom::ai::budget::PathBudget::charge",
+      "sig": "6b1d555ed7a4d613",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11848,
+      "key": "horizon_client_lib::mobs::custom::ai::budget::request_for",
+      "sig": "1094ed429f1e26c2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11849,
+      "key": "horizon_client_lib::mobs::custom::ai::expr::When::compile",
+      "sig": "ea6bdaacef489494",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11850,
+      "key": "horizon_client_lib::mobs::custom::ai::expr::fill",
+      "sig": "b1e129326fec6b4c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11851,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::add",
+      "sig": "cd4b5a9ec34599fc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11852,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<LookAtTarget as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11853,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<LookAtTarget as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11854,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<LookAtTarget as Goal>::every_tick",
+      "sig": "ff04abb3850a2168",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11855,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<LookAtTarget as Goal>::tick",
+      "sig": "1ad6219a6a288cee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11856,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<RetreatWhenHurt as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11857,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<RetreatWhenHurt as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11858,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<RetreatWhenHurt as Goal>::can_continue",
+      "sig": "550804334271b63e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11859,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<RetreatWhenHurt as Goal>::start",
+      "sig": "9b36427e1e93b681",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11860,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<RetreatWhenHurt as Goal>::stop",
+      "sig": "39126ef666f737fd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11861,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<GoToBlock as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11862,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<GoToBlock as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11863,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<GoToBlock as Goal>::can_continue",
+      "sig": "5ab7ba1357c5a782",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11864,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<GoToBlock as Goal>::start",
+      "sig": "9b36427e1e93b681",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11865,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<GoToBlock as Goal>::every_tick",
+      "sig": "ff04abb3850a2168",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11866,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<GoToBlock as Goal>::tick",
+      "sig": "1ad6219a6a288cee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11867,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<GoToBlock as Goal>::stop",
+      "sig": "39126ef666f737fd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11868,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<StayNearHome as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11869,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<StayNearHome as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11870,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<StayNearHome as Goal>::can_continue",
+      "sig": "550804334271b63e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11871,
+      "key": "horizon_client_lib::mobs::custom::ai::goals::<StayNearHome as Goal>::start",
+      "sig": "9b36427e1e93b681",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11872,
+      "key": "horizon_client_lib::mobs::custom::ai::interact::dispatch",
+      "sig": "f93e0f1e1e2891be",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11873,
+      "key": "horizon_client_lib::mobs::custom::ai::interact::implicit",
+      "sig": "3fcaa5f809a0f337",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11874,
+      "key": "horizon_client_lib::mobs::custom::ai::interact::heal_attempt",
+      "sig": "cd5c3b945f10adbf",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11875,
+      "key": "horizon_client_lib::mobs::custom::ai::rest::add",
+      "sig": "9a1f6e3e83808643",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11876,
+      "key": "horizon_client_lib::mobs::custom::ai::rest::Rest::find_place",
+      "sig": "2d921b68caf79d37",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11877,
+      "key": "horizon_client_lib::mobs::custom::ai::rest::Rest::near",
+      "sig": "4cfc080af4063ccc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11878,
+      "key": "horizon_client_lib::mobs::custom::ai::rest::Rest::show",
+      "sig": "d3a9fc3972014577",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11879,
+      "key": "horizon_client_lib::mobs::custom::ai::rest::<Rest as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11880,
+      "key": "horizon_client_lib::mobs::custom::ai::rest::<Rest as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11881,
+      "key": "horizon_client_lib::mobs::custom::ai::rest::<Rest as Goal>::can_continue",
+      "sig": "e254f94c1dd6d5ac",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11882,
+      "key": "horizon_client_lib::mobs::custom::ai::rest::<Rest as Goal>::start",
+      "sig": "9b36427e1e93b681",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11883,
+      "key": "horizon_client_lib::mobs::custom::ai::rest::<Rest as Goal>::every_tick",
+      "sig": "ff04abb3850a2168",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11884,
+      "key": "horizon_client_lib::mobs::custom::ai::rest::<Rest as Goal>::tick",
+      "sig": "1ad6219a6a288cee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11885,
+      "key": "horizon_client_lib::mobs::custom::ai::rest::<Rest as Goal>::stop",
+      "sig": "39126ef666f737fd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11886,
+      "key": "horizon_client_lib::mobs::custom::ai::script_goal::add",
+      "sig": "0da165b56377faba",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11887,
+      "key": "horizon_client_lib::mobs::custom::ai::script_goal::<ScriptGoal as Goal>::name",
+      "sig": "138468f3bae7b014",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11888,
+      "key": "horizon_client_lib::mobs::custom::ai::script_goal::<ScriptGoal as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11889,
+      "key": "horizon_client_lib::mobs::custom::ai::script_goal::<ScriptGoal as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11890,
+      "key": "horizon_client_lib::mobs::custom::ai::script_goal::<ScriptGoal as Goal>::can_continue",
+      "sig": "e254f94c1dd6d5ac",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11891,
+      "key": "horizon_client_lib::mobs::custom::ai::script_goal::<ScriptGoal as Goal>::start",
+      "sig": "9b36427e1e93b681",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11892,
+      "key": "horizon_client_lib::mobs::custom::ai::script_goal::<ScriptGoal as Goal>::every_tick",
+      "sig": "ff04abb3850a2168",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11893,
+      "key": "horizon_client_lib::mobs::custom::ai::script_goal::<ScriptGoal as Goal>::tick",
+      "sig": "1ad6219a6a288cee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11894,
+      "key": "horizon_client_lib::mobs::custom::ai::script_goal::<ScriptGoal as Goal>::stop",
+      "sig": "4d9e4c57454100ef",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11895,
+      "key": "horizon_client_lib::mobs::custom::ai::riding::RideDef::new",
+      "sig": "062b8b1ec3ad9dca",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11896,
+      "key": "horizon_client_lib::mobs::custom::ai::riding::assign",
+      "sig": "e0f1b785d6cd9b42",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11897,
+      "key": "horizon_client_lib::mobs::custom::ai::riding::assign_with",
+      "sig": "aecaf142880f09ff",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11898,
+      "key": "horizon_client_lib::mobs::custom::ai::riding::free_seat",
+      "sig": "3a0920ade27030e7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11899,
+      "key": "horizon_client_lib::mobs::custom::ai::riding::rideable",
+      "sig": "e11c39f0020a0bd6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11900,
+      "key": "horizon_client_lib::mobs::custom::ai::riding::free_player_seat",
+      "sig": "0b5e1ee86192b119",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11901,
+      "key": "horizon_client_lib::mobs::custom::ai::riding::claim_player",
+      "sig": "ef1eb3f64eb16b57",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11902,
+      "key": "horizon_client_lib::mobs::custom::ai::riding::sync_players",
+      "sig": "b1aeb3951b0bb4d5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11903,
+      "key": "horizon_client_lib::mobs::custom::ai::riding::seat_offset_k",
+      "sig": "7c21f4f85f57e9d9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11904,
+      "key": "horizon_client_lib::mobs::custom::ai::riding::mob_rider_seat",
+      "sig": "1399db1ad9838ce4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11905,
+      "key": "horizon_client_lib::mobs::custom::ai::riding::plan_board",
+      "sig": "1849321aa04e2389",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11906,
+      "key": "horizon_client_lib::mobs::custom::ai::riding::settle",
+      "sig": "10ec7c716f1bc64d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11907,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::tame",
+      "sig": "52d0896784411226",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11908,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::set_sitting",
+      "sig": "221a9854586b86b3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11909,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::toggle_sit",
+      "sig": "3981ce00c9b380d6",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11910,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::mirror_pose",
+      "sig": "290fcbbd97f9ffc8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11911,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::add",
+      "sig": "cd4b5a9ec34599fc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11912,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::add_defaults",
+      "sig": "e94f3756a16b4a1c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11913,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::can_stand_at",
+      "sig": "6d0df40d98e84a06",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11914,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<FollowOwner as Goal>::name",
+      "sig": "138468f3bae7b014",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11915,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<FollowOwner as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11916,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<FollowOwner as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11917,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<FollowOwner as Goal>::can_continue",
+      "sig": "e254f94c1dd6d5ac",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11918,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<FollowOwner as Goal>::start",
+      "sig": "63ddebf2e2ed40dd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11919,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<FollowOwner as Goal>::stop",
+      "sig": "39126ef666f737fd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11920,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<FollowOwner as Goal>::every_tick",
+      "sig": "ff04abb3850a2168",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11921,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<FollowOwner as Goal>::tick",
+      "sig": "1ad6219a6a288cee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11922,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<Sit as Goal>::name",
+      "sig": "138468f3bae7b014",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11923,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<Sit as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11924,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<Sit as Goal>::can_use",
+      "sig": "437e1c7713912498",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11925,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<Sit as Goal>::can_continue",
+      "sig": "550804334271b63e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11926,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<Sit as Goal>::start",
+      "sig": "0b9ba44055ba4f13",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11927,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::OwnerHurt::pick",
+      "sig": "b4ebd68d4d2b1759",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11928,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<OwnerHurt as Goal>::name",
+      "sig": "138468f3bae7b014",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11929,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<OwnerHurt as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11930,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<OwnerHurt as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11931,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<OwnerHurt as Goal>::can_continue",
+      "sig": "e254f94c1dd6d5ac",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11932,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<OwnerHurt as Goal>::start",
+      "sig": "9b36427e1e93b681",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11933,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::<OwnerHurt as Goal>::stop",
+      "sig": "39126ef666f737fd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11934,
+      "key": "horizon_client_lib::mobs::custom::ai::tame::wants_to_attack",
+      "sig": "5a8bcab85e2d88ff",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11935,
+      "key": "horizon_client_lib::mobs::custom::ai::targets::add",
+      "sig": "cd4b5a9ec34599fc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11936,
+      "key": "horizon_client_lib::mobs::custom::ai::targets::finish",
+      "sig": "c3ac3339254b3522",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11937,
+      "key": "horizon_client_lib::mobs::custom::anim_sync::TypeAnim::new",
+      "sig": "5b932721c023abc7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11938,
+      "key": "horizon_client_lib::mobs::custom::anim_sync::type_version",
+      "sig": "a5c4cff098f6abc7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11939,
+      "key": "horizon_client_lib::mobs::custom::anim_sync::MobAnim::new",
+      "sig": "13482f8bac27d586",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11940,
+      "key": "horizon_client_lib::mobs::custom::anim_sync::MobAnim::start",
+      "sig": "e543e208e11a67c7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11941,
+      "key": "horizon_client_lib::mobs::custom::anim_sync::fill_inputs",
+      "sig": "92cbc481ce44d73d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11942,
+      "key": "horizon_client_lib::mobs::custom::anim_sync::request_trigger",
+      "sig": "70e80177774f9c98",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11943,
+      "key": "horizon_client_lib::mobs::custom::anim_sync::force_state",
+      "sig": "482f74d640e0619e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11944,
+      "key": "horizon_client_lib::mobs::custom::anim_sync::is_held",
+      "sig": "6421296564adca31",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11945,
+      "key": "horizon_client_lib::mobs::custom::anim_sync::tick",
+      "sig": "b7a53bfaab53809d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11946,
+      "key": "horizon_client_lib::mobs::custom::anim_sync::frame_deadline",
+      "sig": "81f447ee3adc1bae",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11947,
+      "key": "horizon_client_lib::mobs::custom::attrs::AttrDef::definition",
+      "sig": "b5ea37f794149311",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11948,
+      "key": "horizon_client_lib::mobs::custom::attrs::<Quiet as Observer>::dirty",
+      "sig": "ed1ca89c4827ad7b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11949,
+      "key": "horizon_client_lib::mobs::custom::attrs::sync_scale",
+      "sig": "9d088cab9c1fc43d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11950,
+      "key": "horizon_client_lib::mobs::custom::build::load_root",
+      "sig": "ac959351b88d408a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11951,
+      "key": "horizon_client_lib::mobs::custom::build::build_one",
+      "sig": "a8344c2547d315ed",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11952,
+      "key": "horizon_client_lib::mobs::custom::build::add",
+      "sig": "1865ebfba0332a4e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11953,
+      "key": "horizon_client_lib::mobs::custom::build::intern",
+      "sig": "b9fe4ff5c5620c95",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11954,
+      "key": "horizon_client_lib::mobs::custom::build::mob_type",
+      "sig": "6e912349416c490d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11955,
+      "key": "horizon_client_lib::mobs::custom::build::register",
+      "sig": "e5d005a3f52de313",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11956,
+      "key": "horizon_client_lib::mobs::custom::hitbox::HitPart::bounds",
+      "sig": "48a763b5094d4d06",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11957,
+      "key": "horizon_client_lib::mobs::custom::hitbox::ray_enter",
+      "sig": "aa873cb5359037ac",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11958,
+      "key": "horizon_client_lib::mobs::custom::hitbox::scale_damage",
+      "sig": "f74be28d2cea2de3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11959,
+      "key": "horizon_client_lib::mobs::custom::hitbox::pick",
+      "sig": "df198e4c5802b034",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11960,
+      "key": "horizon_client_lib::mobs::custom::hitbox::distance_sqr",
+      "sig": "5a1ed7d48d9af401",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11961,
+      "key": "horizon_client_lib::mobs::custom::persist::write",
+      "sig": "a0008c7f0c22706a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11962,
+      "key": "horizon_client_lib::mobs::custom::persist::read",
+      "sig": "d19fd08cca45d46f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11963,
+      "key": "horizon_client_lib::mobs::custom::persist::block_pos",
+      "sig": "d26b669305b38747",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11964,
+      "key": "horizon_client_lib::mobs::custom::persist::write_passenger_seats",
+      "sig": "071f2f8c78ab8e8b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11965,
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMob::poll_events",
+      "sig": "c57e86cb7ef2dd5f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11966,
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMobs::copy_seat_claims",
+      "sig": "4e5c3eac182c47bf",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11967,
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMobs::snapshot",
+      "sig": "e658168c9d1b068a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11968,
+      "key": "horizon_client_lib::mobs::custom::remote::apply_anchor",
+      "sig": "fb9038ea8d6bafd4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11969,
+      "key": "horizon_client_lib::mobs::custom::remote::add_trigger",
+      "sig": "c70bdc15fdef45a4",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11970,
+      "key": "horizon_client_lib::mobs::custom::render_state::TypeRender::new",
+      "sig": "d1bc2f676437cfdc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11971,
+      "key": "horizon_client_lib::mobs::custom::render_state::TypeRender::from_model",
+      "sig": "c90ac227b732cb2d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11972,
+      "key": "horizon_client_lib::mobs::custom::render_state::TypeRender::locator_frame",
+      "sig": "b51158f51d9e63cd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11973,
+      "key": "horizon_client_lib::mobs::custom::render_state::quads_of",
+      "sig": "b0b0f5b33e7c9524",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11974,
+      "key": "horizon_client_lib::mobs::custom::render_state::MobFacts::fill",
+      "sig": "8ef7e3cc4c46a85b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11975,
+      "key": "horizon_client_lib::mobs::custom::render_state::MobRender::update",
+      "sig": "70aaec9fb711efaa",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11976,
+      "key": "horizon_client_lib::mobs::custom::render_state::MobRender::evaluate_rig",
+      "sig": "7231220beeb27a61",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11977,
+      "key": "horizon_client_lib::mobs::custom::render_state::LocalMirror::sync",
+      "sig": "b849005a6e4a347b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11978,
+      "key": "horizon_client_lib::mobs::custom::render_state::CustomRender::animated_locator",
+      "sig": "333e43fe8c8ac9c5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11979,
+      "key": "horizon_client_lib::mobs::custom::render_state::<MobRender as Debug>::fmt",
+      "sig": "824fc9307f78fff3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11980,
+      "key": "horizon_client_lib::mobs::custom::render_state::TypeRender::draw",
+      "sig": "5f66797175ea9cf9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11981,
+      "key": "horizon_client_lib::mobs::custom::render_state::TypeRender::layer_paint",
+      "sig": "caa34f7d5b9ceaea",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11982,
+      "key": "horizon_client_lib::mobs::custom::script::MobView::of_in",
+      "sig": "6670b40d937a9516",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11983,
+      "key": "horizon_client_lib::mobs::custom::script::take_for",
+      "sig": "d778c7a90e661999",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11984,
+      "key": "horizon_client_lib::mobs::custom::script::reset",
+      "sig": "5cacef21980af451",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11985,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::live",
+      "sig": "1d057805fe180147",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11986,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::goal_can_use",
+      "sig": "196cedfd577bac82",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11987,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::goal_can_continue",
+      "sig": "105f0e7638714238",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11988,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::goal_start",
+      "sig": "0d06c098b77fa60e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11989,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::goal_tick",
+      "sig": "5d70f7e7b7c18927",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11990,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::goal_stop",
+      "sig": "0cb26943436f3fe0",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11991,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::mob_tick",
+      "sig": "579edda0362e62f8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11992,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::mob_spawn_check",
+      "sig": "c681e1fb8866a717",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11993,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::mob_spawned",
+      "sig": "2c11ccbe86088e99",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11994,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::mob_hurt",
+      "sig": "15602dc31ef6720c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11995,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::mob_died",
+      "sig": "c003db775e665cde",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11996,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::mob_interact",
+      "sig": "e7e84db6b6b74f4e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11997,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::mob_anim_event",
+      "sig": "591c1bea9c3f4d55",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11998,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::mob_load",
+      "sig": "f44206be01473a78",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11999,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::mob_save",
+      "sig": "c24c78f944efadbc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12000,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::mob_tamed",
+      "sig": "77e186014cd0b2bc",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12001,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::mob_bred",
+      "sig": "c9bd749df6d7a298",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12002,
+      "key": "horizon_client_lib::mobs::custom::script::<Chain as Runtime>::synced_changed",
+      "sig": "0ea943ea35125ac2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12003,
+      "key": "horizon_client_lib::mobs::custom::script::<ClientChain as ClientRuntime>::live",
+      "sig": "1d057805fe180147",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12004,
+      "key": "horizon_client_lib::mobs::custom::script::<ClientChain as ClientRuntime>::mob_pose",
+      "sig": "d21eb3937eacf204",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12005,
+      "key": "horizon_client_lib::mobs::custom::script::<ClientChain as ClientRuntime>::mob_anim_event",
+      "sig": "591c1bea9c3f4d55",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12006,
+      "key": "horizon_client_lib::mobs::custom::script::<ClientChain as ClientRuntime>::synced_changed",
+      "sig": "0ea943ea35125ac2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12007,
+      "key": "horizon_client_lib::mobs::custom::script::open_session",
+      "sig": "d19fddc3f60eddcd",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12008,
+      "key": "horizon_client_lib::mobs::custom::script::<Session as Drop>::drop",
+      "sig": "43116095add2f77b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12009,
+      "key": "horizon_client_lib::mobs::custom::script::spawned",
+      "sig": "6a2000414cb2e192",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12010,
+      "key": "horizon_client_lib::mobs::custom::script::saved_data",
+      "sig": "3785d40f8b2826c2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12011,
+      "key": "horizon_client_lib::mobs::custom::script::sync_claim",
+      "sig": "e2764e71cd3f14db",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12012,
+      "key": "horizon_client_lib::mobs::custom::script::pre_tick",
+      "sig": "c5bc302714e4639d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12013,
+      "key": "horizon_client_lib::mobs::custom::script::bone_writes",
+      "sig": "db6a8aa12420dcc9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12014,
+      "key": "horizon_client_lib::mobs::custom::script::ScriptState::charge",
+      "sig": "3bb3812d75926b4a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12015,
+      "key": "horizon_client_lib::mobs::custom::spawn::Rule::from_file",
+      "sig": "08d495dacd9b9b1e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12016,
+      "key": "horizon_client_lib::mobs::custom::spawn::Despawn::from_file",
+      "sig": "0212baed9b812b40",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12017,
+      "key": "horizon_client_lib::mobs::custom::spawn::decide",
+      "sig": "022dada5e6d30a9d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12018,
+      "key": "horizon_client_lib::mobs::custom::spawn::check_despawn",
+      "sig": "dba55a6b88d11e9c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12019,
+      "key": "horizon_client_lib::mobs::custom::stats::report",
+      "sig": "a9cc8399aa9f63e8",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12020,
+      "key": "horizon_client_lib::mobs::doors::<OpenTaggedDoor as Goal>::flags",
+      "sig": "0d50fb592e65324d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12021,
+      "key": "horizon_client_lib::mobs::doors::<OpenTaggedDoor as Goal>::every_tick",
+      "sig": "ff04abb3850a2168",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12022,
+      "key": "horizon_client_lib::mobs::doors::<OpenTaggedDoor as Goal>::can_use",
+      "sig": "34043727e77c915a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12023,
+      "key": "horizon_client_lib::mobs::doors::<OpenTaggedDoor as Goal>::can_continue",
+      "sig": "e254f94c1dd6d5ac",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12024,
+      "key": "horizon_client_lib::mobs::doors::<OpenTaggedDoor as Goal>::start",
+      "sig": "3f6041effa45283c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12025,
+      "key": "horizon_client_lib::mobs::doors::<OpenTaggedDoor as Goal>::stop",
+      "sig": "b0c4eeee2821a0c2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12026,
+      "key": "horizon_client_lib::mobs::goals::Mob::within_melee_range",
+      "sig": "44f4d48281fa298a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12027,
+      "key": "horizon_client_lib::mobs::nav::Mob::query_path_raw",
+      "sig": "124e02040ac38450",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12028,
+      "key": "horizon_client_lib::mobs::nav::Mob::climb_aim",
+      "sig": "d5d15b67397c7112",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12029,
+      "key": "horizon_client_lib::mobs::path::Finder::climb_neighbors",
+      "sig": "f4e47bbc9a7a1d09",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12030,
+      "key": "horizon_client_lib::mobs::path::Finder::find_counted",
+      "sig": "51512ffaa4441eff",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12031,
+      "key": "horizon_client_lib::mobs::riders::sync_links",
+      "sig": "811c9d4ba80529d2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12032,
+      "key": "horizon_client_lib::mod_content::vanilla_mob_attributes",
+      "sig": "31c3882ddac8a00e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12033,
+      "key": "horizon_client_lib::mod_content::custom_row",
+      "sig": "473d72b6535d2731",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12034,
+      "key": "horizon_client_lib::level_registry::<LevelError as Display>::fmt",
+      "sig": "8dd7587632612893",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12035,
+      "key": "horizon_client_lib::level_registry::<LevelRegistry as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12036,
+      "key": "horizon_client_lib::level_registry::check_level_id",
+      "sig": "ada06c5312e7c3ee",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12037,
+      "key": "horizon_client_lib::level_registry::prepared_dimension_types",
+      "sig": "8fe497f02e79a9d9",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12038,
+      "key": "horizon_client_lib::level_registry::noise_sea_levels",
+      "sig": "2f3d6aae261be96a",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12039,
+      "key": "horizon_client_lib::level_registry::LevelRegistry::saved_stems",
+      "sig": "a4220f7e79d7972c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12040,
+      "key": "horizon_client_lib::level_registry::LevelRegistry::build",
+      "sig": "cc4658bed1f888b7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12041,
+      "key": "horizon_client_lib::level_registry::LevelRegistry::make_entry",
+      "sig": "5a2b84cd1c922b63",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12042,
+      "key": "horizon_client_lib::level_registry::LevelRegistry::set_seed",
+      "sig": "e0f281707a06f438",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12043,
+      "key": "horizon_client_lib::level_registry::LevelRegistry::write_created",
+      "sig": "c6a5be36f29a351d",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12044,
+      "key": "horizon_client_lib::mod_generator::ModGenerators::register",
+      "sig": "772b02fc065320c5",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12045,
+      "key": "horizon_client_lib::mod_generator::ModGenerators::terrain",
+      "sig": "fde5563d07cd7982",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12046,
+      "key": "horizon_client_lib::mod_generator::<ModTerrain as ChunkGenerator>::worker",
+      "sig": "a15ac21bd673b496",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12047,
+      "key": "horizon_client_lib::mod_generator::<ModTerrain as ChunkGenerator>::proto",
+      "sig": "8ea8e8eef589b93b",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12048,
+      "key": "horizon_client_lib::mod_generator::<ModTerrain as ChunkGenerator>::finish",
+      "sig": "71dc562c2e760775",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12049,
+      "key": "horizon_client_lib::mod_generator::stage_level",
+      "sig": "62376c09a8926a73",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12050,
+      "key": "horizon_client_lib::mod_generator::stage_level_replacing",
+      "sig": "c7bdd28a59b093e3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12051,
+      "key": "horizon_client_lib::mod_generator::stage_type",
+      "sig": "967fe72e0fea4432",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12052,
+      "key": "horizon_client_lib::mod_generator::stage_generator_replacing",
+      "sig": "898a594fddc8df36",
       "status": "live",
       "kind": "fn"
     }
@@ -37389,6 +39314,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::lan::chunks::ChunkEncoder::wire_sections",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_lib::lan::chunks::ChunkEncoder::with_signs",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -37824,7 +39754,22 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::lan::data::SyncData::add_levels",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_lib::lan::data::SyncData::add_tag_values",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::data::SyncData::all_levels",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::data::SyncData::dimension_type_count",
       "reason": "small body",
       "kind": "fn"
     },
@@ -37854,7 +39799,12 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::lan::data::SyncData::keep_registries",
+      "key": "horizon_client_lib::lan::data::SyncData::level",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::data::SyncData::level_shape",
       "reason": "small body",
       "kind": "fn"
     },
@@ -37870,6 +39820,11 @@
     },
     {
       "key": "horizon_client_lib::lan::data::SyncData::registry_packets",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::data::SyncData::withdraw_level",
       "reason": "small body",
       "kind": "fn"
     },
@@ -38421,6 +40376,11 @@
     {
       "key": "horizon_client_lib::lan::hub::Hub::guest",
       "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::hub::Hub::guest_knows_level",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -39004,6 +40964,106 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::lan::mob_sync::Collected::messages",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::Collected::owner_messages",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::active",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::add_player_seats",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::announced_mask",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::for_viewer",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::frames",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::from_wire",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::host_value",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::interval",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::mask_of",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::owner_mask",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::packets",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::reads_mob_sync",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::seats_message",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::seats_of",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::snapshot",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::to_wire",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::value_set",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_sync::value_visible_to",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_lib::lan::playerdata::Autosaves::completed",
       "reason": "small body",
       "kind": "fn"
@@ -39330,6 +41390,141 @@
     },
     {
       "key": "horizon_client_lib::landing::native_living_fall",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::contains",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::coordinate_scale",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::create_level",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::entries",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::for_world",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::freeze",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::generator_stem",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::ids",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::is_frozen",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::needs_catalog",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::network_levels",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::problems",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::register_level",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::register_type",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::remove_level",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::restore_levels",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::restore_levels_with_types",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::save_dir",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::seed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::shape",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::stored_levels",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::types",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::LevelRegistry::vanilla",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::generator_sea_level",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::json_seed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::level_registry::shape_of",
       "reason": "small body",
       "kind": "fn"
     },
@@ -40290,6 +42485,11 @@
     },
     {
       "key": "horizon_client_lib::mobs::ai::make_age_locked_particle",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::ai::mob_is_monster",
       "reason": "small body",
       "kind": "fn"
     },
@@ -42319,6 +44519,1716 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::custom::CustomState::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::CustomState::notice",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::CustomState::set_player_claims",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::CustomState::set_seat_claims",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::CustomState::set_synced",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::CustomState::set_synced_slot",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::CustomState::synced_value",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::CustomState::take_dirty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::CustomState::take_notices",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::CustomState::take_seat_claims",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::CustomType::builtin_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::CustomType::death_ticks",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::CustomType::default_rule",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::CustomType::synced_slot",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::SyncedDef::clamp_i32",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::SyncedDef::coerce",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::SyncedDef::from_json",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::SyncedDef::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::Params::flag",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::Params::int",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::Params::num",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::Params::priority",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::Params::speed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::Params::strings",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::Params::text",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::TypeList::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attach",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::AttackState::forget_frame",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::AttackState::push",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::AttackState::push_frame",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::AttackState::request_trigger",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::AttackState::take_frame",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::AttackState::take_triggers",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::ChaseStrike::in_reach",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::ChaseStrike::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::LeapAttack::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::RangedAttack::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::Timing::begin",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::Timing::due",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::Timing::from_params",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::deliver_frame",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::dist_sqr",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::facing",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::land_strike",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::nearest_point",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::pending_player",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::persists",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::strike_in_reach",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::attacks::take_triggers",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::blocks::EatCustomBlock::find",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::blocks::EatCustomBlock::from_row",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::blocks::Effect::parse",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::blocks::add",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::blocks::take_events",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::breed::Breed::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::breed::BreedDef::from_file",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::breed::FollowParent::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::breed::baby_scale",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::breed::def",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::breed::feed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::breed::is_food",
+      "reason": "nested callable borrow",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::breed::offspring_kind",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::breed::own_id",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::breed::tick",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::PathBudget::limit",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::PathBudget::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::PathBudget::remaining",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::PathBudget::retry_at",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::PathBudget::stats",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::PathBudget::waiting",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::PathBudget::with_jitter",
+      "reason": "by-value or typed self",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::add_to_type",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::charge",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::charge_for",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::limit",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::limit_property",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::request",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::reset_for_thread",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::set_limit",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::set_retry_jitter",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::stats",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::budget::stats_by_type",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::expr::When::eval",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::expr::inputs",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::goals::GoToBlock::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::goals::GoToBlock::reached",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::goals::GoToBlock::valid",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::goals::LookAtTarget::near",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::goals::LookAtTarget::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::goals::RetreatWhenHurt::hurt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::goals::RetreatWhenHurt::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::goals::RetreatWhenHurt::threat",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::goals::StayNearHome::inside",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::goals::StayNearHome::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::goals::set_home",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::interact::Outcome::done",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::interact::Outcome::pass",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::interact::dispatch_global",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::interact::feed_attempt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::interact::ride",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::interact::row_applies",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::interact::run_row",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::interact::set_hook",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::interact::tame_attempt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::nav_select::apply",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::nav_select::max_visited_nodes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::nav_select::swimming",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::rest::Rest::night",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::rest::Rest::recently_hurt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::rest::Rest::wants",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::RideDef::is_rideable_type",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::SeatDef::allows",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::attachment",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::attachment_at",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::board",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::claim_of",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::commit_board",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::controlled",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::def",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::free_seat_for_player",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::has_seats",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::is_rideable_mob",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::kind_of",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::locked_yaw",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::mob_may_steer",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::mob_rider_attachment",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::mob_rider_attachment_posed",
+      "reason": "nested callable borrow",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::plan_seat_set",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::player_seat",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::player_seats",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::player_steers",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::release_player",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::resolve",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::seat_locks_yaw",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::seat_occupant",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::seat_of_player",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::seat_offset",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::seat_offset_posed",
+      "reason": "nested callable borrow",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::seat_position",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::seat_position_of",
+      "reason": "nested callable borrow",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::seat_set",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::settle_all",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::store_claims",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::riding::takes_saddle",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::script_goal::ScriptGoal::charge",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::script_goal::ScriptGoal::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::script_goal::flags_of",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::species_of",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::support",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::tame::FollowOwner::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::tame::OwnerHurt::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::tame::TameDef::from_file",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::tame::def",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::tame::is_tame_item",
+      "reason": "nested callable borrow",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::tame::is_tamed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::tame::mark_owner_values",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::tame::owner_distance_sqr",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::tame::owner_view",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::tame::teleport_to_owner",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::tame::try_tame",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::tame::untame",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::ai::unsupported",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::MobAnim::anchors",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::MobAnim::anchors_changed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::MobAnim::recent_triggers",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::MobAnim::refresh_anchors",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::MobAnim::take_anchor_changes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::MobAnim::take_started",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::Run::wire",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::TypeAnim::death_ticks",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::TypeAnim::signature",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::TypeAnim::trigger_id",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::hold_slot",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::hold_state",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::needs_anchor",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::release_state",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::anim_sync::wrap",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::AttrSet::add_modifier",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::AttrSet::base",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::AttrSet::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::AttrSet::get_mut",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::AttrSet::ids",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::AttrSet::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::AttrSet::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::AttrSet::read_nbt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::AttrSet::remove_modifier",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::AttrSet::set_base",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::AttrSet::to_nbt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::AttrSet::value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::Sync::parse",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::attribute_scale",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::effective_scale",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::operation",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::operation_name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::attrs::unknown_entries",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::build::attach_goals",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::build::sound_event",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::build::vanilla_sound",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::hitbox::HitPart::resolve",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::hitbox::hit_part_name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::hitbox::hurt_part",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::hitbox::model_to_mob",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::hitbox::normalized",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::hitbox::part_touches",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::hitbox::reach_parts",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::name_tag_height",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::persist::_t",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::persist::claims_from",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::persist::decode",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::persist::encode",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::persist::passenger_seats",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::persist::read_passenger_seats",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::persist::saved_format",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::persist::string",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::registry::CustomRegistry::clear",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::registry::CustomRegistry::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::registry::CustomRegistry::insert",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::registry::CustomRegistry::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::registry::CustomRegistry::iter",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::registry::CustomRegistry::len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::registry::CustomRegistry::replace",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::registry::get",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::registry::ids",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::registry::registry",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMob::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMob::time_at",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMob::value",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMobs::apply",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMobs::apply_at",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMobs::apply_payload",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMobs::clear",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMobs::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMobs::get_mut",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMobs::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMobs::len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMobs::remove",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMobs::seats",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::RemoteCustomMobs::take_changes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::apply_delta",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::apply_values",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::remote::clock",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::removal_ticks",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::CustomRender::begin_frame",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::CustomRender::frame",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::CustomRender::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::CustomRender::len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::CustomRender::matrices_of",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::CustomRender::mob",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::CustomRender::parts",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::CustomRender::put_events",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::CustomRender::take_events",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::DrawStats::total",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::LayerMode::from_name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::LocalMirror::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::LocalMirror::get_mut",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::LocalMirror::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::LocalMirror::retain",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::LocalMirror::take_changes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::LodMode::from_name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::MobFacts::of",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::MobRender::due",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::MobRender::inputs",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::MobRender::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::PoseCtx::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::TypeRender::bone_drawn",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::TypeRender::cull_box",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::TypeRender::emit",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::TypeRender::locator_point",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::TypeRender::lod_mode",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::closure",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::death_clock",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::death_roll_degrees",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::death_roll_for",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::default_texture_name",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::descendants",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::embedded_textures",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::embedded_textures_of",
+      "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::mob_basis",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::model_point_of",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::model_point_to_world",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::model_to_world_px",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::pack_normal",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::route_events",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::world_from_model",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::render_state::wrap",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::MobView::of",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::ScriptState::note_change",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::ScriptState::push_event",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::Slot::visible",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::_uses",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::apply_pending",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::bone_index",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::bus",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::call",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::charge",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::clear_locators",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::client_runtime",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::current",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::data_to_save",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::died",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::dropped",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::forget",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::hurt",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::installed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::interact",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::locator",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::or_answers",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::publish",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::push",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::queued",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::runtime",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::script_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::set_client_runtime",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::set_locators",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::set_runtime",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::state",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::synced_value",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::type_of",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::uuid_text",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script::view",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script_apply::apply_in",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script_apply::finite",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::script_apply::get_synced",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::Rule::allows",
+      "reason": "nested callable borrow",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::Rule::default_for",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::applicable",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::default_light",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::default_placement",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::dimension_id",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::dimension_key",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::fluid_at",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::id_list",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::max_cluster_size",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::obstruction_ok",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::placement_ok",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::placement_ok_for",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::position_ok",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::removed_when_far",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::rules_for",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::rules_ok",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::spawn::site_dimension",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::custom::truncate",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_lib::mobs::data::MobData::biome_has",
       "reason": "small body",
       "kind": "fn"
@@ -42414,6 +46324,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::doors::BreakDoor::tagged",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_lib::mobs::doors::BreakDoor::valid_difficulty",
       "reason": "small body",
       "kind": "fn"
@@ -42429,7 +46344,17 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::doors::Interact::is_door",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_lib::mobs::doors::Interact::set_open",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::doors::Interact::tagged",
       "reason": "small body",
       "kind": "fn"
     },
@@ -42440,6 +46365,11 @@
     },
     {
       "key": "horizon_client_lib::mobs::doors::InteractWithDoor::door_open",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::doors::OpenTaggedDoor::new",
       "reason": "small body",
       "kind": "fn"
     },
@@ -42530,6 +46460,11 @@
     },
     {
       "key": "horizon_client_lib::mobs::drops::loot_stack",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::drops::mob_is_monster",
       "reason": "small body",
       "kind": "fn"
     },
@@ -44094,11 +48029,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::mobs::goals::Mob::within_melee_range",
-      "reason": "small body",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_client_lib::mobs::goals::MoveToBlock::can_continue",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -44170,6 +48100,11 @@
     },
     {
       "key": "horizon_client_lib::mobs::goals::NearestTarget::species",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::NearestTarget::types",
       "reason": "small body",
       "kind": "fn"
     },
@@ -44269,7 +48204,17 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::goals::seen_is_type",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_lib::mobs::goals::should_panic",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::goals::target_continue_failed",
       "reason": "small body",
       "kind": "fn"
     },
@@ -45144,7 +49089,37 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::mob_hook_bench::BenchWorld::new[cfg(any(test,feature=\"yoake-hook-bench\"))]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::mob_hook_bench::BenchWorld::new[cfg(feature=\"yoake-hook-bench\")]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::mob_hook_bench::BenchWorld::set_air[cfg(any(test,feature=\"yoake-hook-bench\"))]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::mob_hook_bench::BenchWorld::set_stone[cfg(any(test,feature=\"yoake-hook-bench\"))]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::mob_hook_bench::BenchWorld::set_tag[cfg(any(test,feature=\"yoake-hook-bench\"))]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::mob_hook_bench::BenchWorld::world[cfg(any(test,feature=\"yoake-hook-bench\"))]",
       "reason": "benchmark helper",
       "kind": "fn",
       "manual": true
@@ -45156,7 +49131,19 @@
       "manual": true
     },
     {
+      "key": "horizon_client_lib::mobs::mob_hook_bench::biomes[cfg(any(test,feature=\"yoake-hook-bench\"))]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::mob_hook_bench::biomes[cfg(feature=\"yoake-hook-bench\")]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::mob_hook_bench::block_states[cfg(any(test,feature=\"yoake-hook-bench\"))]",
       "reason": "benchmark helper",
       "kind": "fn",
       "manual": true
@@ -45168,7 +49155,19 @@
       "manual": true
     },
     {
+      "key": "horizon_client_lib::mobs::mob_hook_bench::collision_tag[cfg(any(test,feature=\"yoake-hook-bench\"))]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::mob_hook_bench::collision_tag[cfg(feature=\"yoake-hook-bench\")]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::mob_hook_bench::kind[cfg(any(test,feature=\"yoake-hook-bench\"))]",
       "reason": "benchmark helper",
       "kind": "fn",
       "manual": true
@@ -45180,7 +49179,19 @@
       "manual": true
     },
     {
+      "key": "horizon_client_lib::mobs::mob_hook_bench::movement_tag[cfg(any(test,feature=\"yoake-hook-bench\"))]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::mob_hook_bench::movement_tag[cfg(feature=\"yoake-hook-bench\")]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::mob_hook_bench::spawn[cfg(any(test,feature=\"yoake-hook-bench\"))]",
       "reason": "benchmark helper",
       "kind": "fn",
       "manual": true
@@ -45192,7 +49203,19 @@
       "manual": true
     },
     {
+      "key": "horizon_client_lib::mobs::mob_hook_bench::state_facts[cfg(any(test,feature=\"yoake-hook-bench\"))]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_lib::mobs::mob_hook_bench::state_facts[cfg(feature=\"yoake-hook-bench\")]",
+      "reason": "benchmark helper",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::mob_hook_bench::write_colormap[cfg(any(test,feature=\"yoake-hook-bench\"))]",
       "reason": "benchmark helper",
       "kind": "fn",
       "manual": true
@@ -45645,11 +49668,6 @@
     },
     {
       "key": "horizon_client_lib::mobs::nav::Mob::path_mob",
-      "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::mobs::nav::Mob::query_path_raw",
       "reason": "small body",
       "kind": "fn"
     },
@@ -46175,6 +50193,11 @@
     },
     {
       "key": "horizon_client_lib::mobs::path::Finder::walk_path_type",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::path::Finder::wall_beside",
       "reason": "small body",
       "kind": "fn"
     },
@@ -47484,6 +51507,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::level_id",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::mob_data",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -47510,6 +51538,11 @@
     },
     {
       "key": "horizon_client_lib::mobs::spawn_rules::allowed_in_peaceful",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::spawn_rules::allowed_in_peaceful_type",
       "reason": "small body",
       "kind": "fn"
     },
@@ -47741,6 +51774,11 @@
     {
       "key": "horizon_client_lib::mobs::spawn_selection::cost_from_light",
       "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::spawn_selection::custom_type",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -50559,7 +54597,22 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::world::MobWorld::fast_lava",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_lib::mobs::world::MobWorld::fluid",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::world::MobWorld::has_day_cycle",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::world::MobWorld::has_skylight",
       "reason": "small body",
       "kind": "fn"
     },
@@ -50594,6 +54647,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mobs::world::MobWorld::piglins_zombify",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_lib::mobs::world::MobWorld::prop",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -50610,6 +54668,11 @@
     },
     {
       "key": "horizon_client_lib::mobs::world::MobWorld::sky_darken",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mobs::world::MobWorld::snow_golem_melts",
       "reason": "small body",
       "kind": "fn"
     },
@@ -50769,6 +54832,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mod_content::Plan::entity_ids",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_lib::mod_content::Plan::json",
       "reason": "small body",
       "kind": "fn"
@@ -50800,6 +54868,16 @@
     },
     {
       "key": "horizon_client_lib::mod_content::Rename::row",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_content::argb",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_content::attribute_registry_defaults",
       "reason": "small body",
       "kind": "fn"
     },
@@ -50856,6 +54934,11 @@
     {
       "key": "horizon_client_lib::mod_content::component_types",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_content::custom_mobs",
+      "reason": "borrowed return type",
       "kind": "fn"
     },
     {
@@ -50919,12 +55002,97 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_lib::mod_content::spawn_egg_files",
+      "reason": "nested callable borrow",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_lib::mod_content::template_properties",
       "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
       "key": "horizon_client_lib::mod_content::validate_components",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::ModChunk::block",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::ModChunk::fill_layer",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::ModChunk::mark_failed",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::ModChunk::set_biome",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::ModChunk::set_block",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::ModGeneratorContext::block",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::ModGeneratorContext::block_lookup",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::ModGenerators::contains",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::ModGenerators::factory",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::ModGenerators::ids",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::clear_staged",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::generate_chunk",
+      "reason": "wrapped by yoake_inject",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::stage_generator",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::staged",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::staged_lock",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::mod_generator::staged_types",
       "reason": "small body",
       "kind": "fn"
     },

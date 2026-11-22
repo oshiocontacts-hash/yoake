@@ -5849,7 +5849,7 @@
     {
       "id": 9310,
       "key": "horizon_client_render::hud::HudAtlas::pack",
-      "sig": "8b159992b22c1f06",
+      "sig": "bde9f8b12fb82060",
       "status": "live",
       "kind": "fn"
     },
@@ -10822,6 +10822,20 @@
       "sig": "9eb6ef89020b9782",
       "status": "live",
       "kind": "fn"
+    },
+    {
+      "id": 11776,
+      "key": "horizon_client_render::environment::timelines::resolve",
+      "sig": "3181cb8feb40e830",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11777,
+      "key": "horizon_client_render::environment::Environment::from_timeline",
+      "sig": "1bf8a345aa94bc83",
+      "status": "live",
+      "kind": "fn"
     }
   ],
   "excluded": [
@@ -14541,6 +14555,16 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::environment::Environment::load_type",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::environment::Environment::load_type_timelines",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_render::environment::Environment::value",
       "reason": "small body",
       "kind": "fn"
@@ -14552,6 +14576,16 @@
     },
     {
       "key": "horizon_client_render::environment::sky_darken",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::environment::timelines::expand",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::environment::timelines::read",
       "reason": "small body",
       "kind": "fn"
     },
@@ -19582,6 +19616,11 @@
     },
     {
       "key": "horizon_client_render::hud::HudAtlas::build_over_with_image",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud::HudAtlas::build_over_with_images",
       "reason": "small body",
       "kind": "fn"
     },
