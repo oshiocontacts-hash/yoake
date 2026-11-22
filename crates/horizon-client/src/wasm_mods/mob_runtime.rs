@@ -318,6 +318,7 @@ mod tests {
     use horizon_core::{geometry::Vec3, random::LegacyRandom};
     use horizon_mods::custom_mob::CustomMobFile;
     use std::sync::Arc;
+    use yoake_wasm::server_types as st;
     use yoake_wasm::test_guests::{FOX_AI, FOX_AI_SPIN, FOX_AI_TRAP, Guest, load};
 
     const FOX_JSON: &str = include_str!("../../../../tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json");
@@ -615,6 +616,221 @@ mod tests {
         let mut ungranted = GameServerHost { id: "seat_ungranted".into(), commands: false };
         let e = ungranted.mob_seat_set(1, Some(7), 0).unwrap_err();
         assert!(e.contains("service.mobs"), "{e}");
+        script::reset();
+    }
+
+    #[test]
+    fn the_memory_services_read_write_expire_and_check_types_and_permissions() {
+        use yoake_wasm::ServerHost;
+        struct NoopRuntime;
+        impl script::Runtime for NoopRuntime {
+            fn live(&self) -> bool { true }
+            fn goal_can_use(&self, _: u32, _: &str) -> Option<bool> { None }
+            fn goal_can_continue(&self, _: u32, _: &str) -> Option<bool> { None }
+            fn goal_start(&self, _: u32, _: &str) {}
+            fn goal_tick(&self, _: u32, _: &str) {}
+            fn goal_stop(&self, _: u32, _: &str) {}
+            fn mob_tick(&self, _: u32) {}
+            fn mob_spawn_check(&self, _: &str, _: &str, _: [i32; 3]) -> Option<bool> { None }
+            fn mob_spawned(&self, _: u32, _: &str, _: &str) {}
+            fn mob_hurt(&self, _: u32, _: &str, _: &str, _: f32) -> Option<script::HurtReply> { None }
+            fn mob_died(&self, _: u32, _: &str, _: Option<u32>) {}
+            fn mob_interact(&self, _: u32, _: &str, _: &str, _: &str) -> script::InteractReply { script::InteractReply::Pass }
+            fn mob_anim_event(&self, _: u32, _: &str) {}
+            fn mob_load(&self, _: u32, _: &[u8]) {}
+            fn mob_save(&self, _: u32, _: &[u8]) -> Option<Vec<u8>> { None }
+            fn mob_tamed(&self, _: u32, _: &str) {}
+            fn mob_bred(&self, _: u32, _: u32, _: u32) {}
+            fn synced_changed(&self, _: u32, _: &str, _: &script::MobScriptValue, _: &script::MobScriptValue) {}
+        }
+        struct Reset;
+        impl Drop for Reset {
+            fn drop(&mut self) {
+                script::set_runtime(None);
+                script::reset();
+            }
+        }
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _reset = Reset;
+        let json = r#"{
+            "template": "yoake:mob",
+            "category": "creature",
+            "size": {"width": 0.6, "height": 1.0, "eye_height": 0.9},
+            "attributes": {"max_health": 20, "movement_speed": 0.25},
+            "ai": {
+                "memories": {
+                    "alert": {"type": "bool", "default": false},
+                    "mood": {"type": "string"},
+                    "seen": {"type": "entity", "ttl": 5},
+                    "counter": {"type": "i32"}
+                },
+                "goals": []
+            }
+        }"#;
+        let file = CustomMobFile::parse("demo:memfox", json.as_bytes()).unwrap();
+        let t = Arc::new(CustomType::new(file, None).unwrap());
+        let kind = Arc::new(build::mob_type(&t));
+        let mut mob = Mob::new(11, kind, Vec3::new(0.5, 1.0, 0.5), 0.0);
+        mob.on_ground = true;
+
+        let world = BenchWorld::new();
+        let w = world.world();
+        let mut events = Vec::new();
+
+        script::reset();
+        script::set_runtime(Some(Arc::new(NoopRuntime)));
+        super::mob_services::grant("mem_granted");
+        script::publish(script::MobView::of_in(&mob, Some(&w), false).unwrap());
+        let mut host = GameServerHost { id: "mem_granted".into(), commands: false };
+
+        let got = host.mob_memory_get(11, "alert".into()).unwrap().unwrap();
+        assert_eq!(got.kind, st::MobMemoryKind::Bool);
+        assert!(!got.bool_value);
+        assert!(host.mob_memory_get(11, "mood".into()).unwrap().is_none());
+
+        let base_val = st::MobMemoryValue {
+            kind: st::MobMemoryKind::Bool,
+            bool_value: true,
+            int_value: 0,
+            float_value: 0.0,
+            string_value: String::new(),
+            vec3_value: st::Vec3 { x: 0.0, y: 0.0, z: 0.0 },
+            block_pos_value: st::BlockPos { x: 0, y: 0, z: 0 },
+            entity_mob: None,
+            entity_player: None,
+        };
+        host.mob_memory_set(11, "alert".into(), None, Some(base_val.clone())).unwrap();
+        host.mob_memory_set(
+            11,
+            "mood".into(),
+            Some(3),
+            Some(st::MobMemoryValue {
+                kind: st::MobMemoryKind::String,
+                string_value: "curious".into(),
+                ..base_val.clone()
+            }),
+        )
+        .unwrap();
+        host.mob_memory_set(
+            11,
+            "seen".into(),
+            None,
+            Some(st::MobMemoryValue {
+                kind: st::MobMemoryKind::Entity,
+                entity_mob: Some(42),
+                ..base_val.clone()
+            }),
+        )
+        .unwrap();
+
+        let type_err = host.mob_memory_set(11, "counter".into(), None, Some(base_val.clone())).unwrap_err();
+        assert!(type_err.contains("i32"), "{type_err}");
+        let key_err = host.mob_memory_set(11, "unknown".into(), None, Some(base_val.clone())).unwrap_err();
+        assert!(key_err.contains("no memory"), "{key_err}");
+        let ttl_err = host.mob_memory_set(11, "counter".into(), Some(72_001), None).unwrap_err();
+        assert!(ttl_err.contains("72000"), "{ttl_err}");
+
+        let mut ungranted = GameServerHost { id: "mem_ungranted".into(), commands: false };
+        let perm_err = ungranted.mob_memory_get(11, "alert".into()).unwrap_err();
+        assert!(perm_err.contains("service.mobs"), "{perm_err}");
+
+        // Apply queued commands cleanly via script::pre_tick + Mob::tick
+        let mut lr = LegacyRandom::new(7);
+        mob.tick(&w, &mut lr, &mut events);
+
+        script::publish(script::MobView::of_in(&mob, Some(&w), false).unwrap());
+        assert!(host.mob_memory_get(11, "alert".into()).unwrap().unwrap().bool_value);
+        assert_eq!(host.mob_memory_get(11, "mood".into()).unwrap().unwrap().string_value, "curious");
+        assert_eq!(host.mob_memory_get(11, "seen".into()).unwrap().unwrap().entity_mob, Some(42));
+
+        // After 3 ticks, "mood" (ttl 3) expires (tick 1 set -> remaining 2 -> 1 -> 0 removed)
+        for _ in 0..3 {
+            mob.tick(&w, &mut lr, &mut events);
+        }
+        script::publish(script::MobView::of_in(&mob, Some(&w), false).unwrap());
+        assert!(host.mob_memory_get(11, "mood".into()).unwrap().is_none(), "mood TTL expired");
+        assert!(host.mob_memory_get(11, "seen".into()).unwrap().is_some(), "seen uses default ttl=5");
+
+        // Explicit erase with None
+        host.mob_memory_set(11, "alert".into(), None, None).unwrap();
+        mob.tick(&w, &mut lr, &mut events);
+        script::publish(script::MobView::of_in(&mob, Some(&w), false).unwrap());
+        assert!(host.mob_memory_get(11, "alert".into()).unwrap().is_none());
+        script::reset();
+    }
+
+    #[test]
+    fn the_fox_ai_guest_writes_and_reads_pounced_memory_with_ttl_and_brain_switches_activities() {
+        use crate::mobs::custom::ai::memory::{EntityMemory, MemoryValue};
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        script::reset();
+        let Some((_dev, _pkg)) = dev_mod_package() else { return };
+        let _session = session();
+        let fx = BenchWorld::new();
+        let mut lr = LegacyRandom::new(1);
+        let mut events = Vec::new();
+        let mut m = fox(1, Vec3::new(0.5, 1.0, 0.5));
+        assert_eq!(m.extra.custom.as_ref().unwrap().brain.active_activity.as_deref(), Some("idle"));
+
+        let mut chicken = fox(2, Vec3::new(4.5, 1.0, 0.5));
+        Arc::make_mut(&mut chicken.kind).species = crate::mobs::Species::Chicken;
+        Arc::make_mut(&mut chicken.kind).custom = None;
+        let prey = chicken.seen(None);
+        let others = [prey];
+        m.ai.target = Some(Who::Mob(2));
+
+        // Tick 0: nearest_living sensor sees chicken -> prey_nearby -> hunt activity, and fox_ai pounces
+        // and writes `pounced = true` with TTL 40 via `mob-memory-set`.
+        let mut w = fx.world();
+        w.game_time = 1000;
+        w.others = &others;
+        m.tick(&w, &mut lr, &mut events);
+        {
+            let brain = &m.extra.custom.as_ref().unwrap().brain;
+            assert_eq!(
+                brain.memories.get("prey_nearby"),
+                Some(&MemoryValue::Entity(EntityMemory::Mob(2)))
+            );
+            assert_eq!(brain.active_activity.as_deref(), Some("hunt"));
+            assert_eq!(brain.memories.get("pounced"), Some(&MemoryValue::Bool(true)));
+            assert_eq!(brain.memories.entry("pounced").unwrap().ttl, Some(40));
+            assert!(pounce_running(&m));
+        }
+
+        // Let pounce finish; while `pounced` is still present, `fox_ai`'s `mob-memory-get` prevents re-pouncing.
+        for t in 1001..1025 {
+            w.game_time = t;
+            m.tick(&w, &mut lr, &mut events);
+        }
+        assert!(!pounce_running(&m), "pounced memory cooldown blocks immediate re-pounce");
+        assert!(m.extra.custom.as_ref().unwrap().brain.memories.get("pounced").is_some());
+
+        // Remove chicken and advance past sensor interval (10) and `pounced` TTL (40).
+        w.others = &[];
+        for t in 1025..1045 {
+            w.game_time = t;
+            m.tick(&w, &mut lr, &mut events);
+        }
+        let brain = &m.extra.custom.as_ref().unwrap().brain;
+        assert_eq!(brain.memories.get("prey_nearby"), None);
+        assert_eq!(brain.active_activity.as_deref(), Some("idle"));
+        assert_eq!(brain.memories.get("pounced"), None, "pounced TTL=40 expired");
+
+        // Now with the target back 4 blocks away, `fox_ai` pounces again once its interval allows.
+        let mut chicken2 = fox(2, Vec3::new(m.position.x + 4.0, m.position.y, m.position.z));
+        Arc::make_mut(&mut chicken2.kind).species = crate::mobs::Species::Chicken;
+        Arc::make_mut(&mut chicken2.kind).custom = None;
+        let others2 = [chicken2.seen(None)];
+        w.others = &others2;
+        m.ai.target = Some(Who::Mob(2));
+        for t in 1045..=1050 {
+            w.game_time = t;
+            m.tick(&w, &mut lr, &mut events);
+            if pounce_running(&m) {
+                break;
+            }
+        }
+        assert!(pounce_running(&m), "fox_ai pounces again once pounced memory expires");
         script::reset();
     }
 }

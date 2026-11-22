@@ -496,5 +496,49 @@ pub mod server {
         pub fn impulse(entity: u32, velocity: types::Vec3) -> Result<(), String> {
             services::mob_impulse(entity, velocity)
         }
+
+        pub fn memory_bool(v: bool) -> types::MobMemoryValue {
+            types::MobMemoryValue {
+                kind: types::MobMemoryKind::Bool,
+                bool_value: v,
+                int_value: 0,
+                float_value: 0.0,
+                string_value: String::new(),
+                vec3_value: types::Vec3 { x: 0.0, y: 0.0, z: 0.0 },
+                block_pos_value: types::BlockPos { x: 0, y: 0, z: 0 },
+                entity_mob: None,
+                entity_player: None,
+            }
+        }
+        pub fn memory_i32(v: i32) -> types::MobMemoryValue {
+            types::MobMemoryValue { kind: types::MobMemoryKind::I32, int_value: v, ..memory_bool(false) }
+        }
+        pub fn memory_f32(v: f32) -> types::MobMemoryValue {
+            types::MobMemoryValue { kind: types::MobMemoryKind::F32, float_value: v, ..memory_bool(false) }
+        }
+        pub fn memory_string(v: &str) -> types::MobMemoryValue {
+            types::MobMemoryValue { kind: types::MobMemoryKind::String, string_value: v.to_owned(), ..memory_bool(false) }
+        }
+        pub fn memory_vec3(v: types::Vec3) -> types::MobMemoryValue {
+            types::MobMemoryValue { kind: types::MobMemoryKind::Vec3, vec3_value: v, ..memory_bool(false) }
+        }
+        pub fn memory_block_pos(x: i32, y: i32, z: i32) -> types::MobMemoryValue {
+            types::MobMemoryValue { kind: types::MobMemoryKind::BlockPos, block_pos_value: types::BlockPos { x, y, z }, ..memory_bool(false) }
+        }
+        pub fn memory_entity_mob(id: u32) -> types::MobMemoryValue {
+            types::MobMemoryValue { kind: types::MobMemoryKind::Entity, entity_mob: Some(id), ..memory_bool(false) }
+        }
+        pub fn memory_entity_player(uuid: &str) -> types::MobMemoryValue {
+            types::MobMemoryValue { kind: types::MobMemoryKind::Entity, entity_player: Some(uuid.to_owned()), ..memory_bool(false) }
+        }
+
+        /// Reads a typed brain memory of custom mob `entity` (`None` when absent or expired). (Service 287.)
+        pub fn memory_get(entity: u32, key: &str) -> Result<Option<types::MobMemoryValue>, String> {
+            services::mob_memory_get(entity, key)
+        }
+        /// Sets or erases (`value: None`) a typed brain memory of custom mob `entity`, with an optional expiry in ticks. (Service 288.)
+        pub fn memory_set(entity: u32, key: &str, value: Option<types::MobMemoryValue>, ttl_ticks: Option<u32>) -> Result<(), String> {
+            services::mob_memory_set(entity, key, ttl_ticks, value.as_ref())
+        }
     }
 }

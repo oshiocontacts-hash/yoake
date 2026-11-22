@@ -322,6 +322,20 @@ impl ServerHost for GameServerHost {
         mob::gate(mob::granted(&self.id))?;
         mob::seat_set(entity, rider, seat)
     }
+    fn mob_memory_get(&mut self, entity: u32, key: String) -> Result<Option<st::MobMemoryValue>, String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::memory_get(entity, &key)
+    }
+    fn mob_memory_set(
+        &mut self,
+        entity: u32,
+        key: String,
+        ttl_ticks: Option<u32>,
+        value: Option<st::MobMemoryValue>,
+    ) -> Result<(), String> {
+        mob::gate(mob::granted(&self.id))?;
+        mob::memory_set(entity, &key, ttl_ticks, value.as_ref())
+    }
 
     fn services(&mut self) -> Result<yoake_wasm::package_services::ServiceHandle, String> {
         super::package::services(&self.id, horizon_mods::yak::ConfigRuntimeSide::Server)

@@ -441,6 +441,8 @@ server_services! {
     mob_set_controller_state_hold(controller: String, entity: u32, hold_ticks: Option<u32>, state: String) -> Result<bool, String> = unsupported();
     mob_release_controller_state(controller: String, entity: u32) -> Result<bool, String> = unsupported();
     mob_seat_set(entity: u32, rider: Option<u32>, seat: u32) -> Result<bool, String> = unsupported();
+    mob_memory_get(entity: u32, key: String) -> Result<Option<st::MobMemoryValue>, String> = unsupported();
+    mob_memory_set(entity: u32, key: String, ttl_ticks: Option<u32>, value: Option<st::MobMemoryValue>) -> Result<(), String> = unsupported();
     mob_navigate_to(entity: u32, position: st::Vec3, speed: f64) -> Result<bool, String> = unsupported();
     mob_navigate_stop(entity: u32) -> Result<(), String> = unsupported();
     mob_look_at(entity: u32, pitch_speed: f32, position: st::Vec3, yaw_speed: f32) -> Result<(), String> = unsupported();

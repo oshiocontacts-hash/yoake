@@ -1,7 +1,7 @@
 {
   "abi_version": 2,
   "world": "server-mod",
-  "interface_version": "1.5.0",
+  "interface_version": "1.6.0",
   "status": "design-only",
   "id_policy": "Proposed IDs extend the client catalog; allocation and package versioning require review.",
   "type_syntax": "WIT value types; null means no result. Types below are records and enums are named WIT enums.",
@@ -45,6 +45,7 @@
     "world-border-state": {"center-x":"f64","center-z":"f64","size":"f64","target-size":"f64","remaining-ticks":"u64"},
     "player-motion": {"position":"vec3","velocity":"vec3","on-ground":"bool","horizontal-collision":"bool","fall-distance":"f64"},
     "mob-value": {"kind":"mob-value-kind","bool-value":"bool","int-value":"s32","float-value":"f32","string-value":"string","vec3-value":"vec3"},
+    "mob-memory-value": {"kind":"mob-memory-kind","bool-value":"bool","int-value":"s32","float-value":"f32","string-value":"string","vec3-value":"vec3","block-pos-value":"block-pos","entity-mob":"option<u32>","entity-player":"option<string>"},
     "mob-spawn-options": {"yaw":"f32","baby":"bool","persistent":"bool"},
     "mob-info": {"handle":"u32","type-id":"string","dimension":"string","position":"vec3","velocity":"vec3","yaw":"f32","pitch":"f32","health":"f32","max-health":"f32","alive":"bool","on-ground":"bool","target":"option<u32>","target-player":"option<string>","owner":"option<string>","sitting":"bool","baby":"bool","age":"s32","controlled":"bool","target-position":"option<vec3>","target-visible":"bool"}
   },
@@ -56,7 +57,8 @@
     "world-control-operation": ["set-time", "set-game-rule", "add-force-load", "remove-force-load"],
     "damage-kind": ["magic", "player-attack", "explosion"],
     "attribute-operation": ["add-value", "add-multiplied-base", "add-multiplied-total"],
-    "mob-value-kind": ["bool", "int", "float", "string", "vec3", "choice"]
+    "mob-value-kind": ["bool", "int", "float", "string", "vec3", "choice"],
+    "mob-memory-kind": ["bool", "i32", "f32", "string", "vec3", "block-pos", "entity"]
   },
   "chat_recipients_semantics": "When all is true, only is ignored; otherwise only is the exact UUID allowlist, including an empty list.",
   "hooks": [
@@ -211,6 +213,8 @@
     {"name":"mob_set_controller_state_hold","abi":true,"id":284,"kind":"mob","side":"server","phase":"server callbacks","thread":"server","contract":"mutate","arguments":{"controller":"string","entity":"u32","hold-ticks":"option<u32>","state":"string"},"result":"result<bool, string>","fallback":"Fail closed: an Err leaves everything unchanged.","capability":"service.mobs","status":"new","doc":"Enters a state of an animation controller like set-controller-state, then holds it: the controller's own transitions are not tested for hold-ticks ticks (none: until release-controller-state, a plain set-controller-state of the same controller, or another hold; 0: no hold; at most 72000). False when the controller or state does not exist."},
     {"name":"mob_release_controller_state","abi":true,"id":285,"kind":"mob","side":"server","phase":"server callbacks","thread":"server","contract":"mutate","arguments":{"controller":"string","entity":"u32"},"result":"result<bool, string>","fallback":"Fail closed: an Err leaves everything unchanged.","capability":"service.mobs","status":"new","doc":"Lets the controller's own transitions run again after a hold. False when the controller does not exist."},
     {"name":"mob_seat_set","abi":true,"id":286,"kind":"mob","side":"server","phase":"server callbacks","thread":"server","contract":"mutate","arguments":{"entity":"u32","rider":"option<u32>","seat":"u32"},"result":"result<bool, string>","fallback":"Fail closed: an Err leaves everything unchanged.","capability":"service.mobs","status":"new","doc":"Seats a mob on a seat of the custom vehicle entity (seat is an index into the seats of its type): the rider is another mob by handle (none: whoever sits on the seat gets off). Applied at the end of the vehicle's tick; a seat that is taken, a rider the seat does not allow, or a rider that cannot ride the vehicle (it rides it already through a chain) change nothing and are logged. False when the vehicle is dead; an error for a seat the type does not have. (F4M-4d.)"},
+    {"name":"mob_memory_get","abi":true,"id":287,"kind":"mob","side":"server","phase":"server callbacks","thread":"server","contract":"listen","arguments":{"entity":"u32","key":"string"},"result":"result<option<mob-memory-value>, string>","fallback":"Fail closed: an Err leaves everything unchanged.","capability":"service.mobs","status":"new","doc":"Reads a typed brain memory of a custom mob; none when the memory is absent or expired. (F4M-4b.)"},
+    {"name":"mob_memory_set","abi":true,"id":288,"kind":"mob","side":"server","phase":"server callbacks","thread":"server","contract":"mutate","arguments":{"entity":"u32","key":"string","ttl-ticks":"option<u32>","value":"option<mob-memory-value>"},"result":"result<_, string>","fallback":"Fail closed: an Err leaves everything unchanged.","capability":"service.mobs","status":"new","doc":"Sets or erases a typed brain memory of a custom mob (none erases; ttl-ticks sets an expiry in ticks, none uses the memory's default or never expires). (F4M-4b.)"},
     {"name":"level_register_type","abi":true,"id":227,"kind":"level","side":"server","phase":"server callbacks","thread":"server","contract":"mutate","arguments":{"id":"string","type-json":"string"},"result":"result<_, string>","fallback":"Return an error; the world is unchanged.","capability":"world-control","status":"new","doc":"Registers a dimension type (a dimension type JSON object) for levels of this world, before the world ticks: call it from `init`. The id is `namespace:path`. Types are staged and join the world when it opens. (F3-8.)"},
     {"name":"level_register","abi":true,"id":228,"kind":"level","side":"server","phase":"server callbacks","thread":"server","contract":"mutate","arguments":{"id":"string","stem-json":"string"},"result":"result<_, string>","fallback":"Return an error; the world is unchanged.","capability":"world-control","status":"new","doc":"Registers a level (a level stem JSON object: `type` and `generator`; a `yoake:mod` generator names one `generator-register`ed) before the world ticks: call it from `init`. Persistent in the sense that the mod registers it at every start; it has its own folder `dimensions/<ns>/<path>/`. (F3-8.)"},
     {"name":"level_create","abi":true,"id":229,"kind":"level","side":"server","phase":"server callbacks","thread":"server","contract":"mutate","arguments":{"id":"string","stem-json":"string","persistent":"bool"},"result":"result<_, string>","fallback":"Return an error; the world is unchanged.","capability":"world-control","status":"new","doc":"Creates a level while the server runs. Persistent levels are written to `data/yoake_levels.json` and come back at the next start; the others save under `yoake_temp/` and vanish with the world. Clients connected before the level was created can enter it when its dimension type is one they were sent, else after reconnecting. (F3-6/F3-8.)"},

@@ -2,7 +2,8 @@
 //! command is checked here, not in the service: a name the type does not have, a value of the wrong
 //! type, a number that is not finite is logged at debug level and ignored.
 use super::script::{self, Command, MAX_DATA_BYTES, synced_value};
-use super::{attrs, anim_sync};
+use super::{ai::memory::coerce_for_kind, attrs, anim_sync};
+use horizon_mods::custom_mob::limits;
 use crate::mobs::{
     Damage, Mob, MobEvent, MobWorld, Who,
 };
@@ -160,6 +161,37 @@ pub fn apply_in(m: &mut Mob, w: Option<&MobWorld>, events: Option<&mut Vec<MobEv
             // Other mobs are reached through the event queue (the vehicle alone is in hand here).
             let Some(events) = events else { return false };
             events.push(MobEvent::SeatSet { vehicle: m.id, seat, rider });
+        }
+        Command::SetMemory { key, value, ttl_ticks } => {
+            let Some(brain_def) = &t.brain else {
+                log::debug!("{}: script: mob has no brain for memory {key:?}", t.id);
+                return true;
+            };
+            let Some(def) = brain_def.memory_def(&key) else {
+                log::debug!("{}: script: no memory {key:?}", t.id);
+                return true;
+            };
+            let Some(state) = m.extra.custom.as_mut() else {
+                return true;
+            };
+            match value {
+                None => {
+                    state.brain.memories.erase(&key);
+                }
+                Some(raw) => {
+                    let Some(val) = coerce_for_kind(def.kind, raw) else {
+                        log::debug!("{}: script: memory {key:?} is not a {}", t.id, def.kind.as_str());
+                        return true;
+                    };
+                    let ttl = ttl_ticks
+                        .map(|t| i32::try_from(t.min(limits::MAX_MEMORY_TTL)).unwrap_or(i32::MAX))
+                        .or(def.ttl);
+                    state.brain.memories.set(key, val, ttl);
+                }
+            }
+            if let Some(w) = w {
+                state.brain.update_activity(brain_def, w.day_time);
+            }
         }
     }
     true

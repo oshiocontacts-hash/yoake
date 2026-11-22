@@ -1773,6 +1773,16 @@ interface server-types {
         clear,
     }
 
+    enum mob-memory-kind {
+        %bool,
+        i32,
+        %f32,
+        %string,
+        vec3,
+        block-pos,
+        entity,
+    }
+
     enum mob-value-kind {
         %bool,
         int,
@@ -1965,6 +1975,18 @@ interface server-types {
         yaw: f32,
     }
 
+    record mob-memory-value {
+        block-pos-value: block-pos,
+        bool-value: bool,
+        entity-mob: option<u32>,
+        entity-player: option<string>,
+        float-value: f32,
+        int-value: s32,
+        kind: mob-memory-kind,
+        string-value: string,
+        vec3-value: vec3,
+    }
+
     record mob-spawn-options {
         baby: bool,
         persistent: bool,
@@ -2062,7 +2084,7 @@ interface server-types {
 
 /// Services listed in `abi-subset-server.json`.
 interface server-services {
-    use server-types.{attribute-operation, config-value-kind, damage-kind, inventory-operation, mob-value-kind, storage-scope, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, config-value, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, mob-info, mob-spawn-options, mob-value, particle-request, player, player-inventory-slot, player-motion, ray-hit, team-change, tool-requirement, vec3, world-border-state, world-control-change};
+    use server-types.{attribute-operation, config-value-kind, damage-kind, inventory-operation, mob-memory-kind, mob-value-kind, storage-scope, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, config-value, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, mob-info, mob-memory-value, mob-spawn-options, mob-value, particle-request, player, player-inventory-slot, player-motion, ray-hit, team-change, tool-requirement, vec3, world-border-state, world-control-change};
 
     acting-player: func() -> option<player>;
     held: func() -> option<item-stack>;
@@ -2190,6 +2212,8 @@ interface server-services {
     mob-set-controller-state-hold: func(controller: string, entity: u32, hold-ticks: option<u32>, state: string) -> result<bool, string>;
     mob-release-controller-state: func(controller: string, entity: u32) -> result<bool, string>;
     mob-seat-set: func(entity: u32, rider: option<u32>, seat: u32) -> result<bool, string>;
+    mob-memory-get: func(entity: u32, key: string) -> result<option<mob-memory-value>, string>;
+    mob-memory-set: func(entity: u32, key: string, ttl-ticks: option<u32>, value: option<mob-memory-value>) -> result<_, string>;
     level-register-type: func(id: string, type-json: string) -> result<_, string>;
     level-register: func(id: string, stem-json: string) -> result<_, string>;
     level-create: func(id: string, persistent: bool, stem-json: string) -> result<_, string>;

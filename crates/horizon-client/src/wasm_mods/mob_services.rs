@@ -3,7 +3,11 @@
 //! (`script::push`); `script::call` applies the commands of the mob whose hook is running as soon
 //! as the guest returns, and any other mob's at its next tick. Every argument is checked here.
 use super::full::server_service;
-use crate::mobs::custom::script::{self, Command, MAX_DATA_BYTES, MobScriptValue, MobView, ScriptVec3};
+use crate::mobs::custom::{
+    ai::memory::{EntityMemory, MemoryKind, MemoryValue},
+    script::{self, Command, MAX_DATA_BYTES, MobScriptValue, MobView, ScriptVec3},
+};
+use horizon_mods::custom_mob::limits;
 use horizon_world::nbt::{Compound, Tag};
 use std::sync::Arc;
 use yoake_wasm::server_types as st;
@@ -288,6 +292,137 @@ pub(super) fn seat_set(entity: u32, rider: Option<u32>, seat: u32) -> Result<boo
     }
     script::push(entity, Command::SeatSet { seat, rider });
     Ok(true)
+}
+
+fn to_memory_value(v: &MemoryValue) -> st::MobMemoryValue {
+    let base = st::MobMemoryValue {
+        kind: st::MobMemoryKind::Bool,
+        bool_value: false,
+        int_value: 0,
+        float_value: 0.0,
+        string_value: String::new(),
+        vec3_value: st::Vec3 { x: 0.0, y: 0.0, z: 0.0 },
+        block_pos_value: st::BlockPos { x: 0, y: 0, z: 0 },
+        entity_mob: None,
+        entity_player: None,
+    };
+    match v {
+        MemoryValue::Bool(b) => st::MobMemoryValue { bool_value: *b, ..base },
+        MemoryValue::I32(n) => st::MobMemoryValue { kind: st::MobMemoryKind::I32, int_value: *n, ..base },
+        MemoryValue::F32(f) => st::MobMemoryValue { kind: st::MobMemoryKind::F32, float_value: *f, ..base },
+        MemoryValue::Str(s) => st::MobMemoryValue { kind: st::MobMemoryKind::String, string_value: s.clone(), ..base },
+        MemoryValue::Vec3(p) => st::MobMemoryValue {
+            kind: st::MobMemoryKind::Vec3,
+            vec3_value: st::Vec3 { x: f64::from(p[0]), y: f64::from(p[1]), z: f64::from(p[2]) },
+            ..base
+        },
+        MemoryValue::BlockPos(p) => st::MobMemoryValue {
+            kind: st::MobMemoryKind::BlockPos,
+            block_pos_value: st::BlockPos { x: p[0], y: p[1], z: p[2] },
+            ..base
+        },
+        MemoryValue::Entity(EntityMemory::Mob(id)) => st::MobMemoryValue {
+            kind: st::MobMemoryKind::Entity,
+            entity_mob: Some(*id),
+            ..base
+        },
+        MemoryValue::Entity(EntityMemory::Player(uuid)) => st::MobMemoryValue {
+            kind: st::MobMemoryKind::Entity,
+            entity_player: Some(script::uuid_text(*uuid)),
+            ..base
+        },
+    }
+}
+
+fn from_memory_value(expected: MemoryKind, v: &st::MobMemoryValue) -> Result<MemoryValue, String> {
+    let kind_matches = matches!(
+        (expected, v.kind),
+        (MemoryKind::Bool, st::MobMemoryKind::Bool)
+            | (MemoryKind::I32, st::MobMemoryKind::I32)
+            | (MemoryKind::F32, st::MobMemoryKind::F32)
+            | (MemoryKind::Str, st::MobMemoryKind::String)
+            | (MemoryKind::Vec3, st::MobMemoryKind::Vec3)
+            | (MemoryKind::BlockPos, st::MobMemoryKind::BlockPos)
+            | (MemoryKind::Entity, st::MobMemoryKind::Entity)
+    );
+    if !kind_matches {
+        return Err(format!("memory expects {}", expected.as_str()));
+    }
+    Ok(match v.kind {
+        st::MobMemoryKind::Bool => MemoryValue::Bool(v.bool_value),
+        st::MobMemoryKind::I32 => MemoryValue::I32(v.int_value),
+        st::MobMemoryKind::F32 if v.float_value.is_finite() => MemoryValue::F32(v.float_value),
+        st::MobMemoryKind::F32 => return Err("numbers must be finite".into()),
+        st::MobMemoryKind::String => {
+            if v.string_value.len() > limits::MAX_MEMORY_STRING {
+                return Err(format!("a memory string is at most {} bytes", limits::MAX_MEMORY_STRING));
+            }
+            MemoryValue::Str(v.string_value.clone())
+        }
+        st::MobMemoryKind::Vec3 => {
+            let p = finite3(&v.vec3_value)?;
+            MemoryValue::Vec3([p[0] as f32, p[1] as f32, p[2] as f32])
+        }
+        st::MobMemoryKind::BlockPos => {
+            MemoryValue::BlockPos([v.block_pos_value.x, v.block_pos_value.y, v.block_pos_value.z])
+        }
+        st::MobMemoryKind::Entity => {
+            if let Some(uuid_str) = v.entity_player.as_deref().filter(|s| !s.is_empty()) {
+                let raw = super::full::parse_uuid(uuid_str)?;
+                let words = [
+                    (raw >> 96) as i32,
+                    (raw >> 64) as i32,
+                    (raw >> 32) as i32,
+                    raw as i32,
+                ];
+                MemoryValue::Entity(EntityMemory::Player(words))
+            } else if let Some(mob_id) = v.entity_mob {
+                MemoryValue::Entity(EntityMemory::Mob(mob_id))
+            } else {
+                return Err("an entity memory requires entity-mob or entity-player".into());
+            }
+        }
+    })
+}
+
+pub(super) fn memory_get(entity: u32, key: &str) -> Result<Option<st::MobMemoryValue>, String> {
+    name(key, "key")?;
+    let v = view(entity)?;
+    Ok(v.memories
+        .iter()
+        .find(|(k, _, _)| k == key)
+        .and_then(|(_, _, val)| val.as_ref().map(to_memory_value)))
+}
+
+pub(super) fn memory_set(
+    entity: u32,
+    key: &str,
+    ttl_ticks: Option<u32>,
+    value: Option<&st::MobMemoryValue>,
+) -> Result<(), String> {
+    name(key, "key")?;
+    if let Some(ttl) = ttl_ticks
+        && ttl > limits::MAX_MEMORY_TTL
+    {
+        return Err(format!("ttl is at most {} ticks", limits::MAX_MEMORY_TTL));
+    }
+    let v = view(entity)?;
+    let Some((_, kind, _)) = v.memories.iter().find(|(k, _, _)| k == key) else {
+        return Err(format!("{} has no memory {key:.64}", v.type_id));
+    };
+    let converted = match value {
+        Some(val) => Some(from_memory_value(*kind, val)?),
+        None => None,
+    };
+    script::push(
+        entity,
+        Command::SetMemory {
+            key: key.to_owned(),
+            value: converted,
+            ttl_ticks,
+        },
+    );
+    Ok(())
 }
 
 pub(super) fn spawn(dimension: &str, options: &st::MobSpawnOptions, position: &st::Vec3, type_id: &str) -> Result<u32, String> {

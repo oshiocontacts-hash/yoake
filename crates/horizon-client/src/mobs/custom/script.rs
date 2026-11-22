@@ -16,7 +16,10 @@
 //! call, wait in the queue and are applied at the start of that mob's next tick
 //! ([`pre_tick`]). `spawn` is the exception: it needs the whole game and only works from a hook
 //! that has one.
-use super::{CustomState, CustomType, SyncedValue};
+use super::{
+    CustomState, CustomType, SyncedValue,
+    ai::memory::{MemoryKind, MemoryValue},
+};
 use crate::mobs::{Mob, MobEvent, MobWorld};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -124,6 +127,8 @@ pub struct MobView {
     /// The tracked values by name, and the custom attributes by name (base, value).
     pub synced: Vec<(String, MobScriptValue)>,
     pub attributes: Vec<(String, f64, f64)>,
+    /// Declared brain memories: `(name, kind, current value)` (F4M-4b).
+    pub memories: Vec<(String, MemoryKind, Option<MemoryValue>)>,
     pub data: Vec<u8>,
 }
 
@@ -179,6 +184,16 @@ impl MobView {
                 .map(|(d, v)| (d.name.clone(), script_value(d, v)))
                 .collect(),
             attributes,
+            memories: t
+                .brain
+                .as_ref()
+                .map(|b| {
+                    b.memories
+                        .iter()
+                        .map(|d| (d.name.clone(), d.kind, state.brain.memories.get(&d.name).cloned()))
+                        .collect()
+                })
+                .unwrap_or_default(),
             data: state.script.data.clone(),
         })
     }
@@ -237,6 +252,8 @@ pub enum Command {
     Impulse([f64; 3]),
     /// Puts the mob `rider` (or nobody: the seat is freed) on seat `seat` of this vehicle (F4M-4d).
     SeatSet { seat: u32, rider: Option<u32> },
+    /// Sets or erases a typed brain memory (F4M-4b).
+    SetMemory { key: String, value: Option<MemoryValue>, ttl_ticks: Option<u32> },
 }
 
 /// A command for one mob.
