@@ -6,7 +6,9 @@
     "target/doc/horizon_core.json",
     "target/doc/horizon_world.json",
     "target/doc/horizon_client_core.json",
-    "target/doc/horizon_client_render.json"
+    "target/doc/horizon_client_render.json",
+    "target/doc/horizon_protocol.json",
+    "target/doc/horizon_command.json"
   ],
   "lock": "crates/yoake-bindgen/ids.lock.json",
   "report_dir": "docs/yoake2/bindgen",
@@ -233,6 +235,13 @@
           "path": [
             "settings"
           ]
+        },
+        {
+          "name": "options",
+          "ty": "horizon_client::game::launch_options::Options",
+          "path": [
+            "options"
+          ]
         }
       ],
       "guest_stubs": "crates/yoake-guest-sdk/src/stubs/game_items.rs"
@@ -268,10 +277,19 @@
       "source": "horizon-client/src/mod_generator.rs",
       "glue": "crates/horizon-client/src/yoake_glue/mod_generator.rs",
       "guest_stubs": "crates/yoake-guest-sdk/src/stubs/mod_generator.rs"
+    },
+    {
+      "name": "launch_options",
+      "crate_name": "horizon_client",
+      "source": "horizon-client/src/game/launch_options.rs",
+      "glue": "crates/horizon-client/src/yoake_glue/launch_options.rs",
+      "writable": {},
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/launch_options.rs"
     }
   ],
   "frozen_files": [
     "horizon-client/src/dll_mods.rs",
-    "horizon-client/src/wasm_mods.rs"
+    "horizon-client/src/wasm_mods.rs",
+    "horizon-protocol/src/crypto/blocks.rs"
   ]
 }

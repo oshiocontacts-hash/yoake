@@ -116,51 +116,6 @@ pub mod yoake_glue_tables {
         },
     };
 
-    /// Scalar fields of `crate::game::Options` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
-    pub static FIELDS_crate__game__Options: FieldTable<crate::game::Options> = FieldTable {
-        get: |t, f| match f {
-            1 => Some(i64::from(t.distance)),
-            3 => Some(t.seed),
-            4 => Some(i64::from(t.creative)),
-            5 => Some(i64::from(t.test_terrain)),
-            7 => Some(i64::from(t.paced_by_split)),
-            8 => Some(i64::from(t.split_guest)),
-            9 => Some(i64::from(t.split_in_main_window)),
-            19 => Some(i64::from(t.no_pause)),
-            22 => Some(i64::from(t.offscreen)),
-            23 => Some(i64::from(t.no_focus)),
-            24 => Some(i64::from(t.headless)),
-            32 => Some(i64::from(t.fullscreen)),
-            36 => Some(i64::from(t.session_stdin)),
-            40 => Some(i64::from(t.social_control_stdin)),
-            _ => None,
-        },
-        set: |t, f, v| match f {
-            _ => false,
-        },
-    };
-
-    /// The getters of `FIELDS_crate__game__Options` over a shared `&crate::game::Options` (read-only hook arguments, `RefFieldTable`).
-    pub static REF_FIELDS_crate__game__Options: RefFieldTable<crate::game::Options> = RefFieldTable {
-        get: |t, f| match f {
-            1 => Some(i64::from(t.distance)),
-            3 => Some(t.seed),
-            4 => Some(i64::from(t.creative)),
-            5 => Some(i64::from(t.test_terrain)),
-            7 => Some(i64::from(t.paced_by_split)),
-            8 => Some(i64::from(t.split_guest)),
-            9 => Some(i64::from(t.split_in_main_window)),
-            19 => Some(i64::from(t.no_pause)),
-            22 => Some(i64::from(t.offscreen)),
-            23 => Some(i64::from(t.no_focus)),
-            24 => Some(i64::from(t.headless)),
-            32 => Some(i64::from(t.fullscreen)),
-            36 => Some(i64::from(t.session_stdin)),
-            40 => Some(i64::from(t.social_control_stdin)),
-            _ => None,
-        },
-    };
-
     /// Scalar fields of `crate::game::PlayerCollision` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__game__PlayerCollision: FieldTable<crate::game::PlayerCollision> = FieldTable {
         get: |t, f| match f {

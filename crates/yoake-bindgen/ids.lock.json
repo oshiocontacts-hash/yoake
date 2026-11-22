@@ -10951,6 +10951,420 @@
       "path": "mod_generator::ModTerrain.shape#set",
       "sig": "set shape: crate::LevelShape",
       "status": "ReadOnly"
+    },
+    {
+      "id": 2825,
+      "path": "game_items::Game.options#handle",
+      "sig": "handle horizon_client::game::launch_options::Options at Game.options",
+      "status": "bound"
+    },
+    {
+      "id": 2826,
+      "path": "launch_options::Options.benchmark#get",
+      "sig": "get benchmark: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 2827,
+      "path": "launch_options::Options.benchmark#set",
+      "sig": "set benchmark: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2828,
+      "path": "launch_options::Options.creative#get",
+      "sig": "get creative: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2829,
+      "path": "launch_options::Options.creative#set",
+      "sig": "set creative: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2830,
+      "path": "launch_options::Options.dedicated#get",
+      "sig": "get dedicated: Option<Vec<String>>",
+      "status": "bound"
+    },
+    {
+      "id": 2831,
+      "path": "launch_options::Options.dedicated#set",
+      "sig": "set dedicated: Option<Vec<String>>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2832,
+      "path": "launch_options::Options.dimension#get",
+      "sig": "get dimension: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 2833,
+      "path": "launch_options::Options.dimension#set",
+      "sig": "set dimension: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2834,
+      "path": "launch_options::Options.distance#get",
+      "sig": "get distance: i32",
+      "status": "bound"
+    },
+    {
+      "id": 2835,
+      "path": "launch_options::Options.distance#set",
+      "sig": "set distance: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2836,
+      "path": "launch_options::Options.distance_override#get",
+      "sig": "get distance_override: Option<i32>",
+      "status": "bound"
+    },
+    {
+      "id": 2837,
+      "path": "launch_options::Options.distance_override#set",
+      "sig": "set distance_override: Option<i32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2838,
+      "path": "launch_options::Options.execution_role#get",
+      "sig": "get execution_role: execution_role::ExecutionRole",
+      "status": "bound"
+    },
+    {
+      "id": 2839,
+      "path": "launch_options::Options.execution_role#set",
+      "sig": "set execution_role: execution_role::ExecutionRole",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2840,
+      "path": "launch_options::Options.frames#get",
+      "sig": "get frames: Option<u64>",
+      "status": "bound"
+    },
+    {
+      "id": 2841,
+      "path": "launch_options::Options.frames#set",
+      "sig": "set frames: Option<u64>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2842,
+      "path": "launch_options::Options.fullscreen#get",
+      "sig": "get fullscreen: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2843,
+      "path": "launch_options::Options.fullscreen#set",
+      "sig": "set fullscreen: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2844,
+      "path": "launch_options::Options.headless#get",
+      "sig": "get headless: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2845,
+      "path": "launch_options::Options.headless#set",
+      "sig": "set headless: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2846,
+      "path": "launch_options::Options.look#get",
+      "sig": "get look: Option<(f32, f32)>",
+      "status": "bound"
+    },
+    {
+      "id": 2847,
+      "path": "launch_options::Options.look#set",
+      "sig": "set look: Option<(f32, f32)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2848,
+      "path": "launch_options::Options.no_focus#get",
+      "sig": "get no_focus: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2849,
+      "path": "launch_options::Options.no_focus#set",
+      "sig": "set no_focus: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2850,
+      "path": "launch_options::Options.no_pause#get",
+      "sig": "get no_pause: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2851,
+      "path": "launch_options::Options.no_pause#set",
+      "sig": "set no_pause: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2852,
+      "path": "launch_options::Options.offscreen#get",
+      "sig": "get offscreen: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2853,
+      "path": "launch_options::Options.offscreen#set",
+      "sig": "set offscreen: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2854,
+      "path": "launch_options::Options.paced_by_split#get",
+      "sig": "get paced_by_split: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2855,
+      "path": "launch_options::Options.paced_by_split#set",
+      "sig": "set paced_by_split: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2856,
+      "path": "launch_options::Options.player_name#get",
+      "sig": "get player_name: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 2857,
+      "path": "launch_options::Options.player_name#set",
+      "sig": "set player_name: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2858,
+      "path": "launch_options::Options.quick_play#get",
+      "sig": "get quick_play: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 2859,
+      "path": "launch_options::Options.quick_play#set",
+      "sig": "set quick_play: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2860,
+      "path": "launch_options::Options.screenshot_after#get",
+      "sig": "get screenshot_after: Option<u64>",
+      "status": "bound"
+    },
+    {
+      "id": 2861,
+      "path": "launch_options::Options.screenshot_after#set",
+      "sig": "set screenshot_after: Option<u64>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2862,
+      "path": "launch_options::Options.seed#get",
+      "sig": "get seed: i64",
+      "status": "bound"
+    },
+    {
+      "id": 2863,
+      "path": "launch_options::Options.seed#set",
+      "sig": "set seed: i64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2864,
+      "path": "launch_options::Options.server#get",
+      "sig": "get server: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 2865,
+      "path": "launch_options::Options.server#set",
+      "sig": "set server: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2866,
+      "path": "launch_options::Options.session_file#get",
+      "sig": "get session_file: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 2867,
+      "path": "launch_options::Options.session_file#set",
+      "sig": "set session_file: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2868,
+      "path": "launch_options::Options.session_stdin#get",
+      "sig": "get session_stdin: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2869,
+      "path": "launch_options::Options.session_stdin#set",
+      "sig": "set session_stdin: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2870,
+      "path": "launch_options::Options.social_control_stdin#get",
+      "sig": "get social_control_stdin: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2871,
+      "path": "launch_options::Options.social_control_stdin#set",
+      "sig": "set social_control_stdin: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2872,
+      "path": "launch_options::Options.spikes#get",
+      "sig": "get spikes: Option<f32>",
+      "status": "bound"
+    },
+    {
+      "id": 2873,
+      "path": "launch_options::Options.spikes#set",
+      "sig": "set spikes: Option<f32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2874,
+      "path": "launch_options::Options.split_guest#get",
+      "sig": "get split_guest: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2875,
+      "path": "launch_options::Options.split_guest#set",
+      "sig": "set split_guest: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2876,
+      "path": "launch_options::Options.split_in_main_window#get",
+      "sig": "get split_in_main_window: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2877,
+      "path": "launch_options::Options.split_in_main_window#set",
+      "sig": "set split_in_main_window: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2878,
+      "path": "launch_options::Options.test_terrain#get",
+      "sig": "get test_terrain: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2879,
+      "path": "launch_options::Options.test_terrain#set",
+      "sig": "set test_terrain: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2880,
+      "path": "launch_options::Options.time#get",
+      "sig": "get time: Option<i64>",
+      "status": "bound"
+    },
+    {
+      "id": 2881,
+      "path": "launch_options::Options.time#set",
+      "sig": "set time: Option<i64>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2882,
+      "path": "launch_options::Options.weather#get",
+      "sig": "get weather: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 2883,
+      "path": "launch_options::Options.weather#set",
+      "sig": "set weather: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2884,
+      "path": "launch_options::Options.window_size#get",
+      "sig": "get window_size: [u32; 2]",
+      "status": "bound"
+    },
+    {
+      "id": 2885,
+      "path": "launch_options::Options.window_size#set",
+      "sig": "set window_size: [u32; 2]",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2886,
+      "path": "launch_options::Options.world#get",
+      "sig": "get world: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 2887,
+      "path": "launch_options::Options.world#set",
+      "sig": "set world: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2888,
+      "path": "launch_options::Options.world_frames#get",
+      "sig": "get world_frames: Option<u64>",
+      "status": "bound"
+    },
+    {
+      "id": 2889,
+      "path": "launch_options::Options.world_frames#set",
+      "sig": "set world_frames: Option<u64>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2890,
+      "path": "launch_options::Options::player_name",
+      "sig": "fn player_name(&Self) -> String",
+      "status": "bound"
+    },
+    {
+      "id": 2891,
+      "path": "mobs::Mob.profile#get",
+      "sig": "get profile: Option<horizon_protocol::entity_data::Profile>",
+      "status": "bound"
+    },
+    {
+      "id": 2892,
+      "path": "mobs::Mob.profile#set",
+      "sig": "set profile: Option<horizon_protocol::entity_data::Profile>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2893,
+      "path": "render_settings::Settings::client_information",
+      "sig": "fn client_information(&Self, i8) -> ClientInformation",
+      "status": "bound"
     }
   ],
   "reserved": [

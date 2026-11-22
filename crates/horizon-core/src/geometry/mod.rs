@@ -724,3 +724,30 @@ mod tests {
         assert!(Aabb::new(Vec3::new(f64::NAN, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0)).has_nan());
     }
 }
+
+#[cfg(all(test, feature = "yoake2-slice"))]
+mod yoake_table_tests {
+    use super::*;
+    use yoake_slice::activation::{self, ArgSet, Status};
+
+    include!("../yoake_glue/tables/horizon_core/geometry.rs");
+
+    #[test]
+    fn generated_vec3_field_table_reads_and_refuses_writes() {
+        let mut v = Vec3::new(1.5, 64.25, -3.5);
+        activation::scope(&mut v, &yoake_glue_tables::FIELDS_crate__geometry__Vec3, &mut |_| 0, |h| {
+            assert_eq!(activation::get(h, 0).map(|bits| f64::from_bits(bits as u64)), Ok(1.5));
+            assert_eq!(activation::get(h, 1).map(|bits| f64::from_bits(bits as u64)), Ok(64.25));
+            assert_eq!(activation::get(h, 2).map(|bits| f64::from_bits(bits as u64)), Ok(-3.5));
+            assert_eq!(activation::set(h, 0, 0), Err(Status::BadField));
+        });
+        let set = ArgSet::new().shared(&v, &yoake_glue_tables::REF_FIELDS_crate__geometry__Vec3);
+        let (_, finished) = activation::scope_n(set, &mut |_| 0, |h| {
+            assert_eq!(activation::get(h, 1).map(|bits| f64::from_bits(bits as u64)), Ok(64.25));
+            assert_eq!(activation::set(h, 1, 0), Err(Status::ReadOnly));
+        })
+        .unwrap();
+        let _ = finished;
+        assert_eq!(v, Vec3::new(1.5, 64.25, -3.5));
+    }
+}

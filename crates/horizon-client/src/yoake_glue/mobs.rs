@@ -3310,6 +3310,135 @@ pub mod yoake_glue {
         })
     }
 
+    fn enc_horizon_protocol__entity_data__Profile(v: &horizon_protocol::entity_data::Profile, out: &mut Vec<u8>) {
+        match &v.name {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        match &v.uuid {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        {
+            let s0 = &v.properties;
+            codec::enc_len(s0.len(), out);
+            for e0 in s0.iter() {
+                enc_horizon_protocol__packets__login__Property(e0, out);
+            }
+        }
+        match &v.body {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        match &v.cape {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        match &v.elytra {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        match &v.slim {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+    }
+    fn dec_horizon_protocol__entity_data__Profile(d: &mut Decoder<'_>) -> Result<horizon_protocol::entity_data::Profile, CallError> {
+        d.enter()?;
+        let r = dec_horizon_protocol__entity_data__Profile_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_protocol__entity_data__Profile_body(d: &mut Decoder<'_>) -> Result<horizon_protocol::entity_data::Profile, CallError> {
+        Ok(horizon_protocol::entity_data::Profile {
+            name: match d.tag()? {
+                0 => None,
+                1 => Some(<String as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            uuid: match d.tag()? {
+                0 => None,
+                1 => Some(<u128 as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            properties: {
+                let n0 = d.vec_len()?;
+                let mut v0 = Decoder::vec_with(n0);
+                for _ in 0..n0 {
+                    v0.push(dec_horizon_protocol__packets__login__Property(d)?);
+                }
+                v0
+            },
+            body: match d.tag()? {
+                0 => None,
+                1 => Some(<String as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            cape: match d.tag()? {
+                0 => None,
+                1 => Some(<String as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            elytra: match d.tag()? {
+                0 => None,
+                1 => Some(<String as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            slim: match d.tag()? {
+                0 => None,
+                1 => Some(<bool as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+        })
+    }
+
+    fn enc_horizon_protocol__packets__login__Property(v: &horizon_protocol::packets::login::Property, out: &mut Vec<u8>) {
+        Encode::encode(&v.name, out);
+        Encode::encode(&v.value, out);
+        match &v.signature {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+    }
+    fn dec_horizon_protocol__packets__login__Property(d: &mut Decoder<'_>) -> Result<horizon_protocol::packets::login::Property, CallError> {
+        d.enter()?;
+        let r = dec_horizon_protocol__packets__login__Property_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_protocol__packets__login__Property_body(d: &mut Decoder<'_>) -> Result<horizon_protocol::packets::login::Property, CallError> {
+        Ok(horizon_protocol::packets::login::Property {
+            name: <String as Decode>::decode(d)?,
+            value: <String as Decode>::decode(d)?,
+            signature: match d.tag()? {
+                0 => None,
+                1 => Some(<String as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+        })
+    }
+
     fn enc_horizon_world__nbt__JavaString(v: &horizon_world::nbt::JavaString, out: &mut Vec<u8>) {
         {
             let s0 = &v.0;
@@ -9442,6 +9571,22 @@ pub mod yoake_glue {
     /// `mobs::Extra.effect_particles#set`
     // read-only: the id is reserved, the dispatcher refuses the call
 
+    /// `mobs::Mob.profile#get`
+    fn call_2891(recv: &crate::mobs::Mob, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        match &recv.profile {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                enc_horizon_protocol__entity_data__Profile(v0, out);
+            }
+        }
+        Ok(())
+    }
+
+    /// `mobs::Mob.profile#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
     /// Scalar fields of `crate::mobs::Attrs` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__mobs__Attrs: FieldTable<crate::mobs::Attrs> = FieldTable {
         get: |t, f| match f {
@@ -11049,6 +11194,8 @@ pub mod yoake_glue {
         (2536, "mobs::Extra.avatar#set"),
         (2537, "mobs::Extra.effect_particles#get"),
         (2538, "mobs::Extra.effect_particles#set"),
+        (2891, "mobs::Mob.profile#get"),
+        (2892, "mobs::Mob.profile#set"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -11908,6 +12055,8 @@ pub mod yoake_glue {
             2536 => Err(CallError::ReadOnly(id)),
             2537 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_2537(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2538 => Err(CallError::ReadOnly(id)),
+            2891 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_2891(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            2892 => Err(CallError::ReadOnly(id)),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {
