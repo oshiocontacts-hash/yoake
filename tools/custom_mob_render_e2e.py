@@ -304,8 +304,10 @@ def run(ctl, out, shots, resources, wasm=None):
         st = int(server[0].group(3)) if server else None
         ht = [int(m.group(2)) for m in EVENTS.finditer(h_text)]
         gt = [int(m.group(2)) for m in EVENTS.finditer(g_text)]
+        # fox_ai hardcodes 3.0 damage (mobs::attack); the non-wasm melee_attack fixture sets attack_damage = 2.
+        expected_damage = 3.0 if wasm is not None else 2.0
         hurt = sorted(k for k in before if after[k] < before[k])
-        results['strike'] = {'pass': (len(server) >= 1 and len(hurt) == 1 and before[hurt[0]] - after[hurt[0]] == 2.0 and ht and st is not None
+        results['strike'] = {'pass': (len(server) >= 1 and len(hurt) == 1 and before[hurt[0]] - after[hurt[0]] == expected_damage and ht and st is not None
                                       and 0 <= ht[0] - st <= 1),
                              'detail': {'server_frames': len(server), 'server_tick': st, 'health_before_after': {k: [before[k], after[k]] for k in before},
                                         'host_event_ticks': ht, 'guest_event_ticks': gt,

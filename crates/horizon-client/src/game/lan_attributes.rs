@@ -33,6 +33,25 @@ fn generic_attributes_into(
     }
 }
 
+/// Syncable registry id for `minecraft:scale` on a custom mob that carries a
+/// non-unit scale (`breedable.baby_scale`, `scale` attribute, or `model_scale`).
+/// Custom types are absent from `attributes.json`'s `entities` table, so the
+/// attribute is resolved directly from the catalog rather than `default_base`.
+fn custom_scale_attr(
+    catalog: &horizon_world::attributes::entity::Catalog,
+    m: &Mob,
+) -> Option<i32> {
+    let custom = m.kind.custom.as_deref()?;
+    if m.extra.model_scale <= 0.0
+        && custom.breed.is_none()
+        && custom.builtin_value("scale").is_none()
+    {
+        return None;
+    }
+    let id = catalog.id("minecraft:scale")?;
+    catalog.attribute(id).syncable.then(|| id.registry_id())
+}
+
 impl Game<'_> {
     /// `getAttributeValue(KNOCKBACK_RESISTANCE)` of a mob: its own value plus
     /// the modifiers of the items it wears or holds in matching slots.
@@ -185,6 +204,14 @@ impl Game<'_> {
                     );
                 }
             }
+        }
+        // Custom mobs fold their scale attribute and `breedable.baby_scale` into
+        // `extra.model_scale` (`custom::attrs::sync_scale`); sync `minecraft:scale`
+        // so clients size and seat babies accurately and return to 1.0 on growth.
+        // Custom types live in entity-types.json rather than vanilla attributes.json's
+        // `entities` table, so look up the attribute directly in the catalog.
+        if let Some(a) = custom_scale_attr(&self.motion.attributes, m) {
+            instance(out, a, f64::from(m.model_scale()));
         }
         // AbstractHorse.randomizeAttributes rolls a horse's jump strength as
         // its base (kept in `vector[0]`), so the instance is synced: its
@@ -368,5 +395,37 @@ mod tests {
         assert!(slot_in_group("hand", "offhand"));
         assert!(slot_in_group("any", "feet"));
         assert!(!slot_in_group("mainhand", "offhand"));
+    }
+
+    #[test]
+    fn custom_mob_scale_attr_resolves_without_entity_entry_in_attributes_json() {
+        use horizon_client::mobs::{
+            Mob,
+            custom::{CustomType, attrs, build},
+        };
+        use horizon_core::geometry::Vec3;
+        use horizon_mods::custom_mob::CustomMobFile;
+        use horizon_world::{DATA_VERSION, attributes::entity::Catalog};
+        use std::sync::Arc;
+
+        let catalog = Catalog::from_json(&serde_json::json!({
+            "data_version": DATA_VERSION,
+            "attributes": [{
+                "id": "minecraft:scale",
+                "default": format!("{:016x}", 1.0_f64.to_bits()),
+                "syncable": true
+            }],
+            "entities": {}
+        }))
+        .unwrap();
+        let json = br#"{"template":"yoake:mob","category":"creature","size":{"width":0.6,"height":0.7},
+            "breedable":{"food":["minecraft:sweet_berries"],"baby_scale":0.5}}"#;
+        let file = CustomMobFile::parse("demo:fox", json).unwrap();
+        let kind = Arc::new(build::mob_type(&Arc::new(CustomType::new(file, None).unwrap())));
+        let mut m = Mob::new(1, kind, Vec3::ZERO, 0.0);
+        m.extra.age = -24000;
+        attrs::sync_scale(&mut m, None);
+        assert_eq!(super::custom_scale_attr(&catalog, &m), Some(0));
+        assert!((m.model_scale() - 0.5).abs() < 1e-6);
     }
 }

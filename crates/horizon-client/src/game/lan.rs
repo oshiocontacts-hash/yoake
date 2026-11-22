@@ -273,7 +273,8 @@ pub(super) fn baby_index(species: Species) -> Option<u8> {
     use Species as S;
     match species {
         S::Piglin => Some(17),
-        s if horizon_client::mobs::finalize::ageable(s)
+        s if s == S::Custom
+            || horizon_client::mobs::finalize::ageable(s)
             || horizon_client::mobs::doors::is_zombie(s)
             || s == S::Zoglin =>
         {

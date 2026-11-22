@@ -170,47 +170,47 @@ pub fn read(m: &mut Mob, tag: &Tag) {
         .custom
         .get_or_insert_with(|| Box::new(CustomState::new(&t)));
     m.extra.age = number(tag.get("Age")).unwrap_or(0) as i32;
-    let Some(yoake @ Tag::Compound(_)) = tag.get("yoake") else {
-        return;
-    };
-    if let Some(synced @ Tag::Compound(_)) = yoake.get("synced") {
-        for (slot, def) in t.synced.iter().enumerate() {
-            if def.persistent
-                && let Some(v) = synced.get(&def.name).and_then(|tag| decode(def, tag))
-            {
-                state.synced[slot] = v;
+    if let Some(yoake @ Tag::Compound(_)) = tag.get("yoake") {
+        if let Some(synced @ Tag::Compound(_)) = yoake.get("synced") {
+            for (slot, def) in t.synced.iter().enumerate() {
+                if def.persistent
+                    && let Some(v) = synced.get(&def.name).and_then(|tag| decode(def, tag))
+                {
+                    state.synced[slot] = v;
+                }
             }
         }
-    }
-    if let Some(Tag::List(list)) = yoake.get("attributes") {
-        state.attrs.read_nbt(list);
-    }
-    if let Some(Tag::List(list)) = yoake.get("player_seats") {
-        state.saved_player_seats = list
-            .iter()
-            .filter_map(|t| {
-                Some(super::PlayerClaim {
-                    player: crate::save::uuid_from_tag(t.get("uuid"))?,
-                    seat: u8::try_from(number(t.get("seat"))?).ok()?,
+        if let Some(Tag::List(list)) = yoake.get("attributes") {
+            state.attrs.read_nbt(list);
+        }
+        if let Some(Tag::List(list)) = yoake.get("player_seats") {
+            state.saved_player_seats = list
+                .iter()
+                .filter_map(|t| {
+                    Some(super::PlayerClaim {
+                        player: crate::save::uuid_from_tag(t.get("uuid"))?,
+                        seat: u8::try_from(number(t.get("seat"))?).ok()?,
+                    })
                 })
-            })
-            .take(16)
-            .collect();
+                .take(16)
+                .collect();
+        }
+        if let Some(Tag::ByteArray(bytes)) = yoake.get("script")
+            && bytes.len() <= super::script::MAX_DATA_BYTES
+        {
+            state.script.data = bytes.clone();
+        }
+        m.extra.owner = crate::save::uuid_from_tag(yoake.get("owner"));
+        m.extra.tame = m.extra.owner.is_some();
+        m.extra.sitting = m.extra.tame && number(yoake.get("sitting")).is_some_and(|n| n != 0);
+        m.extra.age = number(yoake.get("age")).unwrap_or(i64::from(m.extra.age)) as i32;
+        m.extra.in_love = number(yoake.get("love")).unwrap_or(0).max(0) as i32;
+        if let Some(rest @ Tag::Compound(_)) = yoake.get("rest") {
+            state.rest.home = block_pos(rest.get("home"));
+            state.rest.place = block_pos(rest.get("place"));
+        }
     }
-    if let Some(Tag::ByteArray(bytes)) = yoake.get("script")
-        && bytes.len() <= super::script::MAX_DATA_BYTES
-    {
-        state.script.data = bytes.clone();
-    }
-    m.extra.owner = crate::save::uuid_from_tag(yoake.get("owner"));
-    m.extra.tame = m.extra.owner.is_some();
-    m.extra.sitting = m.extra.tame && number(yoake.get("sitting")).is_some_and(|n| n != 0);
-    m.extra.age = number(yoake.get("age")).unwrap_or(i64::from(m.extra.age)) as i32;
-    m.extra.in_love = number(yoake.get("love")).unwrap_or(0).max(0) as i32;
-    if let Some(rest @ Tag::Compound(_)) = yoake.get("rest") {
-        state.rest.home = block_pos(rest.get("home"));
-        state.rest.place = block_pos(rest.get("place"));
-    }
+    super::attrs::sync_scale(m, None);
 }
 
 /// A saved block position: a list of three ints.
@@ -586,5 +586,32 @@ mod all_kinds_tests {
         assert_eq!(b.synced_value(&t, "g_temp"), Some(&SyncedValue::I32(0)), "back to the default");
         assert_eq!(b.synced_dirty, 0);
         assert_eq!(mob_to_nbt(&back, [1, 2, 3, 4], Some(&tag), None), tag);
+    }
+
+    /// `/summon ... {Age:-24000}` (no `yoake` compound): `sync_scale` runs immediately on load
+    /// so baby bounds, attributes and seat offsets start at `baby_scale` before the first tick.
+    #[test]
+    fn summoned_baby_custom_mob_syncs_scale_without_tick() {
+        let json = r#"{"template":"yoake:mob","category":"creature",
+            "size":{"width":0.6,"height":0.7},
+            "breedable":{"food":["minecraft:sweet_berries"],"baby_scale":0.5}}"#;
+        let file = CustomMobFile::parse("demo:fox", json.as_bytes()).unwrap();
+        let t = Arc::new(CustomType::new(file, None).unwrap());
+        let types = HashMap::from([(t.id.clone(), Arc::new(mob_type(&t)))]);
+        let summon = Tag::compound([
+            ("id", Tag::String("demo:fox".into())),
+            (
+                "Pos",
+                Tag::List(vec![
+                    Tag::Double(0.5_f64.to_bits()),
+                    Tag::Double(64.0_f64.to_bits()),
+                    Tag::Double(0.5_f64.to_bits()),
+                ]),
+            ),
+            ("Age", Tag::Int(-24000)),
+        ]);
+        let m = mob_from_nbt(&summon, &types, 4, None).unwrap();
+        assert!(m.is_baby());
+        assert!((m.model_scale() - 0.5).abs() < 1e-6, "got {}", m.model_scale());
     }
 }

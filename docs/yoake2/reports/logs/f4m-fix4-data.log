@@ -1,0 +1,525 @@
+[host] ['launch', '--offscreen', '--no-focus', '--no-pause', '--pregen', '--dev-mod', 'C:\\Users\\USER\\AppData\\Local\\Temp\\hzfox-5ztnymyi\\cinder_fox\\content'] -> {"game": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\debug\\horizon-client.exe", "home": null, "log": "C:\\Users\\USER\\AppData\\Local\\Temp\\hzlan-host-09mu6ukz\\c.log", "ok": true, "pid": 27516, "resources": null, "socket": "C:\\Users\\USER\\AppData\\Local\\Temp\\hzlan-host-09mu6ukz\\c.sock", "source": "beside horizon-ctl", "version": null}
+[host] ['open', 'Lan', 5, 'creative'] -> {"ok": true}
+[host] ['wait-ready', '400'] -> {"block_entities": 0, "border": {"center": [0.0, 0.0], "size": 59999968.0}, "carts": [], "chunks": 3, "creative": true, "day_time": 6, "debug": {"advanced_tooltips": false, "chunk_borders": false, "clipboard": null, "hitboxes": false, "overlay": false, "pause_menu": true, "pause_on_lost_focus": true}, "destroying": [], "dimension": "minecraft:overworld", "dirty_light": 0, "display": {"height": 108...
+[host] ['command', 'gamemode creative'] -> {"chat": [], "ok": true}
+[host] ['command', 'time set day'] -> {"chat": ["minecraft:overworld\u3092\u30bf\u30a4\u30e0\u30de\u30fc\u30ab\u30fc\u300cminecraft:day\u300d\u306b\u8a2d\u5b9a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'difficulty normal'] -> {"chat": ["\u96e3\u6613\u5ea6\u306f\u65e2\u306b\u30ce\u30fc\u30de\u30eb\u306b\u306a\u3063\u3066\u3044\u308b\u305f\u3081\u3001\u5909\u66f4\u3055\u308c\u307e\u305b\u3093\u3067\u3057\u305f"], "ok": true}
+[host] ['command', 'gamerule spawn_mobs false'] -> {"chat": ["\u30b2\u30fc\u30e0\u30eb\u30fc\u30eb\u300cspawn_mobs\u300d\u304cfalse\u306b\u8a2d\u5b9a\u3055\u308c\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'fill ~-40 ~-1 ~-40 ~40 ~-1 ~40 minecraft:stone'] -> {"chat": ["\u305d\u306e\u5ea7\u6a19\u306f\u8aad\u307f\u8fbc\u307e\u308c\u3066\u3044\u307e\u305b\u3093"], "ok": true}
+[host] ['command', 'fill ~-40 ~ ~-40 ~40 ~12 ~40 minecraft:air'] -> {"chat": ["\u305d\u306e\u5ea7\u6a19\u306f\u8aad\u307f\u8fbc\u307e\u308c\u3066\u3044\u307e\u305b\u3093"], "ok": true}
+[host] ['lan', 'open', 0, 'commands'] -> {"ok": true, "port": 50075}
+[guest] ['launch', '--offscreen', '--no-focus', '--no-pause', '--pregen', '--dev-mod', 'C:\\Users\\USER\\AppData\\Local\\Temp\\hzfox-5ztnymyi\\cinder_fox\\content'] -> {"game": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\debug\\horizon-client.exe", "home": null, "log": "C:\\Users\\USER\\AppData\\Local\\Temp\\hzlan-guest-nc06saks\\c.log", "ok": true, "pid": 13640, "resources": null, "socket": "C:\\Users\\USER\\AppData\\Local\\Temp\\hzlan-guest-nc06saks\\c.sock", "source": "beside horizon-ctl", "version": null}
+[guest] ['connect', '127.0.0.1:50075', 'Guest'] -> {"ok": true}
+[guest] ['wait-for', 'loaded', '--timeout', 300] -> {"ok": true, "screen": "playing", "waited_seconds": 1.0254609}
+[guest] ['wait', '40'] -> {"ok": true, "ticks": 74}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "creative", "held": null, "input": {"counts": {"agent": 8, "game": 0, "user": 0}, "events": 8, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[guest] ['command', 'tp @s 1.5 65 -1.5'] -> {"ok": true}
+[host] ['command', 'gamerule spawn_mobs false'] -> {"chat": ["\u30b2\u30fc\u30e0\u30eb\u30fc\u30ebspawn_mobs\u306f\u65e2\u306bfalse\u306b\u8a2d\u5b9a\u3055\u308c\u3066\u3044\u307e\u3059"], "ok": true}
+[host] ['command', 'fill -6 64 -15 2 64 -1 minecraft:stone'] -> {"chat": ["135\u500b\u306e\u30d6\u30ed\u30c3\u30af\u3067\u6e80\u305f\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'fill -6 65 -15 2 70 -1 minecraft:air'] -> {"chat": ["224\u500b\u306e\u30d6\u30ed\u30c3\u30af\u3067\u6e80\u305f\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '5'] -> {"ok": true, "ticks": 1684}
+[host] ['command', 'summon sample_mobs:cinder_fox -1.5 65 -11.5'] -> {"chat": ["\u65b0\u3057\u304fentity.sample_mobs.cinder_fox\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '20'] -> {"ok": true, "ticks": 1709}
+[host] ['entities', 100] -> {"entities": [{"distance": 2.9374987049265933, "id": 326, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [1.1056152529632532, 65.0, -5.856343538699047], "type": "minecraft:item"}, {"distance": 3.500739146997401, "id": 328, "item": {"count": 5, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [1.9641806882084485, 65.0, -5.004605523913219], "type": "minecraft:i
+[host] ['command', 'tp @s -1.50 65.00 -9.50'] -> {"chat": ["Player39686\u3092-1.500000, 65.000000, -9.500000\u306b\u30c6\u30ec\u30dd\u30fc\u30c8\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 1728}
+[host] ['look-at', '-1.50', '65.60', '-11.50'] -> {"ok": true, "pitch": 27.021581649780273, "yaw": -180.0}
+[host] ['wait', '6'] -> {"ok": true, "ticks": 1738}
+[host] ['screenshot', 'C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-data\\host-idle-day.png'] -> {"height": 900, "ok": true, "width": 1600}
+[host] ['command', 'time set midnight'] -> {"chat": ["minecraft:overworld\u3092\u30bf\u30a4\u30e0\u30de\u30fc\u30ab\u30fc\u300cminecraft:midnight\u300d\u306b\u8a2d\u5b9a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 1766}
+[host] ['screenshot', 'C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-data\\host-idle-night.png'] -> {"height": 900, "ok": true, "width": 1600}
+[host] ['command', 'time set day'] -> {"chat": ["minecraft:overworld\u3092\u30bf\u30a4\u30e0\u30de\u30fc\u30ab\u30fc\u300cminecraft:day\u300d\u306b\u8a2d\u5b9a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 1793}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"baby": false, "distance": 2.0, "health": 14.0, "hurt_time": 0, "id": 330, "kind": "mob", "pos": [-1.5, 65.0, -11.5], "type": "sample_mobs:cinder_fox"}, {"distance": 2.4708665312721276, "id
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"baby": false, "distance": 2.0, "health": 14.0, "hurt_time": 0, "id": 330, "kind": "mob", "pos": [-1.5, 65.0, -11.5], "type": "sample_mobs:cinder_fox"}, {"distance": 2.4708665312721276, "id
+[host] ['command', 'horizon custommobs trigger @e[type=sample_mobs:cinder_fox] pounce'] -> {"chat": ["Fired pounce on 1 custom mob(s)"], "ok": true}
+[host] ['wait', '6'] -> {"ok": true, "ticks": 2146}
+[host] ['screenshot', 'C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-data\\host-pounce.png'] -> {"height": 900, "ok": true, "width": 1600}
+[host] ['wait', '30'] -> {"ok": true, "ticks": 2190}
+[host] ['command', 'tp @s -1.50 65.00 18.50'] -> {"chat": ["Player39686\u3092-1.500000, 65.000000, 18.500000\u306b\u30c6\u30ec\u30dd\u30fc\u30c8\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '20'] -> {"ok": true, "ticks": 2541}
+[host] ['look-at', '-1.50', '65.40', '-11.50'] -> {"ok": true, "pitch": 2.328745126724243, "yaw": -180.0}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 2557}
+[host] ['screenshot', 'C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-data\\host-lod-30.png'] -> {"height": 900, "ok": true, "width": 1600}
+[host] ['command', 'tp @s -1.50 65.00 58.50'] -> {"chat": ["Player39686\u3092-1.500000, 65.000000, 58.500000\u306b\u30c6\u30ec\u30dd\u30fc\u30c8\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '20'] -> {"ok": true, "ticks": 2594}
+[host] ['look-at', '-1.50', '65.40', '-11.50'] -> {"ok": true, "pitch": 0.1800718605518341, "yaw": -180.0}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 2611}
+[host] ['screenshot', 'C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-data\\host-lod-70.png'] -> {"height": 900, "ok": true, "width": 1600}
+[host] ['command', 'kill @e[type=sample_mobs:cinder_fox]'] -> {"chat": ["entity.sample_mobs.cinder_fox\u3092\u30ad\u30eb\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '25'] -> {"ok": true, "ticks": 2654}
+[host] ['entities', 100] -> {"entities": [{"baby": false, "distance": 52.46844334481503, "health": 10.0, "hurt_time": 0, "id": 41, "kind": "mob", "pos": [41.568603515625, 67.75927734375, 28.76953125], "type": "minecraft:bee"}, {"baby": false, "distance": 57.46029257085026, "health": 10.0, "hurt_time": 0, "id": 52, "kind": "mob", "pos": [27.476318359375, 67.992431640625, 9.041748046875], "type": "minecraft:bee"}, {"baby": fal
+[host] ['screenshot', 'C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-data\\host-lod-empty.png'] -> {"height": 900, "ok": true, "width": 1600}
+[host] ['command', 'summon sample_mobs:cinder_fox -1.5 65 -11.5'] -> {"chat": ["\u65b0\u3057\u304fentity.sample_mobs.cinder_fox\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '20'] -> {"ok": true, "ticks": 3005}
+[host] ['command', 'data merge entity @e[type=sample_mobs:cinder_fox,limit=1] {CustomName:"Foxy",CustomNameVisible:1b}'] -> {"chat": ["Foxy\u306e\u30a8\u30f3\u30c6\u30a3\u30c6\u30a3\u30c7\u30fc\u30bf\u3092\u5909\u66f4\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 3019}
+[host] ['entities', 100] -> {"entities": [{"baby": false, "distance": 60.08327554319921, "health": 20.0, "hurt_time": 0, "id": 263, "kind": "mob", "pos": [1.5, 65.0, -1.5], "type": "minecraft:player"}, {"distance": 62.79402233661085, "id": 331, "item": {"count": 1, "item": "minecraft:oak_sapling"}, "kind": "item", "pos": [4.878120835224742, 66.0, -3.9372390150465786], "type": "minecraft:item"}, {"distance": 63.60688584409025
+[host] ['command', 'tp @s -1.50 65.00 -8.50'] -> {"chat": ["Player39686\u3092-1.500000, 65.000000, -8.500000\u306b\u30c6\u30ec\u30dd\u30fc\u30c8\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 3036}
+[host] ['look-at', '-1.50', '65.90', '-11.50'] -> {"ok": true, "pitch": 13.495733261108398, "yaw": -180.0}
+[host] ['wait', '6'] -> {"ok": true, "ticks": 3047}
+[host] ['screenshot', 'C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-data\\host-nametag.png'] -> {"height": 900, "ok": true, "width": 1600}
+[host] ['command', 'kill @e[type=sample_mobs:cinder_fox]'] -> {"chat": ["Foxy\u3092\u30ad\u30eb\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '25'] -> {"ok": true, "ticks": 3087}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.8716146925505392, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:item"}, {"distance": 2.058274131538609, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:i
+[host] ['command', 'kill @e[type=minecraft:chicken]'] -> {"chat": ["\u30a8\u30f3\u30c6\u30a3\u30c6\u30a3\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3067\u3057\u305f"], "ok": true}
+[host] ['command', 'summon minecraft:chicken -0.5 65 -6.5'] -> {"chat": ["\u65b0\u3057\u304f\u30cb\u30ef\u30c8\u30ea\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '5'] -> {"ok": true, "ticks": 3101}
+[host] ['command', 'summon sample_mobs:cinder_fox -0.5 65 -5.8'] -> {"chat": ["\u65b0\u3057\u304fentity.sample_mobs.cinder_fox\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3108}
+[host] ['entities', 20] -> {"entities": [{"distance": 1.8716146925505392, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:item"}, {"distance": 2.058274131538609, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:i
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3114}
+[host] ['entities', 20] -> {"entities": [{"distance": 1.8716146925505392, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:item"}, {"distance": 2.058274131538609, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:i
+[host] ['wait', '10'] -> {"ok": true, "ticks": 3128}
+[host] ['entities', 20] -> {"entities": [{"baby": false, "distance": 1.7532951664238223, "health": 2.0, "hurt_time": 0, "id": 346, "kind": "mob", "pos": [0.24414062689174895, 65.1385091078555, -8.386718751455192], "type": "minecraft:chicken"}, {"distance": 1.8716146925505392, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "min
+[host] ['command', 'kill @e[type=minecraft:chicken]'] -> {"chat": ["\u30cb\u30ef\u30c8\u30ea\u3092\u30ad\u30eb\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['command', 'kill @e[type=sample_mobs:cinder_fox]'] -> {"chat": ["entity.sample_mobs.cinder_fox\u3092\u30ad\u30eb\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '25'] -> {"ok": true, "ticks": 3162}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.8716146925505392, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:item"}, {"distance": 2.058274131538609, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:i
+[host] ['command', 'gamemode survival'] -> {"chat": ["\u30b2\u30fc\u30e0\u30e2\u30fc\u30c9\u3092\u30b5\u30d0\u30a4\u30d0\u30eb\u30e2\u30fc\u30c9\u306b\u5909\u66f4\u3057\u307e\u3057\u305f"], "ok": true}
+[guest] ['command', 'gamemode survival'] -> {"ok": true}
+[host] ['command', 'tp @s -1.5 65 -4.5'] -> {"chat": ["Player39686\u3092-1.500000, 65.000000, -4.500000\u306b\u30c6\u30ec\u30dd\u30fc\u30c8\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[guest] ['command', 'tp @s 1.5 65 -1.5'] -> {"ok": true}
+[host] ['wait', '20'] -> {"ok": true, "ticks": 3195}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 65, "game": 0, "user": 0}, "events": 65, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['command', 'summon sample_mobs:cinder_fox -0.5 65 -4.5'] -> {"chat": ["\u65b0\u3057\u304fentity.sample_mobs.cinder_fox\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3206}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 67, "game": 0, "user": 0}, "events": 67, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3214}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 68, "game": 0, "user": 0}, "events": 68, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3223}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 69, "game": 0, "user": 0}, "events": 69, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3231}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 70, "game": 0, "user": 0}, "events": 70, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3239}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 71, "game": 0, "user": 0}, "events": 71, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3248}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 72, "game": 0, "user": 0}, "events": 72, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3256}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 73, "game": 0, "user": 0}, "events": 73, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3264}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 74, "game": 0, "user": 0}, "events": 74, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3272}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 75, "game": 0, "user": 0}, "events": 75, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3280}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 76, "game": 0, "user": 0}, "events": 76, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3288}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 77, "game": 0, "user": 0}, "events": 77, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3296}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 78, "game": 0, "user": 0}, "events": 78, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3304}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 79, "game": 0, "user": 0}, "events": 79, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3312}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 80, "game": 0, "user": 0}, "events": 80, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3321}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 81, "game": 0, "user": 0}, "events": 81, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3330}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 82, "game": 0, "user": 0}, "events": 82, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3338}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 83, "game": 0, "user": 0}, "events": 83, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3347}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 84, "game": 0, "user": 0}, "events": 84, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3355}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 85, "game": 0, "user": 0}, "events": 85, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3364}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 86, "game": 0, "user": 0}, "events": 86, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3372}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 87, "game": 0, "user": 0}, "events": 87, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3380}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 88, "game": 0, "user": 0}, "events": 88, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3388}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 89, "game": 0, "user": 0}, "events": 89, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3396}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 90, "game": 0, "user": 0}, "events": 90, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3404}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 91, "game": 0, "user": 0}, "events": 91, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3412}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 92, "game": 0, "user": 0}, "events": 92, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3420}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 93, "game": 0, "user": 0}, "events": 93, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3435}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 94, "game": 0, "user": 0}, "events": 94, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3470}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 95, "game": 0, "user": 0}, "events": 95, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3508}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 96, "game": 0, "user": 0}, "events": 96, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3543}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 97, "game": 0, "user": 0}, "events": 97, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3580}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 98, "game": 0, "user": 0}, "events": 98, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3616}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 99, "game": 0, "user": 0}, "events": 99, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "k...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3661}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 100, "game": 0, "user": 0}, "events": 100, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3698}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 101, "game": 0, "user": 0}, "events": 101, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3729}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 102, "game": 0, "user": 0}, "events": 102, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3764}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 103, "game": 0, "user": 0}, "events": 103, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3797}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 104, "game": 0, "user": 0}, "events": 104, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3826}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 105, "game": 0, "user": 0}, "events": 105, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3858}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 106, "game": 0, "user": 0}, "events": 106, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3890}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 107, "game": 0, "user": 0}, "events": 107, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3920}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 108, "game": 0, "user": 0}, "events": 108, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3956}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 109, "game": 0, "user": 0}, "events": 109, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 3989}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 110, "game": 0, "user": 0}, "events": 110, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4021}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 111, "game": 0, "user": 0}, "events": 111, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4057}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 112, "game": 0, "user": 0}, "events": 112, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4085}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 113, "game": 0, "user": 0}, "events": 113, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4094}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 114, "game": 0, "user": 0}, "events": 114, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4103}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 115, "game": 0, "user": 0}, "events": 115, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4111}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 116, "game": 0, "user": 0}, "events": 116, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4119}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 117, "game": 0, "user": 0}, "events": 117, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4127}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 118, "game": 0, "user": 0}, "events": 118, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4135}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 119, "game": 0, "user": 0}, "events": 119, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4143}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 120, "game": 0, "user": 0}, "events": 120, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4151}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 121, "game": 0, "user": 0}, "events": 121, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4159}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 122, "game": 0, "user": 0}, "events": 122, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4167}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 123, "game": 0, "user": 0}, "events": 123, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4175}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 124, "game": 0, "user": 0}, "events": 124, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4183}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 125, "game": 0, "user": 0}, "events": 125, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4191}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 126, "game": 0, "user": 0}, "events": 126, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4199}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 127, "game": 0, "user": 0}, "events": 127, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4208}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 128, "game": 0, "user": 0}, "events": 128, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4216}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 129, "game": 0, "user": 0}, "events": 129, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4223}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 130, "game": 0, "user": 0}, "events": 130, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4231}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 131, "game": 0, "user": 0}, "events": 131, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4239}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 132, "game": 0, "user": 0}, "events": 132, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4247}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 133, "game": 0, "user": 0}, "events": 133, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4256}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 134, "game": 0, "user": 0}, "events": 134, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4264}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 135, "game": 0, "user": 0}, "events": 135, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4272}
+[host] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": {"count": 28, "item": "minecraft:leaf_litter"}, "input": {"counts": {"agent": 136, "game": 0, "user": 0}, "events": 136, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, ...
+[guest] ['state'] -> {"busy": null, "dialog": {"open": null, "screen": null}, "dimension": "minecraft:overworld", "gamemode": "survival", "held": null, "input": {"counts": {"agent": 5, "game": 0, "user": 0}, "events": 5, "last_origin": "agent", "last_user_age_s": null, "recording": null, "replay": null, "user_since_agent": 0}, "looking_at": {"block": null, "entity": null, "kind": "none"}, "menu": null, "mining": null,...
+[host] ['command', 'gamemode creative'] -> {"chat": ["\u30b2\u30fc\u30e0\u30e2\u30fc\u30c9\u3092\u30af\u30ea\u30a8\u30a4\u30c6\u30a3\u30d6\u30e2\u30fc\u30c9\u306b\u5909\u66f4\u3057\u307e\u3057\u305f"], "ok": true}
+[guest] ['command', 'gamemode creative'] -> {"ok": true}
+[host] ['command', 'kill @e[type=sample_mobs:cinder_fox]'] -> {"chat": ["entity.sample_mobs.cinder_fox\u3092\u30ad\u30eb\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '25'] -> {"ok": true, "ticks": 4311}
+[host] ['entities', 100] -> {"entities": [{"distance": 3.017799058235151, "id": 318, "item": {"count": 10, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-5.0015310278720575, 65.0, -7.07096589887771], "type": "minecraft:item"}, {"distance": 3.5233140793503823, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft
+[host] ['command', 'summon sample_mobs:cinder_fox -1.5 65 -11.5'] -> {"chat": ["\u65b0\u3057\u304fentity.sample_mobs.cinder_fox\u3092\u53ec\u559a\u3057\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '20'] -> {"ok": true, "ticks": 4338}
+[host] ['entities', 100] -> {"entities": [{"distance": 3.017799058235151, "id": 318, "item": {"count": 10, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-5.0015310278720575, 65.0, -7.07096589887771], "type": "minecraft:item"}, {"distance": 3.5233140793503823, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft
+[host] ['command', 'tp @s -1.50 65.00 -9.50'] -> {"chat": ["Player39686\u3092-1.500000, 65.000000, -9.500000\u306b\u30c6\u30ec\u30dd\u30fc\u30c8\u3055\u305b\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '10'] -> {"ok": true, "ticks": 4354}
+[host] ['look-at', '-1.50', '65.60', '-11.50'] -> {"ok": true, "pitch": 27.021581649780273, "yaw": -180.0}
+[host] ['wait', '6'] -> {"ok": true, "ticks": 4364}
+[host] ['command', 'damage @e[type=sample_mobs:cinder_fox,limit=1] 100 minecraft:generic'] -> {"chat": ["entity.sample_mobs.cinder_fox\u306b100.0\u306e\u30c0\u30e1\u30fc\u30b8\u3092\u4e0e\u3048\u307e\u3057\u305f"], "ok": true}
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4370}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"baby": false, "distance": 2.0, "health": 0.0, "hurt_time": 0, "id": 358, "kind": "mob", "pos": [-1.5, 65.0, -11.5], "type": "sample_mobs:cinder_fox"}, {"distance": 2.4708665312721276, "id"
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4376}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"baby": false, "distance": 2.0, "health": 0.0, "hurt_time": 0, "id": 358, "kind": "mob", "pos": [-1.5, 65.0, -11.5], "type": "sample_mobs:cinder_fox"}, {"distance": 2.4708665312721276, "id"
+[host] ['screenshot', 'C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-data\\host-death.png'] -> {"height": 900, "ok": true, "width": 1600}
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4394}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"distance": 2.4708665312721276, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4400}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"distance": 2.4708665312721276, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4406}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"distance": 2.4708665312721276, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4412}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"distance": 2.4708665312721276, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4418}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"distance": 2.4708665312721276, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4424}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"distance": 2.4708665312721276, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4430}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"distance": 2.4708665312721276, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4436}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"distance": 2.4708665312721276, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4443}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"distance": 2.4708665312721276, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4449}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"distance": 2.4708665312721276, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4455}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"distance": 2.4708665312721276, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4461}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"distance": 2.4708665312721276, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:
+[host] ['wait', '2'] -> {"ok": true, "ticks": 4467}
+[host] ['entities', 100] -> {"entities": [{"distance": 1.7076792482019674, "id": 303, "item": {"count": 4, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [0.2001519199078984, 65.0, -9.66016199291069], "type": "minecraft:item"}, {"distance": 2.4708665312721276, "id": 319, "item": {"count": 3, "item": "minecraft:leaf_litter"}, "kind": "item", "pos": [-3.1914929549774453, 65.0, -7.698880071005147], "type": "minecraft:
+[host] ['screenshot', 'C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-data\\host-end.png'] -> {"height": 900, "ok": true, "width": 1600}
+[guest] ['screenshot', 'C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-data\\guest-end.png'] -> {"height": 900, "ok": true, "width": 1600}
+[guest] ['quit'] -> {"ok": true}
+[host] ['quit'] -> {"ok": true}
+{
+ "idle": {
+  "pass": true,
+  "detail": {
+   "png": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-idle-day.png",
+   "fox": [
+    -1.5,
+    65.0,
+    -11.5
+   ]
+  }
+ },
+ "glow": {
+  "pass": true,
+  "detail": {
+   "changed_vs_day": 1309632,
+   "png": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-idle-night.png"
+  }
+ },
+ "pounce": {
+  "resummoned": 0,
+  "pass": true,
+  "detail": {
+   "server_frames": 1,
+   "server_tick": 2150,
+   "host_event_ticks": [
+    2150
+   ],
+   "guest_event_ticks": [
+    2150
+   ],
+   "host": [
+    1,
+    1,
+    1
+   ],
+   "guest": [
+    1,
+    1,
+    1
+   ],
+   "changed_vs_idle": 290260,
+   "png": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-pounce.png"
+  }
+ },
+ "lod": {
+  "pass": true,
+  "detail": {
+   "changed_vs_empty_scene": {
+    "30": 789253,
+    "70": 57626
+   },
+   "png": [
+    "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-lod-30.png",
+    "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-lod-70.png"
+   ]
+  }
+ },
+ "name": {
+  "pass": true,
+  "detail": {
+   "data_merge_reply": {
+    "chat": [
+     "Foxy\u306e\u30a8\u30f3\u30c6\u30a3\u30c6\u30a3\u30c7\u30fc\u30bf\u3092\u5909\u66f4\u3057\u307e\u3057\u305f"
+    ],
+    "ok": true
+   },
+   "png": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-nametag.png",
+   "note": "the tag is judged by looking at the PNG (a pixel check cannot tell text)"
+  }
+ },
+ "strike_mob": {
+  "pass": true,
+  "detail": {
+   "chicken_health_samples": [
+    4.0,
+    2.0,
+    2.0
+   ]
+  }
+ },
+ "strike": {
+  "pass": true,
+  "detail": {
+   "server_frames": 2,
+   "server_tick": 3406,
+   "health_before_after": {
+    "host": [
+     20.0,
+     18.0
+    ],
+    "guest": [
+     20.0,
+     20.0
+    ]
+   },
+   "host_event_ticks": [
+    3406,
+    4006
+   ],
+   "guest_event_ticks": [
+    3406,
+    4006
+   ],
+   "strike_lines": [
+    "Horizon custom-mob target: mob 351 picked Player",
+    "Horizon custom-mob strike: mob 351 begins on Player tick 3398",
+    "Horizon custom-mob strike: mob 351 lands on Player tick 3406",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3408",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3428",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3446",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3460",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3480",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3500",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3520",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3540",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3560",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3580",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3600",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3620",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3640",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3660",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3680",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3700",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3720",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3740",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3760",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3780",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3800",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3820",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3840",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3860",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3880",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3900",
+    "Horizon custom-mob goal: mob 351 CustomMelee stopped: can_continue false tick 3920"
+   ]
+  }
+ },
+ "death": {
+  "pass": true,
+  "detail": {
+   "foxes_every_2_ticks_after_damage": [
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "png": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-death.png",
+   "death_lines": [
+    "Horizon custom-mob death: mob 358 dies, death_time 0 (limit 20) tick 4179",
+    "Horizon custom-mob death: mob 358 removed at death_time 20 (limit 20) tick 4198"
+   ]
+  }
+ },
+ "_screenshots": {
+  "pass": true,
+  "detail": {
+   "idle-day": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-idle-day.png",
+   "idle-night": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-idle-night.png",
+   "pounce": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-pounce.png",
+   "lod-30": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-lod-30.png",
+   "lod-70": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-lod-70.png",
+   "nametag": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-nametag.png",
+   "death": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-shots-data\\f4m6-death.png",
+   "log_lines": "C:\\Users\\USER\\NestgateHorizon\\horizon-free\\target\\x4-data\\custom-mob-log-lines.txt"
+  }
+ }
+}

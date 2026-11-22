@@ -85,7 +85,7 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             // AgeableMob.isBaby: `canBeABaby` too, so a parrot or a slime
             // sent as one is still drawn grown.
             (i, Value::Bool(b)) if Some(i) == baby => {
-                m.extra.age = if *b && drops::can_be_baby(species) {
+                m.extra.age = if *b && (m.kind.custom.is_some() || drops::can_be_baby(species)) {
                     -1
                 } else {
                     0
@@ -1032,5 +1032,24 @@ mod tests {
         apply(&mut m, &[(20, s::INT, Value::Int(0))]);
         // Last fuse tick: still primed at 0 until the server removes it.
         assert_eq!(horizon_client::mobs::sulfur_cube::fuse(&m), 0);
+    }
+
+    #[test]
+    fn custom_mob_receives_server_baby_flag() {
+        use horizon_client::mobs::custom::{CustomType, build};
+        use horizon_mods::custom_mob::CustomMobFile;
+        use std::sync::Arc;
+
+        assert_eq!(super::super::lan::baby_index(Species::Custom), Some(16));
+        let json = br#"{"template":"yoake:mob","category":"creature","size":{"width":0.6,"height":0.7}}"#;
+        let file = CustomMobFile::parse("demo:fox", json).unwrap();
+        let kind = Arc::new(build::mob_type(&Arc::new(CustomType::new(file, None).unwrap())));
+        let mut m = Mob::new(7, kind, horizon_core::geometry::Vec3::ZERO, 0.0);
+        let b = horizon_protocol::registry::Builtin::default();
+        assert!(!m.is_baby());
+        super::apply(&mut m, &[(16, s::BOOLEAN, Value::Bool(true))], &b, 1);
+        assert!(m.is_baby());
+        super::apply(&mut m, &[(16, s::BOOLEAN, Value::Bool(false))], &b, 1);
+        assert!(!m.is_baby());
     }
 }

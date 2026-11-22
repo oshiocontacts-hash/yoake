@@ -195,12 +195,31 @@ pub(super) fn parse_use_entity_target(a: &Args<'_>) -> Result<EntityTarget> {
 
 /// Where `use-entity` aims: low on the mob's box, so a rider sitting on top of a vehicle does not take
 /// the click (the centre of a small vehicle is inside its rider's box).
-fn low_point(m: &horizon_client::mobs::Mob) -> [f64; 3] {
+/// Candidate aim points for `use-entity`, starting with the low interior point and falling back
+/// to the near bottom/front face toward `eye` when a rider on top occludes the center ray.
+fn use_entity_aim_points(eye: [f64; 3], m: &horizon_client::mobs::Mob) -> Vec<[f64; 3]> {
     use horizon_core::geometry::Axis;
     let b = m.bounds();
     let c = m.center();
     let (low, high) = (b.min(Axis::Y), b.max(Axis::Y));
-    [c[0], low + (high - low) * 0.25, c[2]]
+    let h = high - low;
+    let low_mid = [c[0], low + h * 0.25, c[2]];
+    let dx = eye[0] - c[0];
+    let dz = eye[2] - c[2];
+    let horiz = (dx * dx + dz * dz).sqrt();
+    if horiz <= 1e-6 {
+        return vec![low_mid, c];
+    }
+    let (nx, nz) = (dx / horiz, dz / horiz);
+    let rx = (b.max(Axis::X) - b.min(Axis::X)) * 0.45;
+    let rz = (b.max(Axis::Z) - b.min(Axis::Z)) * 0.45;
+    vec![
+        low_mid,
+        [c[0] + nx * rx, low + h * 0.10, c[2] + nz * rz],
+        [c[0] + nx * rx, low + h * 0.25, c[2] + nz * rz],
+        [c[0] + nx * rx, low + h * 0.65, c[2] + nz * rz],
+        c,
+    ]
 }
 
 fn namespaced(name: &str) -> String {
@@ -1504,14 +1523,14 @@ impl Game<'_> {
                 self.playing()?;
                 let target = parse_use_entity_target(&a)?;
                 let eye = self.eye_position().ok_or("no player")?;
-                let (id, kind, center) = match target {
+                let (id, kind, aim_points) = match target {
                     EntityTarget::Id(id) => {
                         let m = self
                             .mobs
                             .iter()
                             .find(|m| !m.removed && m.id == id)
                             .ok_or_else(|| format!("no entity {id}"))?;
-                        (m.id, m.kind.id.to_string(), low_point(m))
+                        (m.id, m.kind.id.to_string(), use_entity_aim_points(eye, m))
                     }
                     EntityTarget::Type(kind) => {
                         let m = self
@@ -1520,11 +1539,18 @@ impl Game<'_> {
                             .filter(|m| !m.removed && m.kind.id == kind)
                             .min_by(|a, b| dist(eye, a.center()).total_cmp(&dist(eye, b.center())))
                             .ok_or_else(|| format!("no {kind} nearby"))?;
-                        (m.id, m.kind.id.to_string(), low_point(m))
+                        (m.id, m.kind.id.to_string(), use_entity_aim_points(eye, m))
                     }
                 };
-                self.face_point(center)?;
-                if self.mob_hit().map(|(i, _)| self.mobs[i].id) != Some(id) {
+                let mut hit = false;
+                for point in aim_points {
+                    self.face_point(point)?;
+                    if self.mob_hit().map(|(i, _)| self.mobs[i].id) == Some(id) {
+                        hit = true;
+                        break;
+                    }
+                }
+                if !hit {
                     return Err("that entity is out of reach or hidden; get closer".into());
                 }
                 self.agent_mouse(MouseButton::Right, true)?;
@@ -2390,5 +2416,46 @@ mod tests {
         assert!(parse_use_entity_target(&parse_args(&["--id", "42", "--type", "cow"])).is_err());
         assert!(parse_use_entity_target(&parse_args(&["--id", "abc"])).is_err());
         assert!(parse_use_entity_target(&parse_args(&["1", "2"])).is_err());
+    }
+
+    #[test]
+    fn use_entity_aim_points_clear_a_rider_on_top() {
+        use horizon_client::mobs::{
+            Mob,
+            custom::{CustomType, build},
+        };
+        use horizon_mods::custom_mob::CustomMobFile;
+        use std::sync::Arc;
+
+        let fox_json = br#"{"template":"yoake:mob","category":"creature","size":{"width":0.6,"height":0.7}}"#;
+        let fox_file = CustomMobFile::parse("demo:fox", fox_json).unwrap();
+        let fox_kind = Arc::new(build::mob_type(&Arc::new(CustomType::new(fox_file, None).unwrap())));
+        let rider_json = br#"{"template":"yoake:mob","category":"creature","size":{"width":0.6,"height":1.8}}"#;
+        let rider_file = CustomMobFile::parse("demo:rider", rider_json).unwrap();
+        let rider_kind = Arc::new(build::mob_type(&Arc::new(CustomType::new(rider_file, None).unwrap())));
+
+        let fox = Mob::new(2, fox_kind, Vec3::new(0.5, 64.0, 0.5), 0.0);
+        // Seat 0 offset 0.8 less player attachment 0.6 puts the rider's feet 0.2 above the fox.
+        let rider = Mob::new(1, rider_kind, Vec3::new(0.5, 64.2, 0.5), 0.0);
+        let eye = [0.5, 65.62, 2.7];
+        let aim = use_entity_aim_points(eye, &fox);
+        let dir_to = |pt: [f64; 3]| {
+            let d = [pt[0] - eye[0], pt[1] - eye[1], pt[2] - eye[2]];
+            let len = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+            [d[0] / len, d[1] / len, d[2] / len]
+        };
+
+        // First candidate (interior low point) still crosses the rider's front face.
+        let first_dir = dir_to(aim[0]);
+        assert!(super::super::ray_box(eye, first_dir, 4.5, rider.bounds()).is_some());
+
+        // A later candidate (near bottom edge) hits only the fox and clears the rider.
+        let clear = aim.iter().skip(1).any(|&pt| {
+            let dir = dir_to(pt);
+            let fox_hit = super::super::ray_box(eye, dir, 4.5, fox.bounds());
+            let rider_hit = super::super::ray_box(eye, dir, 4.5, rider.bounds());
+            fox_hit.is_some() && rider_hit.is_none_or(|rt| fox_hit.unwrap() < rt)
+        });
+        assert!(clear, "no aim point cleared the rider: {aim:?}");
     }
 }

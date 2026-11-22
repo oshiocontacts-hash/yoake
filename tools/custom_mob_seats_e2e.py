@@ -306,10 +306,16 @@ def run(ctl, out, resources, seat_wasm=None):
             }
 
         # checks 4 & 10: save and reload preserves chicken seats and host seat 1 claim
+        def dismount(game):
+            # `key lshift tap` removes ShiftLeft before a tick can send PlayerInput; hold across ticks to dismount.
+            game.raw('key', 'lshift', 'down')
+            game.wait(4)
+            game.raw('key', 'lshift', 'up')
+            game.wait(6)
+
         reload_reply = None
         try:
-            host.raw('key', 'lshift', 'tap')
-            host.wait(10)
+            dismount(host)
             host('command', command='kill @e[tag=m4,limit=1]')
             host.wait(10)
             host('command', command=f'summon {CHICKEN} {hx} {hy} {hz + 3.0} {{Tags:["m0"]}}')
@@ -344,11 +350,10 @@ def run(ctl, out, resources, seat_wasm=None):
             }
         except (Failed, AssertionError, KeyError, StopIteration, IndexError, TypeError) as e:
             results['reload'] = {'pass': False, 'detail': {'reply': reload_reply, 'error': repr(e)}}
-        host.raw('key', 'lshift', 'tap')
-        host.wait(10)
+        dismount(host)
         clear_mobs(host)
 
-        # check 12: the server stays at the mouth's rest offset; the guest's client follows pounce.
+        # check 12: the server stays at the mouth's rest offset; host and guest clients follow pounce together.
         host('command', command=f'summon {MOUTH_FOX} {hx + 0.5} {hy} {hz - 4.5}')
         host('command', command=f'summon {CHICKEN} {hx + 0.5} {hy} {hz + 2.5} {{Tags:["ml"]}}')
         host.wait(10)
@@ -361,12 +366,19 @@ def run(ctl, out, resources, seat_wasm=None):
         host.wait(10)
         h_rest = offsets(host, MOUTH_FOX)[0]
         g_rest = offsets(guest, MOUTH_FOX)[0]
+        # Freeze ticks and step 1 tick at a time so subprocess round-trips never skip the 16-tick pounce peak.
+        host('command', command='tick freeze')
+        host.wait(3)
+        guest.wait(3)
         host('command', command=f'horizon custommobs trigger {MOUTH_VEHICLE} pounce')
         h_anim, g_anim = [], []
         for _ in range(16):
-            host.wait(1)
+            host('command', command='tick step 1')
+            host.wait(3)
+            guest.wait(3)
             h_anim.append(offsets(host, MOUTH_FOX)[0])
             g_anim.append(offsets(guest, MOUTH_FOX)[0])
+        host('command', command='tick unfreeze')
         h_delta = max(abs(a[0] - h_rest[0]) + abs(a[1] - h_rest[1]) for a in h_anim)
         g_delta = max(abs(a[0] - g_rest[0]) + abs(a[1] - g_rest[1]) for a in g_anim)
         clear_mobs(host)
@@ -380,7 +392,7 @@ def run(ctl, out, resources, seat_wasm=None):
         results['locator'] = {
             'pass': (abs(h_rest[0] - 0.75) < 0.15 and abs(h_rest[1] - 0.31) < 0.15
                      and abs(g_rest[0] - 0.75) < 0.15 and abs(g_rest[1] - 0.31) < 0.15
-                     and g_delta > 0.02
+                     and h_delta > 0.15 and g_delta > 0.15 and abs(h_delta - g_delta) < 0.1
                      and baby_veh.get('baby') is True and abs(baby_off[0] - 0.38) < 0.15 and abs(baby_off[1] - 0.16) < 0.15),
             'detail': {'host_rest': h_rest, 'guest_rest': g_rest, 'host_pounce_delta': round(h_delta, 3),
                        'guest_pounce_delta': round(g_delta, 3), 'baby_flag': baby_veh.get('baby'), 'baby_offset': baby_off},
