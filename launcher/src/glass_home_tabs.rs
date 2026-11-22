@@ -38,6 +38,7 @@ impl Launcher {
                     HomeTab::Worlds => (tr("Worlds"), Some("earth")),
                     HomeTab::Multiplayer => (tr("Multiplayer"), Some("user-multiple-02")),
                     HomeTab::Packs => (tr("Packs"), None),
+                    HomeTab::GameSettings => (tr("Game settings"), Some("sliders-horizontal")),
                     HomeTab::Screenshots => (tr("Screenshots"), None),
                     HomeTab::Console => (tr("Console"), Some("computer-terminal-01")),
                 };
@@ -62,6 +63,9 @@ impl Launcher {
                 .glass_multiplayer(cx)
                 .map(IntoElement::into_any_element),
             HomeTab::Packs => self.glass_packs(cx).map(IntoElement::into_any_element),
+            HomeTab::GameSettings => self
+                .glass_game_settings(cx)
+                .map(IntoElement::into_any_element),
             HomeTab::Screenshots => self
                 .glass_screenshots(cx)
                 .map(IntoElement::into_any_element),

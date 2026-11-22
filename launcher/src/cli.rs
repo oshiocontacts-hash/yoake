@@ -1537,6 +1537,11 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 launch_instance.java = None;
             }
             instances::apply(&mut cmd, &launch_instance)?;
+            horizon_launcher::game_options::apply_for_instance(
+                &instance.id,
+                &instance.home,
+                None,
+            );
             if let Some(code) = join {
                 backend::join_friend(&mut cmd, &code)?;
             }

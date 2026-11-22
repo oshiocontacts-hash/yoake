@@ -11,19 +11,21 @@ pub(super) enum HomeTab {
     Worlds,
     Multiplayer,
     Packs,
+    GameSettings,
     Screenshots,
     Console,
 }
 
 impl HomeTab {
-    /// `HORIZON_LAUNCHER_PAGE=worlds` (or `instance-mods`, `multiplayer`, `packs`, `screenshots`,
-    /// `console`) opens Home on that tab, for screenshots.
+    /// `HORIZON_LAUNCHER_PAGE=worlds` (or `instance-mods`, `multiplayer`, `packs`, `game-settings`,
+    /// `screenshots`, `console`) opens Home on that tab, for screenshots.
     pub(super) fn from_env() -> Self {
         match std::env::var("HORIZON_LAUNCHER_PAGE").as_deref() {
             Ok("instance-mods") => HomeTab::Mods,
             Ok("worlds") => HomeTab::Worlds,
             Ok("multiplayer") => HomeTab::Multiplayer,
             Ok("packs") => HomeTab::Packs,
+            Ok("game-settings") => HomeTab::GameSettings,
             Ok("screenshots") => HomeTab::Screenshots,
             Ok("console") => HomeTab::Console,
             _ => HomeTab::Overview,
@@ -48,6 +50,7 @@ impl Launcher {
         tabs.push((HomeTab::Worlds, self.worlds_count(cx)));
         tabs.push((HomeTab::Multiplayer, Some(self.servers_count())));
         tabs.push((HomeTab::Packs, Some(self.packs_count())));
+        tabs.push((HomeTab::GameSettings, self.game_settings_count()));
         let shots = self.screenshots_count();
         if shots > 0 {
             tabs.push((HomeTab::Screenshots, Some(shots)));
@@ -79,6 +82,7 @@ impl Launcher {
                     HomeTab::Worlds => tr("Worlds"),
                     HomeTab::Multiplayer => tr("Multiplayer"),
                     HomeTab::Packs => tr("Packs"),
+                    HomeTab::GameSettings => tr("Game settings"),
                     HomeTab::Screenshots => tr("Screenshots"),
                     HomeTab::Console => tr("Console"),
                 };
@@ -106,6 +110,10 @@ impl Launcher {
             ),
             HomeTab::Multiplayer => self.multiplayer_section(cx).map(split).unzip(),
             HomeTab::Packs => self.packs_section(cx).map(split).unzip(),
+            HomeTab::GameSettings => (
+                None,
+                self.glass_game_settings(cx).map(IntoElement::into_any_element),
+            ),
             HomeTab::Screenshots => self.screenshots_section(cx).map(split).unzip(),
             HomeTab::Console => self.console_section(cx).map(split).unzip(),
         };

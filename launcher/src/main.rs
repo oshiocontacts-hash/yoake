@@ -16,6 +16,7 @@ mod datapacks_page;
 mod dev_options;
 mod export_page;
 mod frame;
+mod game_options_page;
 mod game_tools;
 mod github_mods_page;
 mod friends_page;
@@ -138,7 +139,7 @@ impl Page {
             Ok("notes") => Page::Notes,
             Ok("yoake") => Page::Yoake,
             Ok("friends") => Page::Friends,
-            Ok("settings") => Page::Settings,
+            Ok("settings" | "usual-settings") => Page::Settings,
             _ => Page::Play,
         }
     }
@@ -377,6 +378,10 @@ struct Launcher {
     proxy_input: line_edit::LineEdit,
     proxy_focused: bool,
     proxy_focus: FocusHandle,
+    /// Pre-launch game options UI (`game_options_page`).
+    game_options: game_options_page::GameOptionsUi,
+    scroll_to_usual: bool,
+    usual_anchor: std::rc::Rc<std::cell::Cell<Option<Bounds<Pixels>>>>,
     /// Opt-in data collection: the player's answer and Settings' section (`collection`).
     collection: collection::Collection,
     /// Settings' "Connect an AI agent" (`agents_page`).
@@ -630,6 +635,9 @@ impl Launcher {
             ),
             proxy_focused: false,
             proxy_focus: cx.focus_handle(),
+            game_options: game_options_page::GameOptionsUi::new(cx),
+            scroll_to_usual: std::env::var("HORIZON_LAUNCHER_PAGE").as_deref() == Ok("usual-settings"),
+            usual_anchor: std::rc::Rc::new(std::cell::Cell::new(None)),
             settings,
             settings_save_error: None,
             links: backend::Links::default(),
@@ -1155,6 +1163,7 @@ impl Launcher {
                 Msg::OfficialPlayers(players) => self.official_players = players,
                 Msg::JavaGame(id, home, cmd) => {
                     self.starting_client = None;
+                    self.reload_instances();
                     match yoake_install::prepare_launch(&home, &backend::data_dir()) {
                         Ok(None) => {}
                         Ok(Some(_)) => {
@@ -1332,6 +1341,17 @@ impl Launcher {
                             cmd.current_dir(&instance_home)
                                 .env("HORIZON_HOME", &instance_home);
                         }
+                        let options_home = cmd
+                            .get_current_dir()
+                            .map(std::path::Path::to_path_buf)
+                            .unwrap_or_else(|| instance_home.clone());
+                        let options_id = run.as_deref().unwrap_or(instances::DEFAULT);
+                        horizon_launcher::game_options::apply_for_instance(
+                            options_id,
+                            &options_home,
+                            None,
+                        );
+                        self.reload_instances();
                         if let Some(code) = self.joining.take() {
                             if let Err(e) = backend::join_friend(&mut cmd, &code) {
                                 self.client_error = Some(e);
@@ -1550,6 +1570,7 @@ impl Launcher {
                             self.multiplayer.stale();
                             self.screenshots.stale();
                             self.game_packs.stale();
+                            self.game_options.stale_scan();
                             let vars = std::mem::take(&mut self.client_vars);
                             if let Some((id, started)) = self.client_run.take() {
                                 if let Err(e) = instances::record_play(&id, started.elapsed()) {
@@ -4039,6 +4060,21 @@ impl Launcher {
                     .child(self.proxy_row(n + 4, cx))
                     .child(group("Game", "gamepad"))
                     .child(self.game_args_row(n + 5, cx))
+                    .child({
+                        let anchor = self.usual_anchor.clone();
+                        div()
+                            .relative()
+                            .mt(px(12.))
+                            .child(
+                                gpui::canvas(
+                                    move |bounds, _, _| anchor.set(Some(bounds)),
+                                    |_, _, _, _| {},
+                                )
+                                .absolute()
+                                .size_full(),
+                            )
+                            .child(self.usual_settings_section(cx))
+                    })
                     .child(group("AI", "terminal"))
                     .child(self.no_ai_row(n + 6, cx))
                     .child(group("About", "info-box"))
@@ -5244,6 +5280,18 @@ impl Render for Launcher {
         self.github.note_focus(window);
         self.args_focused = self.args_focus.is_focused(window);
         self.proxy_focused = self.proxy_focus.is_focused(window);
+        self.game_options.note_focus(window);
+        if self.scroll_to_usual && self.page == Page::Settings {
+            if let Some(bounds) = self.usual_anchor.get() {
+                let target_y = f32::from(bounds.origin.y) - 136.;
+                if target_y > 0. {
+                    self.content_scroll
+                        .handle
+                        .set_offset(gpui::point(px(0.), -px(target_y)));
+                }
+                self.scroll_to_usual = false;
+            }
+        }
         let size = window.viewport_size();
         self.window_width = f32::from(size.width);
         let content = match self.page {
@@ -5324,6 +5372,7 @@ impl Render for Launcher {
                     "escape" if this.native_log_escape() => {}
                     "escape" if this.servers_escape() => {}
                     "escape" if this.instance_escape() => {}
+                    "escape" if this.game_options.escape() => {}
                     "escape" if this.screenshot_escape() => {}
                     "left" if this.screenshot_step(false) => {}
                     "right" if this.screenshot_step(true) => {}

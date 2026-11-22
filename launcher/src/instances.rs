@@ -155,6 +155,9 @@ pub struct Meta {
     /// Set for a Minecraft: Java Edition instance: it plays the real game, not Horizon.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub java: Option<JavaGame>,
+    /// Pre-launch `options.txt` settings and overrides for this instance (`game_options`).
+    #[serde(default, skip_serializing_if = "crate::game_options::InstanceConfig::is_default")]
+    pub game_options: crate::game_options::InstanceConfig,
 }
 
 /// A Minecraft: Java Edition instance: the real game of one version, with the Java it runs on
@@ -251,6 +254,8 @@ pub struct Instance {
     pub launch: Launch,
     /// The Minecraft: Java Edition it plays, for a Java instance.
     pub java: Option<JavaGame>,
+    /// Pre-launch `options.txt` settings and overrides (`game_options`).
+    pub game_options: crate::game_options::InstanceConfig,
 }
 
 impl Instance {
@@ -364,6 +369,7 @@ fn list_in(game_home: &Path, data: &Path) -> Vec<Instance> {
                     .map(|s| UNIX_EPOCH + Duration::from_secs(s)),
                 launch: meta.launch,
                 java: meta.java,
+                game_options: meta.game_options,
                 id,
                 kind,
                 work,

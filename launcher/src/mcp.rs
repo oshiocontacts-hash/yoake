@@ -88,6 +88,11 @@ impl Session {
                 let tag = instance.resolve_version(arg_str(args, "version"))?;
                 let mut cmd = backend::client(&tag)?;
                 instances::apply(&mut cmd, &instance)?;
+                horizon_launcher::game_options::apply_for_instance(
+                    &instance.id,
+                    &instance.home,
+                    None,
+                );
                 cmd.args(game_tools::control_args());
                 if let Some(world) = arg_str(args, "world") {
                     cmd.arg("--world").arg(world);

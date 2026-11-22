@@ -1678,6 +1678,7 @@ pub fn java_game(
     };
     let jvm_args: Vec<String> = game.jvm_args.split_whitespace().map(String::from).collect();
     fs::create_dir_all(&instance.home).map_err(|e| format!("{}: {e}", instance.home.display()))?;
+    crate::game_options::apply_for_instance(&instance.id, &instance.home, Some(log));
     crate::java_launch::command(
         &version,
         &crate::java_launch::Launch {

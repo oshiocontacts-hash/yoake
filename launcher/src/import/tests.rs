@@ -50,6 +50,7 @@ fn maker(root: &Path) -> impl Fn(&str) -> Result<Instance, String> + '_ {
             last_played: None,
             launch: Default::default(),
             java: None,
+            game_options: Default::default(),
         })
     }
 }
