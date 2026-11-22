@@ -13,11 +13,16 @@
 //! writes it back unchanged but for its position, rotation and UUID. Tracked values are saved by
 //! name (an enum by the name of its value), not by slot, so reordering a type's values or adding
 //! one keeps old saves valid.
-use super::{CustomState, CustomType, SyncedDef, SyncedValue, attrs};
+use super::{
+    CustomState, CustomType, SyncedDef, SyncedValue,
+    ai::memory::{EntityMemory, MemoryKind, MemoryValue},
+    attrs,
+};
 use crate::{
     mobs::Mob,
-    save::{float, number, text},
+    save::{float, number, text, uuid_from_tag},
 };
+use horizon_mods::custom_mob::limits;
 use horizon_world::nbt::{Compound, Tag};
 
 fn string(s: &str) -> Tag {
@@ -137,6 +142,35 @@ pub fn write(tag: &mut Tag, m: &Mob) {
     } else {
         yoake.insert("player_seats".into(), Tag::List(player_seats));
     }
+    // F4M-4b: persistent brain memories (`yoake.memories.<name> = { value: ..., ttl?: int }`),
+    // keeping unknown entries from other mod versions.
+    let mut memories = match yoake.get(&"memories".into()) {
+        Some(Tag::Compound(c)) => c.clone(),
+        _ => Compound::new(),
+    };
+    if let Some(brain) = &t.brain {
+        for def in &brain.memories {
+            if !def.persistent {
+                memories.remove(&def.name.as_str().into());
+                continue;
+            }
+            if let Some(entry) = state.brain.memories.entry(&def.name) {
+                let mut row = Compound::new();
+                row.insert("value".into(), encode_memory(&entry.value));
+                if let Some(ttl) = entry.ttl {
+                    row.insert("ttl".into(), Tag::Int(ttl));
+                }
+                memories.insert(def.name.as_str().into(), Tag::Compound(row));
+            } else {
+                memories.remove(&def.name.as_str().into());
+            }
+        }
+    }
+    if memories.is_empty() {
+        yoake.remove(&"memories".into());
+    } else {
+        yoake.insert("memories".into(), Tag::Compound(memories));
+    }
     // F4M-10: what the scripts keep with the mob (`mob-save` may replace it), opaque bytes.
     let script_data = super::script::data_to_save(m);
     if script_data.is_empty() {
@@ -209,8 +243,84 @@ pub fn read(m: &mut Mob, tag: &Tag) {
             state.rest.home = block_pos(rest.get("home"));
             state.rest.place = block_pos(rest.get("place"));
         }
+        if let (Some(brain_def), Some(memories @ Tag::Compound(_))) = (&t.brain, yoake.get("memories")) {
+            for def in &brain_def.memories {
+                if !def.persistent {
+                    continue;
+                }
+                if let Some(entry @ Tag::Compound(_)) = memories.get(&def.name)
+                    && let Some(val_tag) = entry.get("value")
+                    && let Some(val) = decode_memory(def.kind, val_tag)
+                {
+                    let ttl = match entry.get("ttl") {
+                        Some(t) => {
+                            let Some(n) = number(Some(t)).and_then(|n| i32::try_from(n).ok()) else {
+                                continue;
+                            };
+                            if n <= 0 {
+                                continue;
+                            }
+                            Some(n.min(limits::MAX_MEMORY_TTL as i32))
+                        }
+                        None => None,
+                    };
+                    state.brain.memories.set(def.name.clone(), val, ttl);
+                }
+            }
+            state.brain.update_activity(brain_def, 0);
+        }
     }
     super::attrs::sync_scale(m, None);
+}
+
+fn encode_memory(v: &MemoryValue) -> Tag {
+    match v {
+        MemoryValue::Bool(b) => Tag::Byte(i8::from(*b)),
+        MemoryValue::I32(n) => Tag::Int(*n),
+        MemoryValue::F32(f) => Tag::Float(f.to_bits()),
+        MemoryValue::Str(s) => string(s),
+        MemoryValue::Vec3(v) => Tag::List(v.iter().map(|f| Tag::Float(f.to_bits())).collect()),
+        MemoryValue::BlockPos(p) => Tag::List(p.iter().map(|n| Tag::Int(*n)).collect()),
+        MemoryValue::Entity(EntityMemory::Mob(id)) => Tag::Int(*id as i32),
+        MemoryValue::Entity(EntityMemory::Player(uuid)) => Tag::IntArray(uuid.to_vec()),
+    }
+}
+
+fn decode_memory(kind: MemoryKind, tag: &Tag) -> Option<MemoryValue> {
+    match kind {
+        MemoryKind::Bool => Some(MemoryValue::Bool(number(Some(tag))? != 0)),
+        MemoryKind::I32 => Some(MemoryValue::I32(i32::try_from(number(Some(tag))?).ok()?)),
+        MemoryKind::F32 => {
+            let f = float(Some(tag))? as f32;
+            f.is_finite().then_some(MemoryValue::F32(f))
+        }
+        MemoryKind::Str => {
+            let s = text(Some(tag))?;
+            (s.len() <= limits::MAX_MEMORY_STRING).then_some(MemoryValue::Str(s))
+        }
+        MemoryKind::Vec3 => {
+            let Tag::List(l) = tag else { return None };
+            if l.len() != 3 {
+                return None;
+            }
+            let mut out = [0.0f32; 3];
+            for (o, t) in out.iter_mut().zip(l) {
+                let f = float(Some(t))? as f32;
+                if !f.is_finite() {
+                    return None;
+                }
+                *o = f;
+            }
+            Some(MemoryValue::Vec3(out))
+        }
+        MemoryKind::BlockPos => Some(MemoryValue::BlockPos(block_pos(Some(tag))?)),
+        MemoryKind::Entity => match uuid_from_tag(Some(tag)) {
+            Some(uuid) => Some(MemoryValue::Entity(EntityMemory::Player(uuid))),
+            None => number(Some(tag))
+                .and_then(|n| u32::try_from(n).ok())
+                .map(|id| MemoryValue::Entity(EntityMemory::Mob(id))),
+        },
+    }
 }
 
 /// A saved block position: a list of three ints.

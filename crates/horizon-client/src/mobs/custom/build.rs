@@ -115,7 +115,17 @@ pub fn mob_type(t: &Arc<CustomType>) -> MobType {
     let f = &t.file;
     let mut flags = def.flags(false);
     // The `climb` goal: spider-style wall climbing (the engine's climber physics).
-    flags.climber = f.ai.goals.iter().chain(&f.ai.targets).any(|g| g.kind == "climb");
+    flags.climber = f
+        .ai
+        .goals
+        .iter()
+        .chain(&f.ai.targets)
+        .chain(
+            f.ai.activities
+                .values()
+                .flat_map(|a| a.goals.iter().chain(&a.targets)),
+        )
+        .any(|g| g.kind == "climb");
     let value = |name: &str, default: f64| t.builtin_value(name).unwrap_or(default);
     let mut attributes: HashMap<String, f64> = t
         .builtin

@@ -197,6 +197,9 @@ pub struct CustomType {
     pub tame: Option<ai::tame::TameDef>,
     pub breed: Option<ai::breed::BreedDef>,
     pub ride: ai::riding::RideDef,
+    /// Brain option (F4M-4b): sensors, typed memories, activities and schedule; `None` when the
+    /// type uses plain goals only.
+    pub brain: Option<ai::brain::BrainDef>,
 }
 
 /// Where a custom mob's name tag hangs when its type sets `model.name_tag_height`: blocks above the
@@ -291,11 +294,13 @@ impl CustomType {
             tame: None,
             breed: None,
             ride: Default::default(),
+            brain: None,
         };
         me.sync_version = anim_sync::type_version(&me);
         me.tame = ai::tame::TameDef::from_file(&me.file);
         me.breed = ai::breed::BreedDef::from_file(&me.file);
         me.ride = ai::riding::RideDef::new(&me, model)?;
+        me.brain = ai::brain::BrainDef::from_file(&me.file)?;
         Ok(me)
     }
 
@@ -357,6 +362,8 @@ pub struct CustomState {
     /// Seats a loaded save names for players that are not aboard yet; a player that boards later
     /// takes its saved seat while it is free.
     pub saved_player_seats: Vec<PlayerClaim>,
+    /// Brain runtime state (F4M-4b): memories with expiry, sensor intervals, active activity.
+    pub brain: ai::brain::BrainState,
 }
 
 /// A mob rider's seat on a custom vehicle: the rider's entity id and the index of the type's seat.
@@ -415,6 +422,7 @@ impl CustomState {
             seat_claims_dirty: false,
             player_claims: Vec::new(),
             saved_player_seats: Vec::new(),
+            brain: ai::brain::BrainState::new(t),
         }
     }
     /// Replaces the seat claims (sorted by seat); a different list marks them dirty.

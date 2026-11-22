@@ -48,6 +48,14 @@ pub trait Goal: std::fmt::Debug {
             .unwrap_or("Goal")
     }
 }
+#[derive(Clone, Debug)]
+struct NoopGoal;
+impl Goal for NoopGoal {
+    goal_clone!();
+    fn flags(&self) -> u8 { 0 }
+    fn can_use(&mut self, _: &mut Mob, _: &mut Cx) -> bool { false }
+}
+
 impl Clone for Box<dyn Goal> {
     fn clone(&self) -> Self {
         self.box_clone()
@@ -90,6 +98,20 @@ impl GoalSelector {
             goal: Box::new(goal),
             running: false,
         });
+    }
+    pub fn len(&self) -> usize {
+        self.goals.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.goals.is_empty()
+    }
+    /// Wraps every goal added since index `start` (used by custom-mob brain activities).
+    pub fn wrap_from(&mut self, start: usize, wrap: impl Fn(Box<dyn Goal>) -> Box<dyn Goal>) {
+        let placeholder: Box<dyn Goal> = Box::new(NoopGoal);
+        for entry in self.goals.iter_mut().skip(start) {
+            let inner = std::mem::replace(&mut entry.goal, placeholder.box_clone());
+            entry.goal = wrap(inner);
+        }
     }
     /// `Goal::set_start_delay` of the goal of this name.
     pub fn set_start_delay(&mut self, name: &str, ticks: i32) {

@@ -59,6 +59,13 @@ pub mod limits {
     pub const MAX_SPAWN_RULES: usize = 16;
     pub const MAX_ENUM_VALUES: usize = 64;
     pub const MAX_ANIMATION_FILES: usize = 32;
+    /// Brain memories, sensors, activities and schedule entries (F4M-4b).
+    pub const MAX_MEMORIES: usize = 64;
+    pub const MAX_SENSORS: usize = 32;
+    pub const MAX_ACTIVITIES: usize = 32;
+    pub const MAX_MEMORY_STRING: usize = 256;
+    pub const MAX_MEMORY_TTL: u32 = 72_000;
+    pub const MAX_SCHEDULE_ENTRIES: usize = 32;
     /// A box side, in blocks (the data mob templates allow the same).
     pub const MAX_SIZE: f64 = 16.0;
 }
@@ -234,6 +241,26 @@ pub const GOAL_TYPES: [&str; 41] = [
 pub const GOAL_FLAGS: [&str; 4] = ["move", "look", "jump", "target"];
 /// Synced value types.
 pub const SYNCED_TYPES: [&str; 6] = ["bool", "i32", "f32", "string", "vec3", "enum"];
+/// Brain memory value types (F4M-4b).
+pub const MEMORY_TYPES: [&str; 7] = [
+    "bool",
+    "i32",
+    "f32",
+    "string",
+    "vec3",
+    "block_pos",
+    "entity",
+];
+/// Brain sensor types (F4M-4b).
+pub const SENSOR_TYPES: [&str; 5] = [
+    "nearest_players",
+    "nearest_living",
+    "hurt_by",
+    "blocks",
+    "light",
+];
+/// Light channels a `light` sensor may read.
+pub const LIGHT_KINDS: [&str; 3] = ["combined", "sky", "block"];
 /// Spawn placements.
 pub const PLACEMENTS: [&str; 6] = [
     "on_ground",
@@ -283,6 +310,9 @@ fn five() -> i32 {
 }
 fn ten_u32() -> u32 {
     10
+}
+fn twenty_u32() -> u32 {
+    20
 }
 fn one_u32() -> u32 {
     1
@@ -416,8 +446,8 @@ impl Synced {
     }
 }
 
-/// A goal or target selector (`ai.goals`, `ai.targets`); the keys other than these are the goal
-/// type's own parameters.
+/// A goal or target selector (`ai.goals`, `ai.targets`, or inside an activity); the keys other
+/// than these are the goal type's own parameters.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Goal {
     /// One of [`GOAL_TYPES`].
@@ -430,6 +460,9 @@ pub struct Goal {
     /// The `script` goal's id (a [`ScriptGoal`] of this type).
     #[serde(default)]
     pub id: Option<String>,
+    /// Optional activity name gating this goal when written in top-level `ai.goals`/`ai.targets` (F4M-4b).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub activity: Option<String>,
     #[serde(flatten)]
     pub params: BTreeMap<String, serde_json::Value>,
 }
@@ -449,6 +482,171 @@ pub struct ScriptGoal {
     pub interval: u32,
 }
 
+/// One typed brain memory declaration (`ai.memories`, F4M-4b).
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct MemoryDef {
+    /// One of [`MEMORY_TYPES`].
+    #[serde(rename = "type")]
+    pub kind: String,
+    /// Optional initial value when the mob is built.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<serde_json::Value>,
+    /// Save this memory in `yoake.memories`.
+    #[serde(default)]
+    pub persistent: bool,
+    /// Default expiry in ticks when written without an explicit ttl (1 to 72000).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ttl: Option<u32>,
+}
+
+/// One declarative brain sensor (`ai.sensors`, F4M-4b).
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Sensor {
+    /// One of [`SENSOR_TYPES`].
+    #[serde(rename = "type")]
+    pub kind: String,
+    /// Ticks between scans (1 to 2400; default 20).
+    #[serde(default = "twenty_u32")]
+    pub interval: u32,
+    /// Memory key written by this sensor (default depends on sensor type).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub memory: Option<String>,
+    /// Expiry in ticks for values written by this sensor (1 to 72000).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ttl: Option<u32>,
+    /// `nearest_players`, `nearest_living`: search radius (1 to 128; default: mob `follow_range`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub range: Option<f64>,
+    /// `nearest_players`, `nearest_living`: require line of sight (default true).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub must_see: Option<bool>,
+    /// `nearest_players`: skip creative/spectator players (default true).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ignore_creative: Option<bool>,
+    /// `nearest_living`: entity type ids (`minecraft:player`, vanilla ids, custom ids).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub types: Vec<String>,
+    /// `hurt_by`: ticks a hit stays recent when no `ttl` is set (1 to 72000).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_age: Option<u32>,
+    /// `blocks`: block tag (with or without `#`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<String>,
+    /// `blocks`: explicit block ids.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blocks: Vec<String>,
+    /// `blocks`: horizontal search radius (1 to 32; default 8).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub radius: Option<i32>,
+    /// `blocks`: vertical search radius (0 to 16; default `radius.min(8)`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vertical_radius: Option<i32>,
+    /// `light`: `combined` (default), `sky`, or `block`.
+    #[serde(default, rename = "kind", skip_serializing_if = "Option::is_none")]
+    pub light_kind: Option<String>,
+}
+
+impl Sensor {
+    /// Default memory key when `memory` is omitted.
+    pub fn default_memory_name(&self) -> Option<&'static str> {
+        match self.kind.as_str() {
+            "nearest_players" => Some("nearest_player"),
+            "nearest_living" => Some("nearest_living"),
+            "hurt_by" => Some("hurt_by"),
+            "blocks" => Some("nearest_block"),
+            "light" => Some("light_level"),
+            _ => None,
+        }
+    }
+
+    /// Default memory type when the memory is not explicitly declared in `ai.memories`.
+    pub fn default_memory_type(&self) -> Option<&'static str> {
+        match self.kind.as_str() {
+            "nearest_players" | "nearest_living" | "hurt_by" => Some("entity"),
+            "blocks" => Some("block_pos"),
+            "light" => Some("i32"),
+            _ => None,
+        }
+    }
+
+    /// Resolved target memory key.
+    pub fn resolved_memory_name(&self) -> Option<&str> {
+        self.memory.as_deref().or_else(|| self.default_memory_name())
+    }
+
+    /// Whether a memory of `kind` can store this sensor's output.
+    pub fn accepts_memory_type(&self, kind: &str) -> bool {
+        match self.kind.as_str() {
+            "nearest_players" | "nearest_living" => kind == "entity",
+            "hurt_by" => matches!(kind, "entity" | "bool"),
+            "blocks" => matches!(kind, "block_pos" | "vec3"),
+            "light" => matches!(kind, "i32" | "f32" | "bool"),
+            _ => false,
+        }
+    }
+}
+
+/// One memory condition inside an activity's `when` list (F4M-4b).
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct MemoryPredicate {
+    pub memory: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub present: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eq: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ne: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gt: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gte: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lt: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lte: Option<f64>,
+}
+
+/// One named brain activity: a group of goals enabled by memory predicates or schedule (F4M-4b).
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Activity {
+    /// Lower number wins when multiple non-core activities match (0 to 32; default 5).
+    #[serde(default = "five")]
+    pub priority: i32,
+    /// Core activities run alongside the active non-core activity whenever their `when` passes.
+    #[serde(default)]
+    pub core: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub when: Vec<MemoryPredicate>,
+    #[serde(default)]
+    pub goals: Vec<Goal>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub targets: Vec<Goal>,
+}
+
+impl Default for Activity {
+    fn default() -> Self {
+        Self {
+            priority: five(),
+            core: false,
+            when: Vec::new(),
+            goals: Vec::new(),
+            targets: Vec::new(),
+        }
+    }
+}
+
+/// One time-of-day entry of `ai.schedule` (`0..24000` ticks, F4M-4b).
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ScheduleEntry {
+    pub time: i32,
+    pub activity: String,
+}
+
 /// `ai`.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -459,9 +657,21 @@ pub struct Ai {
     pub goals: Vec<Goal>,
     #[serde(default)]
     pub targets: Vec<Goal>,
-    /// Brain sensors; checked by the AI item (F4M-4).
+    /// Brain sensors (F4M-4b).
     #[serde(default)]
-    pub sensors: Vec<serde_json::Value>,
+    pub sensors: Vec<Sensor>,
+    /// Typed brain memories (F4M-4b).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub memories: BTreeMap<String, MemoryDef>,
+    /// Brain activities: named goal groups switched by memory predicates or schedule (F4M-4b).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub activities: BTreeMap<String, Activity>,
+    /// Time-of-day activity schedule (F4M-4b).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub schedule: Vec<ScheduleEntry>,
+    /// Fallback non-core activity when no predicate or schedule picks one (F4M-4b).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_activity: Option<String>,
     #[serde(default)]
     pub script_goals: Vec<ScriptGoal>,
 }
@@ -473,6 +683,10 @@ impl Default for Ai {
             goals: Vec::new(),
             targets: Vec::new(),
             sensors: Vec::new(),
+            memories: BTreeMap::new(),
+            activities: BTreeMap::new(),
+            schedule: Vec::new(),
+            default_activity: None,
             script_goals: Vec::new(),
         }
     }
@@ -845,6 +1059,34 @@ fn is_name(name: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b"_.-".contains(&b))
 }
 
+fn check_memory_json(what: &str, kind: &str, v: &serde_json::Value) -> Result<(), String> {
+    let bad = || format!("{what}: value does not fit memory type {kind}");
+    match kind {
+        "bool" if v.is_boolean() => Ok(()),
+        "i32" if v.as_i64().is_some_and(|n| i32::try_from(n).is_ok()) => Ok(()),
+        "f32" if v.as_f64().is_some_and(f64::is_finite) => Ok(()),
+        "string" if v.as_str().is_some_and(|s| s.len() <= limits::MAX_MEMORY_STRING) => Ok(()),
+        "vec3"
+            if v.as_array().is_some_and(|a| {
+                a.len() == 3 && a.iter().all(|n| n.as_f64().is_some_and(f64::is_finite))
+            }) =>
+        {
+            Ok(())
+        }
+        "block_pos"
+            if v.as_array().is_some_and(|a| {
+                a.len() == 3
+                    && a.iter()
+                        .all(|n| n.as_i64().is_some_and(|i| i32::try_from(i).is_ok()))
+            }) =>
+        {
+            Ok(())
+        }
+        "entity" => Err(format!("{what}: entity memories have no JSON literal value")),
+        _ => Err(bad()),
+    }
+}
+
 /// Whether a mob type file asks for the custom mob schema (its `template` is [`TEMPLATE`]).
 pub fn declares_custom(bytes: &[u8]) -> bool {
     serde_json::from_slice::<serde_json::Value>(bytes)
@@ -1072,9 +1314,15 @@ impl CustomMobFile {
 
     fn check_ai(&self) -> Result<(), String> {
         one_of("ai.navigator", &self.ai.navigator, &NAVIGATORS)?;
+        let activity_goal_count: usize = self
+            .ai
+            .activities
+            .values()
+            .map(|a| a.goals.len() + a.targets.len())
+            .sum();
         too_many(
             "ai goals, targets and script goals",
-            self.ai.goals.len() + self.ai.targets.len() + self.ai.script_goals.len(),
+            self.ai.goals.len() + self.ai.targets.len() + self.ai.script_goals.len() + activity_goal_count,
             limits::MAX_GOALS,
         )?;
         let mut script_ids = BTreeSet::new();
@@ -1097,7 +1345,7 @@ impl CustomMobFile {
                 return Err(format!("script goal {}: a flag is listed twice", g.id));
             }
         }
-        for g in self.ai.goals.iter().chain(&self.ai.targets) {
+        let check_goal = |g: &Goal| -> Result<(), String> {
             one_of("goal type", &g.kind, &GOAL_TYPES)?;
             if !(0..=32).contains(&g.priority) {
                 return Err(format!("goal {}: priority is 0 to 32", g.kind));
@@ -1111,6 +1359,150 @@ impl CustomMobFile {
                 }
             } else if g.id.is_some() {
                 return Err(format!("goal {}: id is for script goals", g.kind));
+            }
+            Ok(())
+        };
+        for g in self.ai.goals.iter().chain(&self.ai.targets) {
+            check_goal(g)?;
+            if let Some(act) = &g.activity
+                && !self.ai.activities.contains_key(act)
+            {
+                return Err(format!("goal {}: unknown activity {act:?}", g.kind));
+            }
+        }
+        self.check_brain(&check_goal)?;
+        Ok(())
+    }
+
+    fn check_brain(&self, check_goal: &dyn Fn(&Goal) -> Result<(), String>) -> Result<(), String> {
+        too_many("ai.memories", self.ai.memories.len(), limits::MAX_MEMORIES)?;
+        let mut memory_kinds: BTreeMap<String, String> = BTreeMap::new();
+        for (name, def) in &self.ai.memories {
+            if !is_name(name) {
+                return Err(format!("memory {name:?}: a name of up to 48 [A-Za-z0-9_.-]"));
+            }
+            one_of(&format!("memory {name} type"), &def.kind, &MEMORY_TYPES)?;
+            if let Some(ttl) = def.ttl
+                && !(1..=limits::MAX_MEMORY_TTL).contains(&ttl)
+            {
+                return Err(format!("memory {name}: ttl is 1 to {} ticks", limits::MAX_MEMORY_TTL));
+            }
+            if let Some(default) = &def.default {
+                check_memory_json(&format!("memory {name} default"), &def.kind, default)?;
+            }
+            memory_kinds.insert(name.clone(), def.kind.clone());
+        }
+        too_many("ai.sensors", self.ai.sensors.len(), limits::MAX_SENSORS)?;
+        for s in &self.ai.sensors {
+            one_of("sensor type", &s.kind, &SENSOR_TYPES)?;
+            if !(1..=2400).contains(&s.interval) {
+                return Err(format!("sensor {}: interval is 1 to 2400 ticks", s.kind));
+            }
+            if let Some(ttl) = s.ttl
+                && !(1..=limits::MAX_MEMORY_TTL).contains(&ttl)
+            {
+                return Err(format!("sensor {}: ttl is 1 to {} ticks", s.kind, limits::MAX_MEMORY_TTL));
+            }
+            if let Some(mem) = &s.memory
+                && !is_name(mem)
+            {
+                return Err(format!("sensor {} memory {mem:?}: invalid name", s.kind));
+            }
+            let target = s.resolved_memory_name().ok_or_else(|| format!("sensor {}: no memory name", s.kind))?;
+            if let Some(declared) = memory_kinds.get(target) {
+                if !s.accepts_memory_type(declared) {
+                    return Err(format!("sensor {} cannot write to memory {target:?} of type {declared}", s.kind));
+                }
+            } else if let Some(default_kind) = s.default_memory_type() {
+                memory_kinds.insert(target.to_owned(), default_kind.to_owned());
+            }
+            if let Some(r) = s.range {
+                finite_in(&format!("sensor {} range", s.kind), r, 1.0, 128.0)?;
+            }
+            if let Some(age) = s.max_age
+                && !(1..=limits::MAX_MEMORY_TTL).contains(&age)
+            {
+                return Err(format!("sensor {} max_age is 1 to {} ticks", s.kind, limits::MAX_MEMORY_TTL));
+            }
+            if let Some(rad) = s.radius
+                && !(1..=32).contains(&rad)
+            {
+                return Err(format!("sensor {} radius is 1 to 32", s.kind));
+            }
+            if let Some(vrad) = s.vertical_radius
+                && !(0..=16).contains(&vrad)
+            {
+                return Err(format!("sensor {} vertical_radius is 0 to 16", s.kind));
+            }
+            if s.kind == "blocks" && s.tag.as_deref().is_none_or(str::is_empty) && s.blocks.is_empty() {
+                return Err("sensor blocks needs tag or blocks".into());
+            }
+            if let Some(k) = &s.light_kind {
+                one_of("sensor light kind", k, &LIGHT_KINDS)?;
+            }
+        }
+        too_many("ai.activities", self.ai.activities.len(), limits::MAX_ACTIVITIES)?;
+        for (name, act) in &self.ai.activities {
+            if !is_name(name) {
+                return Err(format!("activity {name:?}: a name of up to 48 [A-Za-z0-9_.-]"));
+            }
+            if !(0..=32).contains(&act.priority) {
+                return Err(format!("activity {name}: priority is 0 to 32"));
+            }
+            for p in &act.when {
+                if !is_name(&p.memory) {
+                    return Err(format!("activity {name}: predicate memory {:?} is invalid", p.memory));
+                }
+                let kind = memory_kinds.get(&p.memory).ok_or_else(|| {
+                    format!("activity {name}: predicate names undeclared memory {:?}", p.memory)
+                })?;
+                let has_cmp = p.eq.is_some()
+                    || p.ne.is_some()
+                    || p.gt.is_some()
+                    || p.gte.is_some()
+                    || p.lt.is_some()
+                    || p.lte.is_some();
+                if p.present == Some(false) && has_cmp {
+                    return Err(format!("activity {name}: predicate on {} cannot combine present: false with comparisons", p.memory));
+                }
+                for v in [&p.eq, &p.ne].into_iter().flatten() {
+                    if kind == "entity" {
+                        return Err(format!("activity {name}: eq/ne is not supported on entity memory {}", p.memory));
+                    }
+                    check_memory_json(&format!("activity {name} predicate {}", p.memory), kind, v)?;
+                }
+                for bound in [p.gt, p.gte, p.lt, p.lte].into_iter().flatten() {
+                    if !matches!(kind.as_str(), "i32" | "f32") {
+                        return Err(format!("activity {name}: numeric comparison on non-numeric memory {} ({kind})", p.memory));
+                    }
+                    if !bound.is_finite() {
+                        return Err(format!("activity {name}: non-finite comparison on {}", p.memory));
+                    }
+                }
+            }
+            for g in act.goals.iter().chain(&act.targets) {
+                if g.activity.is_some() {
+                    return Err(format!("activity {name}: nested goal cannot also set activity"));
+                }
+                check_goal(g)?;
+            }
+        }
+        too_many("ai.schedule", self.ai.schedule.len(), limits::MAX_SCHEDULE_ENTRIES)?;
+        for entry in &self.ai.schedule {
+            if !(0..24000).contains(&entry.time) {
+                return Err(format!("ai.schedule time {} is 0 to 23999", entry.time));
+            }
+            match self.ai.activities.get(&entry.activity) {
+                None => return Err(format!("ai.schedule names unknown activity {:?}", entry.activity)),
+                Some(a) if a.core => return Err(format!("ai.schedule cannot select core activity {:?}", entry.activity)),
+                Some(_) => {}
+            }
+        }
+        if let Some(def) = &self.ai.default_activity {
+            match self.ai.activities.get(def) {
+                None => return Err(format!("ai.default_activity names unknown activity {def:?}")),
+                Some(a) if a.core => return Err(format!("ai.default_activity cannot be core activity {def:?}")),
+                Some(_) => {}
             }
         }
         Ok(())
@@ -1921,6 +2313,78 @@ mod tests {
             let id = b["id"].as_u64().unwrap() as u32;
             // ids past the sentinel are new bindings the generator handed out after the range (max + 1)
             assert!(!(BINDING_FIRST..BINDING_LAST).contains(&id), "binding id {id} is reserved");
+        }
+    }
+
+    /// F4M-4b: brain memories, sensors, activities and schedule are validated.
+    #[test]
+    fn brain_memories_sensors_activities_and_schedule_are_validated() {
+        use serde_json::json;
+        let ok = with(|v| {
+            v["ai"]["memories"] = json!({
+                "alert": {"type": "bool", "default": false, "persistent": true, "ttl": 100},
+                "home_pos": {"type": "block_pos", "default": [1, 64, -2]},
+                "light_level": {"type": "i32"}
+            });
+            v["ai"]["sensors"] = json!([
+                {"type": "nearest_players", "interval": 10, "range": 12.0, "must_see": true},
+                {"type": "nearest_living", "interval": 20, "types": ["minecraft:chicken"], "memory": "prey"},
+                {"type": "hurt_by", "interval": 5, "ttl": 80},
+                {"type": "blocks", "interval": 40, "tag": "minecraft:beds", "radius": 8},
+                {"type": "light", "interval": 20, "kind": "combined", "memory": "light_level"}
+            ]);
+            v["ai"]["activities"] = json!({
+                "fight": {
+                    "priority": 1,
+                    "when": [{"memory": "hurt_by", "present": true}],
+                    "goals": [{"type": "melee_attack", "priority": 2, "speed": 1.2}]
+                },
+                "rest": {
+                    "priority": 5,
+                    "when": [{"memory": "light_level", "lte": 7}],
+                    "goals": [{"type": "look_at_player", "priority": 4}]
+                },
+                "idle": {
+                    "priority": 8,
+                    "goals": [{"type": "wander", "priority": 5, "speed": 1.0}]
+                }
+            });
+            v["ai"]["schedule"] = json!([
+                {"time": 0, "activity": "idle"},
+                {"time": 12000, "activity": "rest"}
+            ]);
+            v["ai"]["default_activity"] = json!("idle");
+        })
+        .unwrap();
+        assert_eq!(ok.ai.memories.len(), 3);
+        assert_eq!(ok.ai.sensors.len(), 5);
+        assert_eq!(ok.ai.activities.len(), 3);
+        assert_eq!(ok.ai.schedule.len(), 2);
+
+        for (what, edit) in [
+            ("bad memory type", Box::new(|v: &mut serde_json::Value| v["ai"]["memories"] = json!({"x": {"type": "uuid"}})) as Box<dyn FnOnce(&mut serde_json::Value)>),
+            ("bad memory default", Box::new(|v| v["ai"]["memories"] = json!({"x": {"type": "i32", "default": "hi"}}))),
+            ("sensor wrong memory type", Box::new(|v| {
+                v["ai"]["memories"] = json!({"light_level": {"type": "string"}});
+                v["ai"]["sensors"] = json!([{"type": "light", "memory": "light_level"}]);
+            })),
+            ("blocks sensor without tag or blocks", Box::new(|v| v["ai"]["sensors"] = json!([{"type": "blocks"}]))),
+            ("predicate undeclared memory", Box::new(|v| v["ai"]["activities"] = json!({"a": {"when": [{"memory": "missing"}]}}))),
+            ("predicate numeric on bool", Box::new(|v| {
+                v["ai"]["memories"] = json!({"b": {"type": "bool"}});
+                v["ai"]["activities"] = json!({"a": {"when": [{"memory": "b", "gt": 1}]}});
+            })),
+            ("schedule unknown activity", Box::new(|v| v["ai"]["schedule"] = json!([{"time": 0, "activity": "nope"}]))),
+            ("schedule time out of range", Box::new(|v| {
+                v["ai"]["activities"] = json!({"idle": {}});
+                v["ai"]["schedule"] = json!([{"time": 24000, "activity": "idle"}]);
+            })),
+            ("default_activity core", Box::new(|v| {
+                v["ai"]["activities"] = json!({"c": {"core": true}});
+                v["ai"]["default_activity"] = json!("c");
+            })),
+        ] {
+            assert!(with(edit).is_err(), "{what}");
         }
     }
 }

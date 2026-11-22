@@ -29,15 +29,18 @@ use horizon_mods::custom_mob::{CustomMobFile, Goal as GoalDef};
 
 pub mod attacks;
 pub mod blocks;
+pub mod brain;
 pub mod breed;
 pub mod budget;
 pub mod expr;
 pub mod goals;
 pub mod interact;
+pub mod memory;
 pub mod nav_select;
 pub mod rest;
-pub mod script_goal;
 pub mod riding;
+pub mod script_goal;
+pub mod sensors;
 pub mod tame;
 pub mod targets;
 
@@ -74,7 +77,18 @@ pub fn support(kind: &str) -> Support {
 /// The goals and targets of `file` this version does not run, with the reason.
 pub fn unsupported(file: &CustomMobFile) -> Vec<(String, &'static str)> {
     let mut out = Vec::new();
-    for g in file.ai.goals.iter().chain(&file.ai.targets) {
+    let activity_goals = file
+        .ai
+        .activities
+        .values()
+        .flat_map(|a| a.goals.iter().chain(&a.targets));
+    for g in file
+        .ai
+        .goals
+        .iter()
+        .chain(&file.ai.targets)
+        .chain(activity_goals)
+    {
         if let Support::Deferred(why) = support(&g.kind)
             && !out.iter().any(|(k, _): &(String, _)| *k == g.kind)
         {
@@ -84,20 +98,45 @@ pub fn unsupported(file: &CustomMobFile) -> Vec<(String, &'static str)> {
     out
 }
 
+fn attach_row(m: &mut Mob, t: &CustomType, g: &GoalDef) {
+    let _ = goals::add(m, g)
+        || attacks::add(m, g)
+        || rest::add(m, t, g)
+        || blocks::add(m, g)
+        || script_goal::add(m, t, g)
+        || tame::add(m, g)
+        || breed::add(m, t, g)
+        || targets::add(m, g);
+}
+
 /// Gives the mob its navigator, goals and targets from the type's file. Goals go to the goal
 /// selector and target selectors to the target selector by their *type*, whichever array
 /// of the file names them (`call_for_help` is a target selector wherever it is written).
 pub fn attach(m: &mut Mob, t: &CustomType) {
     nav_select::apply(m, &t.file.ai.navigator);
     for g in t.file.ai.goals.iter().chain(&t.file.ai.targets) {
-        let _ = goals::add(m, g)
-            || attacks::add(m, g)
-            || rest::add(m, t, g)
-            || blocks::add(m, g)
-            || script_goal::add(m, t, g)
-            || tame::add(m, g)
-            || breed::add(m, t, g)
-            || targets::add(m, g);
+        if let Some(act) = &g.activity {
+            let act: std::sync::Arc<str> = std::sync::Arc::from(act.as_str());
+            let g_start = m.ai.goals.len();
+            let t_start = m.ai.targets.len();
+            attach_row(m, t, g);
+            m.ai.goals.wrap_from(g_start, |inner| Box::new(brain::ActivityGoal::new(act.clone(), inner)));
+            m.ai.targets.wrap_from(t_start, |inner| Box::new(brain::ActivityGoal::new(act.clone(), inner)));
+        } else {
+            attach_row(m, t, g);
+        }
+    }
+    if let Some(brain_def) = &t.brain {
+        for act in &brain_def.activities {
+            let name: std::sync::Arc<str> = std::sync::Arc::from(act.name.as_str());
+            for g in act.goals.iter().chain(&act.targets) {
+                let g_start = m.ai.goals.len();
+                let t_start = m.ai.targets.len();
+                attach_row(m, t, g);
+                m.ai.goals.wrap_from(g_start, |inner| Box::new(brain::ActivityGoal::new(name.clone(), inner)));
+                m.ai.targets.wrap_from(t_start, |inner| Box::new(brain::ActivityGoal::new(name.clone(), inner)));
+            }
+        }
     }
     tame::add_defaults(m, t);
 }
@@ -223,3 +262,5 @@ mod tests_4c;
 mod tests_script;
 #[cfg(test)]
 mod tests_4d;
+#[cfg(test)]
+mod tests_4b;

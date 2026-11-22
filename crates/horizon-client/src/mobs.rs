@@ -3516,10 +3516,14 @@ impl Mob {
             custom::anim_sync::tick(self, w);
             // F4M-4c: the growth and breeding pause of a `breedable` type.
             custom::ai::breed::tick(self, Some(w));
+            // F4M-4b: expire outdated memories and tick due sensors before scripts read them.
+            custom::ai::brain::tick_pre(self, w);
             // F4M-10: what the WASM scripts of the mob are told (nothing without a runtime).
             if !custom::script::pre_tick(self, w, events) {
                 return false;
             }
+            // F4M-4b: switch active activity after sensors and script updates, before goals.
+            custom::ai::brain::update_activity(self, w);
             custom::ai::attacks::tick_pending(self, w, level_random, events);
         }
         ai::tick(self, w, level_random, events)
@@ -5451,6 +5455,18 @@ pub mod mob_hook_bench {
         pub fn set_tag(&mut self, tag: &str, blocks: &[&str]) {
             self.block_tags
                 .insert(tag.to_owned(), blocks.iter().map(|b| (*b).to_owned()).collect());
+        }
+
+        /// Sets uniform sky and block light in the section holding `(x, y, z)`.
+        #[yoake_hook(skip = "benchmark helper")]
+        pub fn set_light(&mut self, x: i32, y: i32, z: i32, sky: u8, block: u8) {
+            if let Some(chunk) = self.world.chunks.get_mut(&(x >> 4, z >> 4)) {
+                let chunk = Arc::make_mut(chunk);
+                if let Some(s) = chunk.section_index(y) {
+                    let sec = Arc::make_mut(&mut chunk.sections[s]);
+                    sec.light = crate::chunk::Light::Uniform((sky & 15) << 4 | (block & 15));
+                }
+            }
         }
 
         #[yoake_hook(skip = "benchmark helper")]
