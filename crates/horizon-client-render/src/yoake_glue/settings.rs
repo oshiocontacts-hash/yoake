@@ -1280,6 +1280,37 @@ pub mod yoake_glue {
         }
     }
 
+    fn enc_horizon_protocol__packets__configuration__ClientInformation(v: &horizon_protocol::packets::configuration::ClientInformation, out: &mut Vec<u8>) {
+        Encode::encode(&v.language, out);
+        Encode::encode(&v.view_distance, out);
+        Encode::encode(&v.chat_visibility, out);
+        Encode::encode(&v.chat_colors, out);
+        Encode::encode(&v.model_customisation, out);
+        Encode::encode(&v.main_hand, out);
+        Encode::encode(&v.text_filtering, out);
+        Encode::encode(&v.allows_listing, out);
+        Encode::encode(&v.particle_status, out);
+    }
+    fn dec_horizon_protocol__packets__configuration__ClientInformation(d: &mut Decoder<'_>) -> Result<horizon_protocol::packets::configuration::ClientInformation, CallError> {
+        d.enter()?;
+        let r = dec_horizon_protocol__packets__configuration__ClientInformation_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_protocol__packets__configuration__ClientInformation_body(d: &mut Decoder<'_>) -> Result<horizon_protocol::packets::configuration::ClientInformation, CallError> {
+        Ok(horizon_protocol::packets::configuration::ClientInformation {
+            language: <String as Decode>::decode(d)?,
+            view_distance: <i8 as Decode>::decode(d)?,
+            chat_visibility: <i32 as Decode>::decode(d)?,
+            chat_colors: <bool as Decode>::decode(d)?,
+            model_customisation: <u8 as Decode>::decode(d)?,
+            main_hand: <i32 as Decode>::decode(d)?,
+            text_filtering: <bool as Decode>::decode(d)?,
+            allows_listing: <bool as Decode>::decode(d)?,
+            particle_status: <i32 as Decode>::decode(d)?,
+        })
+    }
+
     /// `render_settings::<Opt as Clone>::clone`
     fn call_2542(recv: &crate::settings::Opt, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
         let mut dec = Decoder::new(args);
@@ -2142,6 +2173,17 @@ pub mod yoake_glue {
         Ok(())
     }
 
+    /// `render_settings::Settings::client_information`
+    fn call_2893(recv: &crate::settings::Settings, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        let mut a0 = <i8 as Decode>::decode(d)?;
+        d.finish()?;
+        let r = <crate::settings::Settings>::client_information(recv, a0);
+        enc_horizon_protocol__packets__configuration__ClientInformation(&r, out);
+        Ok(())
+    }
+
     /// Scalar fields of `crate::settings::Settings` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__settings__Settings: FieldTable<crate::settings::Settings> = FieldTable {
         get: |t, f| match f {
@@ -2438,6 +2480,7 @@ pub mod yoake_glue {
         (2694, "render_settings::set_source_volumes"),
         (2695, "render_settings::sound_source"),
         (2696, "render_settings::source_volume"),
+        (2893, "render_settings::Settings::client_information"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -2600,6 +2643,7 @@ pub mod yoake_glue {
             2694 => call_2694(args, out),
             2695 => call_2695(args, out),
             2696 => call_2696(args, out),
+            2893 => activation::with_arg_shared::<crate::settings::Settings, _>(handle, |recv| call_2893(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {

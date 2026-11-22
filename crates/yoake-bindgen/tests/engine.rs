@@ -41,7 +41,7 @@ fn checked_in_glue_is_current_and_compiles_in_the_engine() {
     }
 
     // 1. rustdoc JSON with the feature off (the glue must not see itself)
-    for krate in ["horizon-client-lib", "horizon-client", "horizon-items", "horizon-core", "horizon-world", "horizon-client-core"] {
+    for krate in ["horizon-client-lib", "horizon-client", "horizon-items", "horizon-core", "horizon-world", "horizon-client-core", "horizon-client-render", "horizon-protocol", "horizon-command"] {
         let out = cargo(
             &root,
             &["rustdoc", "--offline", "-j", "4", "-p", krate, "--lib", "--", "-Z", "unstable-options", "--output-format", "json", "--document-private-items"],

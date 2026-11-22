@@ -35,7 +35,7 @@
     "derived": 57,
     "derived_bound": 24,
     "fields_total": 453,
-    "fields_bound": 369,
+    "fields_bound": 370,
     "handle_types": 22
   },
   {
@@ -94,8 +94,8 @@
     "label": "render_settings",
     "total": 26,
     "bound_a": 8,
-    "bound_mech": 3,
-    "handle_required": 15,
+    "bound_mech": 4,
+    "handle_required": 14,
     "excluded": 0,
     "derived": 5,
     "derived_bound": 2,
@@ -115,5 +115,18 @@
     "fields_total": 21,
     "fields_bound": 11,
     "handle_types": 4
+  },
+  {
+    "label": "launch_options",
+    "total": 3,
+    "bound_a": 1,
+    "bound_mech": 0,
+    "handle_required": 0,
+    "excluded": 2,
+    "derived": 1,
+    "derived_bound": 0,
+    "fields_total": 42,
+    "fields_bound": 32,
+    "handle_types": 1
   }
 ]

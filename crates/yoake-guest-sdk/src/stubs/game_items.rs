@@ -99,3 +99,10 @@ pub fn game_items_game_world_handle(root: Handle) -> Result<Handle, Error> {
     Ok(Handle(crate::decode::<u64>(&result)?))
 }
 
+/// `game_items::Game.options#handle`: a path handle to the `horizon_client::game::launch_options::Options`, valid inside this activation.
+pub fn game_items_game_options_handle(root: Handle) -> Result<Handle, Error> {
+    let args: Vec<u8> = Vec::new();
+    let result = call(root, 2825, &args)?;
+    Ok(Handle(crate::decode::<u64>(&result)?))
+}
+

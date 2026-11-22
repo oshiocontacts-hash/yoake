@@ -303,6 +303,18 @@ pub mod types {
         TextureFiltering,
         MaxAnisotropy,
     }
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct ClientInformation {
+        pub language: String,
+        pub view_distance: i8,
+        pub chat_visibility: i32,
+        pub chat_colors: bool,
+        pub model_customisation: u8,
+        pub main_hand: i32,
+        pub text_filtering: bool,
+        pub allows_listing: bool,
+        pub particle_status: i32,
+    }
 }
 
     fn enc_crate__bluemap__Server(v: &types::Server, out: &mut Vec<u8>) {
@@ -1570,6 +1582,37 @@ pub mod types {
         }
     }
 
+    fn enc_horizon_protocol__packets__configuration__ClientInformation(v: &types::ClientInformation, out: &mut Vec<u8>) {
+        Encode::encode(&v.language, out);
+        Encode::encode(&v.view_distance, out);
+        Encode::encode(&v.chat_visibility, out);
+        Encode::encode(&v.chat_colors, out);
+        Encode::encode(&v.model_customisation, out);
+        Encode::encode(&v.main_hand, out);
+        Encode::encode(&v.text_filtering, out);
+        Encode::encode(&v.allows_listing, out);
+        Encode::encode(&v.particle_status, out);
+    }
+    fn dec_horizon_protocol__packets__configuration__ClientInformation(d: &mut Decoder<'_>) -> Result<types::ClientInformation, CallError> {
+        d.enter()?;
+        let r = dec_horizon_protocol__packets__configuration__ClientInformation_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_protocol__packets__configuration__ClientInformation_body(d: &mut Decoder<'_>) -> Result<types::ClientInformation, CallError> {
+        Ok(types::ClientInformation {
+            language: <String as Decode>::decode(d)?,
+            view_distance: <i8 as Decode>::decode(d)?,
+            chat_visibility: <i32 as Decode>::decode(d)?,
+            chat_colors: <bool as Decode>::decode(d)?,
+            model_customisation: <u8 as Decode>::decode(d)?,
+            main_hand: <i32 as Decode>::decode(d)?,
+            text_filtering: <bool as Decode>::decode(d)?,
+            allows_listing: <bool as Decode>::decode(d)?,
+            particle_status: <i32 as Decode>::decode(d)?,
+        })
+    }
+
 /// `render_settings::<Opt as Clone>::clone`
 pub fn render_settings_opt_as_clone_clone(h: Handle) -> Result<types::Opt, Error> {
     let mut args: Vec<u8> = Vec::new();
@@ -2733,6 +2776,24 @@ pub fn render_settings_source_volume(a0: usize) -> Result<f32, Error> {
     let value = (|| -> Result<f32, CallError> {
         let d = &mut dec;
         let value = <f32 as Decode>::decode(d)?;
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `render_settings::Settings::client_information`
+pub fn render_settings_settings_client_information(h: Handle, a0: i8) -> Result<types::ClientInformation, Error> {
+    let mut args: Vec<u8> = Vec::new();
+    {
+        let out = &mut args;
+        Encode::encode(&a0, out);
+    }
+    let result = call(h, 2893, &args)?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<types::ClientInformation, CallError> {
+        let d = &mut dec;
+        let value = dec_horizon_protocol__packets__configuration__ClientInformation(d)?;
         d.finish()?;
         Ok(value)
     })()?;

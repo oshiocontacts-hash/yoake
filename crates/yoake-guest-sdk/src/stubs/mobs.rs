@@ -653,6 +653,22 @@ pub mod types {
         pub z: f64,
     }
     #[derive(Clone, Debug, PartialEq)]
+    pub struct Profile {
+        pub name: Option<String>,
+        pub uuid: Option<u128>,
+        pub properties: Vec<types::Property>,
+        pub body: Option<String>,
+        pub cape: Option<String>,
+        pub elytra: Option<String>,
+        pub slim: Option<bool>,
+    }
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct Property {
+        pub name: String,
+        pub value: String,
+        pub signature: Option<String>,
+    }
+    #[derive(Clone, Debug, PartialEq)]
     pub struct JavaString(pub Vec<u16>);
     #[derive(Clone, Debug, PartialEq)]
     pub enum Tag {
@@ -3743,6 +3759,135 @@ pub mod types {
             x: <f64 as Decode>::decode(d)?,
             y: <f64 as Decode>::decode(d)?,
             z: <f64 as Decode>::decode(d)?,
+        })
+    }
+
+    fn enc_horizon_protocol__entity_data__Profile(v: &types::Profile, out: &mut Vec<u8>) {
+        match &v.name {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        match &v.uuid {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        {
+            let s0 = &v.properties;
+            codec::enc_len(s0.len(), out);
+            for e0 in s0.iter() {
+                enc_horizon_protocol__packets__login__Property(e0, out);
+            }
+        }
+        match &v.body {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        match &v.cape {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        match &v.elytra {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+        match &v.slim {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+    }
+    fn dec_horizon_protocol__entity_data__Profile(d: &mut Decoder<'_>) -> Result<types::Profile, CallError> {
+        d.enter()?;
+        let r = dec_horizon_protocol__entity_data__Profile_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_protocol__entity_data__Profile_body(d: &mut Decoder<'_>) -> Result<types::Profile, CallError> {
+        Ok(types::Profile {
+            name: match d.tag()? {
+                0 => None,
+                1 => Some(<String as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            uuid: match d.tag()? {
+                0 => None,
+                1 => Some(<u128 as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            properties: {
+                let n0 = d.vec_len()?;
+                let mut v0 = Decoder::vec_with(n0);
+                for _ in 0..n0 {
+                    v0.push(dec_horizon_protocol__packets__login__Property(d)?);
+                }
+                v0
+            },
+            body: match d.tag()? {
+                0 => None,
+                1 => Some(<String as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            cape: match d.tag()? {
+                0 => None,
+                1 => Some(<String as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            elytra: match d.tag()? {
+                0 => None,
+                1 => Some(<String as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+            slim: match d.tag()? {
+                0 => None,
+                1 => Some(<bool as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
+        })
+    }
+
+    fn enc_horizon_protocol__packets__login__Property(v: &types::Property, out: &mut Vec<u8>) {
+        Encode::encode(&v.name, out);
+        Encode::encode(&v.value, out);
+        match &v.signature {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                Encode::encode(v0, out);
+            }
+        }
+    }
+    fn dec_horizon_protocol__packets__login__Property(d: &mut Decoder<'_>) -> Result<types::Property, CallError> {
+        d.enter()?;
+        let r = dec_horizon_protocol__packets__login__Property_body(d);
+        d.leave();
+        r
+    }
+    fn dec_horizon_protocol__packets__login__Property_body(d: &mut Decoder<'_>) -> Result<types::Property, CallError> {
+        Ok(types::Property {
+            name: <String as Decode>::decode(d)?,
+            value: <String as Decode>::decode(d)?,
+            signature: match d.tag()? {
+                0 => None,
+                1 => Some(<String as Decode>::decode(d)?),
+                t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+            },
         })
     }
 
@@ -11729,6 +11874,23 @@ pub fn mobs_extra_effect_particles_get(h: Handle) -> Result<Vec<types::ParticleO
                 v0.push(dec_horizon_client_render__particles__ParticleOptions(d)?);
             }
             v0
+        };
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::Mob.profile#get`
+pub fn mobs_mob_profile_get(h: Handle) -> Result<Option<types::Profile>, Error> {
+    let result = call(h, 2891, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<Option<types::Profile>, CallError> {
+        let d = &mut dec;
+        let value = match d.tag()? {
+            0 => None,
+            1 => Some(dec_horizon_protocol__entity_data__Profile(d)?),
+            t => return Err(CallError::InvalidTag("Option", u32::from(t))),
         };
         d.finish()?;
         Ok(value)

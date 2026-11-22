@@ -9,7 +9,7 @@
 | `render_settings::<Settings as Debug>::fmt` | 100 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
 | `render_settings::<Settings as Default>::default` | 216 | - | handle-required | external type `horizon_client_input::keybinds::KeyBinds` (crate not loaded) [return value] |
 | `render_settings::Settings::chat_options` | 716 | &self | bound (b, mechanical) | - |
-| `render_settings::Settings::client_information` | 515 | &self | handle-required | external type `horizon_protocol::packets::configuration::ClientInformation` (crate not loaded) [return value] |
+| `render_settings::Settings::client_information` | 515 | &self | bound (b, mechanical) | - |
 | `render_settings::Settings::describe_for_crashes` | 380 | &self | bound (a) | - |
 | `render_settings::Settings::final_volume` | 692 | &self | bound (a) | - |
 | `render_settings::Settings::from_file` | 420 | - | handle-required | external type `horizon_client_input::keybinds::KeyBinds` (crate not loaded) [return value]; field `values` of `OptionsFile` is private to another module |
