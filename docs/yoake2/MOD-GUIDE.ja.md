@@ -499,6 +499,53 @@ host_filesystem = false               # 省略できます
 
 サンドボックスの MOD のサービス呼び出し（`config`・`permissions`・`storage`）は、`[wasm] permissions` がなくても使えます。古い MOD が読み込めるように、この項目は今も読み取ります。`service.commands`・`service.chat`・`service.gpu` の意味は変わりません。`service.http` はマニフェストでは受け付けていましたが、通信の部分はつながっていませんでした。HTTP はワーカーの `wasi:http` を使ってください。
 
+## 17. カスタム Mob と brain オプション (F4M-4b)
+
+カスタム Mob（`data/<id>/horizon/entity_type/<name>.json`、`"template": "yoake:mob"`）は、素の `ai.goals` / `ai.targets` だけでなく、**brain オプション**（`ai.memories`、`ai.sensors`、`ai.activities`、`ai.schedule`、`ai.default_activity`）を宣言できます。これらの brain フィールドを持たない Mob では、従来のゴールがそのまま変わらぬ挙動で動きます。
+
+### メモリ (`ai.memories`)
+
+1 型につき最大 64 個の型付きメモリスロットを宣言できます。
+
+| `type` | JSON の `default` | 備考 |
+|---|---|---|
+| `bool` | `true` / `false` | |
+| `i32` | 整数 | |
+| `f32` | 有限の浮動小数 | |
+| `string` | 文字列 | 最大 256 バイト |
+| `vec3` | `[x, y, z]` | 有限の浮動小数 3 要素 |
+| `block_pos` | `[x, y, z]` | 整数のブロック座標 |
+| `entity` | — | 実行時の Mob ID またはプレイヤー UUID（JSON リテラルなし） |
+
+各定義には `"default"`、`"persistent": true|false`（エンティティ NBT の `yoake.memories.<name>` に保存され、別の MOD バージョンが残した未知キーは保持されます）、`"ttl": 1..=72000`（書き込み時に明示しない場合のデフォルト期限 tick 数）を指定できます。
+
+### センサー (`ai.sensors`)
+
+1 型につき最大 32 個の宣言型センサーを置けます（`interval` は 1〜2400 tick、既定 20、任意の `memory` と `ttl`）。
+
+- `nearest_players`（`range`、`must_see`、`ignore_creative`）→ `entity` を書き込みます（既定キー `nearest_player`）。
+- `nearest_living`（`types`、`range`、`must_see`）→ `entity` を書き込みます（既定キー `nearest_living`）。
+- `hurt_by`（`max_age`）→ `entity` または `bool` を書き込みます（既定キー `hurt_by`）。
+- `blocks`（`tag` および／または `blocks`、`radius` 1〜32、`vertical_radius` 0〜16）→ `block_pos` または `vec3` を書き込みます（既定キー `nearest_block`）。
+- `light`（`kind`: `combined` | `sky` | `block`）→ `i32`・`f32`・`bool` のいずれかを書き込みます（既定キー `light_level`）。
+
+### アクティビティとスケジュール (`ai.activities`, `ai.schedule`, `ai.default_activity`)
+
+- アクティビティ（`priority` 0〜32・既定 5・**小さい数値が優先**、`core`: 真偽値）には、条件 `when` と `goals` / `targets` を置けます（トップレベルのゴールに `"activity": "<name>"` を付ける書き方も可能です）。
+- `core: true` のアクティビティは、`when` が満たされているあいだ、現在選ばれている非 core アクティビティと並行して動きます。
+- `when` の条件はメモリ 1 つを判定します（`present: bool`、`eq`、`ne`、および `i32`/`f32` に対する数値比較 `gt`/`gte`/`lt`/`lte`）。
+- 同じ `priority` の場合、`when` 条件で有効になるアクティビティがスケジュールのみ（`when` が空）のアクティビティより優先されます。
+- `ai.schedule` には `{"time": 0..24000, "activity": "<name>"}` を並べます（`day_time % 24000` で判定）。どの条件付き／スケジュール済みアクティビティも選ばれない場合は `ai.default_activity`（なければ存在する場合の `"idle"`）が使われます。
+
+### スクリプトからのアクセス (`service.mobs`)
+
+`[wasm] permissions = ["service.mobs"]`（`crates/yoake-wasm-sdk`、`full::server::mobs`）を持つサーバーモジュールは、宣言された brain メモリを読み書きできます。
+
+- `mobs::memory_get(entity, key) -> Result<Option<MobMemoryValue>, String>`（サービス 287: `mob-memory-get`）。
+- `mobs::memory_set(entity, key, value: Option<MobMemoryValue>, ttl_ticks: Option<u32>) -> Result<(), String>`（サービス 288: `mob-memory-set`。`value = None` で消去、`ttl_ticks = None` でメモリの既定 `ttl` または無期限）。
+- 値コンストラクタ: `mobs::memory_bool`、`memory_i32`、`memory_f32`、`memory_string`、`memory_vec3`、`memory_block_pos`、`memory_entity_mob`、`memory_entity_player`。
+- 例: `crates/yoake-wasm-sdk/examples/fox_ai` と `tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json`。
+
 ## 要確認（確かめられていないこと）
 
 1. **クライアント側モジュール** はマージ済み（MX3CL1）で、ローダーを通したテストはしてあります。ただし、実際に動いているゲームのクライアントでは試していません。本物のウィンドウや HUD に対して、クライアント側モジュールを動かしたことはありません。

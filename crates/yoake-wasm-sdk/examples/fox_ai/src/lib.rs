@@ -33,6 +33,9 @@ impl ServerMod for Fox {
         }
         let Ok(Some(i)) = mobs::info(mob) else { return false };
         let (true, true, Some(t)) = (goal == "pounce", i.on_ground && i.target_visible, i.target_position) else { return false };
+        if matches!(mobs::memory_get(mob, "pounced"), Ok(Some(v)) if v.bool_value) {
+            return false;
+        }
         (3.0..=6.0).contains(&dist(&i.position, &t))
     }
     fn mob_goal_can_continue(&mut self, mob: u32, goal: String) -> bool {
@@ -44,6 +47,7 @@ impl ServerMod for Fox {
         }
         self.pouncing.retain(|(m, _)| *m != mob);
         self.pouncing.push((mob, 0));
+        let _ = mobs::memory_set(mob, "pounced", Some(mobs::memory_bool(true)), Some(40));
         let _ = mobs::navigate_stop(mob);
         if let Ok(Some(Vec3 { x, y, z })) = mobs::info(mob).map(|i| i.and_then(|i| i.target_position)) {
             let _ = mobs::look_at(mob, Vec3 { x, y, z }, 60.0, 60.0);

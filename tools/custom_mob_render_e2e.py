@@ -52,6 +52,7 @@ ANIM = 'content/assets/sample_mobs/animations/cinder_fox.animation.json'
 TYPE = 'content/data/sample_mobs/horizon/entity_type/cinder_fox.json'
 
 SERVER_FRAME = re.compile(r'Horizon custom-mob server frame: mob (\d+) "(\w+)" tick (\d+)')
+BRAIN_SWITCH = re.compile(r'Horizon custom-mob brain: mob (\d+) activity (.*?) -> (.*?) tick (\d+)')
 EVENTS = re.compile(r'Horizon custom-mob events: mob (\d+) tick (\d+) count (\d+)')
 SOUND = re.compile(r'Horizon custom-mob sound: mob (\d+) (\S+) at')
 PARTICLE = re.compile(r'Horizon custom-mob particle: mob (\d+) (\S+) at')
@@ -253,6 +254,22 @@ def run(ctl, out, shots, resources, wasm=None):
         named_ok = not any('←' in line for line in named.get('chat', []))  # the parser marks the error position with an arrow
         results['name'] = {'pass': named_ok and Path(tag).stat().st_size > 5000, 'detail': {
             'data_merge_reply': named, 'png': saved['nametag'], 'note': 'the tag is judged by looking at the PNG (a pixel check cannot tell text)'}}
+
+        # brain: nearest_living sensor detects a chicken -> `prey_nearby` -> activity switches idle -> hunt -> idle.
+        host('command', command='kill @e[type=minecraft:chicken]')
+        host('command', command=f'summon {FOX} {hx + 0.5} {hy} {hz - 6.5}')
+        host.wait(15)
+        mark_b = len(log_of(host))
+        host('command', command=f'summon minecraft:chicken {hx + 3.5} {hy} {hz - 6.5}')
+        host.wait(15)
+        host('command', command='kill @e[type=minecraft:chicken]')
+        host.wait(15)
+        b_switches = [(m.group(2), m.group(3)) for m in BRAIN_SWITCH.finditer(log_of(host)[mark_b:])]
+        clear_foxes(host)
+        results['brain'] = {
+            'pass': ('Some("idle")', 'Some("hunt")') in b_switches and ('Some("hunt")', 'Some("idle")') in b_switches,
+            'detail': {'switches': b_switches},
+        }
 
         if wasm is None:
             # strike-mob: a fox next to a chicken (creative host: no player target): the blow lands on the chicken.

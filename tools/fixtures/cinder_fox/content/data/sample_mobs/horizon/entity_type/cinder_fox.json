@@ -37,6 +37,26 @@
   },
   "ai": {
     "navigator": "ground",
+    "memories": {
+      "prey_nearby": { "type": "entity" },
+      "pounced": { "type": "bool" }
+    },
+    "sensors": [
+      { "type": "nearest_living", "memory": "prey_nearby", "types": ["minecraft:chicken"], "interval": 10, "range": 12.0, "must_see": true }
+    ],
+    "default_activity": "idle",
+    "activities": {
+      "hunt": {
+        "priority": 2,
+        "when": [{ "memory": "prey_nearby", "present": true }],
+        "goals": [
+          { "type": "look_at_target", "priority": 4, "range": 12.0 }
+        ]
+      },
+      "idle": {
+        "priority": 5
+      }
+    },
     "goals": [
       { "type": "swim", "priority": 0 },
       { "type": "script", "id": "pounce", "priority": 2 },

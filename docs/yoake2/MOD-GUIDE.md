@@ -691,6 +691,59 @@ The WebAssembly services stay on the frozen enum-free side: `current_level(playe
 
 Generator safety. A mod generator that does not answer (module busy, trapped, over its per-call limit) is tried once more about a tick later. If that fails too, the chunk is left as the generator wrote it, marked not generated, and never saved: it is generated again the next time it loads. The first block anyone writes into it clears the mark, so a build in such a chunk is kept.
 
+## 17. Custom mobs and the brain option (F4M-4b)
+
+Custom mobs (`data/<id>/horizon/entity_type/<name>.json`, `"template": "yoake:mob"`) can declare plain `ai.goals` /
+`ai.targets`, or add the **brain option** (`ai.memories`, `ai.sensors`, `ai.activities`, `ai.schedule`,
+`ai.default_activity`). Mobs with none of those brain fields run plain goals unchanged.
+
+### Memories (`ai.memories`)
+
+Up to 64 typed memory slots per type:
+
+| `type` | JSON `default` | Notes |
+|---|---|---|
+| `bool` | `true` / `false` | |
+| `i32` | integer | |
+| `f32` | finite float | |
+| `string` | string | max 256 bytes |
+| `vec3` | `[x, y, z]` | finite floats |
+| `block_pos` | `[x, y, z]` | integer block coordinates |
+| `entity` | — | runtime mob id or player UUID; no JSON literal |
+
+Each entry accepts `"default"`, `"persistent": true|false` (saved under `yoake.memories.<name>` in entity NBT; unknown
+keys from other mod versions are preserved), and `"ttl": 1..=72000` (default expiry in ticks when written).
+
+### Sensors (`ai.sensors`)
+
+Up to 32 declarative sensors per type (`interval` 1..=2400 ticks, default 20; optional `memory` and `ttl`):
+
+- `nearest_players` (`range`, `must_see`, `ignore_creative`) -> writes `entity` (default key `nearest_player`).
+- `nearest_living` (`types`, `range`, `must_see`) -> writes `entity` (default key `nearest_living`).
+- `hurt_by` (`max_age`) -> writes `entity` or `bool` (default key `hurt_by`).
+- `blocks` (`tag` and/or `blocks`, `radius` 1..=32, `vertical_radius` 0..=16) -> writes `block_pos` or `vec3` (default key `nearest_block`).
+- `light` (`kind`: `combined` | `sky` | `block`) -> writes `i32`, `f32`, or `bool` (default key `light_level`).
+
+### Activities and schedule (`ai.activities`, `ai.schedule`, `ai.default_activity`)
+
+- An activity (`priority` 0..=32, default 5, **lower number wins**; `core`: boolean) holds `when` predicates plus
+  `goals` and `targets` (or top-level goals can set `"activity": "<name>"`).
+- Every `core: true` activity whose `when` passes runs alongside the active non-core activity.
+- Predicates in `when` test one memory (`present: bool`, `eq`, `ne`, and numeric `gt`/`gte`/`lt`/`lte` on `i32`/`f32`).
+- At the same priority, a `when`-triggered activity wins over a schedule-only activity (`when` empty).
+- `ai.schedule` lists `{"time": 0..24000, "activity": "<name>"}` entries (evaluated over `day_time % 24000`); when no
+  gated or scheduled activity matches, `ai.default_activity` (else `"idle"` if present) is chosen.
+
+### Script access (`service.mobs`)
+
+With `[wasm] permissions = ["service.mobs"]` (`crates/yoake-wasm-sdk`, `full::server::mobs`), server modules read and
+write a mob's declared brain memories:
+
+- `mobs::memory_get(entity, key) -> Result<Option<MobMemoryValue>, String>` (service 287: `mob-memory-get`).
+- `mobs::memory_set(entity, key, value: Option<MobMemoryValue>, ttl_ticks: Option<u32>) -> Result<(), String>` (service 288: `mob-memory-set`; `value = None` erases, `ttl_ticks = None` uses the memory's default `ttl` or never expires).
+- Value constructors: `mobs::memory_bool`, `memory_i32`, `memory_f32`, `memory_string`, `memory_vec3`, `memory_block_pos`, `memory_entity_mob`, `memory_entity_player`.
+- See `crates/yoake-wasm-sdk/examples/fox_ai` and `tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json`.
+
 ## 要確認 (not verified)
 
 1. **Client modules** are merged (MX3CL1) and tested through the loader, but not in a running game client: no client
