@@ -22,6 +22,7 @@ pub mod script;
 pub mod script_apply;
 pub mod spawn;
 pub mod stats;
+pub mod textures;
 
 pub use registry::{CustomRegistry, get, ids, registry};
 

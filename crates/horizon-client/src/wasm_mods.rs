@@ -21,7 +21,7 @@ mod full;
 #[path = "wasm_mods/gpu_services.rs"]
 mod gpu_services;
 #[path = "wasm_mods/mob_services.rs"]
-mod mob_services;
+pub(crate) mod mob_services;
 #[path = "wasm_mods/mob_runtime.rs"]
 mod mob_runtime;
 
@@ -1412,6 +1412,7 @@ impl ClientHost for GameHost {
             client_services::unregister_named_texture(&client_services::named_texture_id(&self.id, *texture));
         }
         self.textures.clear();
+        crate::mobs::custom::textures::release_instance(&self.id, self.resources.generation());
         self.resources
             .release(self.streams.drain().map(|(_, stream)| stream).collect());
         resources::drain();

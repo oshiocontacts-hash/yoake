@@ -23,8 +23,13 @@ pub(super) fn grant(id: &str) {
 }
 
 /// Whether package `id` declared `service.mobs`.
-pub(super) fn granted(id: &str) -> bool {
+pub(crate) fn granted(id: &str) -> bool {
     GRANTED.lock().unwrap_or_else(|e| e.into_inner()).iter().any(|g| g == id)
+}
+
+/// Whether any loaded mod declared `service.mobs`.
+pub(crate) fn any_granted() -> bool {
+    !GRANTED.lock().unwrap_or_else(|e| e.into_inner()).is_empty()
 }
 
 /// Most characters of a name (key, controller, hitbox, modifier id...).

@@ -93,6 +93,13 @@ pub const FOX_AI_SPIN: Guest = Guest {
     features: "spin",
     artifact: "yoake_wasm_fox_ai.wasm",
 };
+/// F4M-7: client example that creates, partially updates and binds a runtime texture for Cinder Fox.
+pub const FOX_TEXTURE: Guest = Guest {
+    name: "fox-texture",
+    example: "fox_texture",
+    features: "",
+    artifact: "yoake_wasm_fox_texture.wasm",
+};
 
 /// F3-8: a server mod that registers a level with a chunk generator of its own.
 pub const LEVEL_GENERATOR: Guest = Guest {

@@ -319,7 +319,7 @@ mod tests {
     use horizon_mods::custom_mob::CustomMobFile;
     use std::sync::Arc;
     use yoake_wasm::server_types as st;
-    use yoake_wasm::test_guests::{FOX_AI, FOX_AI_SPIN, FOX_AI_TRAP, Guest, load};
+    use yoake_wasm::test_guests::{FOX_AI, FOX_AI_SPIN, FOX_AI_TRAP, FOX_TEXTURE, Guest, load};
 
     const FOX_JSON: &str = include_str!("../../../../tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json");
 
@@ -832,6 +832,72 @@ mod tests {
         }
         assert!(pounce_running(&m), "fox_ai pounces again once pounced memory expires");
         script::reset();
+    }
+
+    #[test]
+    fn the_fox_ai_guest_sets_warmth_when_the_fox_is_hurt() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        script::reset();
+        let Some((_dev, _pkg)) = dev_mod_package() else { return };
+        let _session = session();
+        let fx = BenchWorld::new();
+        let mut lr = LegacyRandom::new(1);
+        let mut events = Vec::new();
+        let mut m = fox(1, Vec3::new(0.5, 1.0, 0.5));
+        assert!(script::hurt(&mut m, "", "Generic", 4.0).is_some(), "fox_ai answers mob-hurt");
+        let mut w = fx.world();
+        w.game_time = 1000;
+        m.tick(&w, &mut lr, &mut events);
+        let t = m.kind.custom.clone().unwrap();
+        let v = m.extra.custom.as_ref().unwrap().synced_value(&t, "warmth").cloned();
+        assert!(matches!(v, Some(crate::mobs::custom::SyncedValue::I32(x)) if x > 0), "{v:?}");
+        script::reset();
+    }
+
+    #[test]
+    fn the_fox_texture_guest_creates_writes_and_binds_on_warmth_change_and_cleans_up_on_unload() {
+        use crate::mobs::custom::{script::MobScriptValue, textures};
+        use yoake_wasm::ClientServices;
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        textures::store().lock().unwrap_or_else(|e| e.into_inner()).clear();
+
+        // Ungranted client mod cannot call mob_texture_create.
+        let mut ungranted = super::super::GameHost::new("fox_tex_ungranted");
+        let err = ClientServices::mob_texture_create(&mut ungranted, 32, 64).unwrap_err();
+        assert!(err.contains("service.mobs"), "{err}");
+
+        let Some(bytes) = load(&FOX_TEXTURE) else { return };
+        let mod_id = "fox_tex_granted";
+        mob_services::grant(mod_id);
+        let client = super::super::full::load_client(&ModuleSource {
+            id: mod_id,
+            bytes: &bytes,
+            commands: false,
+            gpu: false,
+        })
+        .expect("fox_texture guest loads");
+        let pkg = Arc::new(FullMod::new(mod_id.into(), Some(client), None));
+
+        let rt = script::client_runtime().expect("client runtime installed");
+        rt.synced_changed(77, "warmth", &MobScriptValue::Int(0), &MobScriptValue::Int(4));
+
+        let region = [2560, 0, 1024, 1024];
+        let atlas_size = [4096, 4096];
+        let ov = textures::overrides_for(77, region, atlas_size).expect("default slot bound");
+        assert!(ov.get("default").is_some());
+
+        let mut patches = Vec::new();
+        textures::flush_patches(region, atlas_size, &mut patches);
+        assert_eq!(patches.len(), 1);
+        assert_eq!((patches[0].width, patches[0].height), (64, 32));
+        // Top-left 32x16 sub-region was overwritten with [255, 220, 40, 255]; rest has [120, 220, 255, 255].
+        assert_eq!(&patches[0].rgba[0..4], &[255, 220, 40, 255]);
+        let row20_col40 = (20 * 64 + 40) * 4;
+        assert_eq!(&patches[0].rgba[row20_col40..row20_col40 + 4], &[120, 220, 255, 255]);
+
+        drop(pkg);
+        assert!(textures::overrides_for(77, region, atlas_size).is_none());
+        assert!(textures::is_empty());
     }
 }
 
