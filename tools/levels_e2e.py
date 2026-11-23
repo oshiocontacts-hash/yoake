@@ -233,6 +233,15 @@ def run(ctl, probe_bin, out, resources, force):
         check('travel', results, travel)
 
         def custom_portal():
+            # Whatever happens, the later checks start with the guest in the Overworld.
+            try:
+                return custom_portal_steps()
+            finally:
+                guest('command', command=f'execute in {OVERWORLD} run tp @s 0.5 100 0.5')
+                lan.wait_dimension(guest, OVERWORLD, 600)
+                guest.wait(20)
+
+        def custom_portal_steps():
             guest('command', command='gamerule players_nether_portal_creative_delay 100')
             stand_in(guest, OVERWORLD, 24, 24, 4)
             for x in (22, 25):
@@ -243,10 +252,21 @@ def run(ctl, probe_bin, out, resources, force):
                     guest('command', command=f'setblock {x} {y} 24 minecraft:gold_block')
                 for y in range(5, 8):
                     guest('command', command=f'setblock {x} {y} 24 minecraft:air')
-            guest('command', command='setblock 23 5 24 minecraft:fire')
-            guest.wait(5)
-            lit = guest.raw('block', 23, 5, 24)
-            assert lit.get('block') == 'minecraft:nether_portal', lit
+            # Let the server apply the frame first; then light it, read the server's block (the host), retry the
+            # fire up to three times (a fire can go out before it is read).
+            guest.wait(10)
+            lit = None
+            for _ in range(3):
+                guest('command', command='setblock 23 5 24 minecraft:fire')
+                guest.wait(5)
+                lit = host.raw('block', 23, 5, 24)
+                if lit.get('block') == 'minecraft:nether_portal':
+                    break
+            assert lit.get('block') == 'minecraft:nether_portal', {'block': lit, 'portal_lines': portal_lines(host)}
+            # The guest fell to the world's real floor while the frame was built (the frame stands in the air): put it
+            # inside the lit portal, on the frame's bottom, so it really enters it.
+            # (No block read after this: the guest may already be in the moon.)
+            guest('command', command='tp @s 23.5 5 24.5')
             arrived = lan.wait_dimension(guest, MOON, 600)
             guest.wait(40)
             now = level(guest)
@@ -263,9 +283,13 @@ def run(ctl, probe_bin, out, resources, force):
             returned = lan.pos_of(guest)
             guest('command', command=f'execute in {OVERWORLD} run tp @s 0.5 100 0.5')
             guest('command', command='setblock 22 5 24 minecraft:air')
-            guest.wait(5)
-            broken = guest.raw('block', 23, 5, 24)
-            assert broken.get('block') == 'minecraft:air', broken
+            broken = None
+            for _ in range(4):
+                guest.wait(5)
+                broken = host.raw('block', 23, 5, 24)
+                if broken.get('block') == 'minecraft:air':
+                    break
+            assert broken.get('block') == 'minecraft:air', {'block': broken, 'portal_lines': portal_lines(host)}
             return {'moon_exit': exit_pos, 'overworld_return': returned, 'broken_fill': broken}
         check('custom_portal', results, custom_portal)
 
