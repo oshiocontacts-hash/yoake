@@ -819,12 +819,27 @@ impl LocalMirror {
         // Every value, not only the announced ones (the animations of this process read them all),
         // but as the host's window sees them: a `sync: owner` value of a mob the host's player does
         // not own reads as its default, as for a remote client (`lan::mob_sync::value_visible_to`).
+        let mut noted = Vec::new();
         if let Some(rm) = self.store.get_mut(id as i32) {
-            rm.values.clear();
+            let old = std::mem::take(&mut rm.values);
             for (slot, value) in state.synced.iter().enumerate() {
                 let visible = crate::lan::mob_sync::value_visible_to(m, slot, viewer);
-                rm.values.push(if visible { value.clone() } else { t.synced[slot].default.clone() });
+                let new = if visible { value.clone() } else { t.synced[slot].default.clone() };
+                // A change the host's own client sees too: `synced-changed-client` fires for it as for a remote one.
+                if let Some(was) = old.get(slot).filter(|was| **was != new) {
+                    noted.push(super::remote::SyncedChanged {
+                        entity: id as i32,
+                        slot,
+                        name: t.synced[slot].name.clone(),
+                        old: was.clone(),
+                        new: new.clone(),
+                    });
+                }
+                rm.values.push(new);
             }
+        }
+        for change in noted {
+            self.store.note_change(change);
         }
     }
 
@@ -2065,6 +2080,25 @@ mod tests {
         assert_eq!(mirror.get(mob.id).unwrap().values, mob.extra.custom.as_ref().unwrap().synced);
         mirror.retain(2);
         assert!(mirror.is_empty(), "a mob that is gone is forgotten");
+    }
+
+    /// A tracked value of a local mob that changes is reported to `synced-changed-client` like a remote one.
+    #[test]
+    fn a_local_mobs_value_change_is_noted_for_the_client_hook() {
+        use crate::mobs::custom::SyncedValue;
+        let ct = fox_with_effects();
+        let mut mob = anim_sync::tests::fox_mob(&ct, horizon_core::geometry::Vec3::new(0.5, 1.0, 0.5));
+        let mut mirror = LocalMirror::default();
+        mirror.sync(&mob, 0, 1, None);
+        let slot = ct.synced_slot("warmth").expect("the fox tracks warmth");
+        assert!(mirror.take_changes().iter().all(|c| c.slot != slot));
+        assert!(mob.extra.custom.as_mut().unwrap().set_synced(&ct, "warmth", SyncedValue::I32(4)));
+        mirror.sync(&mob, 1, 1, None);
+        let changes = mirror.take_changes();
+        let c = changes.iter().find(|c| c.slot == slot).expect("warmth change noted");
+        assert_eq!((c.name.as_str(), &c.new), ("warmth", &SyncedValue::I32(4)));
+        mirror.sync(&mob, 2, 1, None);
+        assert!(mirror.take_changes().is_empty(), "a value that stays is not noted again");
     }
 
     /// The integrated host reads synced values as a remote client would: a `sync: owner` value of a

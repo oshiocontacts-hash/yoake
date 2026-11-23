@@ -835,6 +835,26 @@ mod tests {
     }
 
     #[test]
+    fn the_fox_ai_guest_sets_warmth_when_the_fox_is_hurt() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        script::reset();
+        let Some((_dev, _pkg)) = dev_mod_package() else { return };
+        let _session = session();
+        let fx = BenchWorld::new();
+        let mut lr = LegacyRandom::new(1);
+        let mut events = Vec::new();
+        let mut m = fox(1, Vec3::new(0.5, 1.0, 0.5));
+        assert!(script::hurt(&mut m, "", "Generic", 4.0).is_some(), "fox_ai answers mob-hurt");
+        let mut w = fx.world();
+        w.game_time = 1000;
+        m.tick(&w, &mut lr, &mut events);
+        let t = m.kind.custom.clone().unwrap();
+        let v = m.extra.custom.as_ref().unwrap().synced_value(&t, "warmth").cloned();
+        assert!(matches!(v, Some(crate::mobs::custom::SyncedValue::I32(x)) if x > 0), "{v:?}");
+        script::reset();
+    }
+
+    #[test]
     fn the_fox_texture_guest_creates_writes_and_binds_on_warmth_change_and_cleans_up_on_unload() {
         use crate::mobs::custom::{script::MobScriptValue, textures};
         use yoake_wasm::ClientServices;

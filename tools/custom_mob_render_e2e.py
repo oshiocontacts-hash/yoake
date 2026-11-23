@@ -57,7 +57,7 @@ EVENTS = re.compile(r'Horizon custom-mob events: mob (\d+) tick (\d+) count (\d+
 SOUND = re.compile(r'Horizon custom-mob sound: mob (\d+) (\S+) at')
 PARTICLE = re.compile(r'Horizon custom-mob particle: mob (\d+) (\S+) at')
 EVENT = re.compile(r'Horizon custom-mob event: mob (\d+) "(\w+)" at')
-FOX_TEXTURE_LINE = re.compile(r'fox_texture: mob (\d+) warmth (\d+) bound texture (\d+)')
+FOX_TEXTURE_LINE = re.compile(r'Horizon custom-mob texture: mob (\d+) slot "(\w*)" texture Some\((\d+)\)')
 
 
 def patched_fixture(scratch, wasm=None, client_wasm=None):
@@ -117,7 +117,7 @@ def install_package(game, package):
     (game.work / 'yoake-mods.txt').write_text('sample_mobs 0.1.0' + chr(10))
 
 
-STRIKE_LINE = re.compile(r'^.*(?:Horizon custom-mob (?:strike|death|script goal|target|goal):|fox_texture:).*$', re.M)
+STRIKE_LINE = re.compile(r'^.*(?:Horizon custom-mob (?:strike|death|script goal|target|goal|texture):).*$', re.M)
 
 
 def log_of(game):
@@ -354,21 +354,29 @@ def run(ctl, out, shots, resources, wasm=None, client_wasm=None):
         if client_wasm is not None:
             tex_before = shot(host, 'tex-before')
             mark_th, mark_tg = len(log_of(host)), len(log_of(guest))
-            host('command', command=f'damage @e[type=sample_mobs:cinder_fox,limit=1] 4 minecraft:generic')
-            host.wait(20)
+            for _ in range(3):
+                near = fox_list(host)[0]  # a blow knocks the fox back: step up to it again
+                look_at_fox(host, near, back=1.5)
+                host.raw('attack', near['id'])
+                host.wait(14)
+            host.wait(10)
             tex_after = shot(host, 'tex-after')
-            host('command', command=f'damage @e[type=sample_mobs:cinder_fox,limit=1] 6 minecraft:generic')
-            host.wait(20)
+            for _ in range(4):
+                near = fox_list(host)[0]  # a blow knocks the fox back: step up to it again
+                look_at_fox(host, near, back=1.5)
+                host.raw('attack', near['id'])
+                host.wait(14)
+            host.wait(10)
             tex_after2 = shot(host, 'tex-after2')
-            h_tex = [(int(m.group(2)), int(m.group(3))) for m in FOX_TEXTURE_LINE.finditer(log_of(host)[mark_th:])]
-            g_tex = [(int(m.group(2)), int(m.group(3))) for m in FOX_TEXTURE_LINE.finditer(log_of(guest)[mark_tg:])]
+            h_tex = [(m.group(2), int(m.group(3))) for m in FOX_TEXTURE_LINE.finditer(log_of(host)[mark_th:])]
+            g_tex = [(m.group(2), int(m.group(3))) for m in FOX_TEXTURE_LINE.finditer(log_of(guest)[mark_tg:])]
             diff1 = changed_pixels(tex_before, tex_after)
             diff2 = changed_pixels(tex_after, tex_after2)
             results['runtime_texture'] = {
                 'pass': (
                     len(h_tex) >= 2 and len(g_tex) >= 2
-                    and {w for w, _ in h_tex} >= {3, 8}
-                    and {w for w, _ in g_tex} >= {3, 8}
+                    and {slot for slot, _ in h_tex} == {'default'}
+                    and {slot for slot, _ in g_tex} == {'default'}
                     and diff1 > 300 and diff2 > 50
                 ),
                 'detail': {

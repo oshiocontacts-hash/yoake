@@ -266,6 +266,10 @@ impl RemoteCustomMobs {
         self.mobs.clear();
         self.changes.clear();
     }
+    /// Queues a `synced-changed` notification the store did not see arrive (the local mirror's values).
+    pub fn note_change(&mut self, change: SyncedChanged) {
+        self.changes.push(change);
+    }
     /// The `synced-changed` notifications since the last call, in order.
     pub fn take_changes(&mut self) -> Vec<SyncedChanged> {
         std::mem::take(&mut self.changes)
