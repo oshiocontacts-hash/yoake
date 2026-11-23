@@ -62,7 +62,8 @@ has that second call dropped; `recipe-match` refuses a recipe type of the callin
 
 - `horizon-mod-api-gen --lib`: **46 passed** (the generated WIT, SDK bindings, adapters and `abi_1_0_is_additive`; services 292 to 296 do not touch the
   1.0 ids). Regenerated with `YOAKE_UPDATE_WIT=1`.
-- `horizon-client --lib --features yoake-hook-bench,yoake-wasm/test-guests`: **1280 passed**, 0 failed, 53 ignored (need prepared resources), 112 s for the
+- `horizon-client --lib --features yoake-hook-bench,yoake-wasm/test-guests`: **1280 passed** (the whole library, run before the block entity tests below were added; those 4
+  passed on their own, 1284 in all), 0 failed, 53 ignored (need prepared resources); 112 s for the
   12 new tests in `wasm_mods::behaviors` alone (they build and run the real `ruby-behaviors` guest):
   the wire (`answers_are_checked_before_anything_is_applied`: version, result, extra bytes, reach, delay, count, NaN, long names),
   registration (`registrations_are_checked_and_stay_the_same_across_worlds`, `a_recipe_type_must_describe_itself_to_be_registered`),
@@ -75,6 +76,11 @@ has that second call dropped; `recipe-match` refuses a recipe type of the callin
   and the type's own matching), recipe types (`a_recipe_type_of_the_guest_decodes_matches_assembles_and_displays`,
   `recipe_match_refuses_the_package_that_defines_the_type_and_recipe_data_serves_it`) and the busy or missing guest
   (`a_busy_or_missing_guest_leaves_the_object_as_it_was`).
+- Block entity data by position (`game/native_block_entity_data.rs`, 4 tests): a mod block entity reads as its type and its own data; a merge keeps
+  what the patch does not name, keeps the slots, and persists through `encode_block_entity` / `decode_block_entity` (what the world saves is what the
+  guest reads next); a replace is a mod block entity's only (a vanilla one is merged into) and keeps its type and place; data nested too deep is
+  refused. The `Game` methods around them (`native_block_entity_data`, `native_block_entity_patch`) and the two services were not run in a game: building
+  a `Game` needs prepared resources.
 - `horizon-client-lib --lib`: **1966 passed**, 0 failed, 48 ignored.
 - `cargo build -p horizon-client -p horizon-client-lib --bin horizon-client --bin horizon-ctl`: succeeded.
 - E2E `tools/behaviors_e2e.py --bin-dir target/debug --wasm target/wasm32-wasip2/release/yoake_wasm_ruby_behaviors.wasm`, a real game (LAN host, offscreen,
