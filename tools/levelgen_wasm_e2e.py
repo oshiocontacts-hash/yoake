@@ -55,9 +55,10 @@ def install_pack(work):
     files = {
         'pack.mcmeta': {'pack': {'pack_format': 1, 'description': 'level generator e2e'}},
         'data/levelgen/worldgen/feature/gold.json': {
-            # 26.3's configured features are flat: the fields sit beside "type" (no "config" object).
+            # 26.3's configured features are flat (fields beside "type", no "config"), and a block state is
+            # {"id": ..., "properties": {...}} (as data/minecraft/worldgen/feature/berry_bush.json).
             'type': 'minecraft:simple_block',
-            'to_place': {'Name': 'minecraft:gold_block'},
+            'to_place': {'id': 'minecraft:gold_block'},
         },
         'data/levelgen/worldgen/placed_feature/gold.json': {
             'feature': 'levelgen:gold',
