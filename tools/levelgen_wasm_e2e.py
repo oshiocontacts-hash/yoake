@@ -57,7 +57,7 @@ def install_pack(work):
         'data/levelgen/worldgen/feature/gold.json': {
             # 26.3's configured features are flat: the fields sit beside "type" (no "config" object).
             'type': 'minecraft:simple_block',
-            'to_place': {'type': 'minecraft:simple_state_provider', 'state': {'Name': 'minecraft:gold_block'}},
+            'to_place': {'Name': 'minecraft:gold_block'},
         },
         'data/levelgen/worldgen/placed_feature/gold.json': {
             'feature': 'levelgen:gold',
