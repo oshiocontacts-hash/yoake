@@ -113,6 +113,7 @@ pub mod pistons;
 mod place;
 mod portal;
 pub mod portal_travel;
+pub mod portal_type;
 mod query;
 pub(crate) use query::data_2d;
 pub mod orientation;
@@ -706,6 +707,10 @@ pub trait LevelAccess {
             Dimension::End => "minecraft:the_end",
         }
     }
+    /// Custom portal definitions available to block behavior. None is the vanilla-only default.
+    fn custom_portals(&self) -> Option<&portal_type::PortalTypes> {
+        None
+    }
     /// The rules of the level's dimension type (F3-4b): the dimension's own
     /// unless the level is one past the vanilla three.
     fn level_rules(&self) -> LevelRules {
@@ -1121,6 +1126,21 @@ impl Behaviours {
         forward: horizon_core::geometry::Direction,
     ) -> bool {
         self.sim(level, ticks).fire_can_be_placed_at(pos, forward)
+    }
+    /// Light a matching custom frame. Vanilla nether ignition has already had its chance.
+    #[allow(clippy::too_many_arguments)]
+    pub fn ignite_custom_portal<L: LevelAccess + ?Sized>(
+        &self,
+        level: &mut L,
+        ticks: &mut Ticks,
+        pos: BlockPos,
+        item: Option<&str>,
+        fluid: Option<&str>,
+        fire: bool,
+        preferred_axis: bool,
+    ) -> Option<String> {
+        self.sim(level, ticks)
+            .ignite_custom_portal(pos, item, fluid, fire, preferred_axis)
     }
     /// `BlockState.canSurvive(level, pos)`.
     pub fn can_survive<L: LevelAccess + ?Sized>(

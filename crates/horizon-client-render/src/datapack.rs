@@ -603,6 +603,10 @@ fn content_id(file: &str) -> Option<String> {
         "tags" => {
             return Some(format!("tags/{ns}:{}", rest.strip_suffix(".json")?));
         }
+        "horizon" => {
+            let path = rest.strip_prefix("portal/")?.strip_suffix(".json")?;
+            return Some(format!("horizon/portal/{ns}:{path}"));
+        }
         _ => return None,
     };
     Some(format!("{kind}/{ns}:{}", rest.strip_suffix(".json")?))
@@ -630,6 +634,7 @@ impl DataStore {
                 "data_maps",
                 "dialog",
                 "function",
+                "horizon",
                 "item_modifier",
                 "loot_table",
                 "predicate",

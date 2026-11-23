@@ -16,6 +16,8 @@ What it checks, in order:
             (`status.level`), its type's sky (overworld sky with weather, ambient light 0.3) and sea level; it walks on the
             flat floor the server generated; `execute in mypack:hell` gives the Nether-like facts (no sky, Nether light);
             it goes back to the Overworld and has the vanilla facts again. The Overworld's blocks are where they were.
+- custom portal: a pack-defined gold frame lights with fire, sends the guest to the moon at coordinate scale 4,
+            generates a matching exit, returns to the source level through that link, and loses its fill when a frame block breaks.
 - stock:    the protocol-level client (examples/level_probe.rs: the handshake, configuration and play a stock client
             does, nothing Horizon-only) joins, is sent the dimension type registry with the pack's types after the
             vanilla ones, the new moon biome in the biome registry, and the level keys in the login packet, runs the
@@ -98,6 +100,13 @@ def write_pack(work):
         },
         'data/mypack/dimension/moon.json': flat('mypack:moon_type', MOON_BIOME),
         'data/mypack/dimension/hell.json': flat('mypack:hell_type'),
+        'data/mypack/horizon/portal/moon.json': {
+            'frame': 'minecraft:gold_block', 'ignite': {'fire': True},
+            'size': {'min_width': 2, 'max_width': 4, 'min_height': 3, 'max_height': 4},
+            'target': MOON, 'scale': 4.0,
+            'look': {'ambient_sound': 'minecraft:block.portal.ambient',
+                     'travel_sound': 'minecraft:block.portal.trigger', 'particle': 'minecraft:portal'},
+        },
     }
     for name, value in files.items():
         path = work / PACK / name
@@ -216,6 +225,41 @@ def run(ctl, probe_bin, out, resources, force):
             seen['overworld'] = back
             return seen
         check('travel', results, travel)
+
+        def custom_portal():
+            guest('command', command='gamerule players_nether_portal_creative_delay 100')
+            stand_in(guest, OVERWORLD, 24, 24, 4)
+            for x in (22, 25):
+                for y in range(4, 9):
+                    guest('command', command=f'setblock {x} {y} 24 minecraft:gold_block')
+            for x in (23, 24):
+                for y in (4, 8):
+                    guest('command', command=f'setblock {x} {y} 24 minecraft:gold_block')
+                for y in range(5, 8):
+                    guest('command', command=f'setblock {x} {y} 24 minecraft:air')
+            guest('command', command='setblock 23 5 24 minecraft:fire')
+            guest.wait(5)
+            lit = guest.raw('block', 23, 5, 24)
+            assert lit.get('block') == 'minecraft:nether_portal', lit
+            lan.wait_dimension(guest, MOON, 600)
+            guest.wait(40)
+            assert level(guest)['id'] == MOON
+            exit_pos = lan.pos_of(guest)
+            assert abs(exit_pos[0] - 24.5 / 4.0) < 20, exit_pos
+            assert abs(exit_pos[2] - 24.5 / 4.0) < 20, exit_pos
+            guest('command', command=f'execute in {MOON} run tp @s 0.5 10 0.5')
+            guest.wait(30)
+            guest('command', command=f'execute in {MOON} run tp @s {exit_pos[0]:.3f} {exit_pos[1]:.3f} {exit_pos[2]:.3f}')
+            lan.wait_dimension(guest, OVERWORLD, 600)
+            guest.wait(20)
+            returned = lan.pos_of(guest)
+            guest('command', command=f'execute in {OVERWORLD} run tp @s 0.5 100 0.5')
+            guest('command', command='setblock 22 5 24 minecraft:air')
+            guest.wait(5)
+            broken = guest.raw('block', 23, 5, 24)
+            assert broken.get('block') == 'minecraft:air', broken
+            return {'moon_exit': exit_pos, 'overworld_return': returned, 'broken_fill': broken}
+        check('custom_portal', results, custom_portal)
 
         def stock():
             code, lines = probe(probe_bin, address, 'Stock', resources,

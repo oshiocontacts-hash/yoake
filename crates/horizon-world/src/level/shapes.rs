@@ -836,10 +836,21 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 let update_axis = axis_of(dir);
                 let wrong_axis =
                     update_axis != if x_axis { Axis::X } else { Axis::Z } && update_axis != Axis::Y;
-                if !wrong_axis
-                    && !b.is_block(nstate, block)
-                    && !self.find_portal_shape(pos, x_axis).is_complete()
-                {
+                let custom = self.level.custom_portals().and_then(|portals| {
+                    let mut matching = portals.iter().filter(|portal| portal.is_fill(state, b));
+                    let first = matching.next()?;
+                    Some(
+                        self.find_custom_portal_shape(pos, x_axis, first).is_complete()
+                            || matching.any(|portal| {
+                                self.find_custom_portal_shape(pos, x_axis, portal).is_complete()
+                            }),
+                    )
+                });
+                let complete = match custom {
+                    Some(complete) => complete,
+                    None => self.find_portal_shape(pos, x_axis).is_complete(),
+                };
+                if !wrong_axis && !b.is_block(nstate, block) && !complete {
                     air
                 } else {
                     sup!()

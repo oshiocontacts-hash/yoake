@@ -684,6 +684,7 @@ struct GameLevel<'w> {
     dimension: LevelDimension,
     /// The rules of the level's dimension type (F3-4b).
     type_rules: horizon_world::level::LevelRules,
+    custom_portals: &'w horizon_world::level::portal_type::PortalTypes,
     /// The id of the level (a pack's or mod's has its own; `dimension` is one of the three vanilla
     /// values mods have always seen, the Overworld for a level past them).
     level_id: &'static str,
@@ -1510,6 +1511,9 @@ impl LevelAccess for GameLevel<'_> {
     }
     fn level_rules(&self) -> horizon_world::level::LevelRules {
         self.type_rules
+    }
+    fn custom_portals(&self) -> Option<&horizon_world::level::portal_type::PortalTypes> {
+        Some(self.custom_portals)
     }
     fn level_id(&self) -> &str {
         self.level_id
@@ -2605,6 +2609,8 @@ pub(crate) struct Game<'a> {
     /// The world's data packs' content tables, when it has packs (`None`
     /// keeps `Resources.rest`'s own in use).
     world_tables: Option<WorldTables>,
+    /// Data-defined portals from content mods and this world's packs.
+    custom_portals: horizon_world::level::portal_type::PortalTypes,
     /// The world is superflat (`ServerLevel.isFlat`, for every dimension).
     world_flat: bool,
     /// The world is the Debug preset (`Level.isDebug`, for every dimension): its blocks
@@ -4539,6 +4545,7 @@ impl Game<'_> {
             events: &mut self.level_events,
             dimension,
             type_rules,
+            custom_portals: &self.custom_portals,
             level_id: self.dim.id(),
             darken,
             environment: level_facts::environment_for(self.dim, &self.level_ctxs, &self.res),
@@ -12406,6 +12413,13 @@ impl Game<'_> {
         self.score = Default::default();
         self.fns = Default::default();
         self.world_tables = self.build_world_tables();
+        self.custom_portals = horizon_client::custom_portal::load(
+            &self.options.resources,
+            &self.pack_files(),
+            self.pack.assets.registry,
+            &world_items!(self).block_tags,
+            |id| self.level_registry.contains(id),
+        );
         // Native tag reads use the lock to tell that the tag tables are ready.
         self.session_lock = Some(session_lock);
         // The registries a preload or an earlier world read are not this
@@ -13563,6 +13577,13 @@ impl Game<'_> {
             let Some(emptied) = emptied else {
                 return Ok(UseResult::Fail);
             };
+            if let Some(fluid) = stack.item.strip_suffix("_bucket") {
+                self.light_custom_portal(
+                    [emptied.x, emptied.y, emptied.z],
+                    None,
+                    Some(fluid),
+                )?;
+            }
             if self.dim == Dim::Nether && content.is_water() {
                 self.evaporation_smoke([emptied.x, emptied.y, emptied.z]);
             }
@@ -13637,6 +13658,19 @@ impl Game<'_> {
                 return Ok(UseResult::Success { swing: true });
             }
         }
+        if item != "flint_and_steel" && item != "fire_charge" {
+            let target = hit.beside();
+            if self.may_build()
+                && self.light_custom_portal(target, Some(&stack.item), None)?
+            {
+                if self.items().get(&stack.item).is_some_and(|info| info.max_damage > 0) {
+                    self.damage_held(1);
+                } else {
+                    self.consume_held();
+                }
+                return Ok(UseResult::Success { swing: true });
+            }
+        }
         if item == "flint_and_steel" || item == "fire_charge" {
             if !self.may_build() {
                 return Ok(UseResult::Fail);
@@ -13675,8 +13709,10 @@ impl Game<'_> {
                 hit.pos[1] + hit.face[1],
                 hit.pos[2] + hit.face[2],
             ];
-            if self.can_place_used_fire(target) {
-                if !self.try_light_portal(target)? {
+            let vanilla = self.try_light_portal(target)?;
+            let custom = !vanilla && self.light_custom_portal(target, Some(&stack.item), None)?;
+            if vanilla || custom || self.can_place_used_fire(target) {
+                if !vanilla && !custom {
                     self.place_used_fire(target)?;
                 }
                 let sound = horizon_client::items::fire_starter_sound(item == "fire_charge");
@@ -13851,6 +13887,28 @@ impl Game<'_> {
             _ => Direction::East,
         };
         self.with_level(|b, level, ticks| b.fire_can_be_placed_at(level, ticks, pos, direction))
+    }
+    fn light_custom_portal(
+        &mut self,
+        target: [i32; 3],
+        item: Option<&str>,
+        fluid: Option<&str>,
+    ) -> Result<bool> {
+        let pos = BlockPos::new(target[0], target[1], target[2]);
+        let direction = match ((self.yaw / 90.0 + 0.5).floor() as i32).rem_euclid(4) {
+            0 => Direction::South,
+            1 => Direction::West,
+            2 => Direction::North,
+            _ => Direction::East,
+        };
+        let x_axis = matches!(direction, Direction::North | Direction::South);
+        let lit = self.with_level(|b, level, ticks| {
+            b.ignite_custom_portal(level, ticks, pos, item, fluid, false, x_axis)
+        });
+        if lit.is_some() {
+            self.process_level_events()?;
+        }
+        Ok(lit.is_some())
     }
     #[yoake_inject_macro::yoake_inject(id = "game::place_used_fire", side = "server")]
     fn place_used_fire(&mut self, target: [i32; 3]) -> Result<()> {
@@ -19695,6 +19753,7 @@ impl<'a> Game<'a> {
             rcon_source: false,
             server_lists: None,
             world_tables: None,
+            custom_portals: Default::default(),
             cmds: Default::default(),
             ui: chat::UiState::new(),
             combat: Default::default(),
@@ -20126,6 +20185,13 @@ impl Game<'_> {
             return;
         }
         self.world_tables = self.build_world_tables();
+        self.custom_portals = horizon_client::custom_portal::load(
+            &self.options.resources,
+            &self.pack_files(),
+            self.pack.assets.registry,
+            &world_items!(self).block_tags,
+            |id| self.level_registry.contains(id),
+        );
         self.recipe_tables.categories = None;
         horizon_client::structure_blocks::forget_loot_data();
         // Before the players are sent the reloaded data below.

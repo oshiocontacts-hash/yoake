@@ -62,7 +62,7 @@ impl Behaviours {
     pub(crate) fn in_set(&self, state: BlockStateId, set: &BlockSet) -> bool {
         set.contains(self.table.block(state))
     }
-    pub(crate) fn is_block(&self, state: BlockStateId, block: BlockId) -> bool {
+    pub fn is_block(&self, state: BlockStateId, block: BlockId) -> bool {
         self.table.is(state, block)
     }
     pub(crate) fn instance_of(&self, state: BlockStateId, class: Class) -> bool {

@@ -180,6 +180,11 @@ impl BlockSet {
         let i = block.0 as usize;
         self.0.get(i / 64).is_some_and(|w| w & (1 << (i % 64)) != 0)
     }
+    pub fn first(&self) -> Option<BlockId> {
+        self.0.iter().enumerate().find_map(|(index, word)| {
+            (*word != 0).then(|| BlockId((index * 64 + word.trailing_zeros() as usize) as u16))
+        })
+    }
 }
 
 #[derive(Clone, Debug)]

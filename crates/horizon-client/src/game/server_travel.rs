@@ -192,6 +192,7 @@ impl Game<'_> {
     /// in it (Nether portals count up their transition time, End portals
     /// take them at once).
     pub(super) fn tick_server_travel(&mut self, host: &mut LanHost) {
+        self.load_portal_arrivals();
         // Outside a server only the respawns at the world spawn wait for chunks.
         self.arrive_server_trips(host);
         if self.options.dedicated.is_none() {
@@ -405,7 +406,7 @@ impl Game<'_> {
         }
     }
 
-    /// A Nether portal block a player's box is in.
+    /// A Nether or matching custom portal block a player's box is in.
     fn nether_portal_inside(&self, at: Vec3) -> Option<BlockPos> {
         let w = WIDTH / 2.0 - 1.0e-5;
         let lo = [at.x - w, at.y + 1.0e-5, at.z - w];
@@ -413,8 +414,12 @@ impl Game<'_> {
         for x in lo[0].floor() as i32..=hi[0].floor() as i32 {
             for y in lo[1].floor() as i32..=hi[1].floor() as i32 {
                 for z in lo[2].floor() as i32..=hi[2].floor() as i32 {
-                    if &*self.block_name([x, y, z]) == "minecraft:nether_portal" {
-                        return Some(BlockPos::new(x, y, z));
+                    let pos = BlockPos::new(x, y, z);
+                    let state = self.world.block(x, y, z);
+                    if &*self.res.facts().get(state).name == "minecraft:nether_portal"
+                        || self.custom_portal_area(pos, state).is_some()
+                    {
+                        return Some(pos);
                     }
                 }
             }

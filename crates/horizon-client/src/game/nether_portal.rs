@@ -30,6 +30,36 @@ use std::collections::HashMap;
 /// `Player.getDimensionChangingDelay`.
 pub(super) const PLAYER_DELAY: i32 = 10;
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct CustomTravel {
+    slot: u16,
+    source: Dim,
+    target: Dim,
+    scale: f64,
+}
+
+impl CustomTravel {
+    fn between(
+        slot: u16,
+        current: Dim,
+        configured: Dim,
+        linked: Option<Dim>,
+        portal_scale: f64,
+    ) -> Self {
+        let (target, scale) = if current == configured {
+            (linked.unwrap_or(current), portal_scale)
+        } else {
+            (configured, 1.0 / portal_scale)
+        };
+        Self {
+            slot,
+            source: current,
+            target,
+            scale,
+        }
+    }
+}
+
 /// Where in its portal a traveller stood, and where its exit is to be found.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Plan {
@@ -43,6 +73,7 @@ pub(super) struct Plan {
     /// Through an End portal: `approximate` is the End's spawn point, or the
     /// Overworld's shared spawn.
     pub(super) end: bool,
+    custom: Option<CustomTravel>,
 }
 
 impl Plan {
@@ -64,6 +95,7 @@ impl Plan {
             width,
             height,
             end: true,
+            custom: None,
         }
     }
 }
@@ -87,6 +119,7 @@ pub(super) struct Portals {
     /// Positions before this tick's moves, by entity id.
     pub(super) before: FxHashMap<u32, Vec3>,
     arrivals: Vec<Arrival>,
+    links: HashMap<(Dim, BlockPos), (String, Dim)>,
     /// The vehicles server players ride that went through a portal this
     /// tick, in their level, with their entry: they carry their riders
     /// (`tick_server_travel`).
@@ -214,7 +247,7 @@ fn end_portal_rotation(into_end: bool, [yaw, pitch]: [f32; 2], spawn: [f32; 2]) 
 /// A waiting entity as `horizon_portal_arrivals.dat` keeps it.
 fn arrival_tag(a: &Arrival) -> Tag {
     let p = &a.plan;
-    Tag::compound([
+    let mut root = Tag::compound([
         ("dimension", Tag::String(p.dim.id().into())),
         ("x", Tag::Int(p.approximate.x)),
         ("y", Tag::Int(p.approximate.y)),
@@ -227,7 +260,14 @@ fn arrival_tag(a: &Arrival) -> Tag {
         ("height", Tag::Float(p.height.to_bits())),
         ("end", Tag::Int(i32::from(p.end))),
         ("entity", a.tag.clone()),
-    ])
+    ]);
+    if let (Some(custom), Tag::Compound(fields)) = (p.custom, &mut root) {
+        fields.insert("custom_slot".into(), Tag::Int(i32::from(custom.slot)));
+        fields.insert("custom_source".into(), Tag::String(custom.source.id().into()));
+        fields.insert("custom_target".into(), Tag::String(custom.target.id().into()));
+        fields.insert("custom_scale".into(), Tag::Double(custom.scale.to_bits()));
+    }
+    root
 }
 /// The waiting entity `arrival_tag` wrote.
 fn arrival_from_tag(a: &Tag) -> Option<Arrival> {
@@ -249,6 +289,20 @@ fn arrival_from_tag(a: &Tag) -> Option<Arrival> {
     else {
         return None;
     };
+    let custom = match (
+        int("custom_slot"),
+        a.get("custom_source"),
+        a.get("custom_target"),
+        double("custom_scale"),
+    ) {
+        (Some(slot), Some(source), Some(target), Some(scale)) => Some(CustomTravel {
+            slot: u16::try_from(slot).ok()?,
+            source: Dim::lookup_or_overworld(&horizon_client::save::text(Some(source))?),
+            target: Dim::lookup_or_overworld(&horizon_client::save::text(Some(target))?),
+            scale,
+        }),
+        _ => None,
+    };
     Some(Arrival {
         plan: Plan {
             dim,
@@ -262,6 +316,7 @@ fn arrival_from_tag(a: &Tag) -> Option<Arrival> {
             width: float("width").unwrap_or(0.25),
             height: float("height").unwrap_or(0.25),
             end: int("end").unwrap_or(0) != 0,
+            custom,
         },
         tag: tag.clone(),
     })
@@ -280,8 +335,48 @@ impl Game<'_> {
     }
     /// `ServerLevel.isAllowedToEnterPortal`.
     pub(super) fn may_enter(&self, target: Dim) -> bool {
-        target != Dim::Nether || self.ui.rules.bool("allow_entering_nether_using_portals")
+        target != self.dim
+            && (target != Dim::Nether || self.ui.rules.bool("allow_entering_nether_using_portals"))
     }
+
+    pub(super) fn custom_portal_area(
+        &self,
+        entry: BlockPos,
+        state: horizon_world::registry::BlockStateId,
+    ) -> Option<(&horizon_world::level::portal_type::PortalType, bool, FoundRectangle)> {
+        let b = self.res.behaviours();
+        self.custom_portals.iter().find_map(|portal| {
+            if !portal.is_fill(state, b) {
+                return None;
+            }
+            let x_axis = b.table.text(state, b.props.axis) == "x";
+            let area = largest_rectangle_around(
+                entry,
+                if x_axis { Axis::X } else { Axis::Z },
+                portal.size.max_width,
+                Axis::Y,
+                portal.size.max_height,
+                |p| self.world.block(p.x, p.y, p.z) == state,
+            );
+            if !portal.size.valid(area.axis1_size, area.axis2_size) {
+                return None;
+            }
+            let step = |w: i32, h: i32| {
+                area.min_corner.offset(if x_axis { w } else { 0 }, h, if x_axis { 0 } else { w })
+            };
+            let frame = |at: BlockPos| {
+                portal.is_frame(self.world.block(at.x, at.y, at.z), b)
+            };
+            let horizontal = (0..area.axis1_size).all(|w| {
+                frame(step(w, -1)) && frame(step(w, area.axis2_size))
+            });
+            let vertical = (0..area.axis2_size).all(|h| {
+                frame(step(-1, h)) && frame(step(area.axis1_size, h))
+            });
+            (horizontal && vertical).then_some((portal, x_axis, area))
+        })
+    }
+
     /// The plan of an entity of `width` by `height` at `at` going through the
     /// portal at `entry` (`getDimensionTransitionFromExit` and the scaled,
     /// clamped exit of `getPortalDestination`).
@@ -293,37 +388,49 @@ impl Game<'_> {
         height: f32,
         reset_forward: bool,
     ) -> Plan {
-        let target = if self.dim == Dim::Nether {
-            Dim::Overworld
-        } else {
-            Dim::Nether
-        };
         let state = self.world.block(entry.x, entry.y, entry.z);
         let b = self.res.behaviours();
-        let (entry_x_axis, offset) = match b.portal_axis(state) {
-            Some(x_axis) => {
-                let area = largest_rectangle_around(
-                    entry,
-                    if x_axis { Axis::X } else { Axis::Z },
-                    21,
-                    Axis::Y,
-                    21,
-                    |p| self.world.block(p.x, p.y, p.z) == state,
-                );
-                let mut offset = relative_position(area, x_axis, at, width, height);
-                if reset_forward {
-                    offset.z = 0.0;
-                }
-                (x_axis, offset)
+        let custom_area = self.custom_portal_area(entry, state);
+        let (entry_x_axis, offset) = if let Some((_, x_axis, area)) = &custom_area {
+            let mut offset = relative_position(*area, *x_axis, at, width, height);
+            if reset_forward {
+                offset.z = 0.0;
             }
-            None => (true, Vec3::new(0.5, 0.0, 0.0)),
-        };
-        // DimensionType.getTeleportationScale: 8 out of the Nether, 1/8 into it.
-        let scale = if self.dim == Dim::Nether {
-            8.0
+            (*x_axis, offset)
         } else {
-            1.0 / 8.0
+            match b.portal_axis(state) {
+                Some(x_axis) => {
+                    let area = largest_rectangle_around(
+                        entry,
+                        if x_axis { Axis::X } else { Axis::Z },
+                        21,
+                        Axis::Y,
+                        21,
+                        |p| self.world.block(p.x, p.y, p.z) == state,
+                    );
+                    let mut offset = relative_position(area, x_axis, at, width, height);
+                    if reset_forward {
+                        offset.z = 0.0;
+                    }
+                    (x_axis, offset)
+                }
+                None => (true, Vec3::new(0.5, 0.0, 0.0)),
+            }
         };
+        let custom = custom_area.map(|(portal, _, _)| {
+            let configured = Dim::lookup(&portal.target).unwrap_or(self.dim);
+            let linked = self
+                .portals
+                .links
+                .get(&(self.dim, entry))
+                .filter(|(id, _)| id == &portal.id)
+                .map(|(_, dim)| *dim);
+            CustomTravel::between(portal.slot, self.dim, configured, linked, portal.scale)
+        });
+        let vanilla_target = if self.dim == Dim::Nether { Dim::Overworld } else { Dim::Nether };
+        let vanilla_scale = if self.dim == Dim::Nether { 8.0 } else { 1.0 / 8.0 };
+        let target = custom.map_or(vanilla_target, |travel| travel.target);
+        let scale = custom.map_or(vanilla_scale, |travel| travel.scale);
         Plan {
             dim: target,
             approximate: self.border_bounds().clamp(at.x * scale, at.y, at.z * scale),
@@ -332,6 +439,7 @@ impl Game<'_> {
             width,
             height,
             end: false,
+            custom,
         }
     }
     /// The plan of an item or mob going through the portal block at `entry`:
@@ -380,11 +488,19 @@ impl Game<'_> {
         let y = self.motion_top(p.x, p.z);
         Vec3::new(centre.x, f64::from(y), centre.z)
     }
-    /// The nether portal blocks of the chunks within `radius` of `center`
+    /// The matching vanilla or custom portal blocks of the chunks within `radius` of `center`
     /// (the points of interest `PortalForcer` searches): loaded chunks as
     /// they are, the others as saved; chunks never generated have none.
-    fn portal_blocks(&self, center: BlockPos, radius: i32) -> Vec<BlockPos> {
+    fn portal_blocks(&self, center: BlockPos, radius: i32, custom: Option<u16>) -> Vec<BlockPos> {
         let b = self.res.behaviours();
+        let custom_type = custom.and_then(|slot| self.custom_portals.by_slot(slot));
+        if custom.is_some() && custom_type.is_none() {
+            return Vec::new();
+        }
+        let wanted = |state| match custom_type {
+            Some(portal) => portal.is_fill(state, b),
+            None => b.is_block(state, b.named.nether_portal),
+        };
         let chunk_radius = radius.div_euclid(16) + 1;
         let (cx, cz) = (center.x >> 4, center.z >> 4);
         let mut out = Vec::new();
@@ -408,8 +524,7 @@ impl Game<'_> {
                 };
                 for (s, section) in chunk.sections.iter().enumerate() {
                     if !section.blocks.maybe_has(|v| {
-                        b.portal_axis(horizon_world::registry::BlockStateId(v))
-                            .is_some()
+                        wanted(horizon_world::registry::BlockStateId(v))
                     }) {
                         continue;
                     }
@@ -418,7 +533,7 @@ impl Game<'_> {
                         for lz in 0..16 {
                             for lx in 0..16 {
                                 let (wx, wz) = (x * 16 + lx, z * 16 + lz);
-                                if b.portal_axis(chunk.block(wx, y, wz)).is_some() {
+                                if wanted(chunk.block(wx, y, wz)) {
                                     out.push(BlockPos::new(wx, y, wz));
                                 }
                             }
@@ -429,53 +544,98 @@ impl Game<'_> {
         }
         out
     }
+    fn remember_custom_exit(&mut self, plan: &Plan, exit: FoundRectangle) {
+        let Some(custom) = plan.custom else { return };
+        let Some(portal) = self.custom_portals.by_slot(custom.slot) else { return };
+        let id = portal.id.clone();
+        let corner = exit.min_corner;
+        let x_axis = self
+            .res
+            .behaviours()
+            .portal_axis(self.world.block(corner.x, corner.y, corner.z))
+            .unwrap_or(plan.entry_x_axis);
+        for h in 0..exit.axis2_size {
+            for w in 0..exit.axis1_size {
+                let at = exit.min_corner.offset(
+                    if x_axis { w } else { 0 },
+                    h,
+                    if x_axis { 0 } else { w },
+                );
+                self.portals.links.insert((plan.dim, at), (id.clone(), custom.source));
+            }
+        }
+        self.portals.dirty = true;
+    }
+
     /// The exit portal of `plan` in the loaded dimension: the closest one
     /// within reach, else one built by `PortalForcer.createPortal`.
     pub(super) fn nether_exit_portal(&mut self, plan: &Plan) -> Option<FoundRectangle> {
-        let to_nether = plan.dim == Dim::Nether;
-        let radius = if to_nether { 16 } else { 128 };
+        let custom_type = plan
+            .custom
+            .and_then(|travel| self.custom_portals.by_slot(travel.slot))
+            .cloned();
+        if plan.custom.is_some() && custom_type.is_none() {
+            return None;
+        }
+        let vanilla_nether = plan.custom.is_none() && plan.dim == Dim::Nether;
+        let radius = if vanilla_nether { 16 } else { 128 };
         let border = self.border_bounds();
-        let portals = self.portal_blocks(plan.approximate, radius);
-        let (min_section, max_section) = if to_nether { (0, 15) } else { (-4, 19) };
+        let portals = self.portal_blocks(plan.approximate, radius, plan.custom.map(|c| c.slot));
+        let (min_section, max_section) = if plan.custom.is_some() {
+            (
+                self.world.bottom_y() >> 4,
+                (self.world.bottom_y() + 16 * self.world.layout().sections() as i32 - 1) >> 4,
+            )
+        } else if vanilla_nether {
+            (0, 15)
+        } else {
+            (-4, 19)
+        };
         let found = closest_portal(
             &portals,
             plan.approximate,
-            to_nether,
+            vanilla_nether,
             &border,
             min_section,
             max_section,
         );
         if let Some(found) = found {
-            // NetherPortalBlock.getExitPortal: the ticket goes on the chunk
-            // of the portal found.
             self.place_portal_ticket((found.x >> 4, found.z >> 4));
             let state = self.world.block(found.x, found.y, found.z);
             let x_axis = self.res.behaviours().portal_axis(state).unwrap_or(true);
-            return Some(largest_rectangle_around(
+            let (max_width, max_height) = custom_type
+                .as_ref()
+                .map_or((21, 21), |portal| (portal.size.max_width, portal.size.max_height));
+            let exit = largest_rectangle_around(
                 found,
                 if x_axis { Axis::X } else { Axis::Z },
-                21,
+                max_width,
                 Axis::Y,
-                21,
+                max_height,
                 |p| self.world.block(p.x, p.y, p.z) == state,
-            ));
+            );
+            self.remember_custom_exit(plan, exit);
+            return Some(exit);
         }
-        let logical = if to_nether { 128 } else { 384 };
+        let logical = if plan.custom.is_some() {
+            self.world.shape.logical_height
+        } else if vanilla_nether {
+            128
+        } else {
+            384
+        };
         let (approximate, x_axis) = (plan.approximate, plan.entry_x_axis);
-        let created = self.with_level(|b, level, ticks| {
-            b.create_portal(level, ticks, approximate, x_axis, &border, logical)
+        let created = self.with_level(|b, level, ticks| match &custom_type {
+            Some(portal) => b.create_custom_portal(
+                level, ticks, approximate, x_axis, &border, logical, portal,
+            ),
+            None => b.create_portal(level, ticks, approximate, x_axis, &border, logical),
         });
         let _ = self.process_level_events();
         if let Some(exit) = created {
-            let dim = if to_nether {
-                "minecraft:the_nether"
-            } else {
-                "minecraft:overworld"
-            };
             let corner = exit.min_corner;
-            self.native_portal_create(dim, [corner.x, corner.y, corner.z]);
-            // A portal built for the entity: the ticket goes on the chunk it
-            // arrives in (`TeleportTransition.PLACE_PORTAL_TICKET`).
+            self.native_portal_create(self.dim.id(), [corner.x, corner.y, corner.z]);
+            self.remember_custom_exit(plan, exit);
             let (at, _) = self.arrival(plan, exit);
             self.place_portal_ticket(Self::chunk_of(at));
         }
@@ -543,9 +703,22 @@ impl Game<'_> {
     /// is open: the portal its points of interest lead to, or the
     /// approximate exit.
     pub(super) fn arrival_centre(&self, plan: &Plan) -> Vec3 {
-        let to_nether = plan.dim == Dim::Nether;
-        let portals = self.portal_blocks(plan.approximate, if to_nether { 16 } else { 128 });
-        let (min_section, max_section) = if to_nether { (0, 15) } else { (-4, 19) };
+        let to_nether = plan.custom.is_none() && plan.dim == Dim::Nether;
+        let portals = self.portal_blocks(
+            plan.approximate,
+            if to_nether { 16 } else { 128 },
+            plan.custom.map(|custom| custom.slot),
+        );
+        let (min_section, max_section) = if plan.custom.is_some() {
+            (
+                self.world.bottom_y() >> 4,
+                (self.world.bottom_y() + 16 * self.world.layout().sections() as i32 - 1) >> 4,
+            )
+        } else if to_nether {
+            (0, 15)
+        } else {
+            (-4, 19)
+        };
         let border = self.border_bounds();
         let found = closest_portal(
             &portals,
@@ -1304,12 +1477,43 @@ impl Game<'_> {
         let Some(root) = horizon_client::save::read_dat(&self.arrivals_path()) else {
             return;
         };
-        let Some(Tag::List(list)) = root.get("arrivals") else {
-            return;
-        };
-        self.portals
-            .arrivals
-            .extend(list.iter().filter_map(arrival_from_tag));
+        if let Some(Tag::List(list)) = root.get("arrivals") {
+            self.portals
+                .arrivals
+                .extend(list.iter().filter_map(arrival_from_tag));
+        }
+        if let Some(Tag::List(list)) = root.get("links") {
+            for link in list {
+                let int = |key: &str| match link.get(key) {
+                    Some(Tag::Int(value)) => Some(*value),
+                    _ => None,
+                };
+                let (Some(level), Some(other), Some(kind), Some(x), Some(y), Some(z)) = (
+                    link.get("level"),
+                    link.get("other"),
+                    link.get("type"),
+                    int("x"),
+                    int("y"),
+                    int("z"),
+                ) else {
+                    continue;
+                };
+                let (Some(level), Some(other), Some(kind)) = (
+                    horizon_client::save::text(Some(level)),
+                    horizon_client::save::text(Some(other)),
+                    horizon_client::save::text(Some(kind)),
+                ) else {
+                    continue;
+                };
+                let (Some(level), Some(other)) = (Dim::lookup(&level), Dim::lookup(&other)) else {
+                    continue;
+                };
+                self.portals.links.insert(
+                    (level, BlockPos::new(x, y, z)),
+                    (kind, other),
+                );
+            }
+        }
     }
     /// Write the waiting entities when they changed.
     pub(super) fn save_portal_arrivals(&mut self) {
@@ -1330,7 +1534,27 @@ impl Game<'_> {
                 tag
             })
             .collect();
-        let root = Tag::compound([("arrivals", Tag::List(list))]);
+        let mut root = Tag::compound([("arrivals", Tag::List(list))]);
+        if !self.portals.links.is_empty() {
+            let mut links: Vec<_> = self.portals.links.iter().collect();
+            links.sort_by_key(|((dim, pos), _)| (dim.id(), pos.x, pos.y, pos.z));
+            let links = links
+                .into_iter()
+                .map(|((dim, pos), (kind, other))| {
+                    Tag::compound([
+                        ("level", Tag::String(dim.id().into())),
+                        ("other", Tag::String(other.id().into())),
+                        ("type", Tag::String(kind.as_str().into())),
+                        ("x", Tag::Int(pos.x)),
+                        ("y", Tag::Int(pos.y)),
+                        ("z", Tag::Int(pos.z)),
+                    ])
+                })
+                .collect();
+            if let Tag::Compound(fields) = &mut root {
+                fields.insert("links".into(), Tag::List(links));
+            }
+        }
         if horizon_client::save::write_dat(&self.arrivals_path(), root).is_ok() {
             self.portals.dirty = false;
         }
@@ -1340,6 +1564,26 @@ impl Game<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn custom_travel_uses_its_target_scale_and_linked_return_level() {
+        let outbound = CustomTravel::between(3, Dim::Overworld, Dim::Nether, None, 8.0);
+        assert_eq!(outbound.source, Dim::Overworld);
+        assert_eq!(outbound.target, Dim::Nether);
+        assert_eq!(outbound.scale, 1.0 / 8.0);
+        let returning = CustomTravel::between(
+            3,
+            Dim::Nether,
+            Dim::Nether,
+            Some(Dim::Overworld),
+            8.0,
+        );
+        assert_eq!(returning.source, Dim::Nether);
+        assert_eq!(returning.target, Dim::Overworld);
+        assert_eq!(returning.scale, 8.0);
+        let unlinked = CustomTravel::between(3, Dim::Nether, Dim::Nether, None, 8.0);
+        assert_eq!(unlinked.target, Dim::Nether);
+    }
 
     #[test]
     fn end_portals_lead_to_the_end_spawn_and_back_to_the_world_spawn() {

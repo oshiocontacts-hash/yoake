@@ -611,6 +611,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             self.create_portal_blocks(&shape);
             return;
         }
+        if self.ignite_custom_portal(pos, None, None, true, true).is_some() {
+            return;
+        }
         if !self.can_survive(state, pos) {
             self.remove_block(pos, false);
         }

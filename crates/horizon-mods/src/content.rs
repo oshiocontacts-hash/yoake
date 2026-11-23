@@ -1,7 +1,7 @@
 //! A content mod's `assets/` and `data/` (API 0.2, docs/modpacks.md): the
 //! files it adds to the game's resource tree, and the blocks, items, mob
-//! effects, entity types and menu types it declares in
-//! `data/<id>/horizon/{block,item,mob_effect,entity_type,menu}/`.
+//! effects, entity types, menu types and portal types it declares in
+//! `data/<id>/horizon/{block,item,mob_effect,entity_type,menu,portal}/`.
 //!
 //! Content is data, not code: nothing here runs in the sandbox. What a mod
 //! may add is fenced instead. Its own namespaces (its id and the ones its
@@ -1102,7 +1102,7 @@ impl Content {
             }
             if !own && top == "data" && rest.starts_with("horizon/") {
                 return Err(format!(
-                    "{name}: blocks, items, mob effects, entity types and menu types are declared in data/{id}/horizon/"
+                    "{name}: blocks, items, mob effects, entity types, menu types and portal types are declared in data/{id}/horizon/"
                 ));
             }
             let Some(decl) = (own && top == "data")
@@ -1130,9 +1130,10 @@ impl Content {
                 types.push((kind, name.clone()));
             } else if let Some(menu) = parse("menu") {
                 menus.push((menu, name.clone()));
+            } else if parse("portal").is_some() {
             } else {
                 return Err(format!(
-                    "{name}: data/{id}/horizon/ holds block/, item/, mob_effect/, creative_tab/, entity_type/ and menu/*.json only"
+                    "{name}: data/{id}/horizon/ holds block/, item/, mob_effect/, creative_tab/, entity_type/, menu/ and portal/*.json only"
                 ));
             }
         }
@@ -2307,6 +2308,16 @@ capabilities = ["registries"]
             let e = hmod(case, MANIFEST_TEXT, files).unwrap_err();
             assert!(e.contains(why), "{case}: {e}");
         }
+    }
+
+    #[test]
+    fn portal_types_are_accepted_as_raw_content_json() {
+        let files: &[(&str, &[u8])] = &[(
+            "data/ruby/horizon/portal/moon.json",
+            br#"{"frame":"minecraft:gold_block","ignite":{"fire":true},"target":"ruby:moon"}"#,
+        )];
+        let content = hmod("portal", MANIFEST_TEXT, files).unwrap();
+        assert_eq!(content.files, ["data/ruby/horizon/portal/moon.json"]);
     }
 
     #[test]

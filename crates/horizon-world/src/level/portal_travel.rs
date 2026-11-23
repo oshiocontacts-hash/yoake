@@ -608,6 +608,61 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             axis2_size: 3,
         })
     }
+
+    pub fn create_custom_portal(
+        &mut self,
+        origin: BlockPos,
+        x_axis: bool,
+        border: &BorderBounds,
+        logical_height: i32,
+        portal: &super::portal_type::PortalType,
+    ) -> Option<FoundRectangle> {
+        let vanilla = self.create_portal(origin, x_axis, border, logical_height)?;
+        let spot = vanilla.min_corner;
+        let direction = if x_axis { Direction::East } else { Direction::South };
+        let air = self.b.air();
+        for width in -1..3 {
+            for height in -1..4 {
+                self.set_block(step(spot, direction, width).offset(0, height, 0), air, 3);
+            }
+        }
+        let b = self.b;
+        let side = clockwise(direction);
+        for side_offset in -1..2 {
+            for width in 0..2 {
+                for height in -1..3 {
+                    let at = step(step(spot, direction, width), side, side_offset)
+                        .offset(0, height, 0);
+                    let state = self.state(at);
+                    if b.is_block(state, b.named.obsidian)
+                        || b.is_block(state, b.named.nether_portal)
+                    {
+                        self.set_block(at, air, 3);
+                    }
+                }
+            }
+        }
+        let frame = portal.frame_state(self.b)?;
+        let fill = portal.fill_state(x_axis, self.b)?;
+        for width in -1..=portal.size.min_width {
+            for height in -1..=portal.size.min_height {
+                let border = width == -1
+                    || width == portal.size.min_width
+                    || height == -1
+                    || height == portal.size.min_height;
+                self.set_block(
+                    step(spot, direction, width).offset(0, height, 0),
+                    if border { frame } else { fill },
+                    if border { 3 } else { 18 },
+                );
+            }
+        }
+        Some(FoundRectangle {
+            min_corner: spot,
+            axis1_size: portal.size.min_width,
+            axis2_size: portal.size.min_height,
+        })
+    }
 }
 
 impl Behaviours {
@@ -624,10 +679,25 @@ impl Behaviours {
         self.sim(level, ticks)
             .create_portal(origin, x_axis, border, logical_height)
     }
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_custom_portal<L: LevelAccess + ?Sized>(
+        &self,
+        level: &mut L,
+        ticks: &mut Ticks,
+        origin: BlockPos,
+        x_axis: bool,
+        border: &BorderBounds,
+        logical_height: i32,
+        portal: &super::portal_type::PortalType,
+    ) -> Option<FoundRectangle> {
+        self.sim(level, ticks)
+            .create_custom_portal(origin, x_axis, border, logical_height, portal)
+    }
     /// The axis of a nether portal state: Some(true) for X, Some(false) for
     /// Z, None for other blocks.
     pub fn portal_axis(&self, state: BlockStateId) -> Option<bool> {
-        self.is_block(state, self.named.nether_portal)
+        self.data(state)
+            .is(super::classes::Class::NetherPortal)
             .then(|| self.table.text(state, self.props.axis) == "x")
     }
 }
