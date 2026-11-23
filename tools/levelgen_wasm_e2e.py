@@ -54,7 +54,7 @@ def install_pack(work):
     root = work / 'saves/Lan/datapacks/levelgen'
     files = {
         'pack.mcmeta': {'pack': {'pack_format': 1, 'description': 'level generator e2e'}},
-        'data/levelgen/worldgen/configured_feature/gold.json': {
+        'data/levelgen/worldgen/feature/gold.json': {
             'type': 'minecraft:simple_block',
             'config': {'to_place': {'type': 'minecraft:simple_state_provider',
                                     'state': {'Name': 'minecraft:gold_block'}}},
