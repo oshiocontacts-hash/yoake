@@ -232,8 +232,26 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         fire: bool,
         preferred_axis: bool,
     ) -> Option<String> {
-        let (portal, shape) = self.custom_shape(pos, item, fluid, fire, preferred_axis)?;
-        let state = portal.fill_state(shape.x_axis, self.b)?;
+        let Some((portal, shape)) = self.custom_shape(pos, item, fluid, fire, preferred_axis) else {
+            // Only beside a custom frame block: an ordinary fire logs nothing.
+            let beside = self.level.custom_portals().is_some_and(|portals| {
+                Direction::ALL.iter().any(|&face| {
+                    let state = self.state(rel(pos, face));
+                    portals.types.values().any(|p| p.is_frame(state, self.b))
+                })
+            });
+            if beside {
+                log::info!(
+                    "Horizon custom portal: ignition at {pos:?} (item {item:?}, fluid {fluid:?}, fire {fire}) found no valid frame (shape, size or ignition)"
+                );
+            }
+            return None;
+        };
+        let Some(state) = portal.fill_state(shape.x_axis, self.b) else {
+            log::info!("Horizon custom portal: {} has no usable fill block; ignition at {pos:?} skipped", portal.id);
+            return None;
+        };
+        log::info!("Horizon custom portal: {} lit at {pos:?}", portal.id);
         self.fill_shape(&shape, state);
         if let Some(sound) = portal.look.ambient_sound {
             self.emit(super::LevelEvent::Sound {
