@@ -122,7 +122,7 @@ enum Blocks {
 }
 
 /// The answer: blocks by section (16 high, from the bottom of the level) and, if wanted, one biome for
-/// the whole chunk. A section not given stays air.
+/// the whole chunk. A section not given is left unchanged (air without a base, the base's blocks with one).
 #[derive(Default)]
 pub struct Fill {
     biome: Option<String>,

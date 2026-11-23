@@ -22,6 +22,15 @@ const STEM: &str = r#"{
   "generator": {"type": "yoake:mod", "id": "levelgen:terraces", "settings": {"step": 8}}
 }"#;
 
+const BASED_STEM: &str = r#"{
+  "type": "minecraft:overworld",
+  "generator": {
+    "type": "yoake:mod", "id": "levelgen:terraces", "base": "minecraft:overworld",
+    "biome_source": {"type": "minecraft:fixed", "biome": "levelgen:decorated"},
+    "decorate": true
+  }
+}"#;
+
 /// The surface height (the first free y) of the column at block (x, z).
 pub fn surface(x: i32, z: i32, step: i32, seed: i64) -> i32 {
     let step = step.max(1);
@@ -42,6 +51,7 @@ impl ServerMod for Guest {
             ("type", ext::register_type("levelgen:terrace_type", TYPE)),
             ("generator", ext::register_generator("levelgen:terraces")),
             ("level", ext::register_level("levelgen:terraces", STEM)),
+            ("based level", ext::register_level("levelgen:based", BASED_STEM)),
         ] {
             if let Err(e) = result {
                 println!("level-generator: registering the {what}: {e}");
@@ -54,6 +64,14 @@ impl ServerMod for Guest {
             return Err("unknown method".into());
         }
         let request = Request::parse(&payload).ok_or("a request this mod cannot read")?;
+        if request.level == "levelgen:based" {
+            let mut fill = Fill::new();
+            let section = ((48 - request.min_y) / 16) as u16;
+            let mut indices = vec![0u16; 4096];
+            indices[2] = 1;
+            fill.palette(section, &["minecraft:air", "minecraft:diamond_block"], indices);
+            return Ok(fill.to_bytes());
+        }
         let step = request.setting_int("step").unwrap_or(8) as i32;
         let sections = (request.height / 16) as u16;
         let mut fill = Fill::new();

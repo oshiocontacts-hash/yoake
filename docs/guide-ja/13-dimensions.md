@@ -186,6 +186,26 @@ my_mod/
 
 4. **`yoake:mod`**: Yoake 独自の拡張で、MOD が登録したチャンクジェネレーターを呼び出します。`"id"` に登録済みのジェネレーター ID、`"settings"` に任意の JSON オブジェクト（省略時は `{}`）を書きます。詳しくは 13-4 節で説明します。
 
+```json
+{
+  "type": "minecraft:overworld",
+  "generator": {
+    "type": "yoake:mod",
+    "id": "mymod:terrain",
+    "settings": {},
+    "biome_source": { "type": "minecraft:fixed", "biome": "minecraft:plains" },
+    "base": "minecraft:overworld",
+    "decorate": true,
+    "structures": true
+  }
+}
+```
+
+- `"biome_source"` は `minecraft:noise` と同じ形式を使え、省略時は平原固定です。初期バイオームと、バイオーム由来の地物・構造物を決めます。コールバックは `ModChunk::set_biome` で上書きもできます。
+- `"base"` は省略可能です。`"minecraft:overworld"` などのノイズ設定 ID を指定すると、レベルのシードと MOD のバイオームソースで先に地形を生成し、そのブロックをコールバックで読み書きできます。完全な `minecraft:noise` ジェネレーターオブジェクトも指定できます。省略時は空気のカラムから始めます。
+- `"decorate"` はコールバック後にバイオームの配置地物を実行します。`"structures"` は構造物の開始・地形適応・構造物ピースを有効にし、`"decorate"` なしでも使えます（その場合は通常の配置地物を省きます）。どちらも省略時は `false` で、構造物はワールドの `generate_structures` も必要です。ベースのノイズ・地表・カーバーは装飾の指定に関係なく実行されます。
+- ベースなしで後処理を有効にした場合は、共有地物パイプラインの初期化にオーバーワールドのノイズ設定を使いますが、コールバック前にその地形を消去します。これらのフィールドがない既存のステムは、従来どおり空気・装飾なしの出力です。
+
 ### バイオームソース（`biome_source`）
 
 `minecraft:noise` の `"biome_source"` では、次の形式が使えます。

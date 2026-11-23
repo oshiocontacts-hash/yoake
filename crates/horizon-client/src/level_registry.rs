@@ -282,7 +282,9 @@ fn generator_sea_level(generator: &GeneratorSpec, noise_sea: &BTreeMap<String, i
         },
         GeneratorSpec::Flat(_) => Some(-63),
         GeneratorSpec::Debug => Some(63),
-        GeneratorSpec::Mod { .. } => None,
+        GeneratorSpec::Mod { base, .. } => base
+            .as_deref()
+            .and_then(|base| generator_sea_level(base, noise_sea)),
     }
 }
 

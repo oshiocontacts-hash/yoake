@@ -551,6 +551,100 @@ impl SettingsRef {
     }
 }
 
+fn parse_generator(
+    g: &Map<String, Value>,
+    catalog: &BiomeSourceCatalog,
+) -> Result<GeneratorSpec, DimensionError> {
+    let kind = g
+        .get("type")
+        .and_then(Value::as_str)
+        .ok_or(DimensionError::MissingField("generator.type"))?;
+    let biome_source = |field: Option<&Value>| {
+        let source = field.cloned().unwrap_or_else(|| {
+            json!({"type": "minecraft:fixed", "biome": "minecraft:plains"})
+        });
+        catalog
+            .decode(&source.to_string())
+            .map_err(|e| DimensionError::Biome(e.to_string()))
+    };
+    Ok(match kind {
+        "minecraft:noise" => {
+            let settings = g
+                .get("settings")
+                .ok_or(DimensionError::MissingField("settings"))?;
+            let source = g
+                .get("biome_source")
+                .ok_or(DimensionError::MissingField("biome_source"))?;
+            GeneratorSpec::Noise {
+                settings: SettingsRef::parse(settings)?,
+                biome_source: biome_source(Some(source))?,
+            }
+        }
+        "minecraft:flat" => match g.get("settings") {
+            Some(s @ Value::Object(_)) => GeneratorSpec::Flat(s.clone()),
+            Some(_) => return Err(invalid("settings", "expected an object")),
+            None => return Err(DimensionError::MissingField("settings")),
+        },
+        "minecraft:debug" => GeneratorSpec::Debug,
+        "yoake:mod" => {
+            let id = g
+                .get("id")
+                .and_then(Value::as_str)
+                .ok_or(DimensionError::MissingField("generator.id"))?;
+            if id.is_empty() || id.chars().any(char::is_whitespace) || !id.contains(':') {
+                return Err(invalid("generator.id", "expected a namespaced generator id"));
+            }
+            let settings = match g.get("settings") {
+                None | Some(Value::Null) => json!({}),
+                Some(s @ Value::Object(_)) => s.clone(),
+                Some(_) => return Err(invalid("settings", "expected an object")),
+            };
+            let biome_source = biome_source(g.get("biome_source"))?;
+            let base = match g.get("base") {
+                None | Some(Value::Null) => None,
+                Some(Value::String(settings)) => Some(GeneratorSpec::Noise {
+                    settings: SettingsRef::Id(settings.clone()),
+                    biome_source: biome_source.clone(),
+                }),
+                Some(base @ Value::Object(_)) => {
+                    let object = base.as_object().expect("object matched");
+                    Some(parse_generator(object, catalog)?)
+                }
+                Some(_) => {
+                    return Err(invalid(
+                        "generator.base",
+                        "expected a noise generator or noise settings id",
+                    ));
+                }
+            };
+            let base = match base {
+                Some(base @ GeneratorSpec::Noise { .. }) => Some(Box::new(base)),
+                Some(_) => {
+                    return Err(invalid(
+                        "generator.base",
+                        "expected a minecraft:noise generator",
+                    ));
+                }
+                None => None,
+            };
+            let flag = |name: &'static str| match g.get(name) {
+                None => Ok(false),
+                Some(Value::Bool(value)) => Ok(*value),
+                Some(_) => Err(invalid(name, "expected a boolean")),
+            };
+            GeneratorSpec::Mod {
+                id: id.to_owned(),
+                settings,
+                biome_source,
+                base,
+                decorate: flag("decorate")?,
+                structures: flag("structures")?,
+            }
+        }
+        other => return Err(DimensionError::UnknownGeneratorType(other.to_owned())),
+    })
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum GeneratorSpec {
     Noise {
@@ -560,9 +654,16 @@ pub enum GeneratorSpec {
     /// Superflat; the settings object is kept as written (flatgen reads it).
     Flat(Value),
     Debug,
-    /// `yoake:mod`: a generator a mod registers by id (F3-5), with the
-    /// settings object it reads (`{}` when the stem gives none).
-    Mod { id: String, settings: Value },
+    /// A registered mod generator, optionally over a noise base and followed
+    /// by the biome source's features and structures.
+    Mod {
+        id: String,
+        settings: Value,
+        biome_source: BiomeSourceDefinition,
+        base: Option<Box<GeneratorSpec>>,
+        decorate: bool,
+        structures: bool,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -596,51 +697,7 @@ impl LevelStem {
             .ok_or(DimensionError::MissingField("generator"))?
             .as_object()
             .ok_or_else(|| DimensionError::NotObject("generator".into()))?;
-        let kind = g
-            .get("type")
-            .and_then(Value::as_str)
-            .ok_or(DimensionError::MissingField("generator.type"))?;
-        let generator = match kind {
-            "minecraft:noise" => {
-                let settings = g
-                    .get("settings")
-                    .ok_or(DimensionError::MissingField("settings"))?;
-                let source = g
-                    .get("biome_source")
-                    .ok_or(DimensionError::MissingField("biome_source"))?;
-                GeneratorSpec::Noise {
-                    settings: SettingsRef::parse(settings)?,
-                    biome_source: catalog
-                        .decode(&source.to_string())
-                        .map_err(|e| DimensionError::Biome(e.to_string()))?,
-                }
-            }
-            "minecraft:flat" => match g.get("settings") {
-                Some(s @ Value::Object(_)) => GeneratorSpec::Flat(s.clone()),
-                Some(_) => return Err(invalid("settings", "expected an object")),
-                None => return Err(DimensionError::MissingField("settings")),
-            },
-            "minecraft:debug" => GeneratorSpec::Debug,
-            "yoake:mod" => {
-                let id = g
-                    .get("id")
-                    .and_then(Value::as_str)
-                    .ok_or(DimensionError::MissingField("generator.id"))?;
-                if id.is_empty() || id.chars().any(char::is_whitespace) || !id.contains(':') {
-                    return Err(invalid("generator.id", "expected a namespaced generator id"));
-                }
-                let settings = match g.get("settings") {
-                    None | Some(Value::Null) => json!({}),
-                    Some(s @ Value::Object(_)) => s.clone(),
-                    Some(_) => return Err(invalid("settings", "expected an object")),
-                };
-                GeneratorSpec::Mod {
-                    id: id.to_owned(),
-                    settings,
-                }
-            }
-            other => return Err(DimensionError::UnknownGeneratorType(other.to_owned())),
-        };
+        let generator = parse_generator(g, catalog)?;
         Ok(Self {
             dimension_type,
             generator,
@@ -651,25 +708,58 @@ impl LevelStem {
             TypeRef::Id(id) => json!(id),
             TypeRef::Inline(t) => t.to_value(),
         };
+        let encode_source = |source: &BiomeSourceDefinition| {
+            let encoded = catalog
+                .encode(source)
+                .map_err(|e| DimensionError::Biome(e.to_string()))?;
+            serde_json::from_str::<Value>(&encoded).map_err(|e| DimensionError::Json(e.to_string()))
+        };
         let generator = match &self.generator {
             GeneratorSpec::Noise {
                 settings,
                 biome_source,
             } => {
-                let source = catalog
-                    .encode(biome_source)
-                    .map_err(|e| DimensionError::Biome(e.to_string()))?;
                 json!({
                     "type": "minecraft:noise",
                     "settings": settings.to_value(),
-                    "biome_source": serde_json::from_str::<Value>(&source)
-                        .map_err(|e| DimensionError::Json(e.to_string()))?,
+                    "biome_source": encode_source(biome_source)?,
                 })
             }
             GeneratorSpec::Flat(s) => json!({"type": "minecraft:flat", "settings": s}),
             GeneratorSpec::Debug => json!({"type": "minecraft:debug"}),
-            GeneratorSpec::Mod { id, settings } => {
-                json!({"type": "yoake:mod", "id": id, "settings": settings})
+            GeneratorSpec::Mod {
+                id,
+                settings,
+                biome_source,
+                base,
+                decorate,
+                structures,
+            } => {
+                let mut value = json!({"type": "yoake:mod", "id": id, "settings": settings});
+                if *biome_source != BiomeSourceDefinition::Fixed("minecraft:plains".to_owned()) {
+                    value["biome_source"] = encode_source(biome_source)?;
+                }
+                if let Some(base) = base {
+                    let GeneratorSpec::Noise {
+                        settings,
+                        biome_source,
+                    } = base.as_ref()
+                    else {
+                        unreachable!("mod bases are validated as noise")
+                    };
+                    value["base"] = json!({
+                        "type": "minecraft:noise",
+                        "settings": settings.to_value(),
+                        "biome_source": encode_source(biome_source)?,
+                    });
+                }
+                if *decorate {
+                    value["decorate"] = Value::Bool(true);
+                }
+                if *structures {
+                    value["structures"] = Value::Bool(true);
+                }
+                value
             }
         };
         Ok(json!({"type": ty, "generator": generator}))
@@ -975,11 +1065,31 @@ mod tests {
             "settings":{"noise":{"min_y":0,"height":64}},
             "biome_source":{"type":"yoake:grid","cell_size":16,"width":1,"depth":1,
             "cells":["minecraft:desert"],"outside":"minecraft:plains","seed":7}}}"#;
-        for json in [noise, flat, debug, grid] {
+        let modded = r#"{"type":"minecraft:overworld","generator":{"type":"yoake:mod",
+            "id":"test:terrain","settings":{"depth":2},"base":"minecraft:overworld",
+            "biome_source":{"type":"minecraft:fixed","biome":"minecraft:desert"},
+            "decorate":true,"structures":true}}"#;
+        for json in [noise, flat, debug, grid, modded] {
             let stem = LevelStem::from_json_str(json, &cat).unwrap();
             let again = LevelStem::from_value(&stem.to_value(&cat).unwrap(), &cat).unwrap();
             assert_eq!(again, stem);
         }
+        let plain = r#"{"type":"minecraft:overworld","generator":{"type":"yoake:mod","id":"test:old"}}"#;
+        let stem = LevelStem::from_json_str(plain, &cat).unwrap();
+        assert!(matches!(
+            &stem.generator,
+            GeneratorSpec::Mod { base: None, decorate: false, structures: false,
+                biome_source: BiomeSourceDefinition::Fixed(biome), .. } if biome == "minecraft:plains"
+        ));
+        // As before this change: an old stem gains only `"settings": {}` when written, nothing of base/decorate.
+        let written = r#"{"type":"minecraft:overworld","generator":{"type":"yoake:mod","id":"test:old","settings":{}}}"#;
+        assert_eq!(stem.to_value(&cat).unwrap(), serde_json::from_str::<Value>(written).unwrap());
+        let stem = LevelStem::from_json_str(modded, &cat).unwrap();
+        assert!(matches!(
+            &stem.generator,
+            GeneratorSpec::Mod { base: Some(base), decorate: true, structures: true, .. }
+                if matches!(base.as_ref(), GeneratorSpec::Noise { .. })
+        ));
         let stem = LevelStem::from_json_str(grid, &cat).unwrap();
         assert!(matches!(
             stem.generator,
@@ -1001,6 +1111,13 @@ mod tests {
         assert!(err(r#"{"type":{"min_y":3,"height":64},"generator":{"type":"minecraft:debug"}}"#)
             .contains("`min_y`"));
         assert_eq!(err(r#"{"type":"a:b","generator":{"type":"minecraft:flat"}}"#), "missing field `settings`");
+        assert!(err(r#"{"type":"a:b","generator":{"type":"yoake:mod","id":"a:g","decorate":"yes"}}"#)
+            .contains("boolean"));
+        assert!(err(r#"{"type":"a:b","generator":{"type":"yoake:mod","id":"a:g",
+            "base":{"type":"minecraft:debug"}}}"#)
+            .contains("minecraft:noise"));
+        assert!(err(r#"{"type":"a:b","generator":{"type":"yoake:mod","id":"a:g","base":1}}"#)
+            .contains("generator.base"));
     }
     #[test]
     fn level_registry_resolves_types() {

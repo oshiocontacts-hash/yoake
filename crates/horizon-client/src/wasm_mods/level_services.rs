@@ -262,7 +262,6 @@ impl Fill {
         for (index, blocks) in &self.sections {
             let bottom = min_y + i32::from(*index) * 16;
             match blocks {
-                Blocks::One(0) => {}
                 Blocks::One(state) => {
                     for y in 0..16 {
                         chunk.fill_layer(bottom + y, *state);
@@ -271,10 +270,8 @@ impl Fill {
                 Blocks::Palette(palette, indices) => {
                     for (i, &p) in indices.iter().enumerate() {
                         let state = palette[usize::from(p)];
-                        if state != 0 {
-                            let (x, z, y) = ((i & 15) as i32, ((i >> 4) & 15) as i32, (i >> 8) as i32);
-                            chunk.set_block(x, bottom + y, z, state);
-                        }
+                        let (x, z, y) = ((i & 15) as i32, ((i >> 4) & 15) as i32, (i >> 8) as i32);
+                        chunk.set_block(x, bottom + y, z, state);
                     }
                 }
             }

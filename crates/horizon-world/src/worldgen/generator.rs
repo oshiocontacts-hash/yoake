@@ -857,6 +857,10 @@ impl ProtoChunk {
     pub fn biomes(&self) -> &BiomeChunk<BiomeId> {
         &self.biomes
     }
+    /// Replace quart biomes when a mod edits its generated column.
+    pub fn biomes_mut(&mut self) -> &mut BiomeChunk<BiomeId> {
+        &mut self.biomes
+    }
     pub fn data(&self) -> &Arc<GeneratorData> {
         &self.data
     }
@@ -3441,6 +3445,16 @@ impl OverworldGenerator {
     ) -> Result<Self, GeneratorError> {
         Self::for_world_with_settings(data, seed, preset, dimension, with_structures, None)
     }
+    /// Exactly this stem, without a data-pack stem of the same level replacing it.
+    pub fn for_stem(
+        data: Arc<GeneratorData>,
+        seed: i64,
+        dimension: &str,
+        with_structures: bool,
+        stem: &Value,
+    ) -> Result<Self, GeneratorError> {
+        Self::from_stem(data, seed, dimension, with_structures, stem.clone())
+    }
     /// A saved level stem supplies the generator and dimension type when no data
     /// pack replaces that dimension. Worlds without one use the preset's stem.
     pub fn for_world_with_settings(
@@ -3463,6 +3477,15 @@ impl OverworldGenerator {
             )?;
             preset_json["dimensions"][dimension].clone()
         };
+        Self::from_stem(data, seed, dimension, with_structures, stem)
+    }
+    fn from_stem(
+        data: Arc<GeneratorData>,
+        seed: i64,
+        dimension: &str,
+        with_structures: bool,
+        stem: Value,
+    ) -> Result<Self, GeneratorError> {
         let generator = stem["generator"].clone();
         // The level's build range: its dimension type's, a data pack's
         // over the vanilla one.

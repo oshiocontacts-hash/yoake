@@ -4,9 +4,9 @@
 //! This is the native side: a Rust mod (or the engine on behalf of a WASM mod
 //! later, F3-8) registers a [`ModGeneratorFactory`]; when the level opens the
 //! factory makes a [`ModColumnSource`] for it (given the level's seed, shape
-//! and the stem's settings) and the engine asks the source to fill each chunk
-//! as a proto chunk. There is no decoration or structure step: the source
-//! writes the final blocks and biomes of the chunk it is given. Chunks are
+//! and the stem's settings) and the engine asks the source to edit each chunk
+//! after its optional noise base. The stem's `decorate` and `structures` flags
+//! then select the same post-processing pipeline as a noise level. Chunks are
 //! generated on worker threads, so a source is `Send + Sync` and takes `&self`.
 use crate::{
     assets::Assets,
@@ -27,8 +27,8 @@ pub struct ModChunk {
     failed: bool,
 }
 impl ModChunk {
-    /// Says the generator could not fill this chunk (it ran over its limits, say). What it wrote stays,
-    /// but the chunk is not saved while nobody edits it, so it generates again when it next loads.
+    /// Says the generator could not fill this chunk (it ran over its limits, say). The fallback is
+    /// all air and is not saved while nobody edits it, so it generates again when it next loads.
     pub fn mark_failed(&mut self) {
         self.failed = true;
     }
@@ -84,17 +84,27 @@ pub struct ModGeneratorContext {
     pub generator: String,
     /// The stem's `generator.settings` object.
     pub settings: Value,
-    assets: Arc<Assets>,
+    assets: Option<Arc<Assets>>,
 }
 impl ModGeneratorContext {
     /// The default state id of a block (`minecraft:stone`).
     pub fn block(&self, name: &str) -> Option<u32> {
-        self.assets.registry.default_state(name).map(|s| s.0)
+        self.assets
+            .as_ref()?
+            .registry
+            .default_state(name)
+            .map(|s| s.0)
     }
     /// The same lookup, to keep and call from the generating threads.
     pub fn block_lookup(&self) -> Arc<dyn Fn(&str) -> Option<u32> + Send + Sync> {
         let assets = self.assets.clone();
-        Arc::new(move |name| assets.registry.default_state(name).map(|s| s.0))
+        Arc::new(move |name| {
+            assets
+                .as_ref()?
+                .registry
+                .default_state(name)
+                .map(|s| s.0)
+        })
     }
 }
 
@@ -143,7 +153,11 @@ impl ModGenerators {
         settings: Value,
         assets: Arc<Assets>,
         biomes: Arc<Biomes>,
-    ) -> Result<ModTerrain, String> {
+        based: bool,
+        decorate: bool,
+        structures: bool,
+        pipeline: Option<Arc<crate::vanillagen::VanillaTerrain>>,
+    ) -> Result<ModTerrain<crate::vanillagen::VanillaTerrain>, String> {
         let factory = self.factories.get(id).ok_or_else(|| {
             format!(
                 "level {level} asks for generator `{id}`, which no mod registered (registered: {})",
@@ -156,74 +170,271 @@ impl ModGenerators {
             seed,
             shape,
             settings,
-            assets,
+            assets: Some(assets),
         };
         let source = factory
             .create(&context)
             .map_err(|e| format!("generator `{id}` for level {level}: {e}"))?;
         let plains = biomes.id("minecraft:plains");
+        let biome_of = Arc::new(move |name: &str| biomes.contains(name).then(|| biomes.id(name)));
         Ok(ModTerrain {
             level: level.to_owned(),
             source,
             shape,
             plains,
-            biomes,
+            biome_of,
+            based,
+            decorate,
+            structures,
+            pipeline,
         })
     }
 }
 
 /// A chunk of a level made by a mod's generator is about to be filled (F3-8b). A mod's hook here sees
-/// the empty chunk first and may write into it through the `ModChunk` bindings (`set_block`,
-/// `fill_layer`, `block`, `set_biome`); the level's generator then fills it. Only levels of mod
-/// generators, so the vanilla terrain is untouched. About one call per chunk.
+/// the base column first (air without a base) and may write into it through the `ModChunk` bindings
+/// (`set_block`, `fill_layer`, `block`, `set_biome`); the level's generator then edits it. Only levels
+/// of mod generators, so vanilla terrain is untouched. About one call per chunk.
 #[yoake_inject_macro::yoake_inject(id = "worldgen::generate_chunk", side = "server")]
 fn generate_chunk(level: &str, cx: i32, cz: i32, chunk: &mut ModChunk) {
     let _ = (level, cx, cz, chunk);
 }
 
-/// A [`ModColumnSource`] as the engine's chunk generator.
-pub struct ModTerrain {
+/// The proto-column conversion a mod generator needs from its engine pipeline.
+#[doc(hidden)]
+pub trait ModBase: ChunkGenerator {
+    fn mod_column(&self, proto: &Proto) -> Option<Chunk>;
+    fn mod_restore(&self, proto: &mut Proto, saved: crate::save::SavedProto) {
+        self.mod_replace(proto, saved.column);
+    }
+    fn mod_replace(&self, proto: &mut Proto, column: Chunk);
+    fn mod_decorate(&self, worker: &mut Self::Worker, region: &mut [Proto; 9], _features: bool) {
+        self.decorate(worker, region);
+    }
+}
+
+struct ModProto {
+    inner: Proto,
+    failed: bool,
+}
+
+/// A [`ModColumnSource`] over an optional engine terrain/decoration pipeline.
+pub struct ModTerrain<G = crate::vanillagen::VanillaTerrain> {
     level: String,
     source: Arc<dyn ModColumnSource>,
     shape: LevelShape,
     plains: u16,
-    biomes: Arc<Biomes>,
+    biome_of: Arc<dyn Fn(&str) -> Option<u16> + Send + Sync>,
+    based: bool,
+    decorate: bool,
+    structures: bool,
+    pipeline: Option<Arc<G>>,
 }
-impl ChunkGenerator for ModTerrain {
-    type Worker = ();
-    fn worker(&self) {}
-    fn proto(&self, _: &mut (), cx: i32, cz: i32) -> Proto {
-        let mut chunk = Chunk::with_layout(cx, cz, self.shape.column());
-        for s in &mut chunk.sections {
-            Arc::make_mut(s).biomes = horizon_core::paletted::PalettedContainer::new(
+
+fn air_with_biomes(shape: LevelShape, source: &Chunk) -> Chunk {
+    let mut air = Chunk::with_layout(source.x, source.z, shape.column());
+    for (to, from) in air.sections.iter_mut().zip(&source.sections) {
+        Arc::make_mut(to).biomes = from.biomes.clone();
+    }
+    air
+}
+
+impl<G: ModBase> ModTerrain<G> {
+    fn empty(&self, x: i32, z: i32) -> Chunk {
+        let mut chunk = Chunk::with_layout(x, z, self.shape.column());
+        for section in &mut chunk.sections {
+            Arc::make_mut(section).biomes = horizon_core::paletted::PalettedContainer::new(
                 BIOME_STRATEGY,
                 u32::from(self.plains),
             );
         }
-        let biomes = self.biomes.clone();
-        let biome_of = move |name: &str| {
-            biomes.contains(name).then(|| biomes.id(name))
+        chunk
+    }
+    fn wrapped(proto: &Proto) -> &ModProto {
+        proto.downcast_ref::<ModProto>().expect("mod terrain proto")
+    }
+}
+
+impl<G: ModBase> ChunkGenerator for ModTerrain<G> {
+    type Worker = Option<G::Worker>;
+    fn worker(&self) -> Self::Worker {
+        self.pipeline.as_ref().map(|base| base.worker())
+    }
+    fn idle(&self, worker: &mut Self::Worker) {
+        if let (Some(base), Some(worker)) = (&self.pipeline, worker) {
+            base.idle(worker);
+        }
+    }
+    fn all_idle(&self) {
+        if let Some(base) = &self.pipeline {
+            base.all_idle();
+        }
+    }
+    fn prepare_loaded(&self, worker: &mut Self::Worker, chunk: &Chunk) {
+        if let (Some(base), Some(worker)) = (&self.pipeline, worker) {
+            base.prepare_loaded(worker, chunk);
+        }
+    }
+    fn proto(&self, worker: &mut Self::Worker, cx: i32, cz: i32) -> Proto {
+        let (mut inner, mut chunk) = if let Some(base) = &self.pipeline {
+            let worker = worker.as_mut().expect("mod base worker");
+            let inner = base.proto(worker, cx, cz);
+            let mut column = base.mod_column(&inner).expect("mod base column");
+            if !self.based {
+                column = air_with_biomes(self.shape, &column);
+            }
+            (inner, column)
+        } else {
+            (Box::new(()) as Proto, self.empty(cx, cz))
         };
         let mut mod_chunk = ModChunk {
             chunk,
             chunk_x: cx,
             chunk_z: cz,
             shape: self.shape,
-            biome_of: Arc::new(biome_of),
+            biome_of: self.biome_of.clone(),
             failed: false,
         };
         generate_chunk(&self.level, cx, cz, &mut mod_chunk);
         self.source.generate(&mut mod_chunk);
         let failed = mod_chunk.failed;
-        let mut chunk = mod_chunk.chunk;
-        for s in &mut chunk.sections {
-            Arc::make_mut(s).compact();
+        chunk = mod_chunk.chunk;
+        if failed {
+            chunk = air_with_biomes(self.shape, &chunk);
         }
-        chunk.not_generated = failed;
-        Box::new(chunk)
+        if let Some(base) = &self.pipeline {
+            base.mod_replace(&mut inner, chunk);
+        } else {
+            for section in &mut chunk.sections {
+                Arc::make_mut(section).compact();
+            }
+            inner = Box::new(chunk);
+        }
+        Box::new(ModProto { inner, failed })
+    }
+    fn decorates(&self) -> bool {
+        self.pipeline.is_some() && (self.decorate || self.structures)
+    }
+    fn decorates_beside_final(&self) -> bool {
+        self.decorates()
+    }
+    fn proto_beside_final(&self, worker: &mut Self::Worker, snapshot: &Chunk) -> Option<Proto> {
+        let base = self.pipeline.as_ref()?;
+        let proto = self.proto(worker, snapshot.x, snapshot.z);
+        let mut proto = proto.downcast::<ModProto>().expect("mod terrain proto");
+        base.mod_restore(
+            &mut proto.inner,
+            crate::save::SavedProto {
+                column: snapshot.clone(),
+                decorated: true,
+                block_entities: Vec::new(),
+                entities: Vec::new(),
+            },
+        );
+        proto.failed = false;
+        Some(proto)
+    }
+    fn final_writes(&self, snapshot: &Chunk, proto: &Proto) -> Vec<([i32; 3], u32)> {
+        self.pipeline.as_ref().map_or_else(Vec::new, |base| {
+            base.final_writes(snapshot, &Self::wrapped(proto).inner)
+        })
+    }
+    fn final_block_entities(
+        &self,
+        proto: &Proto,
+        writes: &[([i32; 3], u32)],
+    ) -> Vec<((i32, i32, i32), crate::chunk::block_entity::BlockEntity)> {
+        self.pipeline.as_ref().map_or_else(Vec::new, |base| {
+            base.final_block_entities(&Self::wrapped(proto).inner, writes)
+        })
+    }
+    fn decorate(&self, worker: &mut Self::Worker, region: &mut [Proto; 9]) {
+        let Some(base) = &self.pipeline else {
+            return;
+        };
+        let taken: Vec<ModProto> = region
+            .iter_mut()
+            .map(|proto| {
+                *std::mem::replace(proto, Box::new(()))
+                    .downcast::<ModProto>()
+                    .expect("mod terrain proto")
+            })
+            .collect();
+        if taken.iter().any(|proto| proto.failed) {
+            for (slot, proto) in region.iter_mut().zip(taken) {
+                *slot = Box::new(proto);
+            }
+            return;
+        }
+        let mut inner: [Proto; 9] = taken
+            .into_iter()
+            .map(|proto| proto.inner)
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("nine mod protos");
+        base.mod_decorate(
+            worker.as_mut().expect("mod base worker"),
+            &mut inner,
+            self.decorate,
+        );
+        for (slot, inner) in region.iter_mut().zip(inner) {
+            *slot = Box::new(ModProto {
+                inner,
+                failed: false,
+            });
+        }
+    }
+    fn is_decorated(&self, proto: &Proto) -> bool {
+        self.pipeline.as_ref().is_some_and(|base| {
+            base.is_decorated(&Self::wrapped(proto).inner)
+        })
+    }
+    fn light_view(&self, proto: &Proto) -> Option<Chunk> {
+        self.pipeline
+            .as_ref()
+            .and_then(|base| base.light_view(&Self::wrapped(proto).inner))
+    }
+    fn non_air_sections(&self, proto: &Proto) -> Option<crate::section_mask::SectionMask> {
+        self.pipeline
+            .as_ref()
+            .and_then(|base| base.non_air_sections(&Self::wrapped(proto).inner))
+    }
+    fn cache_census(&self) -> Vec<(&'static str, usize, Option<usize>)> {
+        self.pipeline.as_ref().map_or_else(Vec::new, |base| base.cache_census())
+    }
+    fn proto_heap_bytes(&self, proto: &Proto) -> ([usize; 6], [usize; 16]) {
+        self.pipeline.as_ref().map_or(([0; 6], [0; 16]), |base| {
+            base.proto_heap_bytes(&Self::wrapped(proto).inner)
+        })
+    }
+    fn saved_proto(&self, proto: &Proto) -> Option<crate::save::SavedProto> {
+        let proto = Self::wrapped(proto);
+        (!proto.failed)
+            .then(|| self.pipeline.as_ref()?.saved_proto(&proto.inner))
+            .flatten()
+    }
+    fn restore_proto(&self, proto: &mut Proto, saved: crate::save::SavedProto) {
+        let Some(base) = &self.pipeline else {
+            return;
+        };
+        let proto = proto.downcast_mut::<ModProto>().expect("mod terrain proto");
+        base.mod_restore(&mut proto.inner, saved);
+        proto.failed = false;
     }
     fn finish(&self, proto: Proto) -> Chunk {
-        *proto.downcast::<Chunk>().expect("mod terrain proto")
+        let proto = *proto.downcast::<ModProto>().expect("mod terrain proto");
+        let mut chunk = if let Some(base) = &self.pipeline {
+            base.finish(proto.inner)
+        } else {
+            *proto.inner.downcast::<Chunk>().expect("direct mod column")
+        };
+        if proto.failed {
+            let mut air = air_with_biomes(self.shape, &chunk);
+            air.not_generated = true;
+            return air;
+        }
+        chunk.not_generated = false;
+        chunk
     }
 }
 
@@ -326,6 +537,189 @@ mod tests {
         }
         clear_staged();
         assert!(staged().0.is_empty());
+    }
+
+    const Y: i32 = -64;
+    struct TestFactory {
+        seen: Arc<std::sync::Mutex<Vec<u32>>>,
+        fail: bool,
+    }
+    struct TestSource {
+        seen: Arc<std::sync::Mutex<Vec<u32>>>,
+        fail: bool,
+    }
+    impl ModGeneratorFactory for TestFactory {
+        fn create(&self, _: &ModGeneratorContext) -> Result<Arc<dyn ModColumnSource>, String> {
+            Ok(Arc::new(TestSource {
+                seen: self.seen.clone(),
+                fail: self.fail,
+            }))
+        }
+    }
+    impl ModColumnSource for TestSource {
+        fn generate(&self, chunk: &mut ModChunk) {
+            self.seen.lock().unwrap().push(chunk.block(0, Y, 0));
+            chunk.set_block(0, Y, 0, 20);
+            assert!(chunk.set_biome("minecraft:desert"));
+            if self.fail {
+                chunk.mark_failed();
+            }
+        }
+    }
+
+    struct Synthetic;
+    struct SyntheticProto {
+        chunk: Chunk,
+        decorated: bool,
+    }
+    impl ChunkGenerator for Synthetic {
+        type Worker = ();
+        fn worker(&self) {}
+        fn proto(&self, _: &mut (), x: i32, z: i32) -> Proto {
+            let mut chunk = Chunk::with_layout(x, z, LevelShape::OVERWORLD.column());
+            for z in 0..16 {
+                for x in 0..16 {
+                    chunk.set(x, Y, z, 11);
+                }
+            }
+            Box::new(SyntheticProto {
+                chunk,
+                decorated: false,
+            })
+        }
+        fn decorate(&self, _: &mut (), region: &mut [Proto; 9]) {
+            let center = region[4]
+                .downcast_mut::<SyntheticProto>()
+                .expect("synthetic proto");
+            center.chunk.set(0, Y, 0, 30);
+            center.decorated = true;
+        }
+        fn is_decorated(&self, proto: &Proto) -> bool {
+            proto
+                .downcast_ref::<SyntheticProto>()
+                .is_some_and(|proto| proto.decorated)
+        }
+        fn light_view(&self, proto: &Proto) -> Option<Chunk> {
+            Some(
+                proto
+                    .downcast_ref::<SyntheticProto>()?
+                    .chunk
+                    .clone(),
+            )
+        }
+        fn finish(&self, proto: Proto) -> Chunk {
+            proto
+                .downcast::<SyntheticProto>()
+                .expect("synthetic proto")
+                .chunk
+        }
+    }
+    impl ModBase for Synthetic {
+        fn mod_column(&self, proto: &Proto) -> Option<Chunk> {
+            Some(
+                proto
+                    .downcast_ref::<SyntheticProto>()?
+                    .chunk
+                    .clone(),
+            )
+        }
+        fn mod_replace(&self, proto: &mut Proto, column: Chunk) {
+            proto
+                .downcast_mut::<SyntheticProto>()
+                .expect("synthetic proto")
+                .chunk = column;
+        }
+    }
+
+    fn source(fail: bool) -> (Arc<dyn ModColumnSource>, Arc<std::sync::Mutex<Vec<u32>>>) {
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let factory = TestFactory {
+            seen: seen.clone(),
+            fail,
+        };
+        let context = ModGeneratorContext {
+            level: "test:level".into(),
+            seed: 5,
+            shape: LevelShape::OVERWORLD,
+            generator: "test:generator".into(),
+            settings: serde_json::json!({}),
+            assets: None,
+        };
+        (factory.create(&context).unwrap(), seen)
+    }
+    fn terrain(
+        source: Arc<dyn ModColumnSource>,
+        based: bool,
+        decorate: bool,
+    ) -> ModTerrain<Synthetic> {
+        ModTerrain {
+            level: "test:level".into(),
+            source,
+            shape: LevelShape::OVERWORLD,
+            plains: 0,
+            biome_of: Arc::new(|name| match name {
+                "minecraft:plains" => Some(0),
+                "minecraft:desert" => Some(1),
+                _ => None,
+            }),
+            based,
+            decorate,
+            structures: false,
+            pipeline: Some(Arc::new(Synthetic)),
+        }
+    }
+
+    #[test]
+    fn a_source_sees_and_edits_the_base_column() {
+        let (source, seen) = source(false);
+        let terrain = terrain(source, true, false);
+        let mut worker = terrain.worker();
+        let chunk = terrain.finish(terrain.proto(&mut worker, 2, -1));
+        assert_eq!(*seen.lock().unwrap(), [11], "base before the source");
+        assert_eq!(chunk.get(0, Y, 0), 20, "the source's edit");
+        assert_eq!(chunk.get(1, Y, 0), 11, "unmodified base blocks remain");
+        assert_eq!(chunk.biome(0, Y, 0), 1);
+        assert!(!chunk.not_generated);
+    }
+
+    #[test]
+    fn decoration_is_a_switchable_postprocessing_stage() {
+        for (decorate, expected) in [(false, 20), (true, 30)] {
+            let (source, seen) = source(false);
+            let terrain = terrain(source, false, decorate);
+            assert_eq!(terrain.decorates(), decorate);
+            let mut worker = terrain.worker();
+            let proto = if decorate {
+                let mut region: [Proto; 9] = std::array::from_fn(|index| {
+                    terrain.proto(&mut worker, index as i32 % 3 - 1, index as i32 / 3 - 1)
+                });
+                terrain.decorate(&mut worker, &mut region);
+                std::mem::replace(&mut region[4], Box::new(()))
+            } else {
+                terrain.proto(&mut worker, 0, 0)
+            };
+            let chunk = terrain.finish(proto);
+            let seen = seen.lock().unwrap();
+            assert_eq!(seen.len(), if decorate { 9 } else { 1 });
+            assert!(seen.iter().all(|&state| state == 0), "an unbased source starts with air");
+            drop(seen);
+            assert_eq!(chunk.get(0, Y, 0), expected, "decorate={decorate}");
+            assert_eq!(chunk.get(1, Y, 0), 0, "the synthetic base was cleared");
+        }
+    }
+
+    #[test]
+    fn a_failed_source_falls_back_to_air_without_panicking() {
+        let (source, _) = source(true);
+        let terrain = terrain(source, true, true);
+        let mut worker = terrain.worker();
+        let chunk = terrain.finish(terrain.proto(&mut worker, 0, 0));
+        assert!(chunk.not_generated);
+        for x in 0..16 {
+            for z in 0..16 {
+                assert_eq!(chunk.get(x, Y, z), 0);
+            }
+        }
     }
 }
 

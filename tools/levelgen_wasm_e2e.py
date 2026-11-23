@@ -36,6 +36,7 @@ import levels_e2e as lv  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 LEVEL = 'levelgen:terraces'
+BASED = 'levelgen:based'
 SAMPLE = ROOT / 'crates/yoake-wasm-sdk/examples/level-generator'
 
 
@@ -46,6 +47,33 @@ def install_mod(work, wasm):
     shutil.copyfile(SAMPLE / 'yak.toml', root / 'yak.toml')
     shutil.copyfile(wasm, root / 'bin/wasm/level-generator-server.wasm')
     (work / 'yoake-mods.txt').write_text('level-generator 0.1.0\n')
+
+
+def install_pack(work):
+    """A fixed gold-block feature in the based level's custom biome."""
+    root = work / 'saves/Lan/datapacks/levelgen'
+    files = {
+        'pack.mcmeta': {'pack': {'pack_format': 1, 'description': 'level generator e2e'}},
+        'data/levelgen/worldgen/feature/gold.json': {
+            'type': 'minecraft:simple_block',
+            'config': {'to_place': {'type': 'minecraft:simple_state_provider',
+                                    'state': {'id': 'minecraft:gold_block'}}},
+        },
+        'data/levelgen/worldgen/placed_feature/gold.json': {
+            'feature': 'levelgen:gold',
+            'placement': [{'type': 'minecraft:fixed_placement', 'positions': [[0, 48, 0]]}],
+        },
+        'data/levelgen/worldgen/biome/decorated.json': {
+            'has_precipitation': False, 'temperature': 0.8, 'downfall': 0.4,
+            'effects': {'grass_color': '#91bd59', 'foliage_color': '#77ab2f',
+                        'water_color': '#3f76e4', 'water_fog_color': '#050533'},
+            'features': [['levelgen:gold']], 'carvers': [],
+        },
+    }
+    for name, value in files.items():
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(value))
 
 
 def terrace(x, z, b):
@@ -69,6 +97,7 @@ def run(ctl, out, resources, wasm, force):
     results = {}
     try:
         install_mod(host.work, wasm)
+        install_pack(host.work)
         host.pid = host.raw(*launch)['pid']
         host.raw('open', 'Lan', 5, 'creative')
         host('wait_ready', seconds=600)
@@ -81,7 +110,8 @@ def run(ctl, out, resources, wasm, force):
 
         def listed():
             ids = [l['id'] for l in host.raw('level', 'list')['levels']]
-            assert ids[:3] == [lv.OVERWORLD, 'minecraft:the_nether', 'minecraft:the_end'] and LEVEL in ids, ids
+            assert ids[:3] == [lv.OVERWORLD, 'minecraft:the_nether', 'minecraft:the_end'], ids
+            assert LEVEL in ids and BASED in ids, ids
             return ids
         lv.check('level', results, listed)
         if not results['level']['pass']:
@@ -112,6 +142,26 @@ def run(ctl, out, resources, wasm, force):
             guest.shot(out, 'terraces')
             return {'facts': facts, 'tops': {f'{x},{z}': y for (x, z), y in tops.items()}, 'b': b}
         lv.check('travel', results, travel)
+
+        def based_and_decorated():
+            lv.stand_in(guest, BASED, 4, 4, 80)
+            facts = lv.level(guest)
+            assert (facts['id'], facts['min_y'], facts['height']) == (BASED, -64, 384), facts
+            blocks = {
+                'base': guest.raw('block', 0, -64, 0).get('block'),
+                'source': guest.raw('block', 2, 48, 0).get('block'),
+                'feature': guest.raw('block', 0, 48, 0).get('block'),
+                'cleared': guest.raw('block', 1, 48, 0).get('block'),
+            }
+            assert blocks == {
+                'base': 'minecraft:bedrock',
+                'source': 'minecraft:diamond_block',
+                'feature': 'minecraft:gold_block',
+                'cleared': 'minecraft:air',
+            }, blocks
+            guest.shot(out, 'based')
+            return {'facts': facts, 'blocks': blocks}
+        lv.check('based', results, based_and_decorated)
 
         def back():
             guest('command', command=f'execute in {lv.OVERWORLD} run tp @s {home[0]:.2f} {home[1]:.2f} {home[2]:.2f}')

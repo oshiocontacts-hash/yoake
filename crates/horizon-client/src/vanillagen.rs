@@ -216,6 +216,31 @@ impl VanillaTerrain {
         )?;
         Self::assemble(dir, registry, biomes, generator, seed, preset, dimension)
     }
+    /// The noise pipeline of a mod level's effective base stem. Unlike a normal
+    /// level lookup, the pack's `yoake:mod` stem must not replace this stem again.
+    #[allow(clippy::too_many_arguments)]
+    pub fn for_mod_stem(
+        dir: &Path,
+        overrides: &WorldgenOverrides,
+        registry: &'static BlockRegistry,
+        biomes: &Biomes,
+        seed: i64,
+        dimension: &str,
+        structures: bool,
+        stem: &serde_json::Value,
+    ) -> crate::Result<Self> {
+        let data: Arc<GeneratorData> = shared_data_with(dir, overrides, registry)?;
+        let generator = OverworldGenerator::for_stem(data, seed, dimension, structures, stem)?;
+        Self::assemble(
+            dir,
+            registry,
+            biomes,
+            generator,
+            seed,
+            "minecraft:normal",
+            dimension,
+        )
+    }
     /// A superflat overworld with the structures its settings allow
     /// (`FlatLevelSource`: its layers, `structure_overrides` and the fixed biome).
     #[allow(clippy::too_many_arguments)]
@@ -1073,6 +1098,85 @@ impl ChunkGenerator for VanillaTerrain {
         }
         out.fresh = true;
         out
+    }
+}
+
+impl crate::mod_generator::ModBase for VanillaTerrain {
+    fn mod_column(&self, proto: &Proto) -> Option<Chunk> {
+        match proto.downcast_ref::<VanillaProto>() {
+            Some(VanillaProto::Ready(chunk)) => Some(self.column(chunk)),
+            _ => None,
+        }
+    }
+
+    fn mod_restore(&self, proto: &mut Proto, saved: SavedProto) {
+        let values: Vec<[u32; 64]> = saved
+            .column
+            .sections
+            .iter()
+            .map(|section| {
+                let mut values = [0; 64];
+                section.biomes.unpack(&mut values);
+                values
+            })
+            .collect();
+        let mut reverse = vec![
+            None;
+            self.biome_map
+                .iter()
+                .copied()
+                .max()
+                .map_or(1, |id| usize::from(id) + 1)
+        ];
+        for (generator, client) in self.biome_map.iter().copied().enumerate() {
+            reverse[usize::from(client)] = Some(horizon_world::worldgen::biome::BiomeId(
+                generator as u32,
+            ));
+        }
+        self.restore_proto(proto, saved);
+        let Some(VanillaProto::Ready(chunk)) = proto.downcast_mut::<VanillaProto>() else {
+            return;
+        };
+        let bottom = chunk.terrain.min_y();
+        for (section, values) in values.into_iter().enumerate() {
+            let min_y = bottom + section as i32 * 16;
+            chunk
+                .biomes_mut()
+                .fill(min_y, min_y + 15, |quart| {
+                    let index = (((quart[1] & 3) << 4)
+                        | ((quart[2] & 3) << 2)
+                        | (quart[0] & 3)) as usize;
+                    Ok::<_, std::convert::Infallible>(
+                        reverse
+                            .get(values[index] as usize)
+                            .copied()
+                            .flatten()
+                            .unwrap_or(horizon_world::worldgen::biome::BiomeId(0)),
+                    )
+                })
+                .expect("mod column biome range");
+        }
+    }
+
+    fn mod_replace(&self, proto: &mut Proto, column: Chunk) {
+        let decorated = matches!(
+            proto.downcast_ref::<VanillaProto>(),
+            Some(VanillaProto::Ready(chunk)) if chunk.is_decorated()
+        );
+        self.mod_restore(
+            proto,
+            SavedProto {
+                column,
+                decorated,
+                block_entities: Vec::new(),
+                entities: Vec::new(),
+            },
+        );
+    }
+
+    fn mod_decorate(&self, worker: &mut GeneratorWorker, region: &mut [Proto; 9], features: bool) {
+        worker.set_structures_only(!features);
+        self.decorate(worker, region);
     }
 }
 

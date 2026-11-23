@@ -186,6 +186,26 @@ Common validation errors:
 
 4. **`yoake:mod`**: A Yoake extension that calls a mod-registered chunk generator. Provide `"id"` (the registered generator ID) and an optional `"settings"` JSON object (defaults to `{}`). See Section 13-4.
 
+```json
+{
+  "type": "minecraft:overworld",
+  "generator": {
+    "type": "yoake:mod",
+    "id": "mymod:terrain",
+    "settings": {},
+    "biome_source": { "type": "minecraft:fixed", "biome": "minecraft:plains" },
+    "base": "minecraft:overworld",
+    "decorate": true,
+    "structures": true
+  }
+}
+```
+
+- `"biome_source"` accepts the same sources as `minecraft:noise` and defaults to fixed plains. It supplies the initial biomes and selects biome features and structures; the callback can still override the biome with `ModChunk::set_biome`.
+- `"base"` is optional. A noise-settings ID such as `"minecraft:overworld"` generates that terrain with the level seed and the mod's biome source before the callback. A full `minecraft:noise` generator object is also accepted. With no base, the callback starts with an all-air column.
+- `"decorate"` runs the biome source's placed features after the callback. `"structures"` enables structure starts, terrain adaptation and structure pieces; it can be used without `"decorate"`, in which case ordinary placed features are skipped. Both default to `false`, and structures also require the world's `generate_structures` option. A base's noise, surface and carvers run whether or not decoration is enabled.
+- Without a base, enabling post-processing uses the Overworld noise settings to initialize the shared feature pipeline, but clears its terrain before the callback. Existing stems with none of these fields keep their old all-air, undecorated output.
+
 ### Biome sources (`biome_source`)
 
 For `minecraft:noise`, `"biome_source"` supports:
@@ -427,8 +447,8 @@ For full-access (DLL) mods, four injected server-side hook points ([`crates/yoak
 
 ## 13-6. Limits and known gaps
 
-1. **No decoration, structures, carvers, or LOD on `yoake:mod` generators**: `ModTerrain` writes final blocks and biomes directly with no feature/structure/carver/spawn pass on top and no far-terrain (LOD) sampler, so distant unloaded chunks look empty. Generator callbacks also cannot query climate biomes or density functions yet.
-2. **No custom biomes**: Data packs cannot add new biome IDs that the game does not already know (they are dropped with a warning).
+1. **No LOD or climate/density query on `yoake:mod` generators**: Base terrain, carvers, decoration and structures use the opt-in pipeline above, but there is no mod-aware far-terrain (LOD) sampler, so distant unloaded chunks can lack the callback's edits. Generator callbacks cannot query climate biomes or density functions yet.
+2. **One biome per WASM-generated chunk**: `generator::Fill` currently selects at most one biome for the whole chunk. Per-quart biomes supplied by a WASM fill are Part B, not Part A.
 3. **Frozen `level-dimension` WIT enum**: To preserve the 1.0 ABI baseline, hooks carrying `et::LevelDimension` still report `overworld` for non-vanilla levels. Use **`ext::current_level(player)`** to look up which level a player is actually in, along with `ext::levels()` and string payloads (sounds, particles, loot).
 4. **Shared border, clock, and some mob day checks**: Created levels have no separate world border and share parts of world time/weather state; hard-coded mob day-tick windows (fireflies, creaking, bees) do not yet read custom `timelines` tracks.
 5. **Deleted created types persist until restart**: A deleted created level's `dimension_type` stays in the registry sent to new joiners until the server restarts so existing type indexes keep their meaning.

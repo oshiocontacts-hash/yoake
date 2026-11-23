@@ -792,6 +792,30 @@ fn level_generator_settings(stem: &serde_json::Value) -> Option<horizon_world::n
     )]))
 }
 
+/// A mod level's dimension type with the noise generator its base and biome
+/// pipeline use. An unbased level still needs these settings to resolve its
+/// features; its generated blocks are cleared before the source runs.
+fn mod_base_stem(stem: &serde_json::Value) -> Option<serde_json::Value> {
+    let generator = stem.get("generator")?;
+    let biome_source = generator.get("biome_source").cloned().unwrap_or_else(|| {
+        serde_json::json!({"type": "minecraft:fixed", "biome": "minecraft:plains"})
+    });
+    let base = match generator.get("base") {
+        Some(serde_json::Value::Object(_)) => generator["base"].clone(),
+        Some(serde_json::Value::String(settings)) => serde_json::json!({
+            "type": "minecraft:noise", "settings": settings, "biome_source": biome_source,
+        }),
+        _ => serde_json::json!({
+            "type": "minecraft:noise",
+            "settings": "minecraft:overworld",
+            "biome_source": biome_source,
+        }),
+    };
+    let mut stem = stem.clone();
+    stem["generator"] = base;
+    Some(stem)
+}
+
 pub(super) fn make_streaming(
     res: &Resources,
     pack: &PackResources,
@@ -830,23 +854,63 @@ pub(super) fn make_streaming(
     } else {
         stem.and_then(level_generator_settings)
     };
-    // A mod's generator (`yoake:mod`).
-    let mod_terrain = match stem.map(|s| &s["generator"]) {
-        Some(g) if g["type"].as_str() == Some("yoake:mod") => {
+    let automatic_structures =
+        horizon_client::save::WorldGen::read(world_root).is_none_or(|w| w.structures);
+    // A mod's generator (`yoake:mod`), over its optional vanilla pipeline.
+    let mod_terrain = match stem {
+        Some(stem) if stem["generator"]["type"].as_str() == Some("yoake:mod") => {
+            let g = &stem["generator"];
             let id = g["id"].as_str().unwrap_or_default();
-            Some(
-                mod_generators
-                    .terrain(
-                        id,
-                        dim.id(),
-                        seed,
-                        shape,
-                        g.get("settings").cloned().unwrap_or_else(|| serde_json::json!({})),
-                        pack.assets.clone(),
-                        biomes.clone(),
-                    )
-                    ?,
-            )
+            let based = g.get("base").is_some_and(|base| !base.is_null());
+            let decorate = g["decorate"].as_bool().unwrap_or(false);
+            let structures = automatic_structures && g["structures"].as_bool().unwrap_or(false);
+            let pipeline = if based || decorate || structures {
+                let effective = mod_base_stem(stem).expect("mod generator stem");
+                let overrides =
+                    world_worldgen_overrides(world_root, &options.resources, enabled_features);
+                let mut inner = VanillaTerrain::for_mod_stem(
+                    &options.resources.join("worldgen"),
+                    &overrides,
+                    pack.assets.registry,
+                    &biomes,
+                    seed,
+                    dim.id(),
+                    structures,
+                    &effective,
+                )?;
+                inner.add_mod_signs(res.facts());
+                let inner = Arc::new(inner);
+                if structures {
+                    inner.search_rings_behind();
+                }
+                inner.set_reference_file(world_root.join("data").join(format!(
+                    "horizon_structure_references_{}.json",
+                    dim.id().replace(':', "_")
+                )));
+                {
+                    let save = save.clone();
+                    inner.set_saved_references(Arc::new(move |name, x, z| {
+                        save.start_references(x, z, name)
+                    }));
+                }
+                locator = Some(inner.clone());
+                Some(inner)
+            } else {
+                None
+            };
+            Some(mod_generators.terrain(
+                id,
+                dim.id(),
+                seed,
+                shape,
+                g.get("settings").cloned().unwrap_or_else(|| serde_json::json!({})),
+                pack.assets.clone(),
+                biomes.clone(),
+                based,
+                decorate,
+                structures,
+                pipeline,
+            )?)
         }
         _ => None,
     };
@@ -874,8 +938,6 @@ pub(super) fn make_streaming(
     // PlaceCommand.placeJigsaw/placeStructure generate directly, independently
     // of WorldOptions.generateStructures. Keep their flat locator available
     // even when automatic structure starts are disabled.
-    let automatic_structures =
-        horizon_client::save::WorldGen::read(world_root).is_none_or(|w| w.structures);
     // The flat structure generator is built for the Overworld's build height; a level of another
     // height keeps the plain flat ground (F3-6).
     let flat_structures = gen_settings
