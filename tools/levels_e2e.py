@@ -77,6 +77,12 @@ MADE_STEM = {
 }
 
 
+def portal_lines(game):
+    """The host's custom-portal log lines (the trip, the exit found/built, the arrival)."""
+    log = game.socket.with_suffix('.log')
+    text = log.read_text(errors='replace') if log.exists() else ''
+    return [l for l in text.splitlines() if 'Horizon custom portal:' in l][-12:]
+
 def flat(type_id, biome='minecraft:plains'):
     return {'type': type_id, 'generator': {'type': 'minecraft:flat', 'settings': {
         'biome': biome, 'features': False, 'lakes': False,
@@ -241,9 +247,11 @@ def run(ctl, probe_bin, out, resources, force):
             guest.wait(5)
             lit = guest.raw('block', 23, 5, 24)
             assert lit.get('block') == 'minecraft:nether_portal', lit
-            lan.wait_dimension(guest, MOON, 600)
+            arrived = lan.wait_dimension(guest, MOON, 600)
             guest.wait(40)
-            assert level(guest)['id'] == MOON
+            now = level(guest)
+            assert now['id'] == MOON, {'level': now, 'state_after_wait': {k: arrived.get(k) for k in ('dimension', 'player')},
+                                       'pos': lan.pos_of(guest), 'portal_lines': portal_lines(host)}
             exit_pos = lan.pos_of(guest)
             assert abs(exit_pos[0] - 24.5 / 4.0) < 20, exit_pos
             assert abs(exit_pos[2] - 24.5 / 4.0) < 20, exit_pos

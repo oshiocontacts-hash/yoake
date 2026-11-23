@@ -77,6 +77,10 @@ pub(super) struct Plan {
 }
 
 impl Plan {
+    /// For the log: a custom portal trip's type slot and scale.
+    pub(super) fn custom_summary(&self) -> Option<(u16, f64)> {
+        self.custom.map(|c| (c.slot, c.scale))
+    }
     /// `EndPortalBlock.getPortalDestination` for an entity other than a
     /// player in `from`: the End's spawn point, or out of the End the
     /// Overworld's shared spawn `world_spawn`.
@@ -615,6 +619,9 @@ impl Game<'_> {
                 |p| self.world.block(p.x, p.y, p.z) == state,
             );
             self.remember_custom_exit(plan, exit);
+            if plan.custom.is_some() {
+                log::info!("Horizon custom portal: found the exit portal at {:?} in {}", exit.min_corner, self.dim.id());
+            }
             return Some(exit);
         }
         let logical = if plan.custom.is_some() {
@@ -632,6 +639,18 @@ impl Game<'_> {
             None => b.create_portal(level, ticks, approximate, x_axis, &border, logical),
         });
         let _ = self.process_level_events();
+        if plan.custom.is_some() {
+            match &created {
+                Some(exit) => log::info!("Horizon custom portal: built the exit portal at {:?} in {}", exit.min_corner, self.dim.id()),
+                None => log::info!(
+                    "Horizon custom portal: could not build an exit portal near {:?} in {} (logical height {logical}, y {}..{})",
+                    approximate,
+                    self.dim.id(),
+                    self.world.bottom_y(),
+                    self.world.bottom_y() + 16 * self.world.layout().sections() as i32
+                ),
+            }
+        }
         if let Some(exit) = created {
             let corner = exit.min_corner;
             self.native_portal_create(self.dim.id(), [corner.x, corner.y, corner.z]);

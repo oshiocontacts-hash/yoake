@@ -365,6 +365,14 @@ impl Game<'_> {
             self.portals.player.process = None;
             return;
         }
+        if let Some((slot, scale)) = plan.custom_summary() {
+            log::info!(
+                "Horizon custom portal: trip of slot {slot} from {} to {} (scale {scale}), approximate exit {:?}",
+                self.dim.id(),
+                plan.dim.id(),
+                plan.approximate
+            );
+        }
         self.start_server_trip(host, conn, plan.dim, Some(plan));
     }
 
@@ -770,12 +778,21 @@ impl Game<'_> {
                     .plan
                     .as_ref()
                     .and_then(|plan| self.nether_exit_portal(plan));
+                let custom = trip.plan.as_ref().is_some_and(|plan| plan.custom_summary().is_some());
                 match (trip.plan, exit) {
                     (Some(plan), Some(exit)) => {
                         let (at, rotation) = self.arrival(&plan, exit);
+                        if custom {
+                            log::info!("Horizon custom portal: arrives in {} at {at:?} (exit {:?})", self.dim.id(), exit.min_corner);
+                        }
                         (at, yaw + rotation)
                     }
-                    _ => (trip.target, yaw),
+                    _ => {
+                        if custom {
+                            log::info!("Horizon custom portal: no exit portal in {}; arrives at the trip target {:?}", self.dim.id(), trip.target);
+                        }
+                        (trip.target, yaw)
+                    }
                 }
             };
             // The vehicle the player rode comes with it, and waits for it
