@@ -130,11 +130,19 @@ the template's (`bites` on a carved pumpkin, whose `facing` comes after it):
 ```
 
 A `boolean` is `false` and `true`, as vanilla spells them; an `enum` is a list
-of values, and a name or value is lower case letters, digits and underscores.
+of values, and a name or value is lower case letters, digits and underscores. An `int` is vanilla's
+`IntegerProperty`, `{ "type": "int", "min": 0, "max": 7 }`: the whole numbers `min` to `max` (`min` 0 or more, below
+`max`, at most 256 values), in ascending order, written as decimal text in `default_state` and in `random_ticks` values
+(`"default_state": { "age": "0" }`); a crop's `age` or a machine's charge level is one.
 A declared name may not be one the template already has, and `default_state`
 takes one value per declared property too, so a block's default is exactly one
 state of its own. Every combination has to fit in the states a world holds
 (2^20), so a declaration that would not is refused when the mods load.
+
+`"template": "yoake:cube"` is a plain full cube for a block that wants none of a vanilla block's behaviour: it takes
+stone's single state and shape (stone has no behaviour), and the block's own `properties`, blockstate, model and loot
+table give it everything else. (A block with no row of vanilla's at all is not possible: the engine's block tables are
+indexed by vanilla's states.)
 
 A block whose template is one of vanilla's signs is a sign, whatever its name: it has vanilla's sign block
 entity, so the text, the editor, dye, glow ink, wax and saving all work as they do on an oak sign, and the
@@ -426,8 +434,8 @@ These need no declaration beyond their files:
   `native_send_particles`). The particle is a plain billboard with the sprite set (20 to 40 ticks).
 - **Creative tabs** list their items in order (above); a mod's items also join the search tab.
 
-Not data-driven yet: damage types (the damage kinds are the engine's own list), game rules, enchantments (a module
-gives items the effect with its hooks) and mob effect behaviour beyond attribute modifiers.
+Enchantments, damage types, game rules and fluids are declared in `data/<id>/horizon/` too, below. Not data-driven
+yet: mob effect behaviour beyond attribute modifiers.
 
 #### Menu types
 
@@ -451,6 +459,44 @@ clicks run on the server's vanilla menu engine (`menu::Kind::Mod`), shift-clicks
 mod can decide what a slot takes in code with `native_menu_slot_rules` ([native-mods.md](native-mods.md#menu-slot-rules)).
 Not yet: declared per-slot rules beyond `results`, hooks for shift-click routing and `stillValid`, opening with extra
 data, and client prediction of its clicks.
+
+#### Enchantments, damage types, game rules and fluids
+
+Four more kinds sit in `data/<id>/horizon/<kind>/<path>.json`; the id is `<id>:<path>` (a subfolder is part of the
+path, as in a data pack). Each file is checked when the mod loads, with the file named in the error, and with no mod
+that has such a file the game is exactly vanilla's.
+
+- **`enchantment/`** is vanilla's enchantment JSON, the file a data pack puts in `data/<ns>/enchantment/`:
+  `description`, `supported_items`, optional `primary_items` and `exclusive_set` (an id, a `#tag` or a list),
+  `weight` (1 to 1024), `max_level` (1 to 255), `min_cost` and `max_cost` (`base`, `per_level_above_first`),
+  `anvil_cost`, `slots` (`any`, `mainhand`, `offhand`, `hand`, `feet`, `legs`, `chest`, `head`, `armor`, `body`,
+  `saddle`) and optional `effects` (vanilla's enchantment effect components, written as in `data/minecraft/enchantment/`).
+  The game writes it to `data/<id>/enchantment/<path>.json` of its content root, so it joins the registry (network ids,
+  synced to clients with its data), `/enchant`, the enchanting table, the anvil, loot functions and `enchantments`
+  item components. Its name is the translation key of `description` (`assets/<id>/lang/en_us.json`); without one the id is
+  shown.
+- **`damage_type/`** is vanilla's damage type JSON: `message_id` (the `death.attack.<message_id>` key), `scaling`
+  (`never`, `when_caused_by_living_non_player`, `always`) and optional `exhaustion` (0 to 40, 0 by default), `effects`
+  (`hurt`, `thorns`, `drowning`, `burning`, `poking`, `freezing`) and `death_message_type` (`default`,
+  `fall_variants`, `intentional_game_design`). It joins the damage registry (network ids, synced with its data) and the damage catalog the health code
+  reads, so `/damage <target> <amount> <id:type>` and conditions that name a damage type can use it. Tag files for
+  damage types (`data/<id>/tags/damage_type/`) are not merged into the game's damage tags yet.
+- **`game_rule/`** declares a rule named `<id>:<path>` (the file name is lower case letters, digits and
+  underscores): `{ "type": "bool", "default": false, "category": "player" }` or `{ "type": "int", "default": 3,
+  "min": 0, "max": 10, "category": "misc" }`. `category` is `player`, `mobs`, `spawning`, `drops`, `updates`, `chat`
+  or `misc` (`misc` when left out). `/gamerule <id>:<path> [value]`, the game rules screen, a dedicated server's
+  management API and a module's `world-control` (`set-game-rule`, which takes the namespaced name) read and set it, and its
+  value is saved with the world's `game_rules` data. A rule is saved only when it differs from its default, so a world
+  that never changed one is still what vanilla reads. Mods' rules are registered at start; adding or removing one
+  needs a restart.
+- **`fluid/`** is the data side of a WebAssembly mod's `fluids` registration (a fluid family with a source, a flowing
+  form, their blocks and a bucket): `flowing_id`, `still_block`, `flowing_block`, `bucket`, `still_texture`,
+  `flowing_texture`, `tint` (RGB), `viscosity` (1 to 8), `tick_rate`, `light` (0 to 15), `can_drown` and `motion`
+  (`water`, `lava`, `none`). Every key is optional: the source is `<id>:<path>`, and the others are built from it
+  (`flowing_<path>`, `<path>_bucket`, `block/<path>_still`, `block/<path>_flow`). The blocks must be the mod's own
+  (declared in `block/`, a template such as `minecraft:water`), the bucket one of its items (`item/`), and the textures
+  files of the mod (`assets/<id>/textures/block/<path>_still.png`). Fluids from the files and from native mods
+  share one registry of at most 125 families.
 
 #### Namespaces and limits
 

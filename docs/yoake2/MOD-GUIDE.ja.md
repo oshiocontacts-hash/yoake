@@ -582,6 +582,40 @@ host_filesystem = false               # 省略できます
 - **ゲームを動かしたままではリロードできないもの**: `synced` の値の変更、コントローラーのレイヤー・ステート・トリガーの変更（ネットワーク形式が依存するもの）。メッセージつきで拒否されるので、ゲームを再起動してください。型の削除と新しい型の追加も再起動が必要です。
 - **サーバーモジュール (R3)**: `YOAKE_WASM_SERVER_RELOAD=1` も指定すると、署名なしサーバーモジュールの `.wasm` ファイルを監視し、新しいビルドをサーバーティックで差し替えます。Mob はエンジンが持っているので状態は残り、ゲスト自身のメモリ（変数に持っていたもの）はやり直しになります。読み込めないビルドは、警告を 1 回出して古いインスタンスを動かし続けます。このスイッチがなければ、サーバーモジュールはこれまでどおり 1 回だけ読み込まれます。
 
+## 18. データだけで足せるもの: エンチャント・ダメージ種別・ゲームルール・流体・整数のブロック状態 (REM-16)
+
+`registries` 権限をもつ `.yak`（または `.hmod`）は、モジュールのコードなしで、`data/<id>/horizon/<種類>/<パス>.json` にこれらを書いて足せます（ID は `<id>:<パス>`）。項目の全リストは [docs/mods.md](../mods.md#enchantments-damage-types-game-rules-and-fluids) にあります。これらのファイルがない MOD は、ゲームを何も変えません。
+
+| 種類 | ファイル | 何になるか |
+| --- | --- | --- |
+| `enchantment` | バニラのエンチャント JSON | コンテンツルートの `data/<id>/enchantment/<パス>.json`。レジストリ（データごとクライアントへ同期）、`/enchant`、エンチャントテーブル、金床、ルートの関数、アイテムの `enchantments` コンポーネントで使える |
+| `damage_type` | バニラのダメージ種別 JSON | `data/<id>/damage_type/<パス>.json`、ダメージカタログ、コマンドの ID 候補（`/damage`） |
+| `game_rule` | `{"type": "bool"/"int", "default", "min", "max", "category"}` | ルール `<id>:<パス>`。`/gamerule`、ルール画面、管理 API で読み書きでき、ワールドと一緒に保存される |
+| `fluid` | `flowing_id`、`still_block`、`flowing_block`、`bucket`、`still_texture`、`flowing_texture`、`tint`、`viscosity`、`tick_rate`、`light`、`can_drown`、`motion` | ワールドの流体レジストリの 1 ファミリー。モジュールの `fluids` 登録と同じもの |
+
+```json
+// data/ruby/horizon/enchantment/keen.json
+{ "description": { "translate": "enchantment.ruby.keen" },
+  "supported_items": "#minecraft:enchantable/sharp_weapon",
+  "weight": 5, "max_level": 3,
+  "min_cost": { "base": 5, "per_level_above_first": 8 },
+  "max_cost": { "base": 25, "per_level_above_first": 8 },
+  "anvil_cost": 2, "slots": ["mainhand"] }
+
+// data/ruby/horizon/damage_type/shatter.json
+{ "message_id": "shatter", "scaling": "when_caused_by_living_non_player", "exhaustion": 0.1, "effects": "freezing" }
+
+// data/ruby/horizon/game_rule/gem_rate.json
+{ "type": "int", "default": 3, "min": 0, "max": 10, "category": "misc" }
+
+// data/ruby/horizon/fluid/oil.json （ブロック ruby:oil と ruby:flowing_oil、アイテム ruby:oil_bucket、テクスチャ block/oil_still.png と block/oil_flow.png）
+{ "tint": 4473924, "viscosity": 4, "tick_rate": 10, "motion": "water" }
+```
+
+モジュールからは、`world-control` の `set-game-rule` に、ゲームが登録したルールの名前空間つきの名前（`ruby:gem_rate`）を渡せます（知らない名前や `minecraft:...` はこれまでどおり拒否されます）。`/damage` はダメージ種別の ID で `execute-command` から使えます。ルールと流体は起動時に 1 回だけ登録するので、増減には再起動が必要です。ファイルの流体とモジュールの `fluids` 登録は 1 つのレジストリ（最大 125 ファミリー）に入り、2 つのファミリーが同じ名前を使うと、その流体の名前つきで拒否されます。
+
+ブロックの状態プロパティには、`boolean`・`enum` のほかに `int` が加わりました: `"state_properties": { "age": { "type": "int", "min": 0, "max": 7 } }`（バニラの `IntegerProperty`。`min` は 0 以上で `max` より小さく、値は最大 256 個、昇順）。値は `default_state` と `random_ticks` では 10 進のテキスト（`"default_state": { "age": "0" }`）で、モデルのスキーマには整数の範囲として載るので、ブロック状態ファイルでバニラの作物と同じように `age=3` で選べます。ブロックはこれまでどおりバニラの*テンプレート*のコピーですが、`"template": "yoake:cube"` で素の立方体（石の 1 つだけの状態。性質とファイルはブロック自身の `properties`・ブロック状態・モデル・ルートテーブルで置き換わる）が作れます。バニラの行をまったく持たないブロックはまだ使えません（レポート FR-REM16 を参照）。
+
 ## 要確認（確かめられていないこと）
 
 1. **クライアント側モジュール** はマージ済み（MX3CL1）で、ローダーを通したテストはしてあります。ただし、実際に動いているゲームのクライアントでは試していません。本物のウィンドウや HUD に対して、クライアント側モジュールを動かしたことはありません。

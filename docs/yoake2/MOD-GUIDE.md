@@ -819,6 +819,51 @@ client renders its own bindings (commonly driven by `hook::SYNCED_CHANGED_CLIENT
   own memory (anything it kept in variables) starts afresh. A build that does not load keeps the old instance running with
   one warning. Without that switch server modules load once, as before.
 
+## 18. Data content kinds: enchantments, damage types, game rules, fluids and integer block states (REM-16)
+
+A `.yak` (or a `.hmod`) with capability `registries` adds these without any module code, in `data/<id>/horizon/<kind>/<path>.json`
+(the id is `<id>:<path>`; the full field lists are in [docs/mods.md](../mods.md#enchantments-damage-types-game-rules-and-fluids)).
+A mod with none of the files changes nothing in the game.
+
+| Kind | File | What it becomes |
+| --- | --- | --- |
+| `enchantment` | vanilla's enchantment JSON | `data/<id>/enchantment/<path>.json` of the content root: the registry (synced to clients with its data), `/enchant`, the enchanting table, the anvil, loot functions, item `enchantments` components |
+| `damage_type` | vanilla's damage type JSON | `data/<id>/damage_type/<path>.json`, the damage catalog, the commands' id lists (`/damage`) |
+| `game_rule` | `{"type": "bool"/"int", "default", "min", "max", "category"}` | the rule `<id>:<path>` for `/gamerule`, the rules screen, the management API, saved with the world |
+| `fluid` | `flowing_id`, `still_block`, `flowing_block`, `bucket`, `still_texture`, `flowing_texture`, `tint`, `viscosity`, `tick_rate`, `light`, `can_drown`, `motion` | one family in the world's fluid registry, as a module's `fluids` registration |
+
+```json
+// data/ruby/horizon/enchantment/keen.json
+{ "description": { "translate": "enchantment.ruby.keen" },
+  "supported_items": "#minecraft:enchantable/sharp_weapon",
+  "weight": 5, "max_level": 3,
+  "min_cost": { "base": 5, "per_level_above_first": 8 },
+  "max_cost": { "base": 25, "per_level_above_first": 8 },
+  "anvil_cost": 2, "slots": ["mainhand"] }
+
+// data/ruby/horizon/damage_type/shatter.json
+{ "message_id": "shatter", "scaling": "when_caused_by_living_non_player", "exhaustion": 0.1, "effects": "freezing" }
+
+// data/ruby/horizon/game_rule/gem_rate.json
+{ "type": "int", "default": 3, "min": 0, "max": 10, "category": "misc" }
+
+// data/ruby/horizon/fluid/oil.json   (blocks ruby:oil and ruby:flowing_oil, item ruby:oil_bucket, textures block/oil_still.png and block/oil_flow.png)
+{ "tint": 4473924, "viscosity": 4, "tick_rate": 10, "motion": "water" }
+```
+
+From a module: a `set-game-rule` change of `world-control` takes the namespaced name (`ruby:gem_rate`) of a rule the game
+registered (a name it does not know, or `minecraft:...`, is refused as before); `/damage` works through `execute-command`
+with the damage type id. Rules and fluids are registered once at start, so adding or removing one needs a restart;
+fluids from files and from a module's `fluids` registration join one registry (125 families at most), and a name that two
+families bind is refused with the fluid named.
+
+Blocks gain an `int` state property next to `boolean` and `enum`: `"state_properties": { "age": { "type": "int", "min": 0, "max": 7 } }`
+(vanilla's `IntegerProperty`: `min` 0 or more and below `max`, at most 256 values, ascending). Its values are decimal text in
+`default_state` and `random_ticks` (`"default_state": { "age": "0" }`), and the model schema lists it as an integer range, so
+a blockstate file can select on `age=3` as it does for a vanilla crop. A block is still a copy of a vanilla *template*, but
+`"template": "yoake:cube"` gives a plain full cube (stone's single state, whose stats and files the block's own `properties`,
+blockstate, model and loot table replace); a block with no vanilla row at all is not available (report FR-REM16).
+
 ## 要確認 (not verified)
 
 1. **Client modules** are merged (MX3CL1) and tested through the loader, but not in a running game client: no client
