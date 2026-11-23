@@ -252,10 +252,17 @@ def run(ctl, probe_bin, out, resources, force):
                     guest('command', command=f'setblock {x} {y} 24 minecraft:gold_block')
                 for y in range(5, 8):
                     guest('command', command=f'setblock {x} {y} 24 minecraft:air')
-            guest('command', command='setblock 23 5 24 minecraft:fire')
-            guest.wait(5)
-            lit = guest.raw('block', 23, 5, 24)
-            assert lit.get('block') == 'minecraft:nether_portal', lit
+            # Let the server apply the frame first; then light it, read the server's block (the host), retry the
+            # fire up to three times (a fire can go out before it is read).
+            guest.wait(10)
+            lit = None
+            for _ in range(3):
+                guest('command', command='setblock 23 5 24 minecraft:fire')
+                guest.wait(5)
+                lit = host.raw('block', 23, 5, 24)
+                if lit.get('block') == 'minecraft:nether_portal':
+                    break
+            assert lit.get('block') == 'minecraft:nether_portal', {'block': lit, 'portal_lines': portal_lines(host)}
             # The guest fell to the world's real floor while the frame was built (the frame stands in the air): put it
             # inside the lit portal, on the frame's bottom, so it really enters it.
             # (No block read after this: the guest may already be in the moon.)
