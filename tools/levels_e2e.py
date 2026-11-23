@@ -18,9 +18,9 @@ What it checks, in order:
             it goes back to the Overworld and has the vanilla facts again. The Overworld's blocks are where they were.
 - stock:    the protocol-level client (examples/level_probe.rs: the handshake, configuration and play a stock client
             does, nothing Horizon-only) joins, is sent the dimension type registry with the pack's types after the
-            vanilla ones and the level keys in the login packet, runs the same `execute in` through chat, gets the
-            respawn into the moon with the right type and chunks of the moon's section count, and is
-            not disconnected.
+            vanilla ones, the new moon biome in the biome registry, and the level keys in the login packet, runs the
+            same `execute in` through chat, gets the respawn into the moon with the right type and chunks of the
+            moon's section count carrying the new biome, and is not disconnected.
 - created:  the host creates a level while the guest is connected (`horizon-ctl level create`, a flat level with a type
             of its own): the guest asking to enter it is refused with the reconnect message and stays where it is;
             after it reconnects it can enter, stands on the created level's floor, and the level's folder and
@@ -48,6 +48,7 @@ OVERWORLD = 'minecraft:overworld'
 MOON = 'mypack:moon'
 HELL = 'mypack:hell'
 MADE = 'made:arena'
+MOON_BIOME = 'mypack:luminous_moon'
 PACK = 'saves/Lan/datapacks/e2e'
 
 MOON_TYPE = {
@@ -87,7 +88,15 @@ def write_pack(work):
         'pack.mcmeta': {'pack': {'pack_format': 1, 'description': 'levels e2e'}},
         'data/mypack/dimension_type/moon_type.json': MOON_TYPE,
         'data/mypack/dimension_type/hell_type.json': HELL_TYPE,
-        'data/mypack/dimension/moon.json': flat('mypack:moon_type'),
+        'data/mypack/worldgen/biome/luminous_moon.json': {
+            'has_precipitation': False, 'temperature': 0.2, 'downfall': 0.0,
+            'effects': {'grass_color': '#34aa88', 'foliage_color': '#228866',
+                        'water_color': '#3377aa', 'water_fog_color': '#112233'},
+            'attributes': {'minecraft:visual/sky_color': '#112244',
+                           'minecraft:visual/fog_color': '#223355'},
+            'features': [], 'carvers': [],
+        },
+        'data/mypack/dimension/moon.json': flat('mypack:moon_type', MOON_BIOME),
         'data/mypack/dimension/hell.json': flat('mypack:hell_type'),
     }
     for name, value in files.items():
@@ -226,8 +235,11 @@ def run(ctl, probe_bin, out, resources, force):
             assert by['chunks_after_respawn'] > 0, by
             # 128 blocks: 8 sections, in the type's own range (the Overworld's would be 24).
             assert by['sections'] == [8], by
+            assert MOON_BIOME in by['biomes'], 'the new biome joined the synchronized registry'
+            assert by['chunk_biomes'] == [MOON_BIOME], by
             assert 'disconnected' not in by
-            return {'types': types, 'login': login, 'respawn': respawn, 'sections': by['sections']}
+            return {'types': types, 'login': login, 'respawn': respawn, 'sections': by['sections'],
+                    'biome': MOON_BIOME}
         check('stock', results, stock)
 
         def created():

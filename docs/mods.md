@@ -515,6 +515,10 @@ A pool addition holds `"elements"` as a pool does, a processor list addition `"p
 Lithostitched's `add_structure_set_entries`, `add_template_pool_elements` and `add_processor_list_processors` modifiers
 do on NeoForge and Fabric, and `horizon-port-pack carry` writes the last two from those.
 
+A mod adds a biome with `data/<ns>/worldgen/biome/<name>.json`. Its id joins the biome registry after vanilla's;
+biome sources, biome tags, natural spawns, colours, particles, ambience and music read its JSON as they do a data pack's.
+Saves write the biome's name, and LAN sends its registry data to clients.
+
 A mod's own configured and placed features (`data/<ns>/worldgen/configured_feature/`, `placed_feature/`) and mob spawn
 changes reach biomes it does not own (vanilla's) through NeoForge's biome modifiers, files in
 `data/<ns>/neoforge/biome_modifier/` (older Forge mods: `data/<ns>/forge/biome_modifier/`, `forge:` types).

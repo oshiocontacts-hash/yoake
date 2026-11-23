@@ -8,43 +8,8 @@ use horizon_core::random::{LegacyRandom, RandomSource};
 use serde_json::Value;
 use std::{collections::HashMap, path::Path};
 
-/// `AmbientMoodSettings`.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Mood {
-    pub sound: String,
-    pub tick_delay: i32,
-    pub block_search_extent: i32,
-    pub offset: f64,
-}
-/// `AmbientSounds`: the attribute value.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct AmbientSounds {
-    pub r#loop: Option<String>,
-    pub mood: Option<Mood>,
-    /// (sound, tick chance)
-    pub additions: Vec<(String, f64)>,
-}
-impl AmbientSounds {
-    fn parse(v: &Value) -> Self {
-        let mood = &v["mood"];
-        let addition =
-            |a: &Value| Some((a["sound"].as_str()?.to_owned(), a["tick_chance"].as_f64()?));
-        Self {
-            r#loop: v["loop"].as_str().map(str::to_owned),
-            mood: mood["sound"].as_str().map(|sound| Mood {
-                sound: sound.to_owned(),
-                tick_delay: mood["tick_delay"].as_i64().unwrap_or(6000) as i32,
-                block_search_extent: mood["block_search_extent"].as_i64().unwrap_or(8) as i32,
-                offset: mood["offset"].as_f64().unwrap_or(2.0),
-            }),
-            // A single addition or a list of them.
-            additions: match &v["additions"] {
-                Value::Array(list) => list.iter().filter_map(addition).collect(),
-                single => addition(single).into_iter().collect(),
-            },
-        }
-    }
-}
+pub use crate::biome::{AmbientSounds, Mood};
+
 /// Ambient sound attributes by dimension type and biome.
 #[derive(Clone, Debug, Default)]
 pub struct AmbientTables {
@@ -65,8 +30,12 @@ impl AmbientTables {
                 .filter_map(|file| {
                     let json: Value = serde_json::from_slice(file.bytes().ok()?).ok()?;
                     let v = &json["attributes"]["minecraft:audio/ambient_sounds"];
-                    (!v.is_null())
-                        .then(|| (format!("minecraft:{}", file.name), AmbientSounds::parse(v)))
+                    (!v.is_null()).then(|| {
+                        (
+                            format!("minecraft:{}", file.name),
+                            AmbientSounds::from_json(v),
+                        )
+                    })
                 })
                 .collect()
         };

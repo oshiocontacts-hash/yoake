@@ -110,7 +110,6 @@ impl Game<'_> {
         let overrides = super::world_loading::world_worldgen_overrides(
             &self.world_root,
             &self.options.resources,
-            self.res.biomes(),
             &self.level.enabled_features,
         );
         let data = horizon_client::vanillagen::shared_data_with(

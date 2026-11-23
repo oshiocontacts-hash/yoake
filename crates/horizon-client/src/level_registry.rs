@@ -1247,9 +1247,7 @@ mod tests {
             .iter()
             .filter_map(|id| packs.iter().find(|p| &p.id == id))
             .collect();
-        let (overrides, _) = crate::datapack::worldgen_overrides(&enabled, |b| {
-            ["minecraft:plains", "minecraft:desert", "minecraft:the_void"].contains(&b)
-        });
+        let (overrides, _) = crate::datapack::worldgen_overrides(&enabled);
         assert!(LevelRegistry::needs_catalog(&dir, &overrides));
         let reg = LevelRegistry::for_world(
             &dir,

@@ -855,12 +855,9 @@ pub fn dimension_stems(packs: &[&DataPack]) -> BTreeMap<String, serde_json::Valu
 
 /// The worldgen entries of `packs` (lowest priority first, the built-in pack
 /// left out: the prepared bundles are it) for the chunk generator, and what
-/// it leaves out, for the log. `biomes` says which biomes the game has: a
-/// pack's new biome is left out (the game has no colours, sounds or id for it).
-pub fn worldgen_overrides(
-    packs: &[&DataPack],
-    biomes: impl Fn(&str) -> bool,
-) -> (WorldgenOverrides, Vec<String>) {
+/// it leaves out, for the log. New biome ids stay in the registry and in every
+/// biome source or tag that names them.
+pub fn worldgen_overrides(packs: &[&DataPack]) -> (WorldgenOverrides, Vec<String>) {
     let mut out = WorldgenOverrides::default();
     let mut not_read: BTreeMap<String, usize> = BTreeMap::new();
     let mut warnings = Vec::new();
@@ -876,7 +873,6 @@ pub fn worldgen_overrides(
             }
         }
     }
-    warnings.extend(out.finish(biomes));
     for (kind, files) in not_read {
         warnings.push(format!("{kind}: {files} files the generator does not read"));
     }
@@ -939,20 +935,19 @@ mod tests {
             .iter()
             .map(|id| packs.iter().find(|p| &p.id == id).unwrap())
             .collect();
-        let (o, warnings) = worldgen_overrides(&enabled, |b| b == "minecraft:plains");
+        let (o, warnings) = worldgen_overrides(&enabled);
         assert_eq!(
             o.entries("noises").collect::<Vec<_>>(),
             [("minecraft:cave", "a")]
         );
         assert_eq!(
             o.entries("biomes").collect::<Vec<_>>(),
-            [("minecraft:plains", "{}")]
+            [("minecraft:new_peaks", "{}"), ("minecraft:plains", "{}")]
         );
         let tag_packs: Vec<&str> = o.tags("biome_tags").map(|(_, p, _)| p).collect();
         assert_eq!(tag_packs, ["file/b", "file/a"]);
-        assert_eq!(warnings.len(), 2, "{warnings:?}");
-        assert!(warnings[0].contains("minecraft:new_peaks"));
-        assert!(warnings[1].contains("worldgen/world_preset"));
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(warnings[0].contains("worldgen/world_preset"));
         assert_eq!(
             o.level_height("minecraft:overworld").map(|h| h.height),
             Some(2096)

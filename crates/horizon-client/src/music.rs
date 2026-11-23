@@ -13,76 +13,8 @@ use std::{
     path::Path,
 };
 
-/// `Music`: a sound event and the delay range (ticks) before it starts.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Music {
-    pub sound: String,
-    pub min_delay: i32,
-    pub max_delay: i32,
-    pub replace_current_music: bool,
-}
-impl Music {
-    pub fn new(sound: &str, min_delay: i32, max_delay: i32, replace_current_music: bool) -> Self {
-        Self {
-            sound: sound.to_owned(),
-            min_delay,
-            max_delay,
-            replace_current_music,
-        }
-    }
-    /// `Musics.MENU`.
-    pub fn menu() -> Self {
-        Self::new("minecraft:music.menu", 20, 600, true)
-    }
-    /// `Musics.CREDITS`.
-    pub fn credits() -> Self {
-        Self::new("minecraft:music.credits", 0, 0, true)
-    }
-    /// `Musics.END_BOSS`.
-    pub fn end_boss() -> Self {
-        Self::new("minecraft:music.dragon", 0, 0, true)
-    }
-    /// `Musics.CREATIVE`.
-    pub fn creative() -> Self {
-        Self::new("minecraft:music.creative", 12000, 24000, false)
-    }
-    /// `Musics.END`.
-    pub fn end() -> Self {
-        Self::new("minecraft:music.end", 6000, 24000, true)
-    }
-    /// `Musics.UNDER_WATER`.
-    pub fn under_water() -> Self {
-        Self::new("minecraft:music.under_water", 12000, 24000, false)
-    }
-    /// `Musics.GAME`.
-    pub fn game() -> Self {
-        Self::new("minecraft:music.game", 12000, 24000, false)
-    }
-    /// The built-in situations the Music page lists, in its order: the lang key
-    /// of the heading the page's group shows and the music that situation plays.
-    pub fn builtin() -> [(&'static str, Music); 7] {
-        [
-            ("horizon.pages.music.menu", Self::menu()),
-            ("horizon.pages.music.overworld", Self::game()),
-            ("horizon.pages.music.creative", Self::creative()),
-            ("horizon.pages.music.underwater", Self::under_water()),
-            ("horizon.pages.music.end", Self::end()),
-            ("horizon.pages.music.boss", Self::end_boss()),
-            ("horizon.pages.music.credits", Self::credits()),
-        ]
-    }
-    /// `Music.CODEC`.
-    fn parse(v: &Value) -> Option<Self> {
-        let sound = v["sound"].as_str()?;
-        let int = |k: &str| v[k].as_i64().unwrap_or(0) as i32;
-        Some(Self::new(
-            sound,
-            int("min_delay"),
-            int("max_delay"),
-            v["replace_current_music"].as_bool().unwrap_or(false),
-        ))
-    }
-}
+pub use crate::biome::{BackgroundMusic, Music};
+
 /// The Music page's groups: each built-in situation's own tracks first, then
 /// every other `music.` event's tracks that no earlier group listed, under
 /// its dimension's biomes. A track several pools share is listed once, from
@@ -161,31 +93,6 @@ fn biome_group(event: &str) -> (u8, &'static str) {
         (4, "horizon.pages.music.other")
     }
 }
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct BackgroundMusic {
-    pub default: Option<Music>,
-    pub creative: Option<Music>,
-    pub underwater: Option<Music>,
-}
-impl BackgroundMusic {
-    fn parse(v: &Value) -> Self {
-        Self {
-            default: Music::parse(&v["default"]),
-            creative: Music::parse(&v["creative"]),
-            underwater: Music::parse(&v["underwater"]),
-        }
-    }
-    /// `BackgroundMusic.select`.
-    pub fn select(&self, creative: bool, underwater: bool) -> Option<&Music> {
-        if underwater && self.underwater.is_some() {
-            self.underwater.as_ref()
-        } else if creative && self.creative.is_some() {
-            self.creative.as_ref()
-        } else {
-            self.default.as_ref()
-        }
-    }
-}
 #[derive(Clone, Debug, Default)]
 struct Layer {
     music: Option<BackgroundMusic>,
@@ -196,7 +103,7 @@ impl Layer {
         let attributes = &json["attributes"];
         let music = &attributes["minecraft:audio/background_music"];
         Self {
-            music: (!music.is_null()).then(|| BackgroundMusic::parse(music)),
+            music: (!music.is_null()).then(|| BackgroundMusic::from_json(music)),
             volume: attributes["minecraft:audio/music_volume"]
                 .as_f64()
                 .map(|v| v.clamp(0.0, 1.0) as f32),

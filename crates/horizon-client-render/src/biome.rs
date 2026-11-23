@@ -15,6 +15,136 @@ pub enum GrassModifier {
     DarkForest,
     Swamp,
 }
+/// `AmbientMoodSettings` from `minecraft:audio/ambient_sounds`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Mood {
+    pub sound: String,
+    pub tick_delay: i32,
+    pub block_search_extent: i32,
+    pub offset: f64,
+}
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct AmbientSounds {
+    pub r#loop: Option<String>,
+    pub mood: Option<Mood>,
+    pub additions: Vec<(String, f64)>,
+}
+impl AmbientSounds {
+    pub fn from_json(v: &Value) -> Self {
+        let mood = &v["mood"];
+        let addition =
+            |a: &Value| Some((a["sound"].as_str()?.to_owned(), a["tick_chance"].as_f64()?));
+        Self {
+            r#loop: v["loop"].as_str().map(str::to_owned),
+            mood: mood["sound"].as_str().map(|sound| Mood {
+                sound: sound.to_owned(),
+                tick_delay: mood["tick_delay"].as_i64().unwrap_or(6000) as i32,
+                block_search_extent: mood["block_search_extent"].as_i64().unwrap_or(8) as i32,
+                offset: mood["offset"].as_f64().unwrap_or(2.0),
+            }),
+            additions: match &v["additions"] {
+                Value::Array(list) => list.iter().filter_map(addition).collect(),
+                single => addition(single).into_iter().collect(),
+            },
+        }
+    }
+}
+
+/// `Music`: a sound event and the delay range (ticks) before it starts.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Music {
+    pub sound: String,
+    pub min_delay: i32,
+    pub max_delay: i32,
+    pub replace_current_music: bool,
+}
+impl Music {
+    pub fn new(sound: &str, min_delay: i32, max_delay: i32, replace_current_music: bool) -> Self {
+        Self {
+            sound: sound.to_owned(),
+            min_delay,
+            max_delay,
+            replace_current_music,
+        }
+    }
+    /// `Musics.MENU`.
+    pub fn menu() -> Self {
+        Self::new("minecraft:music.menu", 20, 600, true)
+    }
+    /// `Musics.CREDITS`.
+    pub fn credits() -> Self {
+        Self::new("minecraft:music.credits", 0, 0, true)
+    }
+    /// `Musics.END_BOSS`.
+    pub fn end_boss() -> Self {
+        Self::new("minecraft:music.dragon", 0, 0, true)
+    }
+    /// `Musics.CREATIVE`.
+    pub fn creative() -> Self {
+        Self::new("minecraft:music.creative", 12000, 24000, false)
+    }
+    /// `Musics.END`.
+    pub fn end() -> Self {
+        Self::new("minecraft:music.end", 6000, 24000, true)
+    }
+    /// `Musics.UNDER_WATER`.
+    pub fn under_water() -> Self {
+        Self::new("minecraft:music.under_water", 12000, 24000, false)
+    }
+    /// `Musics.GAME`.
+    pub fn game() -> Self {
+        Self::new("minecraft:music.game", 12000, 24000, false)
+    }
+    /// The built-in situations the Music page lists, in its order: the lang key
+    /// of the heading the page's group shows and the music that situation plays.
+    pub fn builtin() -> [(&'static str, Music); 7] {
+        [
+            ("horizon.pages.music.menu", Self::menu()),
+            ("horizon.pages.music.overworld", Self::game()),
+            ("horizon.pages.music.creative", Self::creative()),
+            ("horizon.pages.music.underwater", Self::under_water()),
+            ("horizon.pages.music.end", Self::end()),
+            ("horizon.pages.music.boss", Self::end_boss()),
+            ("horizon.pages.music.credits", Self::credits()),
+        ]
+    }
+    pub fn from_json(v: &Value) -> Option<Self> {
+        let sound = v["sound"].as_str()?;
+        let int = |k: &str| v[k].as_i64().unwrap_or(0) as i32;
+        Some(Self {
+            sound: sound.to_owned(),
+            min_delay: int("min_delay"),
+            max_delay: int("max_delay"),
+            replace_current_music: v["replace_current_music"].as_bool().unwrap_or(false),
+        })
+    }
+}
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct BackgroundMusic {
+    pub default: Option<Music>,
+    pub creative: Option<Music>,
+    pub underwater: Option<Music>,
+}
+impl BackgroundMusic {
+    pub fn from_json(v: &Value) -> Self {
+        Self {
+            default: Music::from_json(&v["default"]),
+            creative: Music::from_json(&v["creative"]),
+            underwater: Music::from_json(&v["underwater"]),
+        }
+    }
+    /// `BackgroundMusic.select`.
+    pub fn select(&self, creative: bool, underwater: bool) -> Option<&Music> {
+        if underwater && self.underwater.is_some() {
+            self.underwater.as_ref()
+        } else if creative && self.creative.is_some() {
+            self.creative.as_ref()
+        } else {
+            self.default.as_ref()
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SpawnEntry {
     pub entity: String,
@@ -106,6 +236,12 @@ pub struct BiomeInfo {
     /// The biome's own fog colour attribute; otherwise the dimension's applies.
     pub fog: Option<u32>,
     pub water_fog: u32,
+    /// `minecraft:visual/ambient_particles`, with unsupported types left out.
+    pub particles: Vec<(crate::particles::ParticleType, f32)>,
+    /// Biome layers of the audio attributes; `None` inherits the dimension's.
+    pub ambient: Option<AmbientSounds>,
+    pub music: Option<BackgroundMusic>,
+    pub music_volume: Option<f32>,
     /// `BiomeGenerationSettings.features`: the placed feature ids of each
     /// `GenerationStep.Decoration` step, in order.
     pub features: Vec<Vec<String>>,
@@ -220,6 +356,22 @@ impl BiomeInfo {
             let list = parse_entries(entries);
             spawns.insert(category.clone(), list);
         }
+        let particle_attribute = &attributes["minecraft:visual/ambient_particles"];
+        let particle_entries = particle_attribute["argument"]
+            .as_array()
+            .or_else(|| particle_attribute.as_array());
+        let particles = particle_entries
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| {
+                Some((
+                    crate::particles::ParticleType::from_name(entry["particle"]["type"].as_str()?)?,
+                    entry["probability"].as_f64().unwrap_or(0.0) as f32,
+                ))
+            })
+            .collect();
+        let ambient = &attributes["minecraft:audio/ambient_sounds"];
+        let music = &attributes["minecraft:audio/background_music"];
         BiomeInfo {
             spawns,
             spawn_costs: parse_costs(&natural["spawn_costs"]),
@@ -245,6 +397,12 @@ impl BiomeInfo {
             sky: color(&attributes["minecraft:visual/sky_color"]),
             fog: color(&attributes["minecraft:visual/fog_color"]),
             water_fog: color(&attributes["minecraft:visual/water_fog_color"]).unwrap_or(0x050533),
+            particles,
+            ambient: (!ambient.is_null()).then(|| AmbientSounds::from_json(ambient)),
+            music: (!music.is_null()).then(|| BackgroundMusic::from_json(music)),
+            music_volume: attributes["minecraft:audio/music_volume"]
+                .as_f64()
+                .map(|v| v.clamp(0.0, 1.0) as f32),
             features: v["features"]
                 .as_array()
                 .into_iter()
@@ -599,6 +757,62 @@ mod pack_tests {
         assert!(!other.contains("minecraft:molten_peaks"));
         assert_eq!(other.get(2).water, 0x3F76E4);
         assert!(!other.has_packs());
+    }
+
+    #[test]
+    fn pack_effects_audio_particles_and_spawns_have_vanilla_defaults() {
+        let base = builtin(&["minecraft:plains"]);
+        let pack = json!({
+            "effects": {
+                "grass_color": "#123456", "foliage_color": 0x234567,
+                "dry_foliage_color": 0x345678, "water_color": 0x456789,
+                "grass_color_modifier": "dark_forest"
+            },
+            "attributes": {
+                "minecraft:visual/sky_color": "#010203",
+                "minecraft:visual/fog_color": 0x040506,
+                "minecraft:visual/water_fog_color": 0x070809,
+                "minecraft:visual/ambient_particles": [{
+                    "particle": {"type": "minecraft:firefly"}, "probability": 0.25
+                }],
+                "minecraft:audio/ambient_sounds": {
+                    "loop": "mypack:hum",
+                    "mood": {"sound": "mypack:mood", "tick_delay": 123,
+                        "block_search_extent": 4, "offset": 1.5},
+                    "additions": {"sound": "mypack:chirp", "tick_chance": 0.125}
+                },
+                "minecraft:audio/background_music": {"default": {
+                    "sound": "mypack:music", "min_delay": 10, "max_delay": 20,
+                    "replace_current_music": true
+                }},
+                "minecraft:audio/music_volume": 0.4,
+                "minecraft:gameplay/natural_mob_spawns": {"spawns_by_category": {
+                    "creature": [{"type": "minecraft:cow", "weight": 7, "count": 2}]
+                }}
+            }
+        });
+        let world = base.with_packs([("mypack:glowing_meadow", &pack)]);
+        let b = world.get(world.id("mypack:glowing_meadow"));
+        assert_eq!((b.grass, b.foliage, b.dry_foliage, b.water),
+            (0x123456, 0x234567, 0x345678, 0x456789));
+        assert_eq!((b.sky, b.fog, b.water_fog), (Some(0x010203), Some(0x040506), 0x070809));
+        assert_eq!(b.modifier, GrassModifier::DarkForest);
+        assert_eq!(b.particles, [(crate::particles::ParticleType::Firefly, 0.25)]);
+        let ambient = b.ambient.as_ref().unwrap();
+        assert_eq!(ambient.r#loop.as_deref(), Some("mypack:hum"));
+        assert_eq!(ambient.additions, [("mypack:chirp".into(), 0.125)]);
+        assert_eq!(ambient.mood.as_ref().unwrap().tick_delay, 123);
+        let music = b.music.as_ref().unwrap().default.as_ref().unwrap();
+        assert_eq!((music.sound.as_str(), music.min_delay, music.max_delay),
+            ("mypack:music", 10, 20));
+        assert_eq!(b.music_volume, Some(0.4));
+        assert_eq!(b.spawns["creature"][0].entity, "minecraft:cow");
+        assert_eq!((b.spawns["creature"][0].weight, b.spawns["creature"][0].min), (7, 2));
+
+        let plain = base.get(base.id("minecraft:plains"));
+        assert_eq!((plain.water, plain.water_fog), (0x3F76E4, 0x050533));
+        assert!(plain.particles.is_empty() && plain.ambient.is_none() && plain.music.is_none());
+        assert_eq!(plain.music_volume, None);
     }
 }
 

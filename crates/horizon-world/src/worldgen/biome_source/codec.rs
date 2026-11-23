@@ -340,6 +340,76 @@ fn point_json(point: &ParameterPoint) -> String {
 }
 
 #[cfg(test)]
+mod pack_biome_tests {
+    use super::*;
+
+    #[test]
+    fn new_biomes_resolve_in_sources_and_tags() {
+        let biomes = ["minecraft:plains", "mypack:luminous_caves"]
+            .map(String::from)
+            .into_iter()
+            .collect();
+        let tags = BTreeMap::from([(
+            "mypack:cave_lights".to_owned(),
+            vec!["mypack:luminous_caves".to_owned()],
+        )]);
+        let catalog = BiomeSourceCatalog::new(&biomes, &tags, &BTreeSet::new()).unwrap();
+        let point = r#"{"temperature":0,"humidity":0,"continentalness":0,"erosion":0,"depth":0,"weirdness":0,"offset":0}"#;
+        let source = format!(
+            r#"{{"type":"minecraft:multi_noise","biomes":[{{"parameters":{point},"biome":"mypack:luminous_caves"}}]}}"#
+        );
+        let definition = catalog.decode(&source).unwrap();
+        let resolved = definition.resolve(&BTreeMap::new()).unwrap();
+        assert_eq!(
+            resolved.possible_biomes().into_iter().collect::<Vec<_>>(),
+            ["mypack:luminous_caves"]
+        );
+        #[derive(Debug)]
+        struct Zero;
+        impl horizon_core::density::DensitySampler for Zero {
+            fn sample_value(
+                &self,
+                _: &mut horizon_core::density::SamplerContext,
+                _: [i32; 3],
+            ) -> Result<f32, horizon_core::density::SampleError> {
+                Ok(0.0)
+            }
+        }
+        let climate = crate::worldgen::climate::ClimateSampler::new(std::array::from_fn(|_| {
+            std::sync::Arc::new(Zero) as std::sync::Arc<dyn horizon_core::density::DensitySampler>
+        }));
+        let mut resolver = resolved.resolver(&climate, &Zero);
+        assert_eq!(
+            resolver
+                .sample(&mut horizon_core::density::SamplerContext::default(), [0, 0, 0])
+                .unwrap(),
+            "mypack:luminous_caves"
+        );
+        assert_eq!(
+            catalog
+                .decode(r#"{"type":"minecraft:fixed","biome":"mypack:luminous_caves"}"#)
+                .unwrap(),
+            BiomeSourceDefinition::Fixed("mypack:luminous_caves".into())
+        );
+        let checkerboard = catalog
+            .decode(
+                r##"{"type":"minecraft:checkerboard","biomes":"#mypack:cave_lights"}"##,
+            )
+            .unwrap();
+        assert_eq!(
+            checkerboard,
+            BiomeSourceDefinition::Checkerboard {
+                biomes: BiomeSet::Tag {
+                    name: "mypack:cave_lights".into(),
+                    members: vec!["mypack:luminous_caves".into()],
+                },
+                scale: 2,
+            }
+        );
+    }
+}
+
+#[cfg(test)]
 mod grid_tests {
     use super::*;
     use crate::worldgen::biome_source::ResolvedBiomeSource;

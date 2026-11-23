@@ -189,63 +189,6 @@ impl WorldgenOverrides {
             PackFile::Other
         }
     }
-    /// After the last pack: leaves out the packs' new biomes (`known` says
-    /// which the game has), and what names them names the rest without
-    /// them: their biome tags' other biomes, and the climate points of the
-    /// other biomes in a level stem's multi-noise list (the left-out
-    /// biome's climate goes to its nearest neighbours). Returns what it
-    /// left out, for the log.
-    pub fn finish(&mut self, known: impl Fn(&str) -> bool) -> Vec<String> {
-        let left_out = self.retain("biomes", &known);
-        let mut warnings: Vec<String> = left_out
-            .iter()
-            .map(|id| {
-                format!("biome {id} is new: Horizon cannot add biomes yet, so it is left out")
-            })
-            .collect();
-        if left_out.is_empty() {
-            return warnings;
-        }
-        let gone = |v: &Value| {
-            let id = v.as_str().or_else(|| v["id"].as_str()).unwrap_or_default();
-            let id = if id.contains(':') {
-                id.to_owned()
-            } else {
-                format!("minecraft:{id}")
-            };
-            left_out.contains(&id)
-        };
-        for (_, _, json) in self.tags.get_mut("biome_tags").into_iter().flatten() {
-            if let Ok(mut v) = serde_json::from_str::<Value>(json)
-                && let Some(values) = v["values"].as_array_mut()
-            {
-                let before = values.len();
-                values.retain(|e| !gone(e));
-                if values.len() != before {
-                    *json = v.to_string();
-                }
-            }
-        }
-        for (id, json) in self.entries.get_mut(DIMENSIONS).into_iter().flatten() {
-            let Ok(mut v) = serde_json::from_str::<Value>(json) else {
-                continue;
-            };
-            let Some(points) = v["generator"]["biome_source"]["biomes"].as_array_mut() else {
-                continue;
-            };
-            let before = points.len();
-            points.retain(|p| !gone(&p["biome"]));
-            if points.len() != before {
-                warnings.push(format!(
-                    "dimension {id}: {} of its {before} biome climate points name left-out \
-                     biomes and are removed",
-                    before - points.len()
-                ));
-                *json = v.to_string();
-            }
-        }
-        warnings
-    }
     /// The build range of the vanilla level `level` (`minecraft:overworld`,
     /// `minecraft:the_nether`, `minecraft:the_end`) with these packs: the
     /// dimension type its level stem names (a pack's stem, else the
@@ -475,7 +418,7 @@ mod tests {
     }
 
     #[test]
-    fn new_biomes_are_left_out_of_tags_and_climate_points() {
+    fn new_biomes_stay_in_tags_and_climate_points() {
         let mut o = WorldgenOverrides::default();
         o.set("biomes", "minecraft:plains", "{}".into());
         o.set("biomes", "minecraft:molten_peaks", "{}".into());
@@ -490,12 +433,13 @@ mod tests {
             "minecraft:overworld",
             r#"{"generator":{"biome_source":{"biomes":[{"biome":"minecraft:plains"},{"biome":"minecraft:molten_peaks"}]}}}"#.into(),
         );
-        let warnings = o.finish(|id| id == "minecraft:plains");
-        assert_eq!(warnings.len(), 2, "{warnings:?}");
-        assert_eq!(o.entries("biomes").count(), 1);
+        assert_eq!(o.entries("biomes").count(), 2);
         let (_, _, tag) = o.tags("biome_tags").next().unwrap();
-        assert_eq!(tag, r#"{"values":["minecraft:plains"]}"#);
+        assert_eq!(
+            tag,
+            r#"{"values":["minecraft:plains","molten_peaks",{"id":"minecraft:molten_peaks","required":false}]}"#
+        );
         let (_, stem) = o.entries(DIMENSIONS).next().unwrap();
-        assert!(!stem.contains("molten_peaks") && stem.contains("minecraft:plains"));
+        assert!(stem.contains("molten_peaks") && stem.contains("minecraft:plains"));
     }
 }

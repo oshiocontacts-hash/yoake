@@ -19927,7 +19927,6 @@ impl Game<'_> {
                         dir.as_deref(),
                         &self.options.resources,
                         &packs,
-                        self.res.biomes(),
                     )
                 })
                 .unwrap_or_default();

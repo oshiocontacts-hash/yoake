@@ -225,7 +225,7 @@ impl WorldRequest {
             level.dimension = d.clone();
             level.position = None;
         }
-        let shapes = level_shapes(&save_root, res.biomes());
+        let shapes = level_shapes(&save_root);
         // F3-3: the world's levels, built before the player's level is looked up in them.
         let registry = build_level_registry(
             res,
@@ -439,7 +439,7 @@ pub(super) fn preload_launch_world(
     folder: &str,
     resources: &std::path::Path,
     registry: &'static horizon_world::registry::BlockRegistry,
-    biomes: Arc<horizon_client::biome::Biomes>,
+    _biomes: Arc<horizon_client::biome::Biomes>,
 ) {
     let mut preload = PRELOAD.lock().unwrap_or_else(|e| e.into_inner());
     if !matches!(*preload, Preload::Idle) {
@@ -462,7 +462,7 @@ pub(super) fn preload_launch_world(
                 .map(|l| l.enabled_features)
                 .unwrap_or_default();
             let (overrides, _) =
-                worldgen_overrides_of(&world_root, &resources, &biomes, &enabled_features);
+                worldgen_overrides_of(&world_root, &resources, &enabled_features);
             if let Ok(data) = horizon_client::vanillagen::shared_data_with(
                 &resources.join("worldgen"),
                 &overrides,
@@ -554,8 +554,7 @@ pub(super) fn preload_server_loot(resources: &std::path::Path) {
 }
 
 /// The game's biomes with the world's enabled packs over them, from the same
-/// pack list its worldgen is built from (`WorldgenOverrides` keeps only the
-/// biomes this table knows).
+/// pack list its worldgen is built from.
 pub(super) fn packed_biomes(
     world_root: &std::path::Path,
     resources: &std::path::Path,
@@ -568,11 +567,25 @@ pub(super) fn packed_biomes(
         .iter()
         .filter_map(|id| packs.iter().find(|p| &p.id == id))
         .collect();
-    let (overrides, _) = horizon_client::datapack::worldgen_overrides(&enabled, |_| true);
-    let packed: Vec<(String, serde_json::Value)> = overrides
-        .entries("biomes")
-        .filter_map(|(id, json)| Some((id.to_owned(), serde_json::from_str(json).ok()?)))
-        .collect();
+    let (overrides, _) = horizon_client::datapack::worldgen_overrides(&enabled);
+    // Content mods are already in the prepared bundle beneath the world's
+    // packs. Only their own namespaces add biomes; a pack's file for the same
+    // id replaces the mod's below, just as it does in the generator.
+    let mut packed: Vec<(String, serde_json::Value)> = std::fs::read(
+        resources.join("worldgen/biomes.json"),
+    )
+    .ok()
+    .and_then(|bytes| {
+        serde_json::from_slice::<std::collections::BTreeMap<String, String>>(&bytes).ok()
+    })
+    .into_iter()
+    .flatten()
+    .filter(|(id, _)| !id.starts_with("minecraft:"))
+    .filter_map(|(id, json)| Some((id, serde_json::from_str(&json).ok()?)))
+    .collect();
+    packed.extend(overrides.entries("biomes").filter_map(|(id, json)| {
+        Some((id.to_owned(), serde_json::from_str(json).ok()?))
+    }));
     if packed.is_empty() {
         return base.clone();
     }
@@ -586,7 +599,6 @@ pub(super) fn creation_worldgen_overrides(
     pack_dir: Option<&std::path::Path>,
     resources: &std::path::Path,
     data_packs: &[String],
-    biomes: &horizon_client::biome::Biomes,
 ) -> horizon_world::worldgen::overrides::WorldgenOverrides {
     let empty = std::path::PathBuf::new();
     let packs =
@@ -595,20 +607,16 @@ pub(super) fn creation_worldgen_overrides(
         .iter()
         .filter_map(|id| packs.iter().find(|p| &p.id == id))
         .collect();
-    let (overrides, _) =
-        horizon_client::datapack::worldgen_overrides(&enabled, |b| biomes.contains(b));
-    overrides
+    horizon_client::datapack::worldgen_overrides(&enabled).0
 }
 /// The worldgen entries of the world's enabled data packs, logging what
 /// the generator leaves out of them.
 pub(super) fn world_worldgen_overrides(
     world_root: &std::path::Path,
     resources: &std::path::Path,
-    biomes: &horizon_client::biome::Biomes,
     enabled_features: &[String],
 ) -> horizon_world::worldgen::overrides::WorldgenOverrides {
-    let (overrides, warnings) =
-        worldgen_overrides_of(world_root, resources, biomes, enabled_features);
+    let (overrides, warnings) = worldgen_overrides_of(world_root, resources, enabled_features);
     for warning in warnings {
         log::warn!("Horizon: data pack worldgen: {warning}");
     }
@@ -620,7 +628,6 @@ pub(super) fn world_worldgen_overrides(
 fn worldgen_overrides_of(
     world_root: &std::path::Path,
     resources: &std::path::Path,
-    biomes: &horizon_client::biome::Biomes,
     enabled_features: &[String],
 ) -> (
     horizon_world::worldgen::overrides::WorldgenOverrides,
@@ -632,7 +639,7 @@ fn worldgen_overrides_of(
         .iter()
         .filter_map(|id| packs.iter().find(|p| &p.id == id))
         .collect();
-    horizon_client::datapack::worldgen_overrides(&enabled, |b| biomes.contains(b))
+    horizon_client::datapack::worldgen_overrides(&enabled)
 }
 
 /// The shapes of the world's levels: their dimension types, the world's
@@ -640,7 +647,6 @@ fn worldgen_overrides_of(
 /// vanilla shape, with a warning.
 pub(super) fn level_shapes(
     world_root: &std::path::Path,
-    biomes: &horizon_client::biome::Biomes,
 ) -> horizon_client::chunk::LevelShapes {
     use horizon_client::chunk::{LevelShape, LevelShapes};
     let packs = horizon_client::datapack::discover(world_root);
@@ -658,7 +664,7 @@ pub(super) fn level_shapes(
     }
     // What the packs leave out is logged when the generator reads them.
     let (overrides, _) =
-        horizon_client::datapack::worldgen_overrides(&enabled, |b| biomes.contains(b));
+        horizon_client::datapack::worldgen_overrides(&enabled);
     for level in [
         "minecraft:overworld",
         "minecraft:the_nether",
@@ -689,7 +695,7 @@ pub(super) fn level_shapes(
 /// enabled data packs'. Problems (a stem that does not validate) are logged and the level
 /// left out; the vanilla levels are never affected.
 pub(super) fn build_level_registry(
-    res: &Resources,
+    _res: &Resources,
     pack: &PackResources,
     options: &Options,
     world_root: &std::path::Path,
@@ -697,7 +703,7 @@ pub(super) fn build_level_registry(
     enabled_features: &[String],
 ) -> horizon_client::level_registry::LevelRegistry {
     use horizon_client::level_registry::LevelRegistry;
-    let overrides = world_worldgen_overrides(world_root, &options.resources, res.biomes(), enabled_features);
+    let overrides = world_worldgen_overrides(world_root, &options.resources, enabled_features);
     // The biome catalog is only needed to decode stems of levels other than the three; a
     // world with none does not load the worldgen data for it (the generator does, later).
     // The levels created in earlier sessions and the ones mods staged are read with the others
@@ -815,7 +821,7 @@ pub(super) fn make_streaming(
                         shape,
                         g.get("settings").cloned().unwrap_or_else(|| serde_json::json!({})),
                         pack.assets.clone(),
-                        res.biomes().clone(),
+                        biomes.clone(),
                     )
                     ?,
             )
@@ -828,7 +834,7 @@ pub(super) fn make_streaming(
             horizon_client::flatgen::FlatTerrain::from_settings(
                 &s,
                 pack.assets.registry,
-                res.biomes(),
+                &biomes,
                 shape,
             )
         });
@@ -839,7 +845,7 @@ pub(super) fn make_streaming(
             horizon_client::debugworld::DebugTerrain::from_settings(
                 s,
                 pack.assets.registry,
-                res.biomes(),
+                &biomes,
                 shape,
             )
         });
@@ -858,7 +864,7 @@ pub(super) fn make_streaming(
     // than the noise) leaves the world on its flat ground, as it was before.
     let flat_vanilla = flat_structures.and_then(|settings| {
         let overrides =
-            world_worldgen_overrides(world_root, &options.resources, &biomes, enabled_features);
+            world_worldgen_overrides(world_root, &options.resources, enabled_features);
         match VanillaTerrain::for_flat(
             &options.resources.join("worldgen"),
             &overrides,
@@ -959,7 +965,7 @@ pub(super) fn make_streaming(
             horizon_client::save::WorldGen::read(world_root).is_none_or(|w| w.structures);
         let preset = horizon_client::save::WorldGen::preset(world_root);
         let overrides =
-            world_worldgen_overrides(world_root, &options.resources, &biomes, enabled_features);
+            world_worldgen_overrides(world_root, &options.resources, enabled_features);
         // The level's stem from the registry: the saved one, a data pack's over it, or a
         // mod's (what `world_gen_settings` held for the three vanilla levels before F3-3).
         let saved_stem = stem.cloned();
@@ -980,7 +986,7 @@ pub(super) fn make_streaming(
             inner.set_old_world(Arc::new(horizon_client::old_world::SavedOldWorld::new(
                 save.clone(),
                 pack.assets.clone(),
-                res.biomes().clone(),
+                biomes.clone(),
                 inner.generator_data().clone(),
             )));
         }

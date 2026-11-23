@@ -3495,6 +3495,51 @@ fn biome_modifiers_none_keep_the_vanilla_biomes() {
     let _ = fs::remove_dir_all(&scratch);
 }
 
+/// A mod biome joins the bundle, its tag keeps it, and a modifier can target it.
+#[test]
+fn biome_modifiers_and_tags_accept_a_mods_new_biome() {
+    let base = biome_base("biome-mod-new");
+    let scratch = base.parent().unwrap().to_owned();
+    let m = folder_mod(
+        &scratch.join("zinc"),
+        &[
+            ("horizon-mod.toml", &manifest("zinc", "")),
+            (
+                "data/zinc/worldgen/biome/luminous_caves.json",
+                r#"{"effects":{"water_color":1193046},"features":[],"attributes":{}}"#,
+            ),
+            (
+                "data/zinc/tags/worldgen/biome/is_luminous.json",
+                r#"{"values":["zinc:luminous_caves"]}"#,
+            ),
+            (
+                "data/zinc/neoforge/biome_modifier/spawns.json",
+                r##"{"type":"neoforge:add_spawns","biomes":"#zinc:is_luminous",
+                    "spawners":{"type":"minecraft:zombie","weight":9,"minCount":2,"maxCount":2}}"##,
+            ),
+        ],
+    );
+    let out = scratch.join("out");
+    let warnings = build(&base, &[m], &out).unwrap();
+    assert!(warnings.is_empty(), "{warnings:?}");
+    let bundle: BTreeMap<String, String> =
+        serde_json::from_slice(&fs::read(out.join("worldgen/biomes.json")).unwrap()).unwrap();
+    let biome: serde_json::Value = serde_json::from_str(&bundle["zinc:luminous_caves"]).unwrap();
+    assert_eq!(biome["effects"]["water_color"], 1193046);
+    assert_eq!(
+        biome["attributes"]["minecraft:gameplay/natural_mob_spawns"]["argument"]
+            ["spawns_by_category"]["monster"],
+        serde_json::json!([{"type":"minecraft:zombie","weight":9,"count":2}])
+    );
+    let tags: BTreeMap<String, String> =
+        serde_json::from_slice(&fs::read(out.join("worldgen/biome_tags.json")).unwrap()).unwrap();
+    let tag: serde_json::Value = serde_json::from_str(&tags["zinc:is_luminous"]).unwrap();
+    assert_eq!(tag["values"], serde_json::json!(["zinc:luminous_caves"]));
+    let file = out.join("data/zinc/worldgen/biome/luminous_caves.json");
+    assert_eq!(serde_json::from_slice::<serde_json::Value>(&fs::read(file).unwrap()).unwrap(), biome);
+    let _ = fs::remove_dir_all(&scratch);
+}
+
 /// An unknown biome, biome tag, feature, entity type, step or modifier type is
 /// skipped with a warning or fails the build with the mod and file named.
 #[test]

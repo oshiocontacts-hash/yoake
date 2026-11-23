@@ -3,10 +3,12 @@
 //! data.
 use horizon_client::{
     biome::{BiomeColors, Biomes},
-    chunk::LevelShapes,
+    chunk::{Chunk, LevelShapes},
     lan::data::{BIOME_REGISTRY, SyncData, client_biomes},
+    save,
     scoreboard::json_to_tag,
 };
+use horizon_world::{nbt::Tag, registry::BlockRegistry};
 use serde_json::Value;
 use std::path::PathBuf;
 
@@ -45,7 +47,21 @@ fn a_pack_biome_is_sent_with_its_data_and_read_back_by_a_client() {
     let root = std::env::temp_dir().join(format!("horizon-sync-biomes-{}", std::process::id()));
     let _scratch = Scratch(root.clone());
     let base = write_base(&root);
-    let pack: Value = serde_json::from_str(r##"{"effects":{"grass_color":"#123456"}}"##).unwrap();
+    let pack: Value = serde_json::json!({
+        "effects": {"grass_color": "#123456"},
+        "attributes": {
+            "minecraft:visual/sky_color": "#010203",
+            "minecraft:visual/fog_color": 0x040506,
+            "minecraft:visual/water_fog_color": 0x070809,
+            "minecraft:visual/ambient_particles": [{
+                "particle": {"type": "minecraft:firefly"}, "probability": 0.5
+            }],
+            "minecraft:audio/ambient_sounds": {"loop": "mypack:wind"},
+            "minecraft:audio/background_music": {"default": {
+                "sound": "mypack:song", "min_delay": 20, "max_delay": 40
+            }}
+        }
+    });
     let world = base.with_packs([("minecraft:tundra_x", &pack)]);
     let sync =
         SyncData::load_with(&root, &horizon_world::loot::PackOverlay::NONE, Some(&world)).unwrap();
@@ -76,9 +92,33 @@ fn a_pack_biome_is_sent_with_its_data_and_read_back_by_a_client() {
     let client = client_biomes(&base, &received).expect("the pack's biome is new to the client");
     let id = client.id("minecraft:tundra_x");
     assert_eq!(id, world.id("minecraft:tundra_x"));
-    assert_eq!(client.get(id).grass, 0x123456);
+    let received_biome = client.get(id);
+    assert_eq!(received_biome.grass, 0x123456);
+    assert_eq!(
+        (received_biome.sky, received_biome.fog, received_biome.water_fog),
+        (Some(0x010203), Some(0x040506), 0x070809)
+    );
+    assert_eq!(
+        received_biome.particles,
+        [(horizon_client::particles::ParticleType::Firefly, 0.5)]
+    );
+    assert_eq!(
+        received_biome.ambient.as_ref().unwrap().r#loop.as_deref(),
+        Some("mypack:wind")
+    );
+    assert_eq!(
+        received_biome
+            .music
+            .as_ref()
+            .unwrap()
+            .default
+            .as_ref()
+            .unwrap()
+            .sound,
+        "mypack:song"
+    );
     assert_ne!(
-        client.get(id).grass,
+        received_biome.grass,
         client.get(client.id("minecraft:plains")).grass
     );
 
@@ -118,4 +158,56 @@ fn recolouring_twice_starts_from_the_biome_files_each_time() {
     let lighter = |_: &str, c: &mut BiomeColors| c.grass += 0x10;
     let next = base.recolored_from(&once, lighter).unwrap();
     assert_eq!(grass(&next), grass(&base) + 0x10);
+}
+
+#[test]
+fn a_pack_biome_chunk_saves_its_name_and_loads_with_its_id() {
+    let root = std::env::temp_dir().join(format!("horizon-save-biome-{}", std::process::id()));
+    let _scratch = Scratch(root.clone());
+    let base = write_base(&root);
+    let pack = serde_json::json!({"effects": {"water_color": 0x123456}});
+    let biomes = base.with_packs([("mypack:azure_caves", &pack)]);
+    let id = biomes.id("mypack:azure_caves");
+    let registry = BlockRegistry::from_nbt(&Tag::compound([
+        ("DataVersion", Tag::Int(horizon_world::DATA_VERSION)),
+        ("states", Tag::List(vec![Tag::String("minecraft:air".into())])),
+        (
+            "defaults",
+            Tag::compound([("minecraft:air", Tag::Int(0))]),
+        ),
+    ]))
+    .unwrap();
+    let mut chunk = Chunk::empty(2, -3);
+    for qy in 0..96 {
+        for qz in 0..4 {
+            for qx in 0..4 {
+                chunk.set_biome_cell(qx, qy, qz, id);
+            }
+        }
+    }
+    let encoded = save::encode(&chunk, &registry, &biomes);
+    let sections = encoded
+        .tag
+        .get("sections")
+        .and_then(|tag| match tag {
+            Tag::List(list) => Some(list),
+            _ => None,
+        })
+        .unwrap();
+    assert!(sections.iter().any(|section| {
+        section
+            .get("biomes")
+            .and_then(|b| b.get("palette"))
+            .and_then(|tag| match tag {
+                Tag::List(list) => Some(list),
+                _ => None,
+            })
+            .is_some_and(|palette| {
+                palette.iter().any(|entry| {
+                    matches!(entry, Tag::String(name) if name.to_string_lossy() == "mypack:azure_caves")
+                })
+            })
+    }));
+    let decoded = save::decode(&encoded, &registry, &biomes).unwrap();
+    assert_eq!(decoded.biome(32, 64, -48), id);
 }

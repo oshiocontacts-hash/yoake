@@ -13,23 +13,31 @@ use horizon_protocol::packets::{configuration::ClientInformation, play};
 use serde_json::json;
 use std::{path::PathBuf, sync::Arc, time::{Duration, Instant}};
 
-/// How many sections a chunk's buffer holds: sections are read one after another until the buffer is used up. The
-/// block palette's global bit width depends on the registry, so a few widths are tried; the one that reads the buffer
-/// to its end exactly gives the count (`None` when none does).
-fn sections_in(buffer: &[u8], biome_bits: u8) -> Option<usize> {
+/// How many sections a chunk's buffer holds and its first section's biome id. The block palette's
+/// global bit width depends on the registry, so a few widths are tried; the one that reads the
+/// buffer to its end exactly wins.
+fn sections_in(buffer: &[u8], biome_bits: u8) -> Option<(usize, Option<i32>)> {
     use horizon_protocol::{buf::Reader, chunk::Section};
     for block_bits in 13..=16u8 {
         let mut r = Reader::new(buffer);
         let mut count = 0;
+        let mut biome = None;
         while r.remaining() > 0 {
-            if Section::read(&mut r, block_bits, biome_bits).is_err() {
-                count = 0;
-                break;
+            match Section::read(&mut r, block_bits, biome_bits) {
+                Ok(section) => {
+                    if count == 0 {
+                        biome = section.biomes.palette.first().copied();
+                    }
+                }
+                Err(_) => {
+                    count = 0;
+                    break;
+                }
             }
             count += 1;
         }
         if count > 0 {
-            return Some(count);
+            return Some((count, biome));
         }
     }
     None
@@ -51,10 +59,12 @@ fn main() {
     );
     let say = |v: serde_json::Value| println!("{v}");
     let mut types: Vec<String> = Vec::new();
+    let mut biomes: Vec<String> = Vec::new();
     let mut biome_bits = 0u8;
     let mut sent = false;
     let mut chunks_after = 0usize;
     let mut section_counts = std::collections::BTreeSet::<i64>::new();
+    let mut chunk_biomes = std::collections::BTreeSet::<i32>::new();
     let mut respawn_at = None::<Instant>;
     let end = Instant::now() + Duration::from_secs(seconds);
     while Instant::now() < end {
@@ -68,7 +78,12 @@ fn main() {
                         .get("minecraft:dimension_type")
                         .map(|v| v.iter().map(|(n, _)| n.clone()).collect())
                         .unwrap_or_default();
-                    say(json!({"dimension_types": types}));
+                    biomes = registries
+                        .registries
+                        .get("minecraft:worldgen/biome")
+                        .map(|v| v.iter().map(|(n, _)| n.clone()).collect())
+                        .unwrap_or_default();
+                    say(json!({"dimension_types": types, "biomes": biomes}));
                 }
                 Event::Packet(packet) => match *packet {
                     play::Clientbound::Login(login) => {
@@ -82,12 +97,18 @@ fn main() {
                         session.send(play::Serverbound::PlayerLoaded(horizon_protocol::packets::Empty));
                         chunks_after = 0;
                         section_counts.clear();
+                        chunk_biomes.clear();
                         respawn_at = Some(Instant::now());
                     }
                     play::Clientbound::LevelChunkWithLight(c) => {
                         if respawn_at.is_some() {
                             chunks_after += 1;
-                            section_counts.insert(sections_in(&c.chunk.buffer, biome_bits).map_or(-1, |n| n as i64));
+                            if let Some((sections, biome)) = sections_in(&c.chunk.buffer, biome_bits) {
+                                section_counts.insert(sections as i64);
+                                chunk_biomes.extend(biome);
+                            } else {
+                                section_counts.insert(-1);
+                            }
                         }
                     }
                     play::Clientbound::PlayerPosition(_) if !sent => {
@@ -111,5 +132,10 @@ fn main() {
             break;
         }
     }
-    say(json!({"chunks_after_respawn": chunks_after, "sections": section_counts}));
+    let chunk_biomes: Vec<_> = chunk_biomes
+        .iter()
+        .map(|id| biomes.get(*id as usize).cloned())
+        .collect();
+    say(json!({"chunks_after_respawn": chunks_after, "sections": section_counts,
+        "chunk_biomes": chunk_biomes}));
 }

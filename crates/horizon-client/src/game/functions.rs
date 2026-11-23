@@ -245,7 +245,7 @@ impl Game<'_> {
             .iter()
             .filter_map(|id| packs.iter().find(|p| &p.id == id))
             .collect();
-        let (overrides, _) = horizon_client::datapack::worldgen_overrides(&enabled, |_| true);
+        let (overrides, _) = horizon_client::datapack::worldgen_overrides(&enabled);
         for (bundle, registry) in [
             ("biomes", "minecraft:worldgen/biome"),
             ("structures", "minecraft:worldgen/structure"),

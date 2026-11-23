@@ -608,7 +608,7 @@ fn do_animate_tick(
             .chunks
             .get(&(x >> 4, z >> 4))
             .map_or(0, |c| c.biome(x, y, z));
-        for &(ty, probability) in tables.ambient.get(biome as usize).into_iter().flatten() {
+        for &(ty, probability) in &ctx.biomes.get(biome).particles {
             // AmbientParticle.canSpawn: random.nextFloat() <= probability.
             let random = engine.random();
             if random.next_float() <= probability {
