@@ -132,6 +132,10 @@ pub const MINIMAP_SPRITE: &str = "horizon/minimap";
 /// enough for a world map's 1024 blocks at a block a pixel.
 pub const MOD_IMAGE_SPRITE: &str = "horizon/modimage";
 pub const MOD_IMAGE_SIZE: u32 = 1024;
+/// Reserved sub-region of the shared/entity atlas for runtime custom mob textures (F4M-7).
+pub const MOB_TEXTURES_SPRITE: &str = "horizon/mob-textures";
+pub const MOB_TEXTURES_SIZE: u32 = 1024;
+pub const MOB_TEXTURE_SLOTS: usize = 64;
 /// Atlas slots for downloaded player skins (`skins/<sha1>`), 64x64 each.
 /// Vanilla registers a texture per skin. Here the slots are shared
 /// (`skins::SkinSlots`): skins drawn in the last frame keep theirs, and a
@@ -849,14 +853,43 @@ impl HudAtlas {
         mod_image: bool,
         extra: Vec<(String, u32, u32, Vec<u8>)>,
     ) -> Result<Self> {
-        let mut atlas = Self::pack(root, defaults, WALKED_TEXTURE_FOLDERS, true, mod_image, extra)?;
+        Self::build_over_with_mob_textures(root, defaults, mod_image, false, extra)
+    }
+    /// [`build_over_with_images`](Self::build_over_with_images), also reserving the 1024x1024
+    /// runtime custom mob texture region (`horizon/mob-textures`, F4M-7) when `mob_textures` is true.
+    pub fn build_over_with_mob_textures(
+        root: &Path,
+        defaults: &Path,
+        mod_image: bool,
+        mob_textures: bool,
+        extra: Vec<(String, u32, u32, Vec<u8>)>,
+    ) -> Result<Self> {
+        let mut atlas = Self::pack(
+            root,
+            defaults,
+            WALKED_TEXTURE_FOLDERS,
+            true,
+            mod_image,
+            mob_textures,
+            extra,
+        )?;
         atlas.text_shader = pack_text::load(root, defaults);
         Ok(atlas)
     }
+    /// Texel `[x, y, width, height]` of the reserved runtime custom mob texture region, if present.
+    pub fn mob_texture_region(&self) -> Option<[u32; 4]> {
+        let rect = self.sprites.get(MOB_TEXTURES_SPRITE)?;
+        Some([
+            (rect.u0 * self.width as f32).round() as u32,
+            (rect.v0 * self.height as f32).round() as u32,
+            rect.w,
+            rect.h,
+        ])
+    }
     /// Empty slots written at run time: map textures (game/maps.rs), the
-    /// minimap, a native mod's own image, downloaded skins, world and pack
-    /// icons and the on-screen keyboard's text.
-    fn slots(images: &mut Vec<PackedImage>, trim: (u32, u32), mod_image: bool) {
+    /// minimap, a native mod's own image, optional runtime mob textures, downloaded
+    /// skins, world and pack icons and the on-screen keyboard's text.
+    fn slots(images: &mut Vec<PackedImage>, trim: (u32, u32), mod_image: bool, mob_textures: bool) {
         for i in 0..MAP_SLOTS {
             let name = map_slot_sprite(i).unwrap_or_default();
             images.push((name.into(), 128, 128, vec![0; 128 * 128 * 4]));
@@ -875,6 +908,14 @@ impl HudAtlas {
                 MOD_IMAGE_SIZE,
                 MOD_IMAGE_SIZE,
                 vec![0; (MOD_IMAGE_SIZE * MOD_IMAGE_SIZE * 4) as usize],
+            ));
+        }
+        if mob_textures {
+            images.push((
+                MOB_TEXTURES_SPRITE.into(),
+                MOB_TEXTURES_SIZE,
+                MOB_TEXTURES_SIZE,
+                vec![0; (MOB_TEXTURES_SIZE * MOB_TEXTURES_SIZE * 4) as usize],
             ));
         }
         // Downloaded skins (game/scoreboard.rs).
@@ -919,7 +960,7 @@ impl HudAtlas {
     /// holding its textures. The pixels are dropped once the glyph widths are
     /// read, since nothing uploads them.
     pub fn fonts(root: &Path) -> Result<Self> {
-        let mut atlas = Self::pack(root, root, &["font"], false, false, Vec::new())?;
+        let mut atlas = Self::pack(root, root, &["font"], false, false, false, Vec::new())?;
         atlas.pixels = Vec::new();
         Ok(atlas)
     }
@@ -1071,6 +1112,7 @@ impl HudAtlas {
         folders: &[&str],
         full: bool,
         mod_image: bool,
+        mob_textures: bool,
         extra_images: Vec<PackedImage>,
     ) -> Result<Self> {
         let textures = root.join("assets/minecraft/textures");
@@ -1313,7 +1355,12 @@ impl HudAtlas {
         }
         images.push(("horizon/white".into(), 4, 4, vec![255; 64]));
         if full {
-            Self::slots(&mut images, crate::trims::slot_size(root), mod_image);
+            Self::slots(
+                &mut images,
+                crate::trims::slot_size(root),
+                mod_image,
+                mob_textures,
+            );
             // MissingTextureAtlasSprite.generateMissingImage: 16x16, magenta
             // and black quarters.
             let missing = (0..256)
@@ -4776,5 +4823,23 @@ texture=wide",
                 );
             }
         }
+    }
+    #[test]
+    fn mob_texture_region_is_reserved_only_when_requested() {
+        let root = animated_root();
+        let vanilla = HudAtlas::build_over_with_images(&root, &root, false, Vec::new()).unwrap();
+        assert!(!vanilla.sprites.contains_key(MOB_TEXTURES_SPRITE));
+        assert!(vanilla.mob_texture_region().is_none());
+
+        let modded =
+            HudAtlas::build_over_with_mob_textures(&root, &root, false, true, Vec::new()).unwrap();
+        let region = modded
+            .mob_texture_region()
+            .expect("mob texture region reserved");
+        assert_eq!(region[2], MOB_TEXTURES_SIZE);
+        assert_eq!(region[3], MOB_TEXTURES_SIZE);
+        assert!(region[0] + region[2] <= modded.width);
+        assert!(region[1] + region[3] <= modded.height);
+        crate::test_support::remove_dir_all(&root);
     }
 }

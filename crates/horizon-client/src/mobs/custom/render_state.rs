@@ -1003,6 +1003,8 @@ pub struct DrawCtx<'a> {
     pub lod: LodMode,
     /// Texture rectangles by atlas name.
     pub atlas: &'a dyn Fn(&str) -> Option<[f32; 4]>,
+    /// Per-mob runtime texture UV overrides (F4M-7): `default`, layer name, `glowmask`, or bone name.
+    pub texture_overrides: Option<&'a super::textures::MobTextureOverrides>,
 }
 
 /// Whether a quad is shaded by its normal or drawn as it is.
@@ -1031,8 +1033,19 @@ impl TypeRender {
             return stats;
         }
         out.reserve(self.quads.len() * 4 * 2);
-        let body = self.texture.as_deref().and_then(|t| (ctx.atlas)(t));
-        if let Some(uv) = body {
+        let body = ctx
+            .texture_overrides
+            .and_then(|o| o.get("default"))
+            .or_else(|| self.texture.as_deref().and_then(|t| (ctx.atlas)(t)));
+        let bone_uvs = self.bone_texture_overrides(ctx.texture_overrides);
+        if let Some(bone_uvs) = bone_uvs.as_deref() {
+            for (b, custom_uv) in bone_uvs.iter().enumerate() {
+                let Some(uv) = custom_uv.or(body) else {
+                    continue;
+                };
+                stats.cutout += self.emit_bone(mr, ctx, b, uv, WHITE, ctx.light, ctx.overlay, Shade::Lit, out);
+            }
+        } else if let Some(uv) = body {
             stats.cutout += self.emit(mr, ctx, None, uv, WHITE, ctx.light, ctx.overlay, Shade::Lit, out);
         }
         let mut glow_named = false;
@@ -1052,7 +1065,10 @@ impl TypeRender {
         }
         // `<texture>_glowmask` beside the body texture is an emissive layer of the whole model.
         if !glow_named
-            && let Some(uv) = self.glow_texture.as_deref().and_then(|t| (ctx.atlas)(t))
+            && let Some(uv) = ctx
+                .texture_overrides
+                .and_then(|o| o.get("glowmask"))
+                .or_else(|| self.glow_texture.as_deref().and_then(|t| (ctx.atlas)(t)))
         {
             stats.emissive += self.emit(mr, ctx, None, uv, WHITE, FULL_BRIGHT, 0, Shade::Lit, out);
         }
@@ -1081,14 +1097,46 @@ impl TypeRender {
         stats
     }
 
+    fn bone_texture_overrides(
+        &self,
+        overrides: Option<&super::textures::MobTextureOverrides>,
+    ) -> Option<Vec<Option<[f32; 4]>>> {
+        let overrides = overrides?;
+        let mut bone_uvs: Option<Vec<Option<[f32; 4]>>> = None;
+        for (slot, uv) in overrides.iter() {
+            if slot == "default"
+                || slot == "glowmask"
+                || self.layers.iter().any(|l| l.name == slot)
+            {
+                continue;
+            }
+            let bone_name = slot.strip_prefix("bone:").unwrap_or(slot);
+            if let Some(bone) = self.skeleton.find(bone_name) {
+                let list = bone_uvs.get_or_insert_with(|| vec![None; self.bone_quads.len()]);
+                if let Some(cell) = list.get_mut(bone.index()) {
+                    *cell = Some(uv);
+                }
+            }
+        }
+        bone_uvs
+    }
+
     /// The texture rectangle and colour a layer draws with this frame, `None` when it is hidden
     /// (`visible` false, no texture in the atlas).
     fn layer_paint(&self, l: &LayerDef, mr: &MobRender, ctx: &DrawCtx) -> Option<([f32; 4], u32)> {
         if l.visible.as_ref().is_some_and(|e| !e.eval_bool(mr.inputs())) {
             return None;
         }
-        let name = l.texture.as_deref().or(self.texture.as_deref())?;
-        let uv = (ctx.atlas)(name)?;
+        let uv = if let Some(uv) = ctx.texture_overrides.and_then(|o| o.get(&l.name)) {
+            uv
+        } else if l.texture.is_none()
+            && let Some(uv) = ctx.texture_overrides.and_then(|o| o.get("default"))
+        {
+            uv
+        } else {
+            let name = l.texture.as_deref().or(self.texture.as_deref())?;
+            (ctx.atlas)(name)?
+        };
         let color = match &l.tint {
             Some(e) => {
                 let rgb = e.eval(mr.inputs());
@@ -1097,6 +1145,58 @@ impl TypeRender {
             None => WHITE,
         };
         Some((uv, color))
+    }
+
+    /// Emits the quads of a single bone `b`.
+    #[allow(clippy::too_many_arguments)]
+    fn emit_bone(
+        &self,
+        mr: &MobRender,
+        ctx: &DrawCtx,
+        b: usize,
+        uv: [f32; 4],
+        color: u32,
+        light: u32,
+        overlay: u32,
+        shade: Shade,
+        out: &mut Vec<Vertex>,
+    ) -> usize {
+        let Some(range) = self.bone_quads.get(b) else {
+            return 0;
+        };
+        if range.is_empty() || !self.bone_drawn(b, ctx.lod, &mr.visibility) {
+            return 0;
+        }
+        let Some(bone) = mr.matrices.get(b) else {
+            return 0;
+        };
+        let m = ctx.world_from_model * *bone;
+        let m3 = glam::Mat3::from_mat4(m);
+        let det = m3.determinant();
+        if !det.is_finite() || det.abs() < 1.0e-18 {
+            return 0;
+        }
+        let normals = m3.inverse().transpose();
+        let start = out.len();
+        for q in &self.quads[range.start as usize..range.end as usize] {
+            let normal = match shade {
+                Shade::Lit => pack_normal((normals * Vec3::from(q.normal)).normalize_or_zero()),
+                Shade::Flat => [0; 4],
+            };
+            for k in 0..4 {
+                let p = m.transform_point3(Vec3::from(q.pos[k]));
+                out.push(Vertex {
+                    pos: p.to_array(),
+                    uv: [uv[0] + (uv[2] - uv[0]) * q.uv[k][0], uv[1] + (uv[3] - uv[1]) * q.uv[k][1]],
+                    layer: overlay,
+                    color,
+                    light,
+                    normal,
+                    glint_uv: [0.0; 2],
+                });
+            }
+        }
+        out.len() - start
     }
 
     /// One pass over the (drawn) bones: every quad transformed by its bone's matrix.
@@ -1113,44 +1213,14 @@ impl TypeRender {
         shade: Shade,
         out: &mut Vec<Vertex>,
     ) -> usize {
-        let start = out.len();
-        for (b, range) in self.bone_quads.iter().enumerate() {
-            if range.is_empty()
-                || !self.bone_drawn(b, ctx.lod, &mr.visibility)
-                || only.is_some_and(|o| !o.get(b).copied().unwrap_or(false))
-            {
+        let mut count = 0;
+        for b in 0..self.bone_quads.len() {
+            if only.is_some_and(|o| !o.get(b).copied().unwrap_or(false)) {
                 continue;
             }
-            let Some(bone) = mr.matrices.get(b) else {
-                continue;
-            };
-            let m = ctx.world_from_model * *bone;
-            let m3 = glam::Mat3::from_mat4(m);
-            let det = m3.determinant();
-            if !det.is_finite() || det.abs() < 1.0e-18 {
-                continue;
-            }
-            let normals = m3.inverse().transpose();
-            for q in &self.quads[range.start as usize..range.end as usize] {
-                let normal = match shade {
-                    Shade::Lit => pack_normal((normals * Vec3::from(q.normal)).normalize_or_zero()),
-                    Shade::Flat => [0; 4],
-                };
-                for k in 0..4 {
-                    let p = m.transform_point3(Vec3::from(q.pos[k]));
-                    out.push(Vertex {
-                        pos: p.to_array(),
-                        uv: [uv[0] + (uv[2] - uv[0]) * q.uv[k][0], uv[1] + (uv[3] - uv[1]) * q.uv[k][1]],
-                        layer: overlay,
-                        color,
-                        light,
-                        normal,
-                        glint_uv: [0.0; 2],
-                    });
-                }
-            }
+            count += self.emit_bone(mr, ctx, b, uv, color, light, overlay, shade, out);
         }
-        out.len() - start
+        count
     }
 }
 
@@ -1329,6 +1399,7 @@ mod tests {
             overlay: 0,
             lod,
             atlas: &atlas,
+            texture_overrides: None,
         }
     }
 
@@ -2064,5 +2135,71 @@ mod tests {
             render.parts(2, tr);
         }
         assert_eq!(render.len(), 1, "mob 1 was not drawn for 600 frames");
+    }
+
+    #[test]
+    fn runtime_texture_overrides_default_layer_glowmask_and_bone() {
+        let ct = fox();
+        let tr = ct.render.as_ref().unwrap();
+        let mr = MobRender::new(tr);
+        let region = [2560, 0, 1024, 1024];
+        let atlas_size = [4096, 4096];
+
+        let mut store = super::super::textures::MobTextureStore::default();
+        let t_body = store.create("m", 1, 64, 32).unwrap();
+        let t_glow = store.create("m", 1, 64, 32).unwrap();
+        let t_head = store.create("m", 1, 64, 32).unwrap();
+        store.bind("m", 1, "default", Some(t_body)).unwrap();
+        store.bind("m", 1, "glow", Some(t_glow)).unwrap();
+        let ov = store.overrides_for(1, region, atlas_size).unwrap();
+        let body_uv = ov.get("default").unwrap();
+        let glow_uv = ov.get("glow").unwrap();
+
+        let mut out = Vec::new();
+        let ctx = DrawCtx {
+            texture_overrides: Some(&ov),
+            ..draw_ctx(LodMode::Full)
+        };
+        let stats = tr.draw(&mr, &ctx, &mut out);
+        let n = tr.quads.len() * 4;
+        assert_eq!(stats, DrawStats { cutout: n, translucent: 0, emissive: n });
+        let inside = |v: &Vertex, r: [f32; 4]| {
+            v.uv[0] >= r[0] - 1e-6 && v.uv[0] <= r[2] + 1e-6 && v.uv[1] >= r[1] - 1e-6 && v.uv[1] <= r[3] + 1e-6
+        };
+        assert!(out[..n].iter().all(|v| inside(v, body_uv)));
+        assert!(out[n..].iter().all(|v| inside(v, glow_uv)));
+
+        // Binding a single bone ("head") overrides only that bone's quads on the body pass.
+        store.bind("m", 1, "default", None).unwrap();
+        store.bind("m", 1, "glow", None).unwrap();
+        store.bind("m", 1, "head", Some(t_head)).unwrap();
+        let ov_head = store.overrides_for(1, region, atlas_size).unwrap();
+        let head_uv = ov_head.get("head").unwrap();
+        let head_idx = tr.skeleton.find("head").unwrap().index();
+        let head_verts = (tr.bone_quads[head_idx].end - tr.bone_quads[head_idx].start) as usize * 4;
+        assert!(head_verts > 0 && head_verts < n);
+        out.clear();
+        let ctx_head = DrawCtx {
+            texture_overrides: Some(&ov_head),
+            ..draw_ctx(LodMode::Full)
+        };
+        tr.draw(&mr, &ctx_head, &mut out);
+        let in_head_uv = out[..n].iter().filter(|v| inside(v, head_uv)).count();
+        assert_eq!(in_head_uv, head_verts);
+        let in_atlas_body = out[..n].iter().filter(|v| inside(v, [0.0, 0.0, 0.5, 0.5])).count();
+        assert_eq!(in_atlas_body, n - head_verts);
+
+        // Automatic _glowmask (without an explicit layer) obeys "glowmask" override.
+        let ct_auto = fox_with(true, |v| v["model"]["layers"] = serde_json::json!([]), |_| {}).0;
+        let tr_auto = ct_auto.render.as_ref().unwrap();
+        store.bind("m", 2, "glowmask", Some(t_glow)).unwrap();
+        let ov_auto = store.overrides_for(2, region, atlas_size).unwrap();
+        out.clear();
+        let ctx_auto = DrawCtx {
+            texture_overrides: Some(&ov_auto),
+            ..draw_ctx(LodMode::Full)
+        };
+        tr_auto.draw(&MobRender::new(tr_auto), &ctx_auto, &mut out);
+        assert!(out[n..].iter().all(|v| inside(v, glow_uv)));
     }
 }

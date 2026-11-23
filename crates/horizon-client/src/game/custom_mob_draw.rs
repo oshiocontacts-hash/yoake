@@ -127,12 +127,14 @@ impl Game<'_> {
         }
         let world_from_model = rs::world_from_model(rel, scale, yaw, roll);
         let red = mob.hurt_time > 0 || mob.death_time > 0;
+        let texture_overrides = self.custom_mob_texture_overrides(mob.id);
         let draw = DrawCtx {
             world_from_model,
             light,
             overlay: horizon_client::overlay::living(0.0, red),
             lod,
             atlas: lookup,
+            texture_overrides: texture_overrides.as_ref(),
         };
         tr.draw(state, &draw, out);
         if lod != rs::LodMode::Hidden && lod != rs::LodMode::Static {

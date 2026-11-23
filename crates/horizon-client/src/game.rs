@@ -355,6 +355,7 @@ mod remote_chunks;
 mod remote_custom_mob;
 mod custom_mob_draw;
 mod custom_mob_interact;
+mod custom_mob_textures;
 mod remote_mob_data;
 mod remote_mob_particles;
 mod remote_mob_use;
@@ -1925,7 +1926,15 @@ impl UiResources {
             let mod_image = crate::game::mods::built_with_native_mods();
             let atlas = startup::time("ui.atlas", || {
                 let embedded = horizon_client::mobs::custom::render_state::embedded_textures();
-                HudAtlas::build_over_with_images(root, defaults, mod_image, embedded)
+                let reserve_mob_textures =
+                    crate::game::custom_mob_textures::should_reserve_mob_textures();
+                HudAtlas::build_over_with_mob_textures(
+                    root,
+                    defaults,
+                    mod_image,
+                    reserve_mob_textures,
+                    embedded,
+                )
             });
             let panorama = panorama
                 .join()
@@ -14467,6 +14476,7 @@ impl Game<'_> {
         self.skin_slots.forget();
         self.maps.slots.forget();
         self.map_patches.clear();
+        self.reapply_custom_mob_textures();
         self.kept_block_entities.get_mut().clear();
         horizon_client::ui_theme::reset_atlas();
         self.clear_lod();
@@ -16241,6 +16251,7 @@ impl Game<'_> {
         // Map textures, mod item sprites and font glyphs changed while building this frame's
         // geometry (game/maps.rs, game/native_sprites.rs, world text) upload with this batch;
         // draining them any earlier leaves them a frame behind.
+        self.flush_custom_mob_textures();
         hud.patches.append(&mut self.map_patches);
         hud.patches.append(&mut self.sprite_patches);
         let entity_spans = std::mem::take(self.entity_spans.get_mut());
