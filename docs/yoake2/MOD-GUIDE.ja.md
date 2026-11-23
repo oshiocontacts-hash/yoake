@@ -546,6 +546,21 @@ host_filesystem = false               # 省略できます
 - 値コンストラクタ: `mobs::memory_bool`、`memory_i32`、`memory_f32`、`memory_string`、`memory_vec3`、`memory_block_pos`、`memory_entity_mob`、`memory_entity_player`。
 - 例: `crates/yoake-wasm-sdk/examples/fox_ai` と `tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json`。
 
+### 実行時エンティティテクスチャ (`service.mobs`, F4M-7)
+
+`client-full` ワールドのクライアントモジュール（`[wasm] world = "client-full"`、`client = "bin/wasm/..."`、`permissions = ["service.mobs"]`）は、`yoake_wasm_sdk::full::client` を通じてカスタム Mob 用の RGBA8 テクスチャを実行時に確保・描画・バインドできます。すべて各クライアント上で完結し、ネットワークには送信されません（一般的には `hook::SYNCED_CHANGED_CLIENT` から更新します）。
+
+- `client::mob_texture_create(width, height) -> Result<u32, String>`（サービス 289: `mob-texture-create`）: エンティティ・アトラス内の予約領域 `1024x1024`（`horizon/mob-textures`）に `width` x `height`（各辺 `1..=1024`）のスロットを確保します。1 MOD あたり同時に保持できるテクスチャは最大 **64** 個です。
+- `client::mob_texture_write(id, origin, size, rgba) -> Result<(), String>`（サービス 290: `mob-texture-write`）: テクスチャ `id` の矩形 `[origin.0, origin.1, size.0, size.1]` に RGBA8 ピクセルを書き込みます（全体更新・部分更新の両対応、1 回あたり最大 **4 MiB**）。
+- `client::mob_texture_bind(entity, slot, id: Option<u32>) -> Result<(), String>`（サービス 291: `mob-texture-bind`）: カスタム Mob `entity` の `slot` にテクスチャ `id` をバインドします（`None` でパック元のテクスチャへ戻します）。
+  - `""` または `"default"`: モデルの `default` テクスチャ（およびそれを継承する `model.layers` のレイヤー）を差し替えます。
+  - `<layer_name>`: `model.layers` 内の指定名のレイヤーを差し替えます。
+  - `"glowmask"`: 自動検出された `<texture>_glowmask` 発光パスを差し替えます。
+  - `<bone_name>` または `"bone:<bone_name>"`: 本体パスのうち、そのボーンのクワッドだけを差し替えます。
+- **引数の順番の注意:** ジェネレーターは WIT 引数をアルファベット順に並べるため、生のインポートは `services::mob_texture_create(height, width)`、`services::mob_texture_write(id, origin, rgba, size)`、`services::mob_texture_bind(entity, id, slot)` になります。`(width, height)`、`(id, origin, size, rgba)`、`(entity, slot, id)` の順を保つ `yoake_wasm_sdk::full::client::mob_texture_*` ラッパーを使ってください。
+- **寿命とリロード:** 作成済みのテクスチャとバインドは、リソースパックの再読み込み（アトラス再構築）やシェーダーパックの切り替えを跨いで維持されます。MOD のアンロード／再読み込み時には、その MOD が所有するテクスチャとバインドが自動的に解放・解除されます。
+- 例: `crates/yoake-wasm-sdk/examples/fox_texture`（`fox_ai` が `mob_hurt` で `warmth` を更新した際に Cinder Fox のテクスチャを塗り替えます）。
+
 ## 要確認（確かめられていないこと）
 
 1. **クライアント側モジュール** はマージ済み（MX3CL1）で、ローダーを通したテストはしてあります。ただし、実際に動いているゲームのクライアントでは試していません。本物のウィンドウや HUD に対して、クライアント側モジュールを動かしたことはありません。

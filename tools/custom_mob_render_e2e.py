@@ -57,17 +57,30 @@ EVENTS = re.compile(r'Horizon custom-mob events: mob (\d+) tick (\d+) count (\d+
 SOUND = re.compile(r'Horizon custom-mob sound: mob (\d+) (\S+) at')
 PARTICLE = re.compile(r'Horizon custom-mob particle: mob (\d+) (\S+) at')
 EVENT = re.compile(r'Horizon custom-mob event: mob (\d+) "(\w+)" at')
+FOX_TEXTURE_LINE = re.compile(r'fox_texture: mob (\d+) warmth (\d+) bound texture (\d+)')
 
 
-def patched_fixture(scratch, wasm=None):
+def patched_fixture(scratch, wasm=None, client_wasm=None):
     """A copy of the package with a sound and a particle at the pounce's hit. With `wasm` (the built fox_ai guest) the
     real script goal stays and the player becomes a target; without it the script goal is replaced by a data
-    `melee_attack` that pounces."""
+    `melee_attack` that pounces. With `client_wasm` (the built fox_texture guest) the package also loads the
+    client-full texture module."""
     dest = scratch / 'cinder_fox'
     shutil.copytree(FIXTURE, dest)
     if wasm is not None:
         (dest / 'bin/wasm').mkdir(parents=True, exist_ok=True)
         shutil.copyfile(wasm, dest / 'bin/wasm/fox_ai.wasm')
+    if client_wasm is not None:
+        (dest / 'bin/wasm').mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(client_wasm, dest / 'bin/wasm/fox_texture.wasm')
+        yak_path = dest / 'yak.toml'
+        yak_text = yak_path.read_text(encoding='utf-8')
+        yak_text = yak_text.replace(
+            'interface = "1.0"\n',
+            'interface = "1.0"\nworld = "client-full"\nclient = "bin/wasm/fox_texture.wasm"\n',
+            1,
+        )
+        yak_path.write_text(yak_text, encoding='utf-8')
     path = dest / ANIM
     data = json.loads(path.read_text(encoding='utf-8'))
     pounce = data['animations']['animation.cinder_fox.pounce']
@@ -104,7 +117,7 @@ def install_package(game, package):
     (game.work / 'yoake-mods.txt').write_text('sample_mobs 0.1.0' + chr(10))
 
 
-STRIKE_LINE = re.compile(r'^.*Horizon custom-mob (?:strike|death|script goal|target|goal):.*$', re.M)
+STRIKE_LINE = re.compile(r'^.*(?:Horizon custom-mob (?:strike|death|script goal|target|goal):|fox_texture:).*$', re.M)
 
 
 def log_of(game):
@@ -135,9 +148,9 @@ def look_at_fox(game, fox, back=2.0, dy=0.6):
     game.wait(6)
 
 
-def run(ctl, out, shots, resources, wasm=None):
+def run(ctl, out, shots, resources, wasm=None, client_wasm=None):
     scratch = Path(tempfile.mkdtemp(prefix='hzfox-'))
-    mod = patched_fixture(scratch, wasm)
+    mod = patched_fixture(scratch, wasm, client_wasm)
     if wasm is not None:
         os.environ['YOAKE_WASM_UNSIGNED'] = '1'  # developer mode: the package is not signed
     host, guest = Game('host', ctl, resources), Game('guest', ctl, resources)
@@ -333,11 +346,40 @@ def run(ctl, out, shots, resources, wasm=None):
         guest('command', command='gamemode creative')
 
         clear_foxes(host)
-        # death: the death animation (0.6 s = 12 ticks) keeps the body, then it is removed.
+        # runtime_texture (F4M-7, with client_wasm) + death: summon a fresh fox in daylight.
         host('command', command=f'summon {FOX} {hx + 0.5} {hy} {hz - 6.5}')
         host.wait(20)
         fox = fox_list(host)
         look_at_fox(host, fox[0])
+        if client_wasm is not None:
+            tex_before = shot(host, 'tex-before')
+            mark_th, mark_tg = len(log_of(host)), len(log_of(guest))
+            host('command', command=f'damage @e[type=sample_mobs:cinder_fox,limit=1] 4 minecraft:generic')
+            host.wait(20)
+            tex_after = shot(host, 'tex-after')
+            host('command', command=f'damage @e[type=sample_mobs:cinder_fox,limit=1] 6 minecraft:generic')
+            host.wait(20)
+            tex_after2 = shot(host, 'tex-after2')
+            h_tex = [(int(m.group(2)), int(m.group(3))) for m in FOX_TEXTURE_LINE.finditer(log_of(host)[mark_th:])]
+            g_tex = [(int(m.group(2)), int(m.group(3))) for m in FOX_TEXTURE_LINE.finditer(log_of(guest)[mark_tg:])]
+            diff1 = changed_pixels(tex_before, tex_after)
+            diff2 = changed_pixels(tex_after, tex_after2)
+            results['runtime_texture'] = {
+                'pass': (
+                    len(h_tex) >= 2 and len(g_tex) >= 2
+                    and {w for w, _ in h_tex} >= {3, 8}
+                    and {w for w, _ in g_tex} >= {3, 8}
+                    and diff1 > 300 and diff2 > 50
+                ),
+                'detail': {
+                    'host_bindings': h_tex,
+                    'guest_bindings': g_tex,
+                    'changed_before_to_w3': diff1,
+                    'changed_w3_to_w8': diff2,
+                    'png': [saved['tex-before'], saved['tex-after'], saved['tex-after2']],
+                },
+            }
+        # death: the death animation (0.6 s = 12 ticks) keeps the body, then it is removed.
         mark_death = len(log_of(host))
         host('command', command=f'damage @e[type=sample_mobs:cinder_fox,limit=1] 100 minecraft:generic')
         presence = []
@@ -375,6 +417,7 @@ def main():
     parser.add_argument('--shots', default=str(ROOT / 'docs/yoake2/reports/img'))
     parser.add_argument('--resources', default=os.environ.get('HORIZON_TEST_RESOURCES') or str(lab.RESOURCES))
     parser.add_argument('--wasm', help='the built fox_ai guest: the real script goal runs (default: a data melee_attack goal instead)')
+    parser.add_argument('--client-wasm', help='the built fox_texture client guest (defaults to yoake_wasm_fox_texture.wasm beside --wasm when present)')
     parser.add_argument('--wait-minutes', type=int, default=30)
     args = parser.parse_args()
     resources = Path(args.resources).resolve()
@@ -388,7 +431,13 @@ def main():
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     ext = '.exe' if sys.platform == 'win32' else ''
-    results = run(Path(args.bin_dir).resolve() / f'horizon-ctl{ext}', out, Path(args.shots).resolve(), resources, Path(args.wasm).resolve() if args.wasm else None)
+    wasm_path = Path(args.wasm).resolve() if args.wasm else None
+    client_wasm_path = Path(args.client_wasm).resolve() if args.client_wasm else None
+    if client_wasm_path is None and wasm_path is not None:
+        sibling = wasm_path.with_name('yoake_wasm_fox_texture.wasm')
+        if sibling.exists():
+            client_wasm_path = sibling
+    results = run(Path(args.bin_dir).resolve() / f'horizon-ctl{ext}', out, Path(args.shots).resolve(), resources, wasm_path, client_wasm_path)
     (out / 'results.json').write_text(json.dumps({'checks': results}, indent=2) + '\n')
     print(json.dumps(results, indent=1))
     sys.exit(0 if all(r['pass'] for r in results.values()) else 1)

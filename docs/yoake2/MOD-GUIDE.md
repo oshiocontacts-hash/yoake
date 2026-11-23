@@ -744,6 +744,34 @@ write a mob's declared brain memories:
 - Value constructors: `mobs::memory_bool`, `memory_i32`, `memory_f32`, `memory_string`, `memory_vec3`, `memory_block_pos`, `memory_entity_mob`, `memory_entity_player`.
 - See `crates/yoake-wasm-sdk/examples/fox_ai` and `tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json`.
 
+### Runtime entity textures (`service.mobs`, F4M-7)
+
+A client module in the `client-full` world (`[wasm] world = "client-full"`, `client = "bin/wasm/..."`,
+`permissions = ["service.mobs"]`) can allocate, paint, and bind RGBA8 textures to custom mobs at run time via
+`yoake_wasm_sdk::full::client`. Everything is local to each client: nothing is sent over the network, and each
+client renders its own bindings (commonly driven by `hook::SYNCED_CHANGED_CLIENT`).
+
+- `client::mob_texture_create(width, height) -> Result<u32, String>` (service 289: `mob-texture-create`): allocates a
+  `width` x `height` (`1..=1024` on each side) slot inside the reserved `1024x1024` `horizon/mob-textures` region of the
+  entity atlas. Each mod may keep at most **64** live textures at once.
+- `client::mob_texture_write(id, origin, size, rgba) -> Result<(), String>` (service 290: `mob-texture-write`): uploads
+  RGBA8 pixels into the sub-rectangle `[origin.0, origin.1, size.0, size.1]` of texture `id` (full or partial upload,
+  at most **4 MiB** per call).
+- `client::mob_texture_bind(entity, slot, id: Option<u32>) -> Result<(), String>` (service 291: `mob-texture-bind`):
+  binds texture `id` (or `None` to restore the pack texture) to `slot` on custom mob `entity`:
+  - `""` or `"default"`: replaces the model's `default` texture (and any layer in `model.layers` that inherits it).
+  - `<layer_name>`: replaces the named layer in `model.layers`.
+  - `"glowmask"`: replaces the automatic `<texture>_glowmask` emissive pass.
+  - `<bone_name>` or `"bone:<bone_name>"`: replaces only that bone's quads on the body pass.
+- **Argument order trap:** the generator sorts WIT arguments alphabetically (`services::mob_texture_create(height, width)`,
+  `services::mob_texture_write(id, origin, rgba, size)`, `services::mob_texture_bind(entity, id, slot)`). Always call
+  the `yoake_wasm_sdk::full::client::mob_texture_*` wrappers, which keep `(width, height)`, `(id, origin, size, rgba)`,
+  and `(entity, slot, id)`.
+- **Lifetime and reloads:** active textures and bindings persist across resource-pack reloads (atlas rebuilds) and
+  shader-pack toggles. Unloading or reloading the mod automatically frees its textures and clears its bindings.
+- Example: `crates/yoake-wasm-sdk/examples/fox_texture` (updates the Cinder Fox skin when `fox_ai` updates `warmth` in
+  `mob_hurt`).
+
 ## 要確認 (not verified)
 
 1. **Client modules** are merged (MX3CL1) and tested through the loader, but not in a running game client: no client
