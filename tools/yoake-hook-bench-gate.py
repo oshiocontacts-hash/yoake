@@ -252,7 +252,13 @@ def main():
         gated = key in metrics
         base_s = summarize(samples["baseline"][key])
         inst_s = summarize(samples["instrumented"][key])
-        overhead = (inst_s["median"] - base_s["median"]) / base_s["median"] * 100.0
+        unpaired = (inst_s["median"] - base_s["median"]) / base_s["median"] * 100.0
+        # Runs are interleaved A/B, so run i of both builds shares the machine's state at that moment (thermals,
+        # background load, drift over a session). In game mode the gate uses the median of the per-pair ratios,
+        # which cancels that drift; the unpaired median difference is reported next to it.
+        ratios = [i / b - 1.0 for b, i in zip(samples["baseline"][key], samples["instrumented"][key]) if b > 0]
+        paired = statistics.median(ratios) * 100.0 if ratios else unpaired
+        overhead = paired if args.mode == "game" else unpaired
         if gated:
             verdict = "ok" if overhead <= args.max_overhead else "FAIL"
             failed |= verdict == "FAIL"
@@ -265,6 +271,8 @@ def main():
             "baseline": base_s,
             "instrumented": inst_s,
             "overhead_pct": overhead,
+            "paired_median_pct": paired,
+            "unpaired_median_pct": unpaired,
             "verdict": verdict,
         }
         print(
