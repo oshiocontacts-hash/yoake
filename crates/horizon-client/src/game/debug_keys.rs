@@ -722,6 +722,14 @@ impl Game<'_> {
                 self.export_repro_key();
                 true
             }
+            // Horizon's own: the custom mob debug view (F4M-12), only where the world has custom mobs.
+            DebugAction::MobDebug if horizon_client::mobs::custom::registry().read().is_ok_and(|r| r.is_empty()) => false,
+            DebugAction::MobDebug => {
+                for line in self.yoake_mobdebug("") {
+                    self.show_debug_chat(Text::literal(line.as_str()));
+                }
+                true
+            }
             DebugAction::DumpDynamicTextures => {
                 // `KeyboardHandler`: `TextureUtil.getDebugTexturePath` is the game
                 // folder's `screenshots/debug`; `TextureManager.dumpAllSheets` then
@@ -937,6 +945,7 @@ impl Game<'_> {
         let mut g = Gizmos::default();
         self.bounding_box_gizmos(camera, &mut g);
         self.debug_renderer_gizmos(&mut g);
+        self.custom_mob_debug_gizmos(alpha, &mut g);
         if self.debug_entry("chunk_borders")
             && let Some(p) = &self.player
         {
