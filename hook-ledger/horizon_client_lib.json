@@ -8085,7 +8085,7 @@
       "id": 1592,
       "key": "horizon_client_lib::animate_tick::do_animate_tick",
       "sig": "544245030f416930",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -8589,7 +8589,7 @@
       "id": 1664,
       "key": "horizon_client_lib::block_contact::dispatch",
       "sig": "4288cfa88993ad8e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11893,7 +11893,7 @@
       "id": 2136,
       "key": "horizon_client_lib::lan::entity::EntityState::reset",
       "sig": "7d1dbef37558afba",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11914,7 +11914,7 @@
       "id": 2139,
       "key": "horizon_client_lib::lan::entity::ServerEntity::send_changes",
       "sig": "73bc6ad0fca8ab5e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -13650,7 +13650,7 @@
       "id": 2387,
       "key": "horizon_client_lib::mobs::ModelNormals::rotation",
       "sig": "b40db8e17f6e7e0f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -13790,7 +13790,7 @@
       "id": 2407,
       "key": "horizon_client_lib::mobs::ai::check_despawn",
       "sig": "b407df6e8dec547e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -13972,7 +13972,7 @@
       "id": 2433,
       "key": "horizon_client_lib::mobs::anim::key",
       "sig": "11d56451a8e4f347",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -15820,7 +15820,7 @@
       "id": 2697,
       "key": "horizon_client_lib::mobs::control::Mob::body_rotation_tick",
       "sig": "841137d191d2e357",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18844,7 +18844,7 @@
       "id": 3129,
       "key": "horizon_client_lib::mobs::guardian::beam",
       "sig": "4844936038065de9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -19726,21 +19726,21 @@
       "id": 3255,
       "key": "horizon_client_lib::mobs::living::wrap",
       "sig": "f257e532ae389650",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3256,
       "key": "horizon_client_lib::mobs::living::MobWorld::fluid_height",
       "sig": "86c45fd9441fc995",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3257,
       "key": "horizon_client_lib::mobs::living::MobWorld::fluids",
       "sig": "0a40d36dcb53f7c1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -19754,7 +19754,7 @@
       "id": 3259,
       "key": "horizon_client_lib::mobs::living::MobWorld::block_collision_boxes",
       "sig": "510595fdd33e0860",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -19782,7 +19782,7 @@
       "id": 3263,
       "key": "horizon_client_lib::mobs::living::Mob::awake_dims_in",
       "sig": "593a193080b9079c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -19810,7 +19810,7 @@
       "id": 3267,
       "key": "horizon_client_lib::mobs::living::Mob::update_fluids",
       "sig": "6702a066771aa4b5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -19831,7 +19831,7 @@
       "id": 3270,
       "key": "horizon_client_lib::mobs::living::Mob::supported_on_pos",
       "sig": "c2fb17b4f59b4097",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22708,7 +22708,7 @@
       "id": 3681,
       "key": "horizon_client_lib::mobs::seen_grid::SeenGrid::candidates",
       "sig": "ca5ad1a0c03046d8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22939,14 +22939,14 @@
       "id": 3714,
       "key": "horizon_client_lib::mobs::skin::Walk::part",
       "sig": "a48b3231767a9144",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 3715,
       "key": "horizon_client_lib::mobs::skin::Walk::emit",
       "sig": "00bc4fa0eb7e30a8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22988,7 +22988,7 @@
       "id": 3721,
       "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::state",
       "sig": "30d8a8652e65b200",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -23044,7 +23044,7 @@
       "id": 3729,
       "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::world_surface",
       "sig": "b98bc40411c5e875",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -23121,7 +23121,7 @@
       "id": 3740,
       "key": "horizon_client_lib::mobs::spawning::LocalDifficulty::new",
       "sig": "27cb1e4ed2ccfb71",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26516,7 +26516,7 @@
       "id": 4225,
       "key": "horizon_client_lib::motion::environment::fire_contact",
       "sig": "c83753875c01b5ac",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26614,7 +26614,7 @@
       "id": 4239,
       "key": "horizon_client_lib::motion::fluids::bubble_column_at",
       "sig": "a45afee611084d90",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -27748,7 +27748,7 @@
       "id": 4401,
       "key": "horizon_client_lib::random_tick_sections::<Sections as Iterator>::next",
       "sig": "9770388f19333a8f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -28000,7 +28000,7 @@
       "id": 4437,
       "key": "horizon_client_lib::save::<HeightmapView as HeightmapChunk>::min_y",
       "sig": "0bda04adf271c1b3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -28567,21 +28567,21 @@
       "id": 4518,
       "key": "horizon_client_lib::shadows::shadow_params",
       "sig": "f7da70b059727a15",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 4519,
       "key": "horizon_client_lib::shadows::mob_shadow_radius",
       "sig": "54a914447b40f023",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 4520,
       "key": "horizon_client_lib::shadows::shadow_gates",
       "sig": "bd247bc5afda33a4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -30310,7 +30310,7 @@
       "id": 10655,
       "key": "horizon_client_lib::mobs::ModelNormals::part",
       "sig": "9c1d06cf67039b8e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -60205,6 +60205,186 @@
       "key": "horizon_client_lib::yoake_state_catalog::catalog",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_lib::animate_tick::do_animate_tick",
+      "reason": "hot: 214774 calls in the REM-03 hit-count flight (0.08%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::block_contact::dispatch",
+      "reason": "hot: 157380 calls in the REM-03 hit-count flight (0.06%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::EntityState::reset",
+      "reason": "hot: 32692 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::send_changes",
+      "reason": "hot: 36582 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::ModelNormals::rotation",
+      "reason": "hot: 115490 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::ai::check_despawn",
+      "reason": "hot: 30255 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::anim::key",
+      "reason": "hot: 304812 calls in the REM-03 hit-count flight (0.11%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::control::Mob::body_rotation_tick",
+      "reason": "hot: 56135 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::guardian::beam",
+      "reason": "hot: 144190 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::living::wrap",
+      "reason": "hot: 210709 calls in the REM-03 hit-count flight (0.08%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::living::MobWorld::fluid_height",
+      "reason": "hot: 123551 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::living::MobWorld::fluids",
+      "reason": "hot: 79835 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::living::MobWorld::block_collision_boxes",
+      "reason": "hot: 66833 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::living::Mob::awake_dims_in",
+      "reason": "hot: 6013655 calls in the REM-03 hit-count flight (2.16%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::living::Mob::update_fluids",
+      "reason": "hot: 53200 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::living::Mob::supported_on_pos",
+      "reason": "hot: 53736 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::seen_grid::SeenGrid::candidates",
+      "reason": "hot: 62556 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::skin::Walk::part",
+      "reason": "hot: 104092 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::skin::Walk::emit",
+      "reason": "hot: 88944 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::state",
+      "reason": "hot: 152687 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::spawn_rules::<MobWorld as SpawnLevel>::world_surface",
+      "reason": "hot: 88225 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::spawning::LocalDifficulty::new",
+      "reason": "hot: 34632 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::motion::environment::fire_contact",
+      "reason": "hot: 32383 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::motion::fluids::bubble_column_at",
+      "reason": "hot: 143135 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::random_tick_sections::<Sections as Iterator>::next",
+      "reason": "hot: 121912 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::save::<HeightmapView as HeightmapChunk>::min_y",
+      "reason": "hot: 1482178 calls in the REM-03 hit-count flight (0.53%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::shadows::shadow_params",
+      "reason": "hot: 1635476 calls in the REM-03 hit-count flight (0.59%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::shadows::mob_shadow_radius",
+      "reason": "hot: 812826 calls in the REM-03 hit-count flight (0.29%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::shadows::shadow_gates",
+      "reason": "hot: 889921 calls in the REM-03 hit-count flight (0.32%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_lib::mobs::ModelNormals::part",
+      "reason": "hot: 115490 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
     }
   ]
 }

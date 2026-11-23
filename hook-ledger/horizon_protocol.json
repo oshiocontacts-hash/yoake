@@ -411,7 +411,7 @@
       "id": 10261,
       "key": "horizon_protocol::chunk::storage_get",
       "sig": "062175368a4b0c10",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4435,6 +4435,12 @@
       "key": "horizon_protocol::text::translatable",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::storage_get",
+      "reason": "hot: 50688 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
     }
   ]
 }
