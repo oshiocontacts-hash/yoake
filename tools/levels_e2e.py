@@ -233,6 +233,15 @@ def run(ctl, probe_bin, out, resources, force):
         check('travel', results, travel)
 
         def custom_portal():
+            # Whatever happens, the later checks start with the guest in the Overworld.
+            try:
+                return custom_portal_steps()
+            finally:
+                guest('command', command=f'execute in {OVERWORLD} run tp @s 0.5 100 0.5')
+                lan.wait_dimension(guest, OVERWORLD, 600)
+                guest.wait(20)
+
+        def custom_portal_steps():
             guest('command', command='gamerule players_nether_portal_creative_delay 100')
             stand_in(guest, OVERWORLD, 24, 24, 4)
             for x in (22, 25):
@@ -249,9 +258,8 @@ def run(ctl, probe_bin, out, resources, force):
             assert lit.get('block') == 'minecraft:nether_portal', lit
             # The guest fell to the world's real floor while the frame was built (the frame stands in the air): put it
             # inside the lit portal, on the frame's bottom, so it really enters it.
+            # (No block read after this: the guest may already be in the moon.)
             guest('command', command='tp @s 23.5 5 24.5')
-            guest.wait(5)
-            assert guest.raw('block', 23, 5, 24).get('block') == 'minecraft:nether_portal', 'the portal is still lit'
             arrived = lan.wait_dimension(guest, MOON, 600)
             guest.wait(40)
             now = level(guest)
