@@ -772,6 +772,53 @@ client renders its own bindings (commonly driven by `hook::SYNCED_CHANGED_CLIENT
 - Example: `crates/yoake-wasm-sdk/examples/fox_texture` (updates the Cinder Fox skin when `fox_ai` updates `warmth` in
   `mob_hurt`).
 
+### Debug view and hot reload of custom mobs (F4M-12, F4M-13)
+
+**Debug view.** It is the player's own client: nothing is sent to the server, and it costs nothing while it is off.
+
+- `/yoake mobdebug [on|off] [hitboxes] [bones] [anim] [ai]`: with no words it toggles everything; `on` alone switches all
+  four parts on, `off` switches the view off, and part names alone switch exactly those parts on. F3+M is the same toggle
+  (only in a world that has custom mob types).
+  - `hitboxes`: every hit and pick part of the type's `hitboxes` as a box with its name and damage multiplier. Green is
+    hurt and pick, red hurt only, blue pick only, grey a part that is switched off (`set_hitbox_enabled`).
+  - `bones`: the skeleton as lines from each bone's origin to its children (drawn over the body, in the pose the mob is
+    drawn in), the bone names, the `locators` as small cyan boxes with their names, and the `seats` as orange boxes.
+  - `anim`: per controller layer the state and the time of its first clock, and the tracked (`synced`) values.
+  - `ai`: an arrow to the mob's target, the navigator's path from its next node, the running goals and target goals, and
+    the brain's current activity.
+  - Every mob in view (the 48 nearest within 48 blocks) also gets a header line: type id, mob id and health.
+- `/yoake mobs`: the loaded custom types with their live and drawn mobs. The first call starts a cost meter; run it again
+  after a few seconds to see the mean microseconds a frame spends posing and building vertices per type. The path-budget
+  lines of `/horizon custommobs stats` follow. `/yoake mobs stop` ends the meter. (The server tick cost per type is not
+  in this report yet: the path searches are the only per-type server cost counted today.)
+- The commands are answered by your own game on any server, for every player who types them in the chat. With Horizon's
+  own commands on (`--pregen`) they are also in the command tree for game masters (tab completion, and the control
+  socket's `command`).
+
+**Hot reload (development only).** It needs developer mode (`YOAKE_WASM_UNSIGNED=1`) and a package folder that has no
+`SIGNATURE` (a `--dev-mod` folder, or an unsigned installed package). A signed package never reloads.
+
+- **Assets (R1)**: the game looks at the files of each custom type once a second: its JSON, the geo or bbmodel, the
+  animation files, the controllers, the textures and the glow mask. A change counts once the files have stayed the same for
+  a whole second (your editor or exporter may still be writing). The type is then read again through the same loaders as
+  at start, and every running mob of it switches to the new model, animations and layers at the next game tick (between two
+  frames). **The animation phase is kept**: it is carried by the clocks the server anchored, so a walking fox keeps
+  walking from the same point of its stride. A texture change reloads the resources (like F3+T) instead.
+- **Definitions (R2)**: `/yoake mob reload [type]` reads the named type (every reloadable type without a name) now,
+  without waiting. Live mobs get the new numbers (`max_health`, `movement_speed`, attributes: a value you did not change on
+  the mob follows the file, a hurt mob stays hurt), a rebuilt goal list when the `ai` section changed, and the new hitbox
+  parts. A mob spawned a moment after the reload is brought over within a tick.
+- **A broken file keeps the old version**: the log gets one warning that names the file and why
+  (`Horizon custom-mob reload: <type> not reloaded, the old version keeps running ...`), and the game goes on with the
+  last good type. Fix the file and save again.
+- **Not reloadable while the game runs**: a change to the `synced` values, or to the controllers' layers, states or
+  triggers (what the network format depends on). The reload is refused with a message; restart the game. Deleting a type
+  and adding a new one also needs a restart.
+- **Server modules (R3)**: with `YOAKE_WASM_SERVER_RELOAD=1` as well, the `.wasm` file of an unsigned server module is
+  watched and a new build is swapped in at a server tick. The engine owns the mobs, so they keep their state; the guest's
+  own memory (anything it kept in variables) starts afresh. A build that does not load keeps the old instance running with
+  one warning. Without that switch server modules load once, as before.
+
 ## 要確認 (not verified)
 
 1. **Client modules** are merged (MX3CL1) and tested through the loader, but not in a running game client: no client
