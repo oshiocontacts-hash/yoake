@@ -864,6 +864,109 @@ a blockstate file can select on `age=3` as it does for a vanilla crop. A block i
 `"template": "yoake:cube"` gives a plain full cube (stone's single state, whose stats and files the block's own `properties`,
 blockstate, model and loot table replace); a block with no vanilla row at all is not available (report FR-REM16).
 
+## 19. Behaviours of the mod's own blocks, items, menus and recipe types (REM-15)
+
+Forge mods subclass `Block`, `Item` and `MenuType`; a server module does the same with **behaviours**. From `init` it
+tells the game which of the package's own content objects it acts on and which hooks it implements; from then on the
+game calls the module's `handle-call` export for *those objects only*. Every other block, item and menu costs exactly
+what it did (a lookup that finds nothing; nothing at all while no module registered anything), and a game with no such mod
+behaves as before.
+
+```rust
+use yoake_wasm_sdk::full::behaviors::{self, Behaviors, BlockAnswer, BlockUse, Interaction, block};
+use yoake_wasm_sdk::full::server::{ServerMod, ext, services, types::BlockPos};
+
+#[derive(Default)]
+struct Guest;
+
+impl Behaviors for Guest {
+    fn on_block_use(&mut self, call: &BlockUse) -> BlockAnswer {
+        // the services of the hook work here: flip `lit` of the block that was clicked
+        let pos = BlockPos { x: call.block.pos[0], y: call.block.pos[1], z: call.block.pos[2] };
+        // ... block_property / set_block_property ...
+        BlockAnswer::result(Interaction::Success)
+    }
+}
+
+impl ServerMod for Guest {
+    fn subscriptions() -> &'static [&'static str] { &[] }
+    fn init(&mut self) {
+        ext::register_behavior("block", "ruby:lamp", &[block::USE]).ok();
+    }
+    fn handle_call(&mut self, _caller: String, method: String, payload: Vec<u8>) -> Result<Vec<u8>, String> {
+        behaviors::handle(self, &method, &payload).unwrap_or_else(|| Err(format!("unknown method {method}")))
+    }
+}
+yoake_wasm_sdk::export_server_full!(Guest);
+```
+
+`ext::register_behavior(kind, id, hooks)` is the service `behavior-register` (292). The sample is
+`crates/yoake-wasm-sdk/examples/ruby-behaviors` (a lamp that toggles on use, a wand, a vault menu and an alloy recipe type,
+with its content files); its host tests are `crates/horizon-client/src/wasm_mods/behaviors/tests.rs`.
+
+**Rules of registration.** `id` must be one of the package's own objects (`<package id>:<path>`); `kind` is `block`, `item`,
+`menu` or `recipe`; the hook names are those below; the same object may not be taken by two packages. The game reads the
+table once, when it starts, and a world start runs `init` again: the same registration is accepted again, a new object or a
+different hook set after the game has started is refused with a message (restart the game to change them). At most 256
+objects of a kind per package.
+
+| Kind | Hooks | The engine calls it | Game access of the hook |
+| --- | --- | --- | --- |
+| `block` | `use` | a player right-clicks the block (server side; the answer is `Pass`, `Success`, `Consume` or `Fail`, as `InteractionResult`) | the services (`block-property`, `set-block-property`, `give-items`, ...) |
+| | `placed`, `removed` | a block of the id arrived or left through `Level.setBlock` (a change of state alone is neither) | none: answer commands |
+| | `neighbor-changed`, `random-tick`, `scheduled-tick` | the level's own ticks (`random-tick` makes the block tick at random) | none: answer commands, applied at once |
+| | `entity-inside`, `step-on` | an entity touches the block | none: answer commands |
+| `item` | `use`, `use-on-block`, `use-on-entity` | a use of the item in the air, on a block (when the block did not take the click), on an entity | the services |
+| | `finish-using` | eating or drinking ended; the answer may leave another stack | the services |
+| | `inventory-tick` | every tick the item is in a player's inventory | the services |
+| `menu` | `create` | a player opens the menu type (`open_menu`): answers its size and first contents | the services |
+| | `may-place`, `clicked` | a stack is offered to a slot; a click on a slot was applied (slot, button, click mode, the contents after it; the answer may set slots) | none |
+| | `quick-move` | shift-click: the answer says whether the guest took the move over and may set slots | the services |
+| | `still-valid`, `closed` | every tick the menu is open; it closed (the contents then) | the services |
+| `recipe` | `describe`, `decode`, `matches`, `assemble`, `display` | see below | none |
+
+A hook that has no game access of its own (a tick the level runs, a block observed changing, an entity touching a block) cannot call
+the write services; it **answers commands** instead, which the engine checks and applies: `set-property` (a block's property at
+a position), `schedule-tick` and `play-sound`; at most 64, within 32 blocks of the object. Commands of the level's ticks are
+applied in that tick; those of `placed`, `removed`, `entity-inside` and `step-on` wait for the next tick of that level and can
+set properties only.
+
+**Where they run.** On a server, as every server module hook does: a dedicated server, or a game that opened its world to LAN
+(its integrated server). A client's prediction (a game that joined a server) calls nothing, and neither does a plain single-player
+window that has not opened its world to LAN (it holds no server): the server decides. A hook that is still busy
+because one of its own services caused it (it set a block, and the block's neighbour update came back to the same module) is
+dropped, and counted and logged once; the object then does what it does without the hook. A guest over its per-call limits is
+disabled as for any hook, and a call that fails or answers something that does not check changes nothing. The calls count in
+the module's usual limits.
+
+**Block entities, by position.** The services `block-entity-read-at` (293) and `block-entity-patch-at` (294), `ext::block_entity_read`,
+`block_entity_merge` and `block_entity_replace` in the SDK, read and change the saved data of the block entity at a position, a vanilla
+chest or a mod block entity alike, as `/data get block` and `/data merge block` do: the data is one network-encoded NBT compound
+(`yoake_wasm_sdk::nbt::Compound`), at most 64 KiB, merged into the entity's data (or, for a mod block entity only, replacing it).
+The chunk is saved next time and clients receive the update tag. A mod block entity's data (`nbt`, `items`, `data`) was already
+saved and loaded with the chunk; this service is how a guest outside its tick hooks reaches it.
+
+**Recipe types.** A `recipe` object is a recipe type that recipe files can name (`"type": "ruby:alloy", "version": 1`). The
+guest answers `describe` (the version its recipes carry and a recipe book category, whose id and icon are its own), may answer
+`decode` (turn a recipe's JSON into the data the game keeps, at most 64 KiB; without it the data is the JSON text), and answers `matches`
+(a crafting grid), `assemble` (what it makes) and, for the recipe book, `display`. `behaviors::json_fields` and `json_strings` read a recipe's
+JSON without a JSON library. Two services let a hook with game access use the types: `recipe-match` (295, `ext::recipe_match`) asks the game what a
+crafting grid makes with a type, and `recipe-data` (296, `ext::recipe_data`) lists the loaded recipes of a type with the data it kept for each.
+A package cannot be called while it runs a hook, so `recipe-match` refuses the package that defines the type (with an error that says so):
+a menu of the same package takes the data from `recipe-data` and matches with its own `on_recipe_matches` (the vault of the sample does, in `quick-move`), and
+a menu of another package uses `recipe-match`. Neither crafts or removes anything.
+
+| Limits | |
+| --- | --- |
+| objects per kind and package | 256 |
+| commands per answer, reach | 64, 32 blocks |
+| block entity data, recipe data | 64 KiB |
+| a menu | at most 256 slots; `create` is asked once per opening and only on the server |
+
+Not in this chapter: a block with no vanilla template row (section 18), behaviours of fluids and entities, and
+capabilities by hook (`capability_providers`: energy, item and fluid handlers). The catalog's global hooks (`random-tick`
+for every block, `use-item-on`, ...) stay as they were, for a mod that wants every block, not its own. See the report FR-REM15.
+
 ## 要確認 (not verified)
 
 1. **Client modules** are merged (MX3CL1) and tested through the loader, but not in a running game client: no client

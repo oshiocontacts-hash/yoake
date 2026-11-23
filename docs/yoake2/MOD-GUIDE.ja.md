@@ -616,6 +616,104 @@ host_filesystem = false               # 省略できます
 
 ブロックの状態プロパティには、`boolean`・`enum` のほかに `int` が加わりました: `"state_properties": { "age": { "type": "int", "min": 0, "max": 7 } }`（バニラの `IntegerProperty`。`min` は 0 以上で `max` より小さく、値は最大 256 個、昇順）。値は `default_state` と `random_ticks` では 10 進のテキスト（`"default_state": { "age": "0" }`）で、モデルのスキーマには整数の範囲として載るので、ブロック状態ファイルでバニラの作物と同じように `age=3` で選べます。ブロックはこれまでどおりバニラの*テンプレート*のコピーですが、`"template": "yoake:cube"` で素の立方体（石の 1 つだけの状態。性質とファイルはブロック自身の `properties`・ブロック状態・モデル・ルートテーブルで置き換わる）が作れます。バニラの行をまったく持たないブロックはまだ使えません（レポート FR-REM16 を参照）。
 
+## 19. 自分のブロック・アイテム・メニュー・レシピ種別に振る舞いを付ける (REM-15)
+
+Forge の mod は `Block`・`Item`・`MenuType` を継承して振る舞いを書きます。サーバーモジュールは **behaviour（振る舞い）** で同じことをします。
+`init` の中で、パッケージ自身のコンテンツのどれに対して、どのフックを実装しているかをゲームに伝えます。以後ゲームは、
+その対象に限って、モジュールの `handle-call` エクスポートを呼びます。それ以外のブロック・アイテム・メニューのコストは今までと
+同じです（何も見つからない表引きが 1 回。どのモジュールも何も登録しなければ、それすらありません）。こうした mod の
+入っていないゲームは今まで通りに動きます。
+
+```rust
+use yoake_wasm_sdk::full::behaviors::{self, Behaviors, BlockAnswer, BlockUse, Interaction, block};
+use yoake_wasm_sdk::full::server::{ServerMod, ext, services, types::BlockPos};
+
+#[derive(Default)]
+struct Guest;
+
+impl Behaviors for Guest {
+    fn on_block_use(&mut self, call: &BlockUse) -> BlockAnswer {
+        // フックの中ではサービスが使える: クリックされたブロックの `lit` を反転する
+        let pos = BlockPos { x: call.block.pos[0], y: call.block.pos[1], z: call.block.pos[2] };
+        // ... block_property / set_block_property ...
+        BlockAnswer::result(Interaction::Success)
+    }
+}
+
+impl ServerMod for Guest {
+    fn subscriptions() -> &'static [&'static str] { &[] }
+    fn init(&mut self) {
+        ext::register_behavior("block", "ruby:lamp", &[block::USE]).ok();
+    }
+    fn handle_call(&mut self, _caller: String, method: String, payload: Vec<u8>) -> Result<Vec<u8>, String> {
+        behaviors::handle(self, &method, &payload).unwrap_or_else(|| Err(format!("unknown method {method}")))
+    }
+}
+yoake_wasm_sdk::export_server_full!(Guest);
+```
+
+`ext::register_behavior(kind, id, hooks)` はサービス `behavior-register`（292）です。サンプルは
+`crates/yoake-wasm-sdk/examples/ruby-behaviors`（使うと切り替わるランプ、杖、金庫メニュー、合金レシピ種別。コンテンツファイル付き）、
+ホスト側のテストは `crates/horizon-client/src/wasm_mods/behaviors/tests.rs` です。
+
+**登録の決まり。** `id` はパッケージ自身のもの（`<パッケージ id>:<パス>`）に限ります。`kind` は `block`・`item`・`menu`・`recipe`。
+フック名は下の表のもの。同じ対象を 2 つのパッケージが取ることはできません。ゲームは表をゲーム起動時に 1 度だけ読み、ワールド開始のたびに
+`init` がもう一度走ります。同じ登録は再び受け付けられ、ゲーム起動後に新しい対象を足したり別のフックの組にしたりするとメッセージ付きで
+断られます（変えるにはゲームを再起動）。1 パッケージ・1 種別につき 256 個までです。
+
+| 種別 | フック | エンジンが呼ぶとき | フックが持つゲームへの手 |
+| --- | --- | --- | --- |
+| `block` | `use` | プレイヤーがブロックを右クリックした（サーバー側。答えは `InteractionResult` と同じ `Pass`・`Success`・`Consume`・`Fail`） | サービス（`block-property`・`set-block-property`・`give-items` など） |
+| | `placed`、`removed` | この id のブロックが `Level.setBlock` で現れた／消えた（状態だけの変化はどちらでもない） | なし。コマンドで答える |
+| | `neighbor-changed`、`random-tick`、`scheduled-tick` | レベルの tick（`random-tick` を持つとランダム tick を受ける） | なし。コマンドで答える（その場で適用） |
+| | `entity-inside`、`step-on` | エンティティがブロックに触れた | なし。コマンドで答える |
+| `item` | `use`、`use-on-block`、`use-on-entity` | 空中で／ブロックに（ブロックがクリックを取らなかったとき）／エンティティに使った | サービス |
+| | `finish-using` | 食べる・飲むが終わった。別のスタックを残せる | サービス |
+| | `inventory-tick` | プレイヤーのインベントリにある間、毎 tick | サービス |
+| `menu` | `create` | プレイヤーがメニュー種別を開いた（`open_menu`）: 大きさと最初の中身を答える | サービス |
+| | `may-place`、`clicked` | スロットにスタックを入れようとした／スロットのクリックが適用された（スロット・ボタン・クリックの種類・その後の中身。答えでスロットを書き換えられる） | なし |
+| | `quick-move` | シフトクリック: 答えで「ゲスト側が移動を引き取った」かどうかとスロットの書き換えを返す | サービス |
+| | `still-valid`、`closed` | 開いている間毎 tick／閉じた（そのときの中身） | サービス |
+| `recipe` | `describe`、`decode`、`matches`、`assemble`、`display` | 下を参照 | なし |
+
+自分のゲームへの手を持たないフック（レベルが回す tick、変化の観測、ブロックに触れたエンティティ）は、書き込みサービスを呼べません。
+代わりに **コマンドで答え**、エンジンが検査して適用します: `set-property`（位置のブロックのプロパティ）、`schedule-tick`、`play-sound`。
+1 回の答えに 64 個まで、対象から 32 ブロック以内。レベルの tick のコマンドはその tick で、`placed`・`removed`・`entity-inside`・`step-on`
+のコマンドはそのレベルの次の tick まで待ち、プロパティの設定だけができます。
+
+**どこで動くか。** ほかのサーバーモジュールのフックと同じく、サーバーの上です。専用サーバー、またはワールドを LAN に公開したゲーム（その内蔵サーバー）。
+クライアント側の予測（サーバーに参加したゲームの中）では何も呼びません。LAN に公開していない単独プレイの窓も（サーバーを持たないので）呼びません。決めるのはサーバーです。自分のサービスが原因で
+同じモジュールにフックが戻ってきた場合（ブロックを置いたら隣の更新が同じモジュールに来た、など）は、モジュールがまだ使用中なので
+そのフックは捨てられ、数えられ、1 回だけログに出ます。そのときは対象はフックなしのまま振る舞います。呼び出し 1 回あたりの上限を超えた
+ゲストはほかのフックと同じように止められ、失敗した呼び出しや検査を通らない答えは何も変えません。呼び出しはモジュールの通常の上限に
+数えられます。
+
+**位置で指すブロックエンティティ。** サービス `block-entity-read-at`（293）と `block-entity-patch-at`（294）、SDK の
+`ext::block_entity_read`・`block_entity_merge`・`block_entity_replace` は、位置にあるブロックエンティティの保存データを読み書きします。
+バニラのチェストでも mod のブロックエンティティでも、`/data get block`・`/data merge block` と同じです。データはネットワーク形式の NBT
+コンパウンド 1 つ（`yoake_wasm_sdk::nbt::Compound`）で 64 KiB まで。エンティティのデータにマージされ（mod のブロックエンティティに限り置き換えも可）、
+チャンクは次に保存され、クライアントには更新タグが届きます。mod ブロックエンティティのデータ（`nbt`・`items`・`data`）はもともとチャンクと一緒に保存・読み込みされます。
+このサービスは tick フックの外からそれに触れるための手段です。
+
+**レシピ種別。** `recipe` の対象は、レシピファイルが名前で指せるレシピ種別です（`"type": "ruby:alloy", "version": 1`）。ゲストは
+`describe`（レシピが持つバージョンと、独自の id・アイコンのレシピブック分類）に答え、`decode`（レシピの JSON をゲームが持っておくデータ、64 KiB まで、に変える。
+なければデータは JSON テキストそのもの）に答えてもよく、`matches`（クラフトの並び）・`assemble`（できるもの）・レシピブック用の `display` に答えます。
+`behaviors::json_fields` と `json_strings` で JSON ライブラリなしにレシピの JSON を読めます。ゲームへの手を持つフックから使えるサービスが 2 つあります。
+`recipe-match`（295、`ext::recipe_match`）は「この並びからこの種別でできるもの」をゲームに尋ね、`recipe-data`（296、`ext::recipe_data`）は読み込み済みの
+その種別のレシピを、種別が持っているデータ付きで並べます。フックの実行中のパッケージは呼び出せないので、`recipe-match` は種別を定義した
+パッケージ自身には（その旨のエラーで）断ります。同じパッケージのメニューは `recipe-data` のデータを自分の `on_recipe_matches` で照合し（サンプルの金庫は
+`quick-move` でそうしています）、別のパッケージのメニューは `recipe-match` を使います。どちらも作ったり消したりはしません。
+
+| 上限 | |
+| --- | --- |
+| 1 パッケージ・1 種別の対象 | 256 |
+| 1 回の答えのコマンドと届く範囲 | 64 個、32 ブロック |
+| ブロックエンティティのデータ、レシピのデータ | 64 KiB |
+| メニュー | 256 スロットまで。`create` は開くたびに 1 回、サーバーだけ |
+
+この章にないもの: バニラのテンプレート行を持たないブロック（18 章）、流体やエンティティの振る舞い、フックで書く能力（`capability_providers`: エネルギー・アイテム・流体のハンドラ）。
+カタログの全体フック（全ブロックの `random-tick`、`use-item-on` など）は今まで通りで、自分のものでなく全部を相手にしたい mod 向けです。詳しくは報告書 FR-REM15。
+
 ## 要確認（確かめられていないこと）
 
 1. **クライアント側モジュール** はマージ済み（MX3CL1）で、ローダーを通したテストはしてあります。ただし、実際に動いているゲームのクライアントでは試していません。本物のウィンドウや HUD に対して、クライアント側モジュールを動かしたことはありません。

@@ -45,11 +45,16 @@ fn pos(p: [i32; 3]) -> BlockPos {
     BlockPos { x: p[0], y: p[1], z: p[2] }
 }
 
-/// Flips the `lit` property of the block at `at`: `true` when it was changed.
+/// Flips the `lit` property of the block at `at` and tells the player who did it what the lamp does now: whether it
+/// was changed.
 fn toggle(at: [i32; 3]) -> bool {
     let Ok(Some(lit)) = services::block_property(pos(at), "lit") else { return false };
-    let next = if lit == "true" { "false" } else { "true" };
-    services::set_block_property(3, pos(at), "lit", next).unwrap_or(false)
+    let lighting = lit != "true";
+    let changed = services::set_block_property(3, pos(at), "lit", if lighting { "true" } else { "false" }).unwrap_or(false);
+    if changed && let Some(player) = services::acting_player() {
+        let _ = services::tell(if lighting { "The ruby lamp lights." } else { "The ruby lamp goes dark." }, &player.uuid);
+    }
+    changed
 }
 
 /// What a recipe's data (its JSON text) asks: the stacks it takes, the item it makes and how many.
