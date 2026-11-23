@@ -247,6 +247,11 @@ def run(ctl, probe_bin, out, resources, force):
             guest.wait(5)
             lit = guest.raw('block', 23, 5, 24)
             assert lit.get('block') == 'minecraft:nether_portal', lit
+            # The guest fell to the world's real floor while the frame was built (the frame stands in the air): put it
+            # inside the lit portal, on the frame's bottom, so it really enters it.
+            guest('command', command='tp @s 23.5 5 24.5')
+            guest.wait(5)
+            assert guest.raw('block', 23, 5, 24).get('block') == 'minecraft:nether_portal', 'the portal is still lit'
             arrived = lan.wait_dimension(guest, MOON, 600)
             guest.wait(40)
             now = level(guest)
