@@ -273,6 +273,16 @@ impl SyncData {
                 .into_iter()
                 .map(|(p, v)| (("minecraft".to_owned(), p), v, false))
                 .collect();
+            // A content mod's damage types and enchantments (`data/<ns>/<registry>/`) join the
+            // vanilla ones, with their data: no client knows them without the mod, and the
+            // order is the loader's (`file_order`), the same on every peer with the same mods.
+            if matches!(*key, "minecraft:damage_type" | "minecraft:enchantment") {
+                for ns in horizon_items::content_namespaces::namespaces(resources) {
+                    let mut theirs = BTreeMap::new();
+                    walk(&resources.join("data").join(&ns).join(path), &mut theirs);
+                    entries.extend(theirs.into_iter().map(|(p, v)| ((ns.clone(), p), v, true)));
+                }
+            }
             if PACK_REGISTRIES.contains(key) {
                 pack_entries(path, overlay, &mut entries);
             }

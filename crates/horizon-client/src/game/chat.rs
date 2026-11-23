@@ -306,12 +306,13 @@ fn resource_ids(root: &Path) -> Arc<ResourceIds> {
     let (timelines, markers) = overworld_timelines(root);
     let ids = Arc::new(ResourceIds {
         recipes: ids_under(&data.join("recipe"), "json"),
-        damage_types: ids_under(&data.join("damage_type"), "json"),
+        // A content mod's damage types and enchantments (`data/<ns>/...`) too.
+        damage_types: json_ids_of_every_namespace(root, "damage_type"),
         // `/loot ... loot <id>` must find a content mod's tables too.
         loot_tables: json_ids_of_every_namespace(root, "loot_table"),
         templates: templates_under(&root.join("worldgen/structure")),
         entity_types,
-        enchantments: json_ids_in(&data.join("enchantment")),
+        enchantments: json_ids_of_every_namespace(root, "enchantment"),
         structures: json_ids_in(&data.join("worldgen/structure")),
         biomes: json_ids_in(&data.join("worldgen/biome")),
         clocks: json_ids_in(&data.join("world_clock")),
