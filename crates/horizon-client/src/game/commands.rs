@@ -3129,7 +3129,7 @@ impl Game<'_> {
             super::dedicated::events::record_server(
                 "gamerule",
                 serde_json::json!({
-                    "key": format!("minecraft:{}", rule.name),
+                    "key": rule.id(),
                     "valueType": value_type,
                     "value": json,
                 }),

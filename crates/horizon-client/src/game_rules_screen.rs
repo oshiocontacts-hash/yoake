@@ -55,7 +55,7 @@ pub struct RulesScreen {
 }
 
 fn name_key(r: &Rule) -> String {
-    format!("gamerule.minecraft.{}", r.name)
+    r.name_key()
 }
 fn category_key(category: &str) -> String {
     format!("gamerule.category.minecraft.{category}")

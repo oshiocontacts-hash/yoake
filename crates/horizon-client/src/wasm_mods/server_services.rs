@@ -1145,7 +1145,13 @@ fn world_control_line(change: &st::WorldControlChange) -> Result<String, String>
         }
         st::WorldControlOperation::SetGameRule => {
             command_word(&change.key, "game rule")?;
-            if change.key.contains(':') || change.value.len() > GAME_RULE_VALUE_MAX {
+            // A content mod's rule is `<mod id>:<path>` and must be one the game registered
+            // (`data/<id>/horizon/game_rule/`); a vanilla rule is its short name.
+            let namespaced = change.key.contains(':');
+            let known_mod_rule = || {
+                horizon_client::gamerules::rule(&change.key).is_some_and(|r| r.name.contains(':'))
+            };
+            if (namespaced && !known_mod_rule()) || change.value.len() > GAME_RULE_VALUE_MAX {
                 return Err("not a valid game rule".into());
             }
             let value = change.value.as_str();
@@ -1240,6 +1246,9 @@ mod tests {
         assert!(world_control_line(&change(st::WorldControlOperation::SetTime, "", "day; stop")).is_err());
         assert!(world_control_line(&change(st::WorldControlOperation::SetGameRule, "doDaylightCycle", "false")).unwrap().starts_with("gamerule"));
         assert!(world_control_line(&change(st::WorldControlOperation::SetGameRule, "x y", "false")).is_err());
+        // a namespaced name is a content mod's rule, which must be registered.
+        assert!(world_control_line(&change(st::WorldControlOperation::SetGameRule, "ruby:unregistered", "true")).is_err());
+        assert!(world_control_line(&change(st::WorldControlOperation::SetGameRule, "minecraft:keep_inventory", "true")).is_err());
         assert!(world_control_line(&change(st::WorldControlOperation::SetGameRule, "keepInventory", "run stop")).is_err());
         let line = world_control_line(&change(st::WorldControlOperation::AddForceLoad, "", "")).unwrap();
         assert_eq!(line, "execute in minecraft:overworld run forceload add 0 0 0 0");

@@ -299,7 +299,13 @@ fn registered_with_features(dev: bool, minecart_improvements: bool) -> Dispatche
     let gr = d.literal(root, "gamerule");
     d.requires(gr, GAMEMASTERS);
     for rule in available_rules(minecart_improvements) {
-        for name in [rule.name.to_owned(), format!("minecraft:{}", rule.name)] {
+        // A mod rule is `<mod id>:<path>` only; a vanilla one also has the short name.
+        let names = if rule.name.contains(':') {
+            vec![rule.name.to_owned()]
+        } else {
+            vec![rule.name.to_owned(), format!("minecraft:{}", rule.name)]
+        };
+        for name in names {
             let r = d.literal(gr, &name);
             d.executes(r, "gamerule");
             let ty = match rule.default {
