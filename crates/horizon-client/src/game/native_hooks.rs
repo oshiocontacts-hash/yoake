@@ -1215,6 +1215,7 @@ impl GameLevel<'_> {
         new: BlockStateId,
     ) {
         mod_api::dispatch_block_changed(self, mod_api::mods(), dimension, pos, old, new);
+        super::native_block_behaviors::changed(self.registry, dimension, pos, old, new);
     }
 
     /// A flowing fluid at `pos` is about to change level. `fluid` is `water`
@@ -2215,21 +2216,25 @@ impl Game<'_> {
     /// Versioned JSON codecs, matching, assembly and book categories. @API:recipe_types@.
     pub(super) fn native_recipe_types(types: &mut Vec<NativeRecipeType>) {
         mod_api::dispatch_recipe_types(mod_api::mods(), types);
+        types.extend(crate::entry::wasm_mods::behaviors::recipe_types());
     }
 
     /// Per-id block implementations; an empty collection installs no dispatch. @API:block_behaviors@.
     pub(super) fn native_block_behaviors(behaviors: &mut Vec<NativeBlockBehavior>) {
         mod_api::dispatch_block_behaviors(mod_api::mods(), behaviors);
+        behaviors.extend(crate::entry::wasm_mods::behaviors::block_behaviors());
     }
 
     /// Per-id item implementations; empty means no item dispatch. @API:item_behaviors@.
     pub(super) fn native_item_behaviors(behaviors: &mut Vec<NativeItemBehavior>) {
         mod_api::dispatch_item_behaviors(mod_api::mods(), behaviors);
+        behaviors.extend(crate::entry::wasm_mods::behaviors::item_behaviors());
     }
 
     /// Factories and validity checks for mod-owned menus. @API:menu_behaviors@.
     pub(super) fn native_menu_behaviors(behaviors: &mut Vec<NativeMenuBehavior>) {
         mod_api::dispatch_menu_behaviors(mod_api::mods(), behaviors);
+        behaviors.extend(crate::entry::wasm_mods::behaviors::menu_behaviors());
     }
 
     /// Enable final-mix copies only when observed. API @API:replay_audio_mix@.
@@ -2692,6 +2697,7 @@ impl Game<'_> {
     }
     /// Before an authoritative server level's tick pass. `dimension` is its ID.
     pub(super) fn native_level_tick_pre(&mut self, dimension: &str) {
+        crate::entry::wasm_mods::behaviors::drain(self, dimension);
         mod_api::dispatch_level_tick_pre(self, mod_api::mods(), dimension);
     }
     /// After a successful authoritative server level tick pass.

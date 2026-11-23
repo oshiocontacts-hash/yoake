@@ -1,0 +1,1 @@
+{ "type": "ruby:alloy", "version": 1, "inputs": ["minecraft:iron_ingot", "minecraft:gold_ingot"], "result": "minecraft:amethyst_shard", "count": 2 }

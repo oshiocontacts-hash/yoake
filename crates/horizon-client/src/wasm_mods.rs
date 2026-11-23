@@ -12,6 +12,8 @@
 //! Raw file ids use a `dev-` prefix and cannot reuse an installed YAK id, keeping settings and
 //! storage namespaces separate from installed mods.
 
+#[path = "wasm_mods/behaviors.rs"]
+pub(crate) mod behaviors;
 #[path = "wasm_mods/client_services.rs"]
 mod client_services;
 #[path = "wasm_mods/dev_shaders.rs"]

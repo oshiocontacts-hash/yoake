@@ -55,7 +55,7 @@ pub(super) struct FullMod {
     client: Arc<Mutex<SideState<ClientFullMod>>>,
     gpu_owner: Option<crate::gfx::mod_gpu::ModId>,
     gpu_version: String,
-    server: Arc<ServerSlot>,
+    pub(super) server: Arc<ServerSlot>,
     /// One bit per catalog hook, per side: the guest subscribed and has not been disabled.
     masks: Arc<[[AtomicU64; MASK_WORDS]; 2]>,
     /// Hooks dropped because the module was busy, per side.
@@ -657,7 +657,7 @@ fn nbt_tag_from(bytes: &[u8]) -> Option<Tag> {
     convert::nbt_to_tag(bytes).ok()
 }
 
-fn nbt_compound_from(bytes: &[u8]) -> Option<Compound> {
+pub(super) fn nbt_compound_from(bytes: &[u8]) -> Option<Compound> {
     convert::nbt_to_compound(bytes).ok()
 }
 
@@ -1155,7 +1155,7 @@ thread_local! {
 pub(super) struct ServerInitScope(Option<String>);
 
 impl ServerInitScope {
-    fn enter(owner: &str) -> Self {
+    pub(super) fn enter(owner: &str) -> Self {
         Self(SERVER_INIT_OWNER.with(|active| active.replace(Some(owner.to_owned()))))
     }
 }

@@ -108,6 +108,13 @@ pub const LEVEL_GENERATOR: Guest = Guest {
     features: "",
     artifact: "yoake_wasm_level_generator.wasm",
 };
+/// REM-15: a mod's own block, item and menu with behaviours written in the guest.
+pub const RUBY_BEHAVIORS: Guest = Guest {
+    name: "ruby-behaviors",
+    example: "ruby-behaviors",
+    features: "",
+    artifact: "yoake_wasm_ruby_behaviors.wasm",
+};
 pub const CLIENT_SERVICES_DEMO: Guest = Guest {
     name: "client-services-demo",
     example: "client-services-demo",

@@ -1,0 +1,21 @@
+[package]
+name = "yoake-wasm-ruby-behaviors"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+description = "Behaviours of a mod's own block, item and menu (REM-15): a ruby lamp that toggles on use, a wand and a vault"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+yoake-wasm-sdk = { path = "../..", features = ["full"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+panic = "abort"
+
+[workspace]

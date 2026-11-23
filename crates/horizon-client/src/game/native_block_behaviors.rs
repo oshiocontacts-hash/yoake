@@ -78,6 +78,26 @@ pub trait BlockBehavior: Send + Sync {
     }
     fn entity_inside(&self, _context: &NativeBlockContact<'_>) {}
     fn step_on(&self, _context: &NativeBlockContact<'_>) {}
+    /// The block is now in the world at `position` (`state`), where `previous` was: after `Level.setBlock`
+    /// committed the change on an authoritative server. Read-only: a mod acts on it through the commands
+    /// of the next tick.
+    fn placed(
+        &self,
+        _dimension: horizon_client::mod_api::LevelDimension,
+        _position: BlockPos,
+        _state: BlockStateId,
+        _previous: BlockStateId,
+    ) {
+    }
+    /// The block `state` is no longer at `position`, where `new` is now (broken, replaced or burnt).
+    fn removed(
+        &self,
+        _dimension: horizon_client::mod_api::LevelDimension,
+        _position: BlockPos,
+        _state: BlockStateId,
+        _new: BlockStateId,
+    ) {
+    }
     fn placement_state(
         &self,
         _level: &dyn LevelHost,
@@ -207,6 +227,35 @@ pub(super) fn lookup(
     state: BlockStateId,
 ) -> Option<&'static Arc<dyn BlockBehavior>> {
     BEHAVIORS.get()?.lookup(registry, state)
+}
+
+/// `Level.setBlock` committed `new` over `old` at `position` on an authoritative server: the block that
+/// went away hears `removed`, the block that arrived hears `placed`, when they are different blocks
+/// (a change of state alone is neither).
+pub(super) fn changed(
+    registry: &BlockRegistry,
+    dimension: horizon_client::mod_api::LevelDimension,
+    position: BlockPos,
+    old: BlockStateId,
+    new: BlockStateId,
+) {
+    if BEHAVIORS.get().is_none() {
+        return;
+    }
+    let (before, after) = (lookup(registry, old), lookup(registry, new));
+    let same = match (registry.state(old), registry.state(new)) {
+        (Some(a), Some(b)) => a.name == b.name,
+        _ => false,
+    };
+    if same {
+        return;
+    }
+    if let Some(behavior) = before {
+        behavior.removed(dimension, position, old, new);
+    }
+    if let Some(behavior) = after {
+        behavior.placed(dimension, position, new, old);
+    }
 }
 
 impl GameLevel<'_> {

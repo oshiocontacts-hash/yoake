@@ -443,6 +443,11 @@ server_services! {
     mob_seat_set(entity: u32, rider: Option<u32>, seat: u32) -> Result<bool, String> = unsupported();
     mob_memory_get(entity: u32, key: String) -> Result<Option<st::MobMemoryValue>, String> = unsupported();
     mob_memory_set(entity: u32, key: String, ttl_ticks: Option<u32>, value: Option<st::MobMemoryValue>) -> Result<(), String> = unsupported();
+    behavior_register(hooks: Vec<String>, id: String, kind: String) -> Result<(), String> = unsupported();
+    block_entity_read_at(position: st::BlockPos) -> Result<Option<st::BlockEntityData>, String> = unsupported();
+    block_entity_patch_at(nbt: Vec<u8>, position: st::BlockPos, replace: bool) -> Result<(), String> = unsupported();
+    recipe_match_call(input: Vec<st::ItemStack>, recipe_type: String) -> Result<Vec<st::RecipeMatch>, String> = unsupported();
+    recipe_data_call(recipe_type: String) -> Result<Vec<st::RecipeData>, String> = unsupported();
     mob_navigate_to(entity: u32, position: st::Vec3, speed: f64) -> Result<bool, String> = unsupported();
     mob_navigate_stop(entity: u32) -> Result<(), String> = unsupported();
     mob_look_at(entity: u32, pitch_speed: f32, position: st::Vec3, yaw_speed: f32) -> Result<(), String> = unsupported();

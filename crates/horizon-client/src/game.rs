@@ -244,6 +244,7 @@ pub mod native_data_menus;
 pub mod native_deferred;
 mod native_entities;
 mod native_entity_moves;
+mod native_block_entity_data;
 mod native_entity_data;
 mod native_entity_motion;
 pub mod native_entity_query;

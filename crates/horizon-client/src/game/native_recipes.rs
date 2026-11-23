@@ -123,6 +123,18 @@ impl Game<'_> {
         )
     }
 
+    /// The loaded recipes of a registered type with the data their type kept for each (as a JSON string): what a
+    /// package that defines the type matches with its own code. @API:recipe_data@.
+    pub(super) fn native_recipe_data(&self, kind: &str) -> Vec<(String, String)> {
+        if !horizon_client::native_recipe_types::registered() {
+            return Vec::new();
+        }
+        self.native_recipes_of_type(kind)
+            .iter()
+            .filter_map(|recipe| Some((recipe.id.clone(), recipe.decoded.as_deref()?.as_str()?.to_owned())))
+            .collect()
+    }
+
     /// Read-only recipe identities from the current synchronized table. @API:recipe_list@.
     pub(super) fn native_recipe_list(&self, kind: &str) -> Vec<NativeRecipeEntry> {
         if !horizon_client::native_recipe_types::registered() {

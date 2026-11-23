@@ -20,6 +20,10 @@ pub trait ItemHandler: Send + Sync {
         slot < self.slots()
     }
 
+    /// The menu applied a click on its slot `slot` (`button`, and the `Input` ordinal as `mode`) to this
+    /// storage. The storage may change itself in answer (a crafting-like menu); nothing by default.
+    fn clicked(&self, _slot: i32, _button: i32, _mode: i32) {}
+
     /// The unaccepted remainder. Limits include the item's own maximum stack size.
     fn insert(&self, slot: usize, stack: ItemStack, simulate: bool) -> Option<ItemStack> {
         if slot >= self.slots() || !self.may_place(slot, &stack) {

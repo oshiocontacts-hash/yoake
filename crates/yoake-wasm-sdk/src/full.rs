@@ -184,6 +184,11 @@ pub mod client {
     include!("full_client_generated.rs");
 }
 
+/// Behaviours of a package's own blocks, items and menus written in a guest (REM-15): the requests of the
+/// engine's `yoake:<kind>/<hook>` calls and the answers to them.
+#[path = "full_behaviors.rs"]
+pub mod behaviors;
+
 /// Chunk generators written in a guest (F3-8): the request and the answer of the engine's
 /// `yoake:generate-chunk` call.
 #[path = "full_generator.rs"]
@@ -251,6 +256,50 @@ pub mod server {
         /// `dimensions/<ns>/<path>/`. (Service 228.)
         pub fn register_level(id: &str, stem_json: &str) -> Result<(), String> {
             services::level_register(id, stem_json)
+        }
+
+        /// Attaches behaviour to one of this package's own content objects, from `init` (REM-15):
+        /// `kind` is `block`, `item`, `menu` or `recipe`, `id` the object's id (`<package id>:<path>`) and
+        /// `hooks` what the guest implements (`behaviors::block::USE` and the like); answer the engine's
+        /// calls with `behaviors::handle` in `handle_call`. (Service 292.)
+        pub fn register_behavior(kind: &str, id: &str, hooks: &[&str]) -> Result<(), String> {
+            let hooks: Vec<String> = hooks.iter().map(|hook| (*hook).to_owned()).collect();
+            services::behavior_register(&hooks, id, kind)
+        }
+
+        /// The recipes of a mod-defined recipe type that the crafting grid `input` matches, each with the
+        /// stacks it assembles (the recipe's id first). A hook with game access asks it. (Service 295.)
+        pub fn recipe_match(recipe_type: &str, input: &[types::ItemStack]) -> Result<Vec<(String, Vec<types::ItemStack>)>, String> {
+            Ok(services::recipe_match_call(input, recipe_type)?.into_iter().map(|found| (found.recipe, found.outputs)).collect())
+        }
+
+        /// The recipes of a recipe type the game has loaded, each as its id and the data the type kept for it
+        /// (what `on_recipe_decode` answered). A package that defines the type reads its recipes here and matches
+        /// them with its own code. (Service 296.)
+        pub fn recipe_data(recipe_type: &str) -> Result<Vec<(String, Vec<u8>)>, String> {
+            Ok(services::recipe_data_call(recipe_type)?.into_iter().map(|found| (found.recipe, found.data)).collect())
+        }
+
+        /// The block entity at a position: its type id and its saved data (vanilla's or a mod's), or none
+        /// when the block has no block entity. At most 64 KiB. (Service 293.)
+        pub fn block_entity_read(x: i32, y: i32, z: i32) -> Result<Option<(String, crate::nbt::Compound)>, String> {
+            match services::block_entity_read_at(types::BlockPos { x, y, z })? {
+                None => Ok(None),
+                Some(data) => {
+                    let compound = crate::nbt::Compound::from_bytes(&data.nbt).map_err(|_| String::from("the block entity's data does not decode"))?;
+                    Ok(Some((data.entity_type, compound)))
+                }
+            }
+        }
+
+        /// Merges `data` into the block entity at a position, as `/data merge block` does. (Service 294.)
+        pub fn block_entity_merge(x: i32, y: i32, z: i32, data: &crate::nbt::Compound) -> Result<(), String> {
+            services::block_entity_patch_at(&data.to_bytes(), types::BlockPos { x, y, z }, false)
+        }
+
+        /// Makes `data` the whole saved data of the mod block entity at a position. (Service 294.)
+        pub fn block_entity_replace(x: i32, y: i32, z: i32, data: &crate::nbt::Compound) -> Result<(), String> {
+            services::block_entity_patch_at(&data.to_bytes(), types::BlockPos { x, y, z }, true)
         }
 
         /// Makes this package the generator of levels whose stem is

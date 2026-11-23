@@ -4,6 +4,7 @@
   ],
   "helpers": [
     { "name": "recipes_matching", "target": "horizon_client::game::native_recipes::Game<'_>::native_recipes_matching", "mod_api": {} },
+    { "name": "recipe_data", "target": "horizon_client::game::native_recipes::Game<'_>::native_recipe_data", "mod_api": {} },
     { "name": "recipe_list", "target": "horizon_client::game::native_recipes::Game<'_>::native_recipe_list", "mod_api": {} },
     { "name": "recipe_display", "target": "horizon_client::game::native_recipes::Game<'_>::native_recipe_display", "mod_api": {} }
   ],

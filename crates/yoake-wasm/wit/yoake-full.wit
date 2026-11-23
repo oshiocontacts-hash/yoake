@@ -1835,6 +1835,11 @@ interface server-types {
         entity-type: string,
     }
 
+    record block-entity-data {
+        entity-type: string,
+        nbt: list<u8>,
+    }
+
     record block-entity-patch {
         clock: option<s64>,
         state: option<string>,
@@ -2043,6 +2048,16 @@ interface server-types {
         position: vec3,
     }
 
+    record recipe-data {
+        data: list<u8>,
+        recipe: string,
+    }
+
+    record recipe-match {
+        outputs: list<item-stack>,
+        recipe: string,
+    }
+
     record team-change {
         operation: team-operation,
         players: list<string>,
@@ -2084,7 +2099,7 @@ interface server-types {
 
 /// Services listed in `abi-subset-server.json`.
 interface server-services {
-    use server-types.{attribute-operation, config-value-kind, damage-kind, inventory-operation, mob-memory-kind, mob-value-kind, storage-scope, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, config-value, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, mob-info, mob-memory-value, mob-spawn-options, mob-value, particle-request, player, player-inventory-slot, player-motion, ray-hit, team-change, tool-requirement, vec3, world-border-state, world-control-change};
+    use server-types.{attribute-operation, config-value-kind, damage-kind, inventory-operation, mob-memory-kind, mob-value-kind, storage-scope, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-data, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, config-value, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, mob-info, mob-memory-value, mob-spawn-options, mob-value, particle-request, player, player-inventory-slot, player-motion, ray-hit, recipe-data, recipe-match, team-change, tool-requirement, vec3, world-border-state, world-control-change};
 
     acting-player: func() -> option<player>;
     held: func() -> option<item-stack>;
@@ -2214,6 +2229,11 @@ interface server-services {
     mob-seat-set: func(entity: u32, rider: option<u32>, seat: u32) -> result<bool, string>;
     mob-memory-get: func(entity: u32, key: string) -> result<option<mob-memory-value>, string>;
     mob-memory-set: func(entity: u32, key: string, ttl-ticks: option<u32>, value: option<mob-memory-value>) -> result<_, string>;
+    behavior-register: func(hooks: list<string>, id: string, kind: string) -> result<_, string>;
+    block-entity-read-at: func(position: block-pos) -> result<option<block-entity-data>, string>;
+    block-entity-patch-at: func(nbt: list<u8>, position: block-pos, replace: bool) -> result<_, string>;
+    recipe-match-call: func(input: list<item-stack>, recipe-type: string) -> result<list<recipe-match>, string>;
+    recipe-data-call: func(recipe-type: string) -> result<list<recipe-data>, string>;
     level-register-type: func(id: string, type-json: string) -> result<_, string>;
     level-register: func(id: string, stem-json: string) -> result<_, string>;
     level-create: func(id: string, persistent: bool, stem-json: string) -> result<_, string>;
