@@ -4490,3 +4490,93 @@ fn a_custom_mobs_row_has_the_vanilla_default_attribute_set_then_its_own() {
         serde_json::from_slice(&super::custom_row(&file, &BTreeMap::new()).unwrap()).unwrap();
     assert_eq!(bare["attributes"].as_object().unwrap().len(), 4);
 }
+
+/// A mod's enchantments and damage types become data-pack files in its namespace, the damage
+/// catalog and the commands' id lists gain them, and a root with no such mod is the base's.
+#[test]
+fn enchantments_and_damage_types_join_the_content_root() {
+    let scratch = std::env::temp_dir().join(format!("horizon-mod-kinds-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&scratch);
+    let base = scratch.join("base");
+    fs::create_dir_all(&base).unwrap();
+    for (name, text) in [
+        (
+            "facts.json",
+            r#"{"states": [["minecraft:stone", 0, 0, 0, {"id": "minecraft:stone"}]], "defaults": {"minecraft:stone": 0}}"#,
+        ),
+        ("gameplay-facts.json", r#"{"states": [{"item": "minecraft:stone"}]}"#),
+        ("items.json", "{}"),
+        (
+            "damage-catalog.json",
+            r#"{"data_version": 5023, "types": [{"id": "minecraft:arrow", "message_id": "arrow", "exhaustion": "3dcccccd",
+            "scaling": "when_caused_by_living_non_player", "effects": "hurt", "death_message_type": "default"}]}"#,
+        ),
+        (
+            "command-registries.json",
+            r#"{"blocks": ["minecraft:stone"], "items": [], "effects": [], "entity_types": [],
+            "enchantments": ["minecraft:sharpness"], "damage_types": ["minecraft:arrow"],
+            "by_registry": {"minecraft:enchantment": {"ids": ["minecraft:sharpness"], "tags": []},
+            "minecraft:damage_type": {"ids": ["minecraft:arrow"], "tags": []}}}"#,
+        ),
+    ] {
+        fs::write(base.join(name), text).unwrap();
+    }
+    let toml = manifest("ruby", "");
+    let m = folder_mod(
+        &scratch.join("ruby"),
+        &[
+            ("horizon-mod.toml", &toml),
+            (
+                "data/ruby/horizon/damage_type/shatter.json",
+                r#"{"message_id": "shatter", "scaling": "never", "exhaustion": 0.1, "effects": "freezing"}"#,
+            ),
+            (
+                "data/ruby/horizon/enchantment/keen.json",
+                r##"{"description": {"translate": "enchantment.ruby.keen"}, "supported_items": "#minecraft:swords",
+                "weight": 2, "max_level": 3, "min_cost": {"base": 1, "per_level_above_first": 1},
+                "max_cost": {"base": 5, "per_level_above_first": 1}, "anvil_cost": 1, "slots": ["mainhand"]}"##,
+            ),
+        ],
+    );
+    let out = scratch.join("out");
+    build(&base, std::slice::from_ref(&m), &out).unwrap();
+    // The files a data pack would hold, which the declarations themselves are not.
+    let keen: serde_json::Value =
+        serde_json::from_slice(&fs::read(out.join("data/ruby/enchantment/keen.json")).unwrap()).unwrap();
+    assert_eq!(keen["max_level"], 3);
+    assert_eq!(keen["slots"], serde_json::json!(["mainhand"]));
+    let shatter: serde_json::Value =
+        serde_json::from_slice(&fs::read(out.join("data/ruby/damage_type/shatter.json")).unwrap()).unwrap();
+    assert_eq!(shatter["scaling"], "never");
+    assert!(!out.join("data/ruby/horizon").exists());
+    // The damage catalog keeps vanilla's entry and adds the mod's, exhaustion as f32 bits.
+    let catalog: serde_json::Value =
+        serde_json::from_slice(&fs::read(out.join("damage-catalog.json")).unwrap()).unwrap();
+    assert_eq!(catalog["types"][0]["id"], "minecraft:arrow");
+    assert_eq!(catalog["types"][1]["id"], "ruby:shatter");
+    assert_eq!(catalog["types"][1]["exhaustion"], "3dcccccd");
+    assert_eq!(catalog["types"][1]["effects"], "freezing");
+    // `horizon_world::damage_source::Catalog` reads the result.
+    let tags = serde_json::json!({});
+    let catalog = horizon_world::damage_source::Catalog::from_json(&catalog, &tags).unwrap();
+    assert!(catalog.id("ruby:shatter").is_some() && catalog.id("minecraft:arrow").is_some());
+    // The commands suggest them.
+    let commands: serde_json::Value =
+        serde_json::from_slice(&fs::read(out.join("command-registries.json")).unwrap()).unwrap();
+    assert_eq!(commands["enchantments"], serde_json::json!(["minecraft:sharpness", "ruby:keen"]));
+    assert_eq!(
+        commands["by_registry"]["minecraft:damage_type"]["ids"],
+        serde_json::json!(["minecraft:arrow", "ruby:shatter"])
+    );
+    // A mod with neither leaves the catalog, and the files' folders, alone.
+    let other_toml = manifest("plain", "");
+    let plain = folder_mod(&scratch.join("plain"), &[("horizon-mod.toml", &other_toml)]);
+    let out2 = scratch.join("out2");
+    build(&base, std::slice::from_ref(&plain), &out2).unwrap();
+    assert_eq!(
+        fs::read(out2.join("damage-catalog.json")).unwrap(),
+        fs::read(base.join("damage-catalog.json")).unwrap()
+    );
+    assert!(!out2.join("data").exists());
+    crate::test_support::remove_dir_all(scratch);
+}

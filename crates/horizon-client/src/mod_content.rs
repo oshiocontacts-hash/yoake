@@ -412,7 +412,7 @@ fn combinations(
     declared: &BTreeMap<String, StateProperty>,
     default_state: &BTreeMap<String, String>,
 ) -> Result<Vec<Vec<(String, String)>>> {
-    let mut orders: Vec<(&str, Vec<&str>)> = Vec::new();
+    let mut orders: Vec<(&str, Vec<String>)> = Vec::new();
     for (name, property) in declared {
         let mut values = property.values();
         if let Some(default) = default_state.get(name) {
@@ -443,7 +443,7 @@ fn combinations(
         for combo in &combos {
             for value in &values {
                 let mut c = combo.clone();
-                c.push((name.to_owned(), (*value).to_owned()));
+                c.push((name.to_owned(), value.clone()));
                 next.push(c);
             }
         }
@@ -1607,19 +1607,20 @@ impl<'a> Plan<'a> {
                     };
                     if model && let Some(schema) = entry.get_mut("schema") {
                         for (property_name, property) in &b.decl.state_properties {
-                            schema.set(
-                                property_name,
-                                J::Obj(vec![(
-                                    "named".into(),
+                            // An `IntegerProperty` is a range in the model schema, as vanilla's.
+                            let kind = match property {
+                                StateProperty::Int { min, max } => (
+                                    "integer",
+                                    J::Arr(vec![J::Num((*min).into()), J::Num((*max).into())]),
+                                ),
+                                other => (
+                                    "named",
                                     J::Arr(
-                                        property
-                                            .values()
-                                            .into_iter()
-                                            .map(|v| J::Str(v.into()))
-                                            .collect(),
+                                        other.values().into_iter().map(J::Str).collect(),
                                     ),
-                                )]),
-                            );
+                                ),
+                            };
+                            schema.set(property_name, J::Obj(vec![(kind.0.into(), kind.1)]));
                         }
                     }
                     if let Some(J::Arr(states)) = entry.get_mut("states") {
@@ -2210,6 +2211,13 @@ fn place_in_biomes(
 
 #[path = "mod_content_biomes.rs"]
 mod biomes;
+
+#[path = "mod_content_kinds.rs"]
+mod kinds;
+pub use kinds::{
+    damage_types, data_file, enchantments, fluid_definitions, fluids, game_rules, namespace_dirs,
+    rule_declarations,
+};
 
 /// The overlay being written: `out` mirrors `base` through links, and a
 /// directory becomes real only when something inside it is written.
@@ -2805,8 +2813,11 @@ pub fn build(base: &Path, mods: &[ContentMod], out: &Path) -> Result<Vec<String>
                 .collect();
             add(&["by_registry", registry, "ids"], &new);
         }
+        kinds::add_command_ids(&mut doc, mods);
         overlay.write("command-registries.json", &serde_json::to_vec(&doc)?)?;
     }
+    // The mods' enchantments and damage types: data-pack files in their namespaces.
+    kinds::write(base, &overlay, mods)?;
     // A block without its own blockstate looks like its template, so every
     // state still has a model.
     for m in mods {
