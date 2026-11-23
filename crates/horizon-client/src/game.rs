@@ -7532,10 +7532,14 @@ impl Game<'_> {
         self.native_inventory_ticks();
         if running {
             self.world.game_time += 1;
-            if self.ui.rules.bool("advance_weather") {
-                self.world.weather.tick_timers(&mut self.world.random);
+            if levels::custom_level(self.dim) {
+                self.tick_custom_weather();
+            } else {
+                if self.ui.rules.bool("advance_weather") {
+                    self.world.weather.tick_timers(&mut self.world.random);
+                }
+                self.world.weather.tick_levels();
             }
-            self.world.weather.tick_levels();
             self.tick_weather_effects();
         }
         let _ = self.finish_player_autosaves(false);
@@ -12364,6 +12368,7 @@ impl Game<'_> {
             registry,
             level,
             world,
+            border,
             streaming,
             save,
             session_lock,
@@ -12425,7 +12430,23 @@ impl Game<'_> {
         self.prefetch_advancement_tree();
         self.restore_player_state = true;
         self.rand_sequences = rand_sequences;
-        self.border = Default::default();
+        self.levels = Default::default();
+        for (clock, ticks) in &level.clock_times {
+            self.levels.clocks.set(clock, *ticks);
+        }
+        self.levels.clocks.set(
+            horizon_client::level_state::OVERWORLD_CLOCK,
+            if levels::custom_level(dim) { level.day_time } else { world.day_time },
+        );
+        if let Some(clock) = self.level_clock_id(dim) {
+            self.levels.clocks.set(&clock, world.day_time);
+        }
+        self.levels.shared.weather = if levels::custom_level(dim) {
+            level.weather
+        } else {
+            world.weather
+        };
+        self.border = border;
         self.set_mode_id(level.mode());
         self.previous_mode = level.previous_game_mode.map(game_mode::mode_from_id);
         let mut inventory = vec![None; 36];
@@ -15421,8 +15442,18 @@ impl Game<'_> {
         self.level.difficulty =
             horizon_client::title::DIFFICULTIES[usize::from(self.ui.difficulty) & 3].into();
         self.level.time = self.world.game_time;
-        self.level.weather = self.world.weather;
-        self.level.day_time = self.world.day_time;
+        if let Some(clock) = self.level_clock_id(self.dim) {
+            self.levels.clocks.set(&clock, self.world.day_time);
+        }
+        if !levels::custom_level(self.dim) {
+            self.levels.shared.weather = self.world.weather;
+            self.levels.shared.border = self.border.clone();
+        }
+        self.level.weather = self.levels.shared.weather;
+        self.level.day_time = self
+            .level_clock_time(horizon_client::level_state::OVERWORLD_CLOCK)
+            .unwrap_or(self.world.day_time);
+        self.level.clock_times = self.levels.clocks.saved();
         // A server has no player of its own; `enter_guest` puts one in
         // `self.player` only while a command reads it.
         if self.player.is_none() && self.options.dedicated.is_some() {
@@ -15647,6 +15678,10 @@ impl Game<'_> {
     fn save_level(&mut self, wait: bool) -> Result<()> {
         self.save.save_attachments(&self.world.attachments)?;
         self.save.save_forced_chunks(&self.streaming.forced)?;
+        if levels::custom_level(self.dim) {
+            self.save.save_weather(&self.world.weather)?;
+            self.save.save_border(&self.border)?;
+        }
         self.streaming.save(&mut self.world, wait);
         let keys: Vec<_> = self.world.modified.drain().collect();
         let chunks = self.with_entities(keys.iter().filter_map(|k| self.world.chunks.get(k)));

@@ -276,9 +276,25 @@ impl Game<'_> {
     /// changed on the border since the guests were last told of it.
     pub(in crate::game) fn lan_sync_border(&mut self, host: &mut crate::game::lan::LanHost) {
         let now = horizon_client::lan::border::Sent::of(&self.border);
+        if super::super::levels::custom_level(self.dim) {
+            if let Some(sent) = host
+                .custom_border_sent
+                .insert(self.dim.id().to_owned(), now)
+            {
+                for packet in sent.changes(&self.border) {
+                    host.hub.broadcast_level(&packet);
+                }
+            }
+            return;
+        }
         if let Some(sent) = host.border_sent.replace(now) {
             for packet in sent.changes(&self.border) {
-                host.hub.broadcast(&packet);
+                if self.has_custom_levels() {
+                    host.hub.broadcast_vanilla_border(&packet);
+                } else {
+                    // The vanilla-only path is byte-for-byte the old broadcast.
+                    host.hub.broadcast(&packet);
+                }
             }
         }
     }

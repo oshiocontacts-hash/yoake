@@ -160,6 +160,63 @@ fn a_pack_level_opens_with_its_own_save_folder_and_unknown_levels_do_not() {
     });
 }
 
+#[test]
+#[ignore = "needs HORIZON_TEST_RESOURCES"]
+fn custom_weather_and_borders_survive_level_swaps_and_reopening() {
+    with_moon_game(|game, world| {
+        game.world.day_time = 1_000;
+        game.world.weather.raining = false;
+        game.border.set_size(1_000.0);
+        let moon = game.level_dim("mypack:moon").unwrap();
+        let hell = game.level_dim("mypack:hell").unwrap();
+
+        game.enter_level(None, moon).unwrap();
+        assert_eq!(game.world.day_time, 1_000);
+        assert_eq!(game.border.size(), horizon_client::worldborder::MAX_SIZE);
+        game.world.day_time = 2_000;
+        game.world.weather.raining = true;
+        game.world.weather.thundering = true;
+        game.world.weather.rain_time = 50;
+        game.world.weather.thunder_time = 60;
+        game.border.set_center([10.0, -20.0]);
+        game.border.set_size(80.0);
+
+        game.enter_level(None, hell).unwrap();
+        assert_eq!(game.world.day_time, 0);
+        assert!(!game.world.weather.raining);
+        assert_eq!(game.border.size(), horizon_client::worldborder::MAX_SIZE);
+        game.border.set_size(200.0);
+
+        for vanilla in [Dim::Nether, Dim::End, Dim::Overworld] {
+            game.enter_level(None, vanilla).unwrap();
+            assert_eq!(game.world.day_time, 2_000);
+            assert!(!game.world.weather.raining);
+            assert_eq!(game.border.size(), 1_000.0);
+        }
+        game.enter_level(None, moon).unwrap();
+        assert_eq!(game.world.day_time, 2_000);
+        assert!(game.world.weather.raining && game.world.weather.thundering);
+        assert_eq!((game.world.weather.rain_time, game.world.weather.thunder_time), (50, 60));
+        assert_eq!(game.border.center(), [10.0, -20.0]);
+        assert_eq!(game.border.size(), 80.0);
+
+        game.save_level(true).unwrap();
+        let dir = game.level_registry.save_dir(world, "mypack:moon");
+        assert!(dir.join("data/minecraft/weather.dat").is_file());
+        assert!(dir.join("data/minecraft/world_border.dat").is_file());
+        game.enter_level(None, Dim::Overworld).unwrap();
+        game.unload_level("mypack:moon").unwrap();
+        game.enter_level(None, moon).unwrap();
+        assert_eq!(game.world.day_time, 2_000);
+        assert!(game.world.weather.raining && game.world.weather.thundering);
+        assert_eq!((game.world.weather.rain_time, game.world.weather.thunder_time), (50, 60));
+        assert_eq!(game.border.center(), [10.0, -20.0]);
+        assert_eq!(game.border.size(), 80.0);
+        game.enter_level(None, hell).unwrap();
+        assert_eq!(game.border.size(), 200.0);
+    });
+}
+
 /// F3-4: the sky, fog, light and weather of a pack level follow its dimension type, and a client
 /// told that type (the registry the hub sends) reads the same shape and the same facts.
 #[test]

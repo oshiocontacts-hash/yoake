@@ -140,6 +140,8 @@ pub struct DimensionType {
     pub has_ender_dragon_fight: bool,
     /// The day time stays fixed (the End and the Nether).
     pub has_fixed_time: bool,
+    /// The pre-26 fixed tick count, when the type supplied one.
+    pub fixed_time: Option<i64>,
     pub coordinate_scale: f64,
     /// The light every block gets, whatever its level.
     pub ambient_light: f32,
@@ -170,6 +172,7 @@ impl DimensionType {
             has_ceiling: false,
             has_ender_dragon_fight: false,
             has_fixed_time: false,
+            fixed_time: None,
             coordinate_scale: 1.0,
             ambient_light: 0.0,
             infiniburn: "#minecraft:infiniburn_overworld".into(),
@@ -393,10 +396,16 @@ impl DimensionType {
         t.has_skylight = boolean("has_skylight")?.unwrap_or(true);
         t.has_ceiling = boolean("has_ceiling")?.unwrap_or(false);
         t.has_ender_dragon_fight = boolean("has_ender_dragon_fight")?.unwrap_or(false);
+        t.fixed_time = present("fixed_time")
+            .map(|v| {
+                v.as_i64()
+                    .ok_or_else(|| invalid("fixed_time", "expected an integer"))
+            })
+            .transpose()?;
         t.has_fixed_time = match boolean("has_fixed_time")? {
             Some(b) => b,
             // Pre-26 `fixed_time` was a tick count; its presence means fixed.
-            None => present("fixed_time").is_some(),
+            None => t.fixed_time.is_some(),
         };
         t.coordinate_scale = float("coordinate_scale")?.unwrap_or(1.0);
         t.ambient_light = float("ambient_light")?.unwrap_or(0.0) as f32;
@@ -472,6 +481,9 @@ impl DimensionType {
             json!(self.has_ender_dragon_fight),
         );
         o.insert("has_fixed_time".into(), json!(self.has_fixed_time));
+        if let Some(ticks) = self.fixed_time {
+            o.insert("fixed_time".into(), json!(ticks));
+        }
         o.insert("coordinate_scale".into(), number(self.coordinate_scale));
         o.insert("ambient_light".into(), number(f64::from(self.ambient_light)));
         o.insert("infiniburn".into(), json!(self.infiniburn));
@@ -887,6 +899,7 @@ mod tests {
         .unwrap();
         assert!(t.fast_lava() && t.water_evaporates() && t.piglins_zombify());
         assert!(!t.can_start_raid() && t.respawn_anchor_works() && t.has_fixed_time);
+        assert_eq!(t.fixed_time, Some(18_000));
         // The new attribute wins over the old field.
         let t = DimensionType::from_json_str(
             r#"{"min_y":0,"height":256,"ultrawarm":true,

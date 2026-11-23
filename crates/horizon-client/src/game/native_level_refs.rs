@@ -91,10 +91,10 @@ impl Game<'_> {
         self.native_level_world(level)?;
         Some(self.world.game_time)
     }
-    /// The time of day in ticks (`Level.getOverworldClockTime`), shared by
-    /// every level; it keeps counting past 24000. API @API:level_reads@.
+    /// The time of day in ticks (`Level.getOverworldClockTime`): the level's
+    /// default clock, shared with every level that names the same clock; it
+    /// keeps counting past 24000. API @API:level_reads@.
     pub(super) fn native_level_day_time(&self, level: LevelRef) -> Option<i64> {
-        self.native_level_world(level)?;
-        Some(self.world.day_time)
+        Some(self.native_level_world(level)?.day_time)
     }
 }

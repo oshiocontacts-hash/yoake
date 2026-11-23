@@ -1019,6 +1019,7 @@ impl Game<'_> {
     pub(super) fn server_ctx(&mut self) -> TickCtx<'_> {
         let spawn = self.spawn.map_or([0.5, 80.0, 0.5], |s| [s.x, s.y, s.z]);
         let clock_rate = self.network_clock_rate();
+        let level_clock = self.level_clock_id(self.dim);
         TickCtx {
             world: &mut self.world,
             entities: &[],
@@ -1026,6 +1027,9 @@ impl Game<'_> {
             spawn,
             difficulty: i32::from(self.ui.difficulty),
             difficulty_locked: self.level.difficulty_locked,
+            clock: level_clock,
+            clocks: &self.levels.clocks,
+            custom_level: super::levels::custom_level(self.dim),
             clock_rate,
             tick_rate: self.clock.rate(),
             tick_frozen: self.clock.frozen(),

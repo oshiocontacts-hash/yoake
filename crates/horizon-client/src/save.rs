@@ -2433,6 +2433,48 @@ impl SaveDir {
             .join("attachments.dat")
     }
 
+    /// A non-vanilla level's own weather, in the same saved-data form as the
+    /// world's shared weather. Vanilla levels do not call these methods.
+    pub fn load_weather(&self) -> Option<crate::world::Weather> {
+        let data = read_saved_data(&self.root, "weather")?;
+        let int = |key: &str| number(data.get(key)).unwrap_or(0) as i32;
+        let raining = number(data.get("raining")).unwrap_or(0) != 0;
+        let thundering = number(data.get("thundering")).unwrap_or(0) != 0;
+        Some(crate::world::Weather {
+            clear_time: int("clear_weather_time"),
+            rain_time: int("rain_time"),
+            thunder_time: int("thunder_time"),
+            raining,
+            thundering,
+            rain_level: if raining { (1.0, 1.0) } else { (0.0, 0.0) },
+            thunder_level: if thundering { (1.0, 1.0) } else { (0.0, 0.0) },
+        })
+    }
+
+    pub fn save_weather(&self, weather: &crate::world::Weather) -> Result<()> {
+        write_saved_data(
+            &self.root,
+            "weather",
+            Tag::compound([
+                ("clear_weather_time", Tag::Int(weather.clear_time)),
+                ("rain_time", Tag::Int(weather.rain_time)),
+                ("thunder_time", Tag::Int(weather.thunder_time)),
+                ("raining", Tag::Byte(i8::from(weather.raining))),
+                ("thundering", Tag::Byte(i8::from(weather.thundering))),
+            ]),
+        )
+    }
+
+    /// A non-vanilla level's own border, in vanilla's per-level saved-data form.
+    pub fn load_border(&self) -> Option<crate::worldborder::WorldBorder> {
+        read_saved_data(&self.root, "world_border")
+            .map(|data| crate::worldborder::WorldBorder::unpack(&data))
+    }
+
+    pub fn save_border(&self, border: &crate::worldborder::WorldBorder) -> Result<()> {
+        write_saved_data(&self.root, "world_border", border.pack())
+    }
+
     /// The saves of a level of `shape` at `root` (its dimension folder).
     pub fn new(root: PathBuf, shape: LevelShape) -> Self {
         Self {
@@ -3575,6 +3617,8 @@ pub struct Level {
     pub previous_game_mode: Option<i32>,
     pub time: i64,
     pub day_time: i64,
+    /// Named clocks other than the Overworld's, from `world_clocks.dat`.
+    pub clock_times: BTreeMap<String, i64>,
     /// Where the player respawns when it has no bed or anchor: its forced
     /// Overworld point (`spawnpoint`), or the world spawn.
     pub spawn: Option<[f64; 3]>,
@@ -3802,7 +3846,9 @@ impl Level {
             .or_else(|| number(data.get("WorldGenSettings").and_then(|w| w.get("seed"))))
             .unwrap_or(0);
         // Day time: the overworld clock (26.3) or Data.DayTime.
-        level.day_time = read_saved_data(dir, "world_clocks")
+        let saved_clocks = read_saved_data(dir, "world_clocks");
+        level.day_time = saved_clocks
+            .as_ref()
             .and_then(|c| {
                 number(
                     c.get("minecraft:overworld")
@@ -3811,6 +3857,16 @@ impl Level {
             })
             .or_else(|| number(data.get("DayTime")))
             .unwrap_or(level.time);
+        if let Some(Tag::Compound(map)) = &saved_clocks {
+            for (id, clock) in map {
+                let id = id.to_string_lossy();
+                if id != "minecraft:overworld"
+                    && let Some(ticks) = number(clock.get("total_ticks"))
+                {
+                    level.clock_times.insert(id, ticks);
+                }
+            }
+        }
         let weather = read_saved_data(dir, "weather");
         let w = |new: &str, old: &str| {
             number(weather.as_ref().and_then(|w| w.get(new)))
@@ -4424,6 +4480,14 @@ impl Level {
         if let Tag::Compound(map) = &mut clocks {
             map.entry("minecraft:the_end".into())
                 .or_insert_with(|| Tag::compound([("total_ticks", Tag::Long(self.time))]));
+        }
+        for (id, ticks) in &self.clock_times {
+            if id == "minecraft:overworld" {
+                continue;
+            }
+            let mut clock = compound_or_empty(clocks.get(id).cloned());
+            put(&mut clock, "total_ticks", Tag::Long(*ticks));
+            put(&mut clocks, id, clock);
         }
         write_saved_data(dir, "world_clocks", clocks)?;
         if legacy || !saved_data_path(dir, "world_gen_settings").exists() {
@@ -7724,5 +7788,70 @@ mod tests {
             );
             let _ = fs::remove_dir_all(&own);
         }
+    }
+
+    #[test]
+    fn custom_level_weather_border_and_named_clocks_round_trip() {
+        let root = std::env::temp_dir().join(format!("horizon-level-state-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let save = SaveDir::new(root.join("dimension"), LevelShape::OVERWORLD);
+        let weather = crate::world::Weather {
+            clear_time: 10,
+            rain_time: 20,
+            thunder_time: 30,
+            raining: true,
+            thundering: true,
+            rain_level: (1.0, 1.0),
+            thunder_level: (1.0, 1.0),
+        };
+        let mut border = crate::worldborder::WorldBorder::default();
+        border.set_center([12.5, -8.0]);
+        border.lerp_between(100.0, 40.0, 200);
+        border.damage_per_block = 1.5;
+        border.safe_zone = 7.0;
+        border.warning_distance = 9;
+        border.warning_time = 40;
+        save.save_weather(&weather).unwrap();
+        save.save_border(&border).unwrap();
+        assert_eq!(save.load_weather().unwrap().rain_time, 20);
+        assert_eq!(save.load_weather().unwrap().thunder_time, 30);
+        assert!(save.load_weather().unwrap().raining);
+        assert!(save.load_weather().unwrap().thundering);
+        assert_eq!(save.load_border().unwrap(), border);
+
+        let mut clocks = crate::level_state::ClockBank::default();
+        clocks.set("example:sun", 1_200);
+        clocks.set("example:moon", 9_000);
+        clocks.advance(Some("example:sun"), 1_200, 2);
+        let mut level = Level {
+            time: 99,
+            day_time: 42,
+            clock_times: clocks.saved(),
+            ..Level::default()
+        };
+        level.write_without_player(&root).unwrap();
+        let reopened = Level::read(&root).unwrap();
+        assert_eq!(reopened.day_time, 42);
+        assert_eq!(reopened.clock_times.get("example:sun"), Some(&1_202));
+        assert_eq!(reopened.clock_times.get("example:moon"), Some(&9_002));
+        crate::test_support::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn vanilla_world_clock_bytes_do_not_grow_a_new_entry() {
+        let root = std::env::temp_dir().join(format!("horizon-vanilla-clocks-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let mut level = Level {
+            time: 99,
+            day_time: 42,
+            ..Level::default()
+        };
+        level.write_without_player(&root).unwrap();
+        let path = root.join("data/minecraft/world_clocks.dat");
+        let before = fs::read(&path).unwrap();
+        level.clock_times = BTreeMap::from([("minecraft:overworld".into(), 42)]);
+        level.write_without_player(&root).unwrap();
+        assert_eq!(fs::read(&path).unwrap(), before);
+        crate::test_support::remove_dir_all(&root);
     }
 }

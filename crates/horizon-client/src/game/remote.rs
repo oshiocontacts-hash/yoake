@@ -4526,6 +4526,7 @@ impl Game<'_> {
                     let names =
                         r.and_then(|r| r.registries.registries.get("minecraft:world_clock"));
                     let tracked = r.and_then(|r| r.clock);
+                    let fixed = r.is_some_and(|r| r.dimension.default_clock.is_none());
                     let wanted = r
                         .and_then(|r| r.dimension.default_clock.clone())
                         .or_else(|| r.map(|r| r.dimension.name.clone()))
@@ -4537,8 +4538,17 @@ impl Game<'_> {
                     };
                     p.clocks
                         .iter()
-                        .find(|c| name(c.clock) == Some(wanted.as_str()))
-                        .or_else(|| tracked.and_then(|id| p.clocks.iter().find(|c| c.clock == id)))
+                        .find(|c| {
+                            let wanted = if fixed { "minecraft:overworld" } else { wanted.as_str() };
+                            name(c.clock) == Some(wanted)
+                        })
+                        .or_else(|| {
+                            if fixed {
+                                None
+                            } else {
+                                tracked.and_then(|id| p.clocks.iter().find(|c| c.clock == id))
+                            }
+                        })
                         .cloned()
                 };
                 if let Some(c) = clock {

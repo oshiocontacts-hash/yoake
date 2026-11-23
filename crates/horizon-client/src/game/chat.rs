@@ -1340,8 +1340,8 @@ impl Game<'_> {
             .split(&text.resolve_legacy(), width as f32);
         split.into_iter().map(|row| (row, u32::MAX)).collect()
     }
-    /// Advance the overworld clock (ServerClockManager.tick) when
-    /// `advance_time` allows it.
+    /// Advance every named clock once (ServerClockManager.tick) when
+    /// `advance_time` allows it. A fixed-time level has no active clock.
     #[yoake_inject_macro::yoake_inject(id = "game::chat::advance_clock", side = "server")]
     pub(super) fn advance_clock(&mut self) {
         if !self.ui.rules.bool("advance_time") || self.ui.clock.paused {
@@ -1351,10 +1351,17 @@ impl Game<'_> {
         c.partial += c.rate;
         let whole = c.partial.floor();
         c.partial -= whole;
-        self.world.day_time += whole as i64;
+        let clock = self.level_clock_id(self.dim);
+        if let Some(day) =
+            self.levels
+                .clocks
+                .advance(clock.as_deref(), self.world.day_time, whole as i64)
+        {
+            self.world.day_time = day;
+        }
     }
     /// `ServerClockInstance.packNetworkState`: the rate players' clients
-    /// advance the overworld clock at, 0 while it is paused (`/time pause`)
+    /// advance their clock at, 0 while it is paused (`/time pause`)
     /// or `advance_time` is off.
     pub(super) fn network_clock_rate(&self) -> f32 {
         if self.ui.rules.bool("advance_time") && !self.ui.clock.paused {

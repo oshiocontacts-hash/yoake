@@ -181,8 +181,10 @@ pub(super) struct LanHost {
     /// whose respawn replaces their waypoint.
     pub waypoints: std::collections::HashMap<String, lan::waypoints::Waypoints>,
     pub waypoint_dead: std::collections::HashSet<u128>,
-    /// The world border as the guests were last told of it (lan/border.rs).
+    /// The shared vanilla border as the guests were last told of it (lan/border.rs).
     pub border_sent: Option<lan::border::Sent>,
+    /// Each custom level's border as its players were last told of it.
+    pub custom_border_sent: HashMap<String, lan::border::Sent>,
     /// Guests' commands waiting for the hub to be back in `self.lan`, where
     /// a command can reach every player (game/lan_actions.rs).
     pub commands: Vec<super::lan_actions::GuestCommand>,
@@ -1355,6 +1357,7 @@ impl Game<'_> {
             waypoints: Default::default(),
             waypoint_dead: Default::default(),
             border_sent: None,
+            custom_border_sent: Default::default(),
             commands: Vec::new(),
             quiet: std::collections::VecDeque::new(),
             far,
@@ -2178,6 +2181,7 @@ impl Game<'_> {
         }
         let events = {
             let clock_rate = self.network_clock_rate();
+            let level_clock = self.level_clock_id(self.dim);
             let mut ctx = TickCtx {
                 world: &mut self.world,
                 entities: entities.as_slice(),
@@ -2185,6 +2189,9 @@ impl Game<'_> {
                 spawn,
                 difficulty: i32::from(self.ui.difficulty),
                 difficulty_locked: self.level.difficulty_locked,
+                clock: level_clock,
+                clocks: &self.levels.clocks,
+                custom_level: super::levels::custom_level(self.dim),
                 clock_rate,
                 tick_rate: self.clock.rate(),
                 tick_frozen: self.clock.frozen(),
@@ -2450,6 +2457,7 @@ impl Game<'_> {
             }
             let events = {
                 let clock_rate = self.network_clock_rate();
+            let level_clock = self.level_clock_id(self.dim);
                 let mut ctx = TickCtx {
                     world: &mut self.world,
                     entities,
@@ -2457,6 +2465,9 @@ impl Game<'_> {
                     spawn,
                     difficulty: i32::from(self.ui.difficulty),
                     difficulty_locked: self.level.difficulty_locked,
+                    clock: level_clock,
+                    clocks: &self.levels.clocks,
+                custom_level: super::levels::custom_level(self.dim),
                     clock_rate,
                     tick_rate: self.clock.rate(),
                     tick_frozen: self.clock.frozen(),
@@ -2678,6 +2689,7 @@ impl Game<'_> {
             entities
         };
         let clock_rate = self.network_clock_rate();
+        let level_clock = self.level_clock_id(self.dim);
         let mut ctx = TickCtx {
             world: &mut self.world,
             entities,
@@ -2685,6 +2697,9 @@ impl Game<'_> {
             spawn,
             difficulty: i32::from(self.ui.difficulty),
             difficulty_locked: self.level.difficulty_locked,
+            clock: level_clock,
+            clocks: &self.levels.clocks,
+            custom_level: super::levels::custom_level(self.dim),
             clock_rate,
             tick_rate: self.clock.rate(),
             tick_frozen: self.clock.frozen(),

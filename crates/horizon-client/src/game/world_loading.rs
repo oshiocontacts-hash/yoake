@@ -19,6 +19,7 @@ pub(super) struct PreparedWorld {
     pub registry: horizon_client::level_registry::LevelRegistry,
     pub level: Level,
     pub world: World,
+    pub border: horizon_client::worldborder::WorldBorder,
     pub streaming: Streaming,
     pub save: Arc<SaveDir>,
     pub session_lock: horizon_client::save::SessionLock,
@@ -275,8 +276,28 @@ impl WorldRequest {
         world.shape = shape;
         world.fast_lava = level_fast_lava(&registry, dim);
         world.game_time = level.time;
-        world.day_time = options.time.unwrap_or(level.day_time);
-        world.weather = level.weather;
+        let custom = !horizon_client::level_registry::VANILLA_LEVELS.contains(&dim.id());
+        let initial_day = if custom {
+            let entry = registry.get(dim.id()).expect("the prepared level is registered");
+            match entry.dimension_type.default_clock.as_deref() {
+                Some("minecraft:overworld") => level.day_time,
+                Some(clock) => level.clock_times.get(clock).copied().unwrap_or(0),
+                None => entry.dimension_type.fixed_time.unwrap_or(0),
+            }
+        } else {
+            level.day_time
+        };
+        world.day_time = options.time.unwrap_or(initial_day);
+        world.weather = if custom {
+            save.load_weather().unwrap_or_default()
+        } else {
+            level.weather
+        };
+        let border = if custom {
+            save.load_border().unwrap_or_default()
+        } else {
+            Default::default()
+        };
         if let Some(w) = options.weather.as_deref() {
             // /weather: clear, rain or thunder for a long duration.
             let (rain, thunder) = (w != "clear", w == "thunder");
@@ -301,6 +322,7 @@ impl WorldRequest {
             registry,
             level,
             world,
+            border,
             streaming,
             save,
             session_lock,

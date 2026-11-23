@@ -3751,6 +3751,7 @@ impl Game<'_> {
         let (cloned, name) = (g.uuid, g.name.clone());
         self.native_player_clone(cloned, &name, true);
         let clock_rate = self.network_clock_rate();
+        let level_clock = self.level_clock_id(self.dim);
         let ctx = TickCtx {
             world: &mut self.world,
             entities: &[],
@@ -3758,6 +3759,9 @@ impl Game<'_> {
             spawn,
             difficulty: i32::from(self.ui.difficulty),
             difficulty_locked: self.level.difficulty_locked,
+            clock: level_clock,
+            clocks: &self.levels.clocks,
+            custom_level: super::levels::custom_level(self.dim),
             clock_rate,
             tick_rate: self.clock.rate(),
             tick_frozen: self.clock.frozen(),

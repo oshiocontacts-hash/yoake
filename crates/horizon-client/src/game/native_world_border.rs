@@ -1,8 +1,8 @@
 //! Reading and writing the world border for native mods (API @API:world_border_state@),
 //! with vanilla's semantics: `WorldBorder.setCenter`, `setSize` and `lerpSizeBetween`, and the
 //! packets the border's own change listener sends (`lan::border`: a new centre, a new size,
-//! a size change in progress), which reach every player at the end of the server tick as the
-//! `/worldborder` command's do.
+//! a size change in progress), which reach the players in that border's level at the end of
+//! the server tick as the `/worldborder` command's do.
 use horizon_client::{
     mod_api::NativeWorldBorderState, worldborder::MAX_SIZE, worldborder::WorldBorder,
 };
@@ -13,10 +13,8 @@ use super::{Game, native_server_physics::Operation};
 const MAX_CENTER: f64 = 2.999_998_4e7;
 
 fn dimension_ok(dimension: &str) -> Result<(), String> {
-    match dimension {
-        "minecraft:overworld" | "minecraft:the_nether" | "minecraft:the_end" => Ok(()),
-        _ => Err("unknown native world border dimension".into()),
-    }
+    horizon_client::level_registry::check_level_id(dimension)
+        .map_err(|_| "unknown native world border dimension".to_owned())
 }
 
 /// The border as a mod reads it.
@@ -68,26 +66,72 @@ pub(crate) fn apply(
 // Native mods use these; nothing in Horizon does.
 #[allow(dead_code)]
 impl Game<'_> {
+    fn prepare_border_level(&mut self, dim: super::Dim) -> Result<(), String> {
+        if super::levels::custom_level(dim)
+            && dim != self.dim
+            && self.levels.parked_border(dim).is_none()
+        {
+            let back = self.dim;
+            self.enter_level(None, dim).map_err(|e| e.to_string())?;
+            self.enter_level(None, back).map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+
+    fn border_level(&self, dim: super::Dim) -> &WorldBorder {
+        if super::levels::custom_level(dim) {
+            if dim == self.dim {
+                &self.border
+            } else {
+                self.levels.parked_border(dim).expect("border level opened")
+            }
+        } else if super::levels::custom_level(self.dim) {
+            &self.levels.shared.border
+        } else {
+            &self.border
+        }
+    }
+
+    fn border_level_mut(&mut self, dim: super::Dim) -> &mut WorldBorder {
+        if super::levels::custom_level(dim) {
+            if dim == self.dim {
+                &mut self.border
+            } else {
+                self.levels
+                    .parked_border_mut(dim)
+                    .expect("border level opened")
+            }
+        } else if super::levels::custom_level(self.dim) {
+            &mut self.levels.shared.border
+        } else {
+            &mut self.border
+        }
+    }
+
     /// The world border of `dimension`: its centre, current size, the size it is moving to and
-    /// the ticks that are left of that move (0 when still). Horizon keeps one border for the
-    /// whole server, so every dimension answers with it. Server tick hooks only (512 calls per
-    /// mod and tick). API @API:world_border_state@.
+    /// the ticks that are left of that move (0 when still). Vanilla levels share the Overworld's
+    /// border; every custom level has its own. Server tick hooks only (512 calls per mod and
+    /// tick). API @API:world_border_state@.
     pub(super) fn native_world_border(
         &mut self,
         dimension: &str,
     ) -> Result<NativeWorldBorderState, String> {
         self.native_physics_reserve(Operation::WorldBorder, false)?;
         dimension_ok(dimension)?;
-        Ok(state(&self.border))
+        let dim = self
+            .level_dim(dimension)
+            .ok_or_else(|| "unknown native world border dimension".to_owned())?;
+        self.prepare_border_level(dim)?;
+        Ok(state(self.border_level(dim)))
     }
 
-    /// Sets the world border of `dimension` (the server's one border): the centre, and the size,
-    /// at once, or with `lerp` `(target, ticks)` moving from `size` to `target` over `ticks`
-    /// server ticks (`WorldBorder.lerpSizeBetween`, as `/worldborder set <size> <time>` does).
-    /// Sizes are 1 to 59999968, centres within 29999984 of the origin; nothing changes on an
-    /// error. The players hear it at the end of the tick, through vanilla's border packets.
-    /// Mods listening to border changes (`native_world_border_bounds_changed`) are not told of
-    /// this one. Server tick hooks only (512 calls per mod and tick). API @API:world_border_state@.
+    /// Sets the world border of `dimension`: the centre, and the size, at once, or with `lerp`
+    /// `(target, ticks)` moving from `size` to `target` over `ticks` server ticks
+    /// (`WorldBorder.lerpSizeBetween`, as `/worldborder set <size> <time>` does). Sizes are 1 to
+    /// 59999968, centres within 29999984 of the origin; nothing changes on an error. Players in
+    /// that level hear it through vanilla's border packets. Mods listening to border changes
+    /// (`native_world_border_bounds_changed`) are not told of this one. Server tick hooks only
+    /// (512 calls per mod and tick). API @API:world_border_state@.
     pub(super) fn native_set_world_border(
         &mut self,
         dimension: &str,
@@ -97,7 +141,11 @@ impl Game<'_> {
     ) -> Result<(), String> {
         self.native_physics_reserve(Operation::SetWorldBorder, true)?;
         dimension_ok(dimension)?;
-        apply(&mut self.border, center, size, lerp)
+        let dim = self
+            .level_dim(dimension)
+            .ok_or_else(|| "unknown native world border dimension".to_owned())?;
+        self.prepare_border_level(dim)?;
+        apply(self.border_level_mut(dim), center, size, lerp)
     }
 }
 
@@ -195,8 +243,9 @@ mod tests {
     }
 
     #[test]
-    fn only_the_three_dimensions_are_known() {
+    fn custom_dimension_ids_are_valid_before_the_registry_lookup() {
         assert!(dimension_ok("minecraft:the_nether").is_ok());
-        assert!(dimension_ok("minecraft:the_void").is_err());
+        assert!(dimension_ok("example:arena").is_ok());
+        assert!(dimension_ok("not a dimension").is_err());
     }
 }

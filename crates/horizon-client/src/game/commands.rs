@@ -1899,21 +1899,35 @@ impl Game<'_> {
         // `time of <clock>` names the clock; otherwise the dimension's default clock.
         let clock = match ctx.get("clock") {
             Some(Arg::Resource(c)) => c.clone(),
-            _ => {
-                if self.dim == Dim::Nether {
-                    return Err(err(
-                        "commands.time.no_default_clock",
-                        &[&"minecraft:the_nether"],
-                    ));
-                }
-                "minecraft:overworld".to_owned()
+            _ if self.dim == Dim::Nether => {
+                return Err(err(
+                    "commands.time.no_default_clock",
+                    &[&"minecraft:the_nether"],
+                ));
             }
+            _ if super::levels::custom_level(self.dim) => {
+                let Some(clock) = self.level_clock_id(self.dim) else {
+                    return Err(err("commands.time.no_default_clock", &[&self.dim.id()]));
+                };
+                clock
+            }
+            _ => "minecraft:overworld".to_owned(),
         };
-        if clock != "minecraft:overworld" {
-            // Only the overworld clock runs in Horizon (no End yet).
+        if super::levels::custom_level(self.dim) {
+            let known = clock == "minecraft:overworld"
+                || self.level_registry.ids().any(|level| {
+                    self.level_registry
+                        .get(level)
+                        .and_then(|entry| entry.dimension_type.default_clock.as_deref())
+                        == Some(clock.as_str())
+                });
+            if !known {
+                return Err(err("commands.time.no_default_clock", &[&clock]));
+            }
+        } else if clock != "minecraft:overworld" {
             return Err(err("commands.time.no_default_clock", &[&clock]));
         }
-        let total = self.world.day_time;
+        let total = self.level_clock_time(&clock).unwrap_or(self.world.day_time);
         match id {
             "time.set" => {
                 let t = i64::from(Self::int(ctx, "time").unwrap_or(0));
@@ -1923,7 +1937,7 @@ impl Game<'_> {
                 let mut cancel = false;
                 self.native_time_skip(self.dim.id(), total, t, "command", &mut cancel);
                 if !cancel {
-                    self.world.day_time = t;
+                    self.set_level_clock(&clock, t);
                     self.ui.clock.partial = 0.0;
                 }
                 self.feedback(Text::tr("commands.time.set.absolute", &[&clock, &t]));
@@ -1949,14 +1963,15 @@ impl Game<'_> {
                 let mut cancel = false;
                 self.native_time_skip(self.dim.id(), total, target, "command", &mut cancel);
                 if !cancel {
-                    self.world.day_time = target;
+                    self.set_level_clock(&clock, target);
                     self.ui.clock.partial = 0.0;
                 }
                 self.feedback(Text::tr(
                     "commands.time.set.time_marker",
                     &[&clock, &marker],
                 ));
-                Ok((self.world.day_time % i64::from(i32::MAX)) as i32)
+                let now = self.level_clock_time(&clock).unwrap_or(self.world.day_time);
+                Ok((now % i64::from(i32::MAX)) as i32)
             }
             "time.add" => {
                 let t = i64::from(Self::int(ctx, "time").unwrap_or(0));
@@ -1964,9 +1979,9 @@ impl Game<'_> {
                 let mut cancel = false;
                 self.native_time_skip(self.dim.id(), total, target, "command", &mut cancel);
                 if !cancel {
-                    self.world.day_time = target;
+                    self.set_level_clock(&clock, target);
                 }
-                let now = self.world.day_time;
+                let now = self.level_clock_time(&clock).unwrap_or(target);
                 self.feedback(Text::tr("commands.time.set.absolute", &[&clock, &now]));
                 Ok((now % i64::from(i32::MAX)) as i32)
             }

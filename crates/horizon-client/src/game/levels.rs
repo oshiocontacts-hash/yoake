@@ -7,10 +7,9 @@
 //! chunks by swapping it into place (`enter_level`), the way `as_guest` swaps a player
 //! in, so the tick code runs unchanged, one level at a time.
 //!
-//! Shared by every level, as vanilla's derived levels share the
-//! Overworld's level data: the game time, the day time and the weather, the
-//! game rules, the scoreboard, the maps and the entities waiting to arrive
-//! through a portal.
+//! Game time, game rules, scoreboard, maps and portal arrivals are server-wide.
+//! The vanilla levels retain their shared Overworld clock, weather and border;
+//! custom levels use their type's clock and keep their own weather and border.
 
 use super::{
     Dim, ExperienceOrb, FallingBlock, Game, ItemEntity, Mob, boats, commands,
@@ -18,9 +17,14 @@ use super::{
     ominous_item_spawner, persist, raids::Raiding, sculk::SculkState, tnt, trident,
 };
 use horizon_client::{
-    Result, block_entity_anim::BlockEntityAnims, random_tick_sections::RandomTickSections,
-    save::SaveDir, streaming::Streaming, tick_chunk_membership::TickChunkMembership,
-    ticket_levels::ChunkTickets, vanillagen::VanillaTerrain, world::World,
+    Result, block_entity_anim::BlockEntityAnims,
+    level_state::{
+        ClockBank, LevelEnvironment, OVERWORLD_CLOCK, SharedEnvironment, level_clock,
+        remember_level, restore_level,
+    },
+    random_tick_sections::RandomTickSections, save::SaveDir, streaming::Streaming,
+    tick_chunk_membership::TickChunkMembership, ticket_levels::ChunkTickets,
+    vanillagen::VanillaTerrain, world::World, worldborder::WorldBorder,
 };
 use horizon_world::level::{LevelEvent, Ticks};
 use std::{
@@ -37,6 +41,7 @@ const IDLE_TICKS: u32 = 300;
 /// A level that is not in place: every per-level field of `Game`.
 pub(super) struct Parked {
     world: World,
+    border: WorldBorder,
     streaming: Streaming,
     locator: Option<Arc<VanillaTerrain>>,
     save: Arc<SaveDir>,
@@ -121,6 +126,8 @@ impl Default for Pass {
 #[derive(Default)]
 pub(super) struct Levels {
     parked: HashMap<Dim, Parked>,
+    pub(super) clocks: ClockBank,
+    pub(super) shared: SharedEnvironment,
     /// The levels whose open the mods heard (`native_level_load`), each to
     /// be told closed once.
     heard_open: Vec<Dim>,
@@ -152,6 +159,14 @@ impl Levels {
         self.parked.get_mut(&dim)
     }
 
+    pub(super) fn parked_border(&self, dim: Dim) -> Option<&WorldBorder> {
+        self.parked.get(&dim).map(|level| &level.border)
+    }
+
+    pub(super) fn parked_border_mut(&mut self, dim: Dim) -> Option<&mut WorldBorder> {
+        self.parked.get_mut(&dim).map(|level| &mut level.border)
+    }
+
     /// The mobs of a parked level.
     pub(super) fn parked_mobs(&self, dim: Dim) -> Option<&[Mob]> {
         self.parked.get(&dim).map(|level| level.mobs.as_slice())
@@ -170,7 +185,50 @@ impl Levels {
     }
 }
 
+pub(super) fn custom_level(dim: Dim) -> bool {
+    !matches!(dim, Dim::Overworld | Dim::Nether | Dim::End)
+}
+
 impl Game<'_> {
+    /// The clock this level follows, with the vanilla three retaining their
+    /// historical shared Overworld day time.
+    pub(super) fn level_clock_id(&self, dim: Dim) -> Option<String> {
+        let default = self
+            .level_registry
+            .get(dim.id())
+            .and_then(|entry| entry.dimension_type.default_clock.as_deref());
+        level_clock(!custom_level(dim), default).map(str::to_owned)
+    }
+
+    fn initial_clock_time(&self, id: &str) -> i64 {
+        if id == OVERWORLD_CLOCK {
+            self.level.day_time
+        } else {
+            self.level.clock_times.get(id).copied().unwrap_or(0)
+        }
+    }
+
+    pub(super) fn level_clock_time(&self, id: &str) -> Option<i64> {
+        self.levels
+            .clocks
+            .get(id)
+            .or_else(|| self.level.clock_times.get(id).copied())
+            .or_else(|| (id == OVERWORLD_CLOCK).then_some(self.level.day_time))
+    }
+
+    pub(super) fn set_level_clock(&mut self, id: &str, ticks: i64) {
+        self.levels.clocks.set(id, ticks);
+        if self.level_clock_id(self.dim).as_deref() == Some(id) {
+            self.world.day_time = ticks;
+        }
+    }
+
+    pub(super) fn has_custom_levels(&self) -> bool {
+        self.level_registry.ids().any(|id| {
+            !horizon_client::level_registry::VANILLA_LEVELS.contains(&id)
+        })
+    }
+
     /// A new level for `dim`, opened from the save (`MinecraftServer.createLevels`).
     fn open_level(&self, dim: Dim) -> Result<Parked> {
         // F3-3: any level of the registry opens, with its own type, generator and save folder;
@@ -210,8 +268,16 @@ impl Game<'_> {
         world.attachments = save.load_attachments();
         world.shape = shape;
         world.fast_lava = super::world_loading::level_fast_lava(&self.level_registry, dim);
+        let border = if custom_level(dim) {
+            world.day_time = entry.dimension_type.fixed_time.unwrap_or(0);
+            world.weather = save.load_weather().unwrap_or_default();
+            save.load_border().unwrap_or_default()
+        } else {
+            self.border.clone()
+        };
         Ok(Parked {
             world,
+            border,
             streaming,
             locator,
             save,
@@ -266,6 +332,7 @@ impl Game<'_> {
     fn swap_level(&mut self, p: &mut Parked) {
         use std::mem::swap;
         swap(&mut self.world, &mut p.world);
+        swap(&mut self.border, &mut p.border);
         swap(&mut self.streaming, &mut p.streaming);
         let mut locator = self.end.locator();
         swap(&mut locator, &mut p.locator);
@@ -330,9 +397,10 @@ impl Game<'_> {
     }
 
     /// Put `target`'s level in place, opening it first if it is not loaded.
-    /// The level that was in place is kept with the others; the shared
-    /// clock and weather go with the swap. `host` is the hub when the caller
-    /// holds it (`self.lan` is taken during the network tick).
+    /// Clock ids, custom weather and custom borders survive the swap; vanilla
+    /// levels receive their shared state exactly as they did before.
+    /// `host` is the hub when the caller holds it (`self.lan` is taken during
+    /// the network tick).
     pub(super) fn enter_level(
         &mut self,
         mut host: Option<&mut LanHost>,
@@ -343,6 +411,20 @@ impl Game<'_> {
             return Ok(());
         }
         if target != self.dim {
+            let active = LevelEnvironment {
+                day_time: self.world.day_time,
+                weather: self.world.weather,
+                border: self.border.clone(),
+            };
+            let source_clock = self.level_clock_id(self.dim);
+            remember_level(
+                &mut self.levels.clocks,
+                &mut self.levels.shared,
+                !custom_level(self.dim),
+                source_clock.as_deref(),
+                &active,
+            );
+            let target_clock = self.level_clock_id(target);
             let (mut p, opened) = match self.levels.parked.remove(&target) {
                 Some(p) => (p, false),
                 None => {
@@ -351,8 +433,25 @@ impl Game<'_> {
                 }
             };
             p.world.game_time = self.world.game_time;
-            p.world.day_time = self.world.day_time;
-            p.world.weather = self.world.weather;
+            let initial = target_clock
+                .as_deref()
+                .map_or(0, |clock| self.initial_clock_time(clock));
+            let mut environment = LevelEnvironment {
+                day_time: p.world.day_time,
+                weather: p.world.weather,
+                border: p.border.clone(),
+            };
+            restore_level(
+                &mut self.levels.clocks,
+                &self.levels.shared,
+                !custom_level(target),
+                target_clock.as_deref(),
+                initial,
+                &mut environment,
+            );
+            p.world.day_time = environment.day_time;
+            p.world.weather = environment.weather;
+            p.border = environment.border;
             // The game rules and the difficulty are the server's, not a
             // level's: natural regeneration holds in every dimension.
             p.world.health_rules = self.world.health_rules;
@@ -388,6 +487,17 @@ impl Game<'_> {
             h.hub.set_dimension(target.id());
         }
         Ok(())
+    }
+
+    /// A custom level with open-sky weather advances with its own level tick.
+    /// Vanilla weather remains the first-pass shared tick in `Game::tick`.
+    pub(super) fn tick_custom_weather(&mut self) {
+        if custom_level(self.dim) && self.level_facts().weather {
+            if self.ui.rules.bool("advance_weather") {
+                self.world.weather.tick_timers(&mut self.world.random);
+            }
+            self.world.weather.tick_levels();
+        }
     }
 
     /// The entity's memory (its UUID and the compound it was loaded with)
@@ -441,8 +551,8 @@ impl Game<'_> {
     /// One server tick (`MinecraftServer.tickServer`): each level with
     /// players or forced chunks in turn (`tickChildren`), its chunks streamed
     /// and loaded and its world ticked. The first pass reads the network and runs the
-    /// tick's shared parts (the clock, the weather, functions, the autosave);
-    /// the next ones only their level. While `paused`, only the connections
+    /// tick's shared parts (all named clocks, vanilla weather, functions, the autosave);
+    /// the next ones only their level, including custom weather. While `paused`, only the connections
     /// run. The native server tick hook brackets it (`ServerTickStart` before
     /// the first level, `ServerTickEnd` after the last).
     pub(super) fn tick_server(&mut self, paused: bool) -> Result<()> {
@@ -495,6 +605,7 @@ impl Game<'_> {
                     } else {
                         let running = running.unwrap_or_else(|| self.clock.world_runs());
                         if running {
+                            self.tick_custom_weather();
                             self.tick_weather_effects();
                         }
                         self.tick_world(running)

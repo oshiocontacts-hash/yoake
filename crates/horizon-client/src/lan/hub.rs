@@ -107,7 +107,13 @@ pub struct TickCtx<'a> {
     pub spawn: [f64; 3],
     pub difficulty: i32,
     pub difficulty_locked: bool,
-    /// The overworld clock's speed (0 when the day does not advance).
+    /// The level's default clock. Vanilla levels all name the Overworld clock;
+    /// `None` is a custom fixed-time level.
+    pub clock: Option<String>,
+    pub clocks: &'a crate::level_state::ClockBank,
+    /// A non-vanilla level, whose full sync resets clear weather and fixed time.
+    pub custom_level: bool,
+    /// The clock's speed (0 when the day does not advance).
     pub clock_rate: f32,
     /// TickRateManager: the tick rate and whether the game is frozen.
     pub tick_rate: f32,
@@ -791,6 +797,16 @@ impl Hub {
     pub fn broadcast_level(&self, packet: &C) {
         let body = packet.encode();
         for g in self.guests.iter().filter(|g| self.here(g)) {
+            g.sender.send(body.clone());
+        }
+    }
+    /// A change to the border shared by the vanilla levels, without leaking
+    /// it into a custom level that has its own border.
+    pub fn broadcast_vanilla_border(&self, packet: &C) {
+        let body = packet.encode();
+        for g in self.guests.iter().filter(|g| {
+            g.placed && crate::level_registry::VANILLA_LEVELS.contains(&g.dimension.as_str())
+        }) {
             g.sender.send(body.clone());
         }
     }
@@ -1662,7 +1678,7 @@ impl Hub {
             );
         }
         g.send(&C::InitializeBorder(super::border::initialize(ctx.border)));
-        g.send(&self.time_packet(ctx.world, ctx.clock_rate));
+        g.send(&self.time_packet(ctx));
         g.send(&self.default_spawn(spawn));
         let w = &ctx.world.weather;
         if w.raining {
@@ -1678,6 +1694,16 @@ impl Hub {
                 event: game_event::THUNDER_LEVEL,
                 param: w.thunder_level.1,
             }));
+        } else if ctx.custom_level {
+            // A client keeps its old level's weather over a respawn packet.
+            // Custom levels differ, so a clear one must explicitly clear it.
+            for (event, param) in [
+                (game_event::STOP_RAINING, 0.0),
+                (game_event::RAIN_LEVEL, 0.0),
+                (game_event::THUNDER_LEVEL, 0.0),
+            ] {
+                g.send(&C::GameEvent(play::GameEvent { event, param }));
+            }
         }
         if load_start {
             g.send(&C::GameEvent(play::GameEvent {
@@ -1692,26 +1718,46 @@ impl Hub {
         }));
     }
 
-    /// ServerClockManager.createFullSyncPacket: every clock. Horizon keeps the
-    /// overworld clock (the day time); the End's clock runs with the game
-    /// time. Clocks do not advance without the advance_time rule.
-    fn time_packet(&self, world: &World, rate: f32) -> C {
+    /// ServerClockManager.createFullSyncPacket: every clock. Vanilla keeps the
+    /// old Overworld day time and game-time-backed other clocks. A custom
+    /// level's own default clock comes from its world and the clock bank.
+    fn time_packet(&self, ctx: &TickCtx) -> C {
+        let world = &*ctx.world;
+        let rate = ctx.clock_rate;
         let overworld = self
             .sync
             .id("minecraft:world_clock", "minecraft:overworld")
             .unwrap_or(0);
+        let active = ctx
+            .clock
+            .as_deref()
+            .and_then(|clock| self.sync.id("minecraft:world_clock", clock));
+        let shared_overworld = active == Some(overworld);
         C::SetTime(play::SetTime {
             game_time: world.game_time,
             clocks: self
                 .clock_ids
                 .iter()
                 .map(|&id| {
-                    if id == overworld {
+                    if active == Some(id) {
                         play::ClockState {
                             clock: id,
                             total_ticks: world.day_time,
                             partial_tick: 0.0,
                             rate,
+                        }
+                    } else if id == overworld {
+                        play::ClockState {
+                            clock: id,
+                            total_ticks: if shared_overworld || ctx.clock.is_none() {
+                                world.day_time
+                            } else {
+                                ctx.clocks
+                                    .get("minecraft:overworld")
+                                    .unwrap_or(world.day_time)
+                            },
+                            partial_tick: 0.0,
+                            rate: if ctx.clock.is_none() { 0.0 } else { rate },
                         }
                     } else {
                         play::ClockState {
@@ -2069,20 +2115,21 @@ impl Hub {
             }));
         }
         // ServerClockManager.modifyClock: a day that jumped (`time set`, `time
-        // add`) or a new rate updates the overworld clock.
+        // add`) or a new rate updates this level's default clock.
         let (day, rate) = (world.day_time, ctx.clock_rate);
         let step = i64::from(rate.ceil() as i32).max(1);
-        if self.last_clock != i64::MIN
+        let clock = ctx
+            .clock
+            .as_deref()
+            .and_then(|clock| self.sync.id("minecraft:world_clock", clock));
+        if let Some(clock) = clock
+            && self.last_clock != i64::MIN
             && ((day - self.last_clock).abs() > step || rate != self.last_rate)
         {
-            let overworld = self
-                .sync
-                .id("minecraft:world_clock", "minecraft:overworld")
-                .unwrap_or(0);
             self.broadcast_level(&C::SetTime(play::SetTime {
                 game_time: world.game_time,
                 clocks: vec![play::ClockState {
-                    clock: overworld,
+                    clock,
                     total_ticks: day,
                     partial_tick: 0.0,
                     rate,
@@ -4861,6 +4908,7 @@ mod tests {
         let mut world = crate::world::World::new(horizon_world::registry::BlockStateId(0), 0);
         let mut next_entity = 100;
         let border = crate::worldborder::WorldBorder::default();
+        let clocks = crate::level_state::ClockBank::default();
         let mut ctx = TickCtx {
             world: &mut world,
             entities: &[],
@@ -4868,6 +4916,9 @@ mod tests {
             spawn: [0.5, 64.0, 0.5],
             difficulty: 2,
             difficulty_locked: false,
+            clock: Some("minecraft:overworld".into()),
+            clocks: &clocks,
+            custom_level: false,
             clock_rate: 1.0,
             tick_rate: 20.0,
             tick_frozen: false,
@@ -4999,6 +5050,7 @@ mod tests {
         let mut world = World::new(horizon_world::registry::BlockStateId(0), 0);
         let mut next_entity = 2;
         let border = crate::worldborder::WorldBorder::default();
+        let clocks = crate::level_state::ClockBank::default();
         let mut ctx = TickCtx {
             world: &mut world,
             entities: &[],
@@ -5006,6 +5058,9 @@ mod tests {
             spawn: [0.5, 64.0, 0.5],
             difficulty: 2,
             difficulty_locked: false,
+            clock: Some("minecraft:overworld".into()),
+            clocks: &clocks,
+            custom_level: false,
             clock_rate: 1.0,
             tick_rate: 20.0,
             tick_frozen: false,
