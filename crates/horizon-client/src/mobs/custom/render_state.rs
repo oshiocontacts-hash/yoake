@@ -599,6 +599,23 @@ impl MobRender {
         }
     }
 
+    /// The type this mob is drawn with was replaced (a hot reload, F4M-13): drops what the old model
+    /// shaped (the pose buffers, the bone visibility, the layer states and the procedural state) and keeps
+    /// what is the mob's. The animation phase is not lost: it is the clocks the server anchored, which the
+    /// next [`update`](Self::update) applies to the new rig (a mob seen for the first time shows its state
+    /// at once, with no fade from the type's initial one).
+    pub fn rebind(&mut self, t: &TypeRender) {
+        self.rig_state = None;
+        self.last_now = None;
+        self.pose = Pose::default();
+        self.pstate = t.procedural.as_ref().map(ProceduralState::new);
+        self.matrices.clone_from(&t.rest_matrices);
+        self.visibility = BoneVisibility::new(t.skeleton.len());
+        self.writes.clear();
+        self.triggers.clear();
+        self.evaluated_frame = None;
+    }
+
     /// The expression inputs of the last update (layer tints and visibility read them).
     pub fn inputs(&self) -> &ExprInputs {
         &self.inputs
@@ -755,6 +772,11 @@ impl LocalMirror {
         self.store.is_empty() && self.memo.is_empty()
     }
 
+    /// A hot reload replaced type `kind.id` (F4M-13): its mirrored mobs read the new type.
+    pub fn retype(&mut self, kind: &std::sync::Arc<CustomType>) {
+        self.store.retype(kind);
+    }
+
     pub fn get(&self, id: u32) -> Option<&RemoteCustomMob> {
         self.store.get(id as i32)
     }
@@ -890,6 +912,15 @@ impl CustomRender {
         let i = t.locators.iter().position(|l| l.name == name)?;
         let p = t.locator_point(i, &m.matrices)?;
         Some(crate::mobs::custom::hitbox::model_to_mob([f64::from(p.x), f64::from(p.y), f64::from(p.z)]))
+    }
+
+    /// Rebinds the mobs `ids` that have a render state to the replaced type's model (F4M-13).
+    pub fn rebind(&mut self, ids: impl IntoIterator<Item = u32>, t: &TypeRender) {
+        for id in ids {
+            if let Some(m) = self.mobs.get_mut(&id) {
+                m.rebind(t);
+            }
+        }
     }
 
     /// The render state of mob `id`, made on first use.
@@ -1860,6 +1891,45 @@ mod tests {
         }
         // And it is not the rest pose: sitting moves the hips.
         assert!(a.matrices.iter().zip(&tr.rest_matrices).any(|(x, r)| !x.abs_diff_eq(*r, 1e-3)));
+    }
+
+    /// Scenario 7's pose half (F4M-13): the type is replaced under a walking mob. With the same files
+    /// the pose goes on exactly; with another model (another skeleton) nothing indexes the old one and
+    /// the mob stands where a late joiner of the new type stands: the phase is the anchored clocks'.
+    #[test]
+    fn a_swapped_type_keeps_the_animation_phase() {
+        let old = fox();
+        let otr = old.render.as_ref().unwrap();
+        let anchors = vec![anchor(0, 1, 100, 0.0, 1.0)];
+        let watched = store(&old, anchors.clone(), vec![], 100);
+        let mut mob = MobRender::new(otr);
+        for tick in 100..=140 {
+            mob.update(&old, otr, watched.get(ENTITY), &context(tick, tick as u64, LodMode::Full));
+        }
+        let before = mob.matrices.clone();
+        assert!(before.iter().zip(&otr.rest_matrices).any(|(x, r)| !x.abs_diff_eq(*r, 1e-3)), "it is walking");
+        // The same files again.
+        let same = fox();
+        let same_tr = same.render.as_ref().unwrap();
+        mob.rebind(same_tr);
+        let again = store(&same, anchors.clone(), vec![], 100);
+        mob.update(&same, same_tr, again.get(ENTITY), &context(140, 141, LodMode::Full));
+        for (x, y) in before.iter().zip(&mob.matrices) {
+            assert!(x.abs_diff_eq(*y, 1e-4), "{x:?} vs {y:?}");
+        }
+        // Another model.
+        let (other, _) = fox_with(false, |_| {}, |_| {});
+        let other_tr = other.render.as_ref().unwrap();
+        mob.rebind(other_tr);
+        assert_eq!(mob.matrices.len(), other_tr.skeleton.len());
+        let moved = store(&other, anchors, vec![], 100);
+        mob.update(&other, other_tr, moved.get(ENTITY), &context(141, 142, LodMode::Full));
+        let mut joined = MobRender::new(other_tr);
+        joined.update(&other, other_tr, moved.get(ENTITY), &context(141, 142, LodMode::Full));
+        assert_eq!(mob.matrices.len(), joined.matrices.len());
+        for (x, y) in mob.matrices.iter().zip(&joined.matrices) {
+            assert!(x.abs_diff_eq(*y, 1e-4), "{x:?} vs {y:?}");
+        }
     }
 
     #[test]

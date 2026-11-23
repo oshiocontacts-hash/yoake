@@ -353,7 +353,9 @@ mod remote_camera;
 mod remote_chat;
 mod remote_chunks;
 mod remote_custom_mob;
+mod custom_mob_debug;
 mod custom_mob_draw;
+mod custom_mob_reload;
 mod custom_mob_interact;
 mod custom_mob_textures;
 mod remote_mob_data;
@@ -2376,6 +2378,10 @@ pub(crate) struct Game<'a> {
     skin_frame: std::cell::RefCell<horizon_client::gfx::entity_skin::SkinFrame>,
     /// Fully custom mobs' render state (F4M-6); empty, and never touched, without a custom type.
     custom_mob_render: std::cell::RefCell<horizon_client::mobs::custom::render_state::CustomRender>,
+    /// The custom mob debug view (F4M-12): off, and free, until `/yoake mobdebug` or F3+M.
+    custom_mob_debug: custom_mob_debug::CustomMobDebug,
+    /// Hot reload of custom mobs (F4M-13): the file watcher; idle without a dev package.
+    custom_reload: custom_mob_reload::CustomReload,
     /// The glowing entities' silhouettes this frame (game/glowing.rs).
     glowing_vertices: std::cell::RefCell<Vec<Vertex>>,
     /// The shader pack's entity and block entity ids, while one draws entities.
@@ -7733,6 +7739,7 @@ impl Game<'_> {
             });
             horizon_client::spans::time("tick_particles", || self.tick_particles());
             self.tick_custom_mob_events();
+            self.tick_custom_reload();
             self.tick_client_ambient();
         }
         if running {
@@ -11155,6 +11162,7 @@ impl Game<'_> {
         self.name_tag_geometry(camera, alpha, &mut out, &mut see_through);
         self.test_instance_marker_geometry(camera, &mut out, &mut see_through);
         self.debug_renderer_geometry(camera, &mut out);
+        self.custom_mob_debug_geometry(camera, alpha, &mut out);
         self.text_display_geometry(camera, alpha, &mut out, &mut see_through);
         self.see_through_vertices = see_through;
         laps.lap("eg_name_tags");
@@ -19377,6 +19385,8 @@ impl<'a> Game<'a> {
             skin_models: Default::default(),
             skin_frame: Default::default(),
             custom_mob_render: Default::default(),
+            custom_mob_debug: Default::default(),
+            custom_reload: Default::default(),
             glowing_vertices: Default::default(),
             pack_ids: None,
             health_hud: hud_layout::HealthHud::default(),

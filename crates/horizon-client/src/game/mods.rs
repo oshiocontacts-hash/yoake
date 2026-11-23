@@ -118,6 +118,7 @@ pub(super) fn content_root(
     paths.retain(|p| !dev.contains(p));
     paths.extend(dev.iter().cloned());
     let mut known = None;
+    horizon_client::mobs::custom::reload::clear_sources();
     let mut mods: Vec<ContentMod> = Vec::new();
     let mut manifests = Vec::new();
     // The first load's list stays (`set_local`): a reload does not hash the files again.
@@ -158,12 +159,21 @@ pub(super) fn content_root(
                 }
             },
         };
+        let custom_ids: Vec<String> = content.custom_mobs.iter().map(|c| c.id.clone()).collect();
         let candidate = ContentMod {
             id: m.id.clone(),
             content,
         };
         match mod_content::accept_mod(&mut mods, candidate, known) {
             Ok(_) => {
+                // Developer mode: an unsigned folder's custom mobs can be read again while the game runs (F4M-13).
+                if horizon_client::mobs::custom::reload::dev_enabled()
+                    && horizon_client::mobs::custom::reload::is_unsigned_dir(path)
+                {
+                    for id in &custom_ids {
+                        horizon_client::mobs::custom::reload::register_source(id, path);
+                    }
+                }
                 if announce {
                     announced.push(announced_entry(m, path));
                 }

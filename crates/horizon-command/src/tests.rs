@@ -739,7 +739,7 @@ fn horizon_commands_are_off_unless_the_server_turns_them_on() {
         // Vanilla's commands are the same with or without it.
         assert_eq!(
             d.nodes[0].children.len(),
-            vanilla_tree.nodes[0].children.len() + 2
+            vanilla_tree.nodes[0].children.len() + 3
         );
     }
 }
@@ -798,6 +798,36 @@ fn horizon_custommobs_trigger_takes_targets_and_a_name_for_game_masters() {
     assert!(parse(2, "horizon custommobs trigger @e").executable().is_err(), "a name is needed");
     let e = parse(0, "horizon custommobs trigger @e pounce").executable().unwrap_err();
     assert_eq!(e.message.plain(), "command.unknown.command");
+}
+#[test]
+fn yoake_mob_debug_commands_are_in_the_game_masters_tree() {
+    let d = vanilla::game_tree(false, true, false);
+    let parse = |permission: u8, line: &str| {
+        let reg = Registries { permission, ..reg() };
+        d.parse(line, &reg)
+    };
+    for (line, id) in [
+        ("yoake mobdebug", "yoake.mobdebug"),
+        ("yoake mobdebug on bones ai", "yoake.mobdebug"),
+        ("yoake mobs", "yoake.mobs"),
+        ("yoake mobs stop", "yoake.mobs"),
+    ] {
+        assert_eq!(parse(2, line).executable().unwrap().1, id, "{line}");
+        // The chat answers them for every player itself (game/custom_mob_debug.rs); the tree is for completion.
+        assert!(parse(0, line).executable().is_err(), "{line}");
+    }
+    let words = parse(2, "yoake mobdebug on bones ai");
+    let (ctx, _) = words.executable().unwrap();
+    assert!(matches!(ctx.get("options"), Some(Arg::Str(s)) if s == "on bones ai"));
+    assert_eq!(parse(2, "yoake mob reload").executable().unwrap().1, "yoake.mob.reload");
+    let named = parse(2, "yoake mob reload demo:fox");
+    let (ctx, id) = named.executable().unwrap();
+    assert_eq!(id, "yoake.mob.reload");
+    assert!(matches!(ctx.get("type"), Some(Arg::Resource(t)) if t == "demo:fox"));
+    assert!(parse(2, "yoake mob").executable().is_err(), "a subcommand is needed");
+    // The vanilla tree has none of them.
+    let vanilla_only = vanilla::game_tree(false, false, false).parse("yoake mobs", &reg());
+    assert!(vanilla_only.executable().is_err());
 }
 /// `run` on a dedicated server's tree.
 fn run_dedicated(input: &str) -> CmdResult<(String, Vec<String>)> {

@@ -11,6 +11,22 @@ use std::collections::BTreeMap;
 impl Game<'_> {
     pub(super) fn cmd_horizon(&mut self, id: &str, ctx: &Context) -> R<i32> {
         match id {
+            "yoake.mobdebug" | "yoake.mobs" | "yoake.mob.reload" => {
+                let words = match id {
+                    "yoake.mobdebug" => "mobdebug",
+                    "yoake.mobs" => "mobs",
+                    _ => "mob reload",
+                };
+                let tail = match (ctx.get("options"), ctx.get("type")) {
+                    (Some(Arg::Str(s)), _) | (_, Some(Arg::Resource(s))) => s.clone(),
+                    _ => String::new(),
+                };
+                let lines = self.yoake_lines(&format!("{words} {tail}"));
+                let count = lines.len() as i32;
+                self.feedback_unbroadcast(Text::literal(lines.join("
+")));
+                Ok(count)
+            }
             "horizon.custommobs.stats" => {
                 let filter = match ctx.get("type") {
                     Some(Arg::Resource(t)) => Some(t.as_str()),

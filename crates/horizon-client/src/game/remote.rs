@@ -6238,6 +6238,7 @@ impl Game<'_> {
         if running {
             self.tick_particles();
             self.tick_custom_mob_events();
+            self.tick_custom_reload();
         }
         self.tick_client_ambient();
         self.tick_client_effects();

@@ -964,6 +964,12 @@ impl Game<'_> {
             return;
         }
         self.ui.chat.add_recent(&message);
+        // `/yoake mobdebug`, `/yoake mobs` and `/yoake mob reload` are the player's own client's, on any server.
+        if let Some(command) = message.strip_prefix('/')
+            && self.yoake_command(command)
+        {
+            return;
+        }
         // On a server (single player's own included) the server runs it,
         // unless a client mod owns the command.
         if self.remote.is_some() {

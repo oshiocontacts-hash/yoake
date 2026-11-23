@@ -339,6 +339,8 @@ struct Accepted {
     server_full: Option<yoake_wasm::ServerFullMod>,
     /// The server module's bytes and its `service.commands` grant, kept to start each world afresh.
     server_source: Option<full::ServerSource>,
+    /// Watched for a swap at a server tick (developer mode, unsigned, `YOAKE_WASM_SERVER_RELOAD=1`; F4M-13 R3).
+    server_reload: Option<Arc<Reload>>,
     worlds: Vec<&'static str>,
 }
 
@@ -470,6 +472,7 @@ pub(super) fn extend(
             client_reload: None,
             server_full: None,
             server_source: None,
+            server_reload: None,
             worlds: Vec::new(),
             gpu: source.gpu,
         };
@@ -613,6 +616,7 @@ pub(super) fn extend(
                 gpu: false,
                 server_full: None,
                 server_source: None,
+                server_reload: None,
                 worlds: Vec::new(),
             },
         };
@@ -655,6 +659,17 @@ pub(super) fn extend(
                     }
                     package.server_full = Some(module);
                     package.server_source = Some(source);
+                    // F4M-13 R3: the file of an unsigned server module is watched too, behind its own switch
+                    // (a guest keeps its state in its instance, so a swap starts it afresh).
+                    if !server.signed && crate::mobs::custom::reload::server_reload_enabled() {
+                        let reload = Arc::new(Reload::default());
+                        watches.push(Watch::new(server.path.clone(), Arc::clone(&reload)));
+                        package.server_reload = Some(reload);
+                        emit(format!(
+                            "wasm: mod {} server module is watched for reload (YOAKE_WASM_SERVER_RELOAD=1)",
+                            server.mod_id
+                        ));
+                    }
                     package.worlds.push("server-full");
                 }
                 Err(error) => emit(format!(
@@ -708,6 +723,7 @@ pub(super) fn extend(
             if let Some(source) = package.server_source.take() {
                 full_mod = full_mod.with_server_source(source);
             }
+            full_mod = full_mod.with_server_reload(package.server_reload.take());
             package.hooks.push(Box::new(full_mod));
         }
         if !package.worlds.is_empty() {

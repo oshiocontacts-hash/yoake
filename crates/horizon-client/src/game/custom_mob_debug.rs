@@ -22,7 +22,7 @@ use horizon_client::{
 use std::{cell::{Cell, RefCell}, collections::BTreeMap, time::Instant};
 
 /// `TextGizmo.Style.DEFAULT_SCALE`, as the other debug text renderers use it.
-const TEXT_SCALE: f32 = 0.32;
+const TEXT_SCALE: f32 = 0.25;
 
 /// The measured client cost of one type's mobs (`/yoake mobs`).
 #[derive(Default)]
@@ -43,6 +43,8 @@ pub(super) struct CustomMobDebug {
     costs: RefCell<BTreeMap<String, Cost>>,
     /// The frame counter when the meter started.
     started_frame: Cell<u64>,
+    /// How many frames of the view were logged (the log gets the first few only).
+    logged: Cell<u32>,
 }
 
 impl CustomMobDebug {
@@ -243,6 +245,12 @@ impl Game<'_> {
                 activity,
             };
             debug::plan(view.parts(), &v, &mut out);
+        }
+        // A few info lines for the end-to-end run (tools/custom_mob_render_e2e.py): what a frame of the view drew.
+        let logged = self.custom_mob_debug.logged.get();
+        if logged < 12 {
+            self.custom_mob_debug.logged.set(logged + 1);
+            log::info!("Horizon custom-mob debug: {} shapes, {} labels", out.shapes.len(), out.labels.len());
         }
         Some(out)
     }
