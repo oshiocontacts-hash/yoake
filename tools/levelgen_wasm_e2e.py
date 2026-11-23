@@ -57,7 +57,7 @@ def install_pack(work):
         'data/levelgen/worldgen/feature/gold.json': {
             'type': 'minecraft:simple_block',
             'config': {'to_place': {'type': 'minecraft:simple_state_provider',
-                                    'state': {'id': 'minecraft:gold_block'}}},
+                                    'state': {'Name': 'minecraft:gold_block'}}},
         },
         'data/levelgen/worldgen/placed_feature/gold.json': {
             'feature': 'levelgen:gold',
