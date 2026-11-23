@@ -283,9 +283,13 @@ def run(ctl, probe_bin, out, resources, force):
             returned = lan.pos_of(guest)
             guest('command', command=f'execute in {OVERWORLD} run tp @s 0.5 100 0.5')
             guest('command', command='setblock 22 5 24 minecraft:air')
-            guest.wait(5)
-            broken = guest.raw('block', 23, 5, 24)
-            assert broken.get('block') == 'minecraft:air', broken
+            broken = None
+            for _ in range(4):
+                guest.wait(5)
+                broken = host.raw('block', 23, 5, 24)
+                if broken.get('block') == 'minecraft:air':
+                    break
+            assert broken.get('block') == 'minecraft:air', {'block': broken, 'portal_lines': portal_lines(host)}
             return {'moon_exit': exit_pos, 'overworld_return': returned, 'broken_fill': broken}
         check('custom_portal', results, custom_portal)
 

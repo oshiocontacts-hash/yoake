@@ -846,11 +846,17 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                             }),
                     )
                 });
-                let complete = match custom {
-                    Some(complete) => complete,
-                    None => self.find_portal_shape(pos, x_axis).is_complete(),
-                };
-                if !wrong_axis && !b.is_block(nstate, block) && !complete {
+                // A vanilla nether portal stays a vanilla portal whatever custom types share its fill block:
+                // complete when its own (obsidian) shape is, or when any custom type's shape is.
+                let complete = custom == Some(true) || self.find_portal_shape(pos, x_axis).is_complete();
+                let removed = !wrong_axis && !b.is_block(nstate, block) && !complete;
+                if custom.is_some() && !wrong_axis && !b.is_block(nstate, block) {
+                    log::info!(
+                        "Horizon custom portal: fill at {pos:?} rechecked after a change {dir:?}: {}",
+                        if removed { "frame broken, removed" } else { "still complete, kept" }
+                    );
+                }
+                if removed {
                     air
                 } else {
                     sup!()
