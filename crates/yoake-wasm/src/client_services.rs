@@ -139,4 +139,7 @@ client_services! {
     play_local_sound_at(pitch: f32, position: Vec3, sound_id: String, volume: f32) -> ();
     mob_bone_index(name: String, type_id: String) -> Option<u32>;
     mob_locator(entity: u32, name: String) -> Option<MobTransform>;
+    mob_texture_create(height: u32, width: u32) -> u32;
+    mob_texture_write(id: u32, origin: (u32, u32), rgba: Vec<u8>, size: (u32, u32)) -> ();
+    mob_texture_bind(entity: u32, id: Option<u32>, slot: String) -> ();
 }

@@ -2397,6 +2397,9 @@ interface client-services {
     gui-texture-id: func(texture: borrow<gui-texture>) -> result<string, string>;
     mob-bone-index: func(name: string, type-id: string) -> result<option<u32>, string>;
     mob-locator: func(entity: u32, name: string) -> result<option<mob-transform>, string>;
+    mob-texture-create: func(height: u32, width: u32) -> result<u32, string>;
+    mob-texture-write: func(id: u32, origin: tuple<u32, u32>, rgba: list<u8>, size: tuple<u32, u32>) -> result<_, string>;
+    mob-texture-bind: func(entity: u32, id: option<u32>, slot: string) -> result<_, string>;
     config-get: func(key: string) -> result<config-value, string>;
     config-set: func(key: string, value: config-value) -> result<_, string>;
     storage-get: func(key: string, scope: storage-scope) -> result<option<list<u8>>, string>;

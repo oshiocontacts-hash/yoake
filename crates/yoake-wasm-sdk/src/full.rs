@@ -89,6 +89,30 @@ pub mod client {
         services::mob_locator(entity, name)
     }
 
+    /// Allocates an RGBA8 runtime custom mob texture of `width` x `height` in the entity atlas.
+    /// Needs `service.mobs`. (Service 289.)
+    pub fn mob_texture_create(width: u32, height: u32) -> Result<u32, String> {
+        services::mob_texture_create(height, width)
+    }
+
+    /// Writes `rgba` pixels into `size` (`(w, h)`) starting at `origin` (`(x, y)`) of texture `id`.
+    /// Needs `service.mobs`. (Service 290.)
+    pub fn mob_texture_write(
+        id: u32,
+        origin: (u32, u32),
+        size: (u32, u32),
+        rgba: &[u8],
+    ) -> Result<(), String> {
+        services::mob_texture_write(id, origin, rgba, size)
+    }
+
+    /// Binds runtime texture `id` (or `None` to restore the pack texture) to `slot` (`""`/`"default"`,
+    /// layer name, `"glowmask"`, or bone name / `"bone:<name>"`) of custom mob `entity`.
+    /// Needs `service.mobs`. (Service 291.)
+    pub fn mob_texture_bind(entity: u32, slot: &str, id: Option<u32>) -> Result<(), String> {
+        services::mob_texture_bind(entity, id, slot)
+    }
+
     /// The stack on the cursor in the open screen, or `None` when it is empty. Needs
     /// `service.screen`. (Service 221.)
     pub fn screen_carried() -> Result<Option<types::ItemStack>, String> {

@@ -1,7 +1,7 @@
 {
   "abi_version": 2,
   "world": "client-full",
-  "interface_version": "1.7.0",
+  "interface_version": "1.8.0",
   "status": "active",
   "types": {
     "vec2": {"x":"f32","y":"f32"},
@@ -73,6 +73,9 @@
     {"id":224,"abi":true,"name":"play_local_sound_at","arguments":{"sound-id":"string","position":"vec3","volume":"f32","pitch":"f32"},"result":"result<_, string>","side":"client","capability":"service.audio"},
     {"id":225,"abi":true,"name":"gui_texture_id","arguments":{"texture":"borrow<gui-texture>"},"result":"result<string, string>","side":"client","capability":"service.hud"},
     {"id":282,"abi":true,"name":"mob_bone_index","arguments":{"type-id":"string","name":"string"},"result":"result<option<u32>, string>","side":"client","capability":"service.mobs"},
-    {"id":283,"abi":true,"name":"mob_locator","arguments":{"entity":"u32","name":"string"},"result":"result<option<mob-transform>, string>","side":"client","capability":"service.mobs"}
+    {"id":283,"abi":true,"name":"mob_locator","arguments":{"entity":"u32","name":"string"},"result":"result<option<mob-transform>, string>","side":"client","capability":"service.mobs"},
+    {"id":289,"abi":true,"name":"mob_texture_create","arguments":{"width":"u32","height":"u32"},"result":"result<u32, string>","side":"client","capability":"service.mobs"},
+    {"id":290,"abi":true,"name":"mob_texture_write","arguments":{"id":"u32","origin":"tuple<u32, u32>","size":"tuple<u32, u32>","rgba":"list<u8>"},"result":"result<_, string>","side":"client","capability":"service.mobs"},
+    {"id":291,"abi":true,"name":"mob_texture_bind","arguments":{"entity":"u32","slot":"string","id":"option<u32>"},"result":"result<_, string>","side":"client","capability":"service.mobs"}
   ]
 }
