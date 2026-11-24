@@ -55,6 +55,7 @@ members = [
     "crates/yoake-value",
     "crates/yoake-wasm",
     "crates/yoake-cli",
+    "crates/yoake-datagen",
     "crates/yoake-test-runner",
     "examples/dll-hello",
     "examples/dll-net-echo",

@@ -6428,6 +6428,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "yoake-datagen"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "yoake-dll-hello"
 version = "0.1.0"
 dependencies = [

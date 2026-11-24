@@ -611,6 +611,54 @@ radius. `kernel_size` 0 is none.
     "top": "carve", "bottom": "none", "rigid_junctions": true, "inflate": true } }
 ```
 
+### Data generation
+
+Instead of writing the JSON by hand, a content mod can generate it with `yoake-datagen`. The generator is a
+separate crate in `datagen/` (the mod's root keeps no `Cargo.toml`, so it stays a content mod):
+
+```toml
+# datagen/Cargo.toml
+[package]
+name = "ember-datagen"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+yoake-datagen = { path = "<path to Horizon's crates/yoake-datagen>" }
+
+[workspace]
+```
+
+```rust
+// datagen/src/main.rs
+use yoake_datagen::{BlockDef, BlockState, ItemModel, Locale, Mod, Model};
+
+fn main() -> std::process::ExitCode {
+    yoake_datagen::main(generate)
+}
+
+fn generate(m: &mut Mod) {
+    m.block("ember_ore", &BlockDef::new("minecraft:iron_ore").hardness(3.0).light(7));
+    m.blockstate("ember_ore", &BlockState::single("ember:block/ember_ore"));
+    m.model("block/ember_ore", &Model::cube_all("minecraft:block/iron_ore"));
+    m.item_model("ember_ore", &ItemModel::model("ember:block/ember_ore"));
+    m.lang(Locale::EnUs, &[("block.ember.ember_ore", "Ember Ore")]);
+}
+```
+
+`cargo horizon-mod datagen` runs it on the mod folder, writes the files into `assets/` and `data/`, then builds and
+checks the `.hmod`. `cargo horizon-mod datagen --check` writes nothing and fails when a generated file is missing or
+differs from the folder (for CI). The generator's `target/` is `datagen/target`.
+
+What it can write: block states, block models (cube, cross, parent with textures), item models (the model
+definition, and `item/generated` or `item/handheld` sprites), recipes (shaped, shapeless, smelting, blasting,
+smoking, campfire), loot tables (drop self, drop with a count), tags (`replace` or add, any vanilla or `c` tag),
+`lang` for `en_us` and `ja_jp`, and the mod's declarations: `block`, `item`, `enchantment`, `damage_type`,
+`game_rule` and `fluid`. Each file is at the path the loader reads; nothing is deleted, so a file that is no longer
+generated has to be removed by hand. Generated paths belong to the generator: a hand-written file at the same path
+is overwritten.
+
 ## Native mods
 
 Behaviour that needs code (a new key, a HUD, a tool that changes how mining works) is a native mod. It is a bundle of

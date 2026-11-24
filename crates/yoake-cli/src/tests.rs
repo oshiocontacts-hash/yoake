@@ -630,3 +630,29 @@ fn the_game_is_started_with_the_runner_flags() {
     let missing = engine_test::run_game(Path::new("project"), Path::new("no/such/game"), &[], Path::new("t.wasm"), &settings).unwrap_err();
     assert!(missing.contains("could not start"), "{missing}");
 }
+
+#[test]
+fn a_declared_worker_is_checked_as_a_file_beside_the_client() {
+    let Some(bytes) = test_guests::load(&test_guests::HELLO) else {
+        return;
+    };
+    let project = Project::new("worker-test", Some(&bytes), None, None);
+    // `[wasm] worker` sits in the same table as the modules (appended last in yak.toml).
+    let yak = project.root.join("yak.toml");
+    let manifest = fs::read_to_string(&yak).unwrap() + "worker = \"bin/wasm/worker.wasm\"\n";
+    fs::write(&yak, manifest).unwrap();
+    // yak.toml was rewritten after the client was written: write the client again so it is not stale.
+    fs::write(project.root.join("bin/wasm/client.wasm"), &bytes).unwrap();
+
+    // Declared but missing: the check fails and names the file.
+    let error = check_project(&project).unwrap_err();
+    assert!(error.contains("worker.wasm"), "{error}");
+
+    fs::write(project.root.join("bin/wasm/worker.wasm"), b"\0asm\x01\0\0\0").unwrap();
+    let summary = check_project(&project).unwrap();
+    assert_eq!(summary["ok"], true);
+    assert_eq!(summary["modules"][0]["side"], "client");
+    assert_eq!(summary["modules"][1]["side"], "worker");
+    assert_eq!(summary["modules"][1]["path"], "bin/wasm/worker.wasm");
+    assert_eq!(summary["modules"][1]["world"], "worker-mod");
+}
