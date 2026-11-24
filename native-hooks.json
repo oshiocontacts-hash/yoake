@@ -13,6 +13,10 @@
       "target": "horizon_client::game::native_block_entity_draw::Game<'_>::native_draw_block"
     },
     {
+      "name": "draw_model",
+      "target": "horizon_client::game::native_block_entity_draw::Game<'_>::native_draw_model"
+    },
+    {
       "name": "draw_item",
       "target": "horizon_client::game::native_block_entity_draw::Game<'_>::native_draw_item"
     },

@@ -1215,15 +1215,16 @@ pub(super) fn apply_model(
                     note_applied(1, "item");
                 }
             }
-            // A model by id: the catalog has no helper for a standalone model yet (`native_draw_model`),
-            // so the id names a block (its baked model, default state) or else an item (drawn
-            // `Fixed`, as an item frame does).
+            // A model by id: a standalone model a mod named in `standalone-models` (`draw_model`, its
+            // tint masked to RGB), else, as before, a block (its baked model, default state) or an
+            // item (drawn `Fixed`, as an item frame does).
             et::ModelCommand::Model(model) => {
                 let Some(host) = host else { continue };
                 if !valid_model_id(&model.model) {
                     continue;
                 }
-                if host.draw_block(draw, &model.model, &[])
+                if host.draw_model(draw, &model.model, model.tint & 0x00ff_ffff)
+                    || host.draw_block(draw, &model.model, &[])
                     || host.draw_item(
                         draw,
                         &ItemStack::new(&model.model, 1),
@@ -1883,6 +1884,7 @@ mod tests {
         cubes: RefCell<Vec<RecordedCube>>,
         drawn_items: RefCell<Vec<(String, DisplayContext, Option<f32>, i32)>>,
         drawn_blocks: RefCell<Vec<String>>,
+        drawn_models: RefCell<Vec<(String, u32)>>,
         fill_rects: RefCell<Vec<([f32; 4], u32)>>,
     }
 
@@ -1918,6 +1920,11 @@ mod tests {
                 .borrow_mut()
                 .push((stack.item.to_string(), display, owner_yaw, seed));
             true
+        }
+
+        fn draw_model(&self, _draw: &mut BlockEntityDraw, model: &str, tint: u32) -> bool {
+            self.drawn_models.borrow_mut().push((model.to_owned(), tint));
+            model.starts_with("mymod:block/")
         }
 
         fn draw_block(
@@ -2116,7 +2123,11 @@ mod tests {
                 owner_yaw: Some(90.0),
                 seed: 7,
             }),
-            // A block, then an item that is no block.
+            // A standalone model first (never asked as a block or item), then a block, then an item that is no block.
+            et::ModelCommand::Model(et::ModelStandalone {
+                model: "mymod:block/shaft_half".into(),
+                tint: 0xff80_4020,
+            }),
             et::ModelCommand::Model(et::ModelStandalone {
                 model: "minecraft:stone".into(),
                 tint: 0,
@@ -2153,6 +2164,16 @@ mod tests {
             ]
         );
         assert_eq!(*host.drawn_blocks.borrow(), ["minecraft:stone", "minecraft:apple"]);
+        // Every valid model id is asked as a standalone model first (tint masked to RGB); only those it
+        // does not draw fall back to a block, then an item. A bad id is asked of nobody.
+        assert_eq!(
+            *host.drawn_models.borrow(),
+            [
+                ("mymod:block/shaft_half".to_owned(), 0x0080_4020),
+                ("minecraft:stone".to_owned(), 0),
+                ("minecraft:apple".to_owned(), 0)
+            ]
+        );
         // The translate moved the draw's pose for the commands after it.
         assert_eq!(draw.pose_matrix().w_axis.truncate(), glam::Vec3::new(1.0, 2.0, 3.0));
     }
