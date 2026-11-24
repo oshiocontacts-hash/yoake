@@ -57,7 +57,8 @@ impl Output {
         for (path, bytes) in &self.files {
             let to = root.join(path);
             if let Some(parent) = to.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("{}: {e}", parent.display()))?;
             }
             std::fs::write(&to, bytes).map_err(|e| format!("{}: {e}", to.display()))?;
         }
@@ -70,7 +71,9 @@ impl Output {
         let stale: Vec<String> = self
             .files
             .iter()
-            .filter(|(path, bytes)| std::fs::read(root.join(path)).map_or(true, |on_disk| on_disk != **bytes))
+            .filter(|(path, bytes)| {
+                std::fs::read(root.join(path)).map_or(true, |on_disk| on_disk != **bytes)
+            })
             .map(|(path, _)| path.clone())
             .collect();
         if stale.is_empty() { Ok(()) } else { Err(stale) }
@@ -86,7 +89,10 @@ pub struct Mod {
 /// A vanilla or convention-tag reference or a mod's own id: `namespace:path`.
 fn check_namespace(id: &str) {
     assert!(
-        !id.is_empty() && id.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"_.-".contains(&b)),
+        !id.is_empty()
+            && id
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"_.-".contains(&b)),
         "the mod id {id:?} is lower case letters, digits, _ . -"
     );
 }
@@ -95,7 +101,10 @@ impl Mod {
     /// A generator for the mod `id` (its namespace).
     pub fn new(id: &str) -> Self {
         check_namespace(id);
-        Self { id: id.to_owned(), out: Output::default() }
+        Self {
+            id: id.to_owned(),
+            out: Output::default(),
+        }
     }
 
     /// The mod's namespace.
@@ -145,8 +154,10 @@ impl Mod {
 
     /// `assets/<id>/lang/<locale>.json`, the given translation keys and values.
     pub fn lang(&mut self, locale: Locale, entries: &[(&str, &str)]) {
-        let map: Map<String, Value> =
-            entries.iter().map(|(k, v)| ((*k).to_owned(), Value::String((*v).to_owned()))).collect();
+        let map: Map<String, Value> = entries
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), Value::String((*v).to_owned())))
+            .collect();
         let file = format!("assets/{}/lang/{}.json", self.id, locale.as_str());
         self.out.insert(file, &Value::Object(map));
     }
@@ -231,7 +242,8 @@ impl BlockState {
 
     /// A variant for the state properties `properties` (`axis=y`, or `""` for none).
     pub fn variant(mut self, properties: &str, model: &str) -> Self {
-        self.variants.insert(properties.to_owned(), json!({ "model": model }));
+        self.variants
+            .insert(properties.to_owned(), json!({ "model": model }));
         self
     }
 
@@ -250,12 +262,16 @@ pub struct Model {
 impl Model {
     /// A model with the given parent and no textures yet.
     pub fn parent(parent: &str) -> Self {
-        Self { parent: parent.to_owned(), textures: Map::new() }
+        Self {
+            parent: parent.to_owned(),
+            textures: Map::new(),
+        }
     }
 
     /// Sets texture slot `slot` to `texture` (`minecraft:block/iron_ore`).
     pub fn texture(mut self, slot: &str, texture: &str) -> Self {
-        self.textures.insert(slot.to_owned(), Value::String(texture.to_owned()));
+        self.textures
+            .insert(slot.to_owned(), Value::String(texture.to_owned()));
         self
     }
 
@@ -293,7 +309,9 @@ pub struct ItemModel {
 impl ItemModel {
     /// Shows the model `model` (`ember:block/ember_ore`, or `ember:item/ember_gem`).
     pub fn model(model: &str) -> Self {
-        Self { model: model.to_owned() }
+        Self {
+            model: model.to_owned(),
+        }
     }
 
     pub fn to_json(&self) -> Value {
@@ -310,7 +328,10 @@ pub struct Stack {
 
 impl Stack {
     pub fn new(id: &str, count: u32) -> Self {
-        Self { id: id.to_owned(), count }
+        Self {
+            id: id.to_owned(),
+            count,
+        }
     }
 
     fn to_json(&self) -> Value {
@@ -373,7 +394,13 @@ impl Recipe {
 
     /// A cooking recipe (furnace, blast furnace, smoker or campfire): the time in ticks and the
     /// experience it gives.
-    pub fn cooking(kind: Cooking, ingredient: &str, result: Stack, experience: f32, cooking_time: u32) -> Self {
+    pub fn cooking(
+        kind: Cooking,
+        ingredient: &str,
+        result: Stack,
+        experience: f32,
+        cooking_time: u32,
+    ) -> Self {
         let mut value = base(kind.type_name());
         value.insert("ingredient".into(), json!(ingredient));
         value.insert("result".into(), result.to_json());
@@ -395,7 +422,11 @@ impl Recipe {
 
 /// An f32 as the number its shortest text names (0.7, not 0.699999988).
 fn float(v: f32) -> Value {
-    json!(format!("{v}").parse::<f64>().expect("a float prints as a number"))
+    json!(
+        format!("{v}")
+            .parse::<f64>()
+            .expect("a float prints as a number")
+    )
 }
 
 fn base(type_name: &str) -> Map<String, Value> {
@@ -426,7 +457,8 @@ impl LootTable {
     fn block_pool(item: &str, count: Option<u32>) -> Self {
         let mut entry = json!({ "type": "minecraft:item", "name": item });
         if let Some(count) = count {
-            entry["functions"] = json!([{ "function": "minecraft:set_count", "count": count, "add": false }]);
+            entry["functions"] =
+                json!([{ "function": "minecraft:set_count", "count": count, "add": false }]);
         }
         Self {
             value: json!({
@@ -470,7 +502,10 @@ pub struct Tag {
 
 impl Tag {
     pub fn new(values: &[&str]) -> Self {
-        Self { values: values.iter().map(|v| (*v).to_owned()).collect(), replace: false }
+        Self {
+            values: values.iter().map(|v| (*v).to_owned()).collect(),
+            replace: false,
+        }
     }
 
     /// Replaces the tag's list instead of adding to it.
@@ -501,7 +536,11 @@ pub struct BlockDef {
 impl BlockDef {
     /// A block copying `template` (`minecraft:iron_ore`).
     pub fn new(template: &str) -> Self {
-        Self { template: template.to_owned(), properties: Map::new(), item: true }
+        Self {
+            template: template.to_owned(),
+            properties: Map::new(),
+            item: true,
+        }
     }
 
     /// Sets a property by its name in the file (`hardness`, `light`, `requires_tool`...).
@@ -620,12 +659,21 @@ impl Enchantment {
     /// (`mainhand`, `armor`...). Weight 10, max level 1, cost 1 + 0 per level, anvil cost 1 unless set.
     pub fn new(description_key: &str, supported_items: &str, slots: &[&str]) -> Self {
         let mut map = Map::new();
-        map.insert("description".into(), json!({ "translate": description_key }));
+        map.insert(
+            "description".into(),
+            json!({ "translate": description_key }),
+        );
         map.insert("supported_items".into(), json!(supported_items));
         map.insert("weight".into(), json!(10));
         map.insert("max_level".into(), json!(1));
-        map.insert("min_cost".into(), json!({ "base": 1, "per_level_above_first": 0 }));
-        map.insert("max_cost".into(), json!({ "base": 1, "per_level_above_first": 0 }));
+        map.insert(
+            "min_cost".into(),
+            json!({ "base": 1, "per_level_above_first": 0 }),
+        );
+        map.insert(
+            "max_cost".into(),
+            json!({ "base": 1, "per_level_above_first": 0 }),
+        );
         map.insert("anvil_cost".into(), json!(1));
         map.insert("slots".into(), json!(slots));
         Self { map }
@@ -655,12 +703,18 @@ impl Enchantment {
 
     /// `min_cost` as vanilla writes it: base plus the increase per level above the first.
     pub fn min_cost(mut self, base: i64, per_level_above_first: i64) -> Self {
-        self.map.insert("min_cost".into(), json!({ "base": base, "per_level_above_first": per_level_above_first }));
+        self.map.insert(
+            "min_cost".into(),
+            json!({ "base": base, "per_level_above_first": per_level_above_first }),
+        );
         self
     }
 
     pub fn max_cost(mut self, base: i64, per_level_above_first: i64) -> Self {
-        self.map.insert("max_cost".into(), json!({ "base": base, "per_level_above_first": per_level_above_first }));
+        self.map.insert(
+            "max_cost".into(),
+            json!({ "base": base, "per_level_above_first": per_level_above_first }),
+        );
         self
     }
 
@@ -803,12 +857,18 @@ enum RuleKind {
 impl GameRule {
     /// A boolean rule.
     pub fn bool(default: bool) -> Self {
-        Self { kind: RuleKind::Bool { default }, category: "misc".into() }
+        Self {
+            kind: RuleKind::Bool { default },
+            category: "misc".into(),
+        }
     }
 
     /// An integer rule; `min <= default <= max`.
     pub fn int(default: i32, min: i32, max: i32) -> Self {
-        Self { kind: RuleKind::Int { default, min, max }, category: "misc".into() }
+        Self {
+            kind: RuleKind::Int { default, min, max },
+            category: "misc".into(),
+        }
     }
 
     /// Its category: `player`, `mobs`, `spawning`, `drops`, `updates`, `chat` or `misc`.
@@ -819,7 +879,9 @@ impl GameRule {
 
     pub fn to_json(&self) -> Value {
         match self.kind {
-            RuleKind::Bool { default } => json!({ "type": "bool", "default": default, "category": self.category }),
+            RuleKind::Bool { default } => {
+                json!({ "type": "bool", "default": default, "category": self.category })
+            }
             RuleKind::Int { default, min, max } => {
                 json!({ "type": "int", "default": default, "min": min, "max": max, "category": self.category })
             }
@@ -924,7 +986,9 @@ pub fn parse_args(args: &[String]) -> Result<Args, String> {
         match arg.as_str() {
             "--id" => id = Some(rest.next().ok_or(USAGE)?.clone()),
             "--check" => check = true,
-            other if root.is_none() && !other.starts_with("--") => root = Some(PathBuf::from(other)),
+            other if root.is_none() && !other.starts_with("--") => {
+                root = Some(PathBuf::from(other))
+            }
             _ => return Err(USAGE.into()),
         }
     }

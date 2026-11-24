@@ -91,7 +91,7 @@ mod tests {
         .unwrap();
         std::fs::write(
             path.join("datagen/src/main.rs"),
-            r#"use yoake_datagen::{BlockDef, BlockState, ItemModel, Locale, Model, Mod};
+            r##"use yoake_datagen::*;
 
 fn main() -> std::process::ExitCode {
     yoake_datagen::main(generate)
@@ -102,12 +102,27 @@ fn generate(m: &mut Mod) {
     m.blockstate("ember_ore", &BlockState::single("ember:block/ember_ore"));
     m.model("block/ember_ore", &Model::cube_all("minecraft:block/iron_ore"));
     m.item_model("ember_ore", &ItemModel::model("ember:block/ember_ore"));
+    m.item("ember_gem", &ItemDef::new("minecraft:emerald").max_stack_size(16).rarity("rare"));
+    m.recipe("ember_gem", &Recipe::shapeless(&["ember:ember_ore"], Stack::new("ember:ember_gem", 2)));
+    m.loot_table("blocks/ember_ore", &LootTable::drop_item("ember:ember_gem", 2));
+    m.tag(TagRegistry::Block, "minecraft:mineable/pickaxe", &Tag::new(&["ember:ember_ore"]));
+    m.enchantment(
+        "ember_touch",
+        &Enchantment::new("enchantment.ember.ember_touch", "#minecraft:enchantable/weapon", &["mainhand"])
+            .max_level(3),
+    );
+    m.damage_type("ember_burn", &DamageType::new("ember_burn", DamageScaling::Never, 0.1).effects(DamageEffects::Burning));
+    m.game_rule("ember_fire", &GameRule::bool(true).category("mobs"));
     m.lang(
         Locale::EnUs,
-        &[("block.ember.ember_ore", "Ember Ore"), ("block.ember.glowing_amethyst", "Glowing Amethyst")],
+        &[
+            ("block.ember.ember_ore", "Ember Ore"),
+            ("item.ember.ember_gem", "Ember Gem"),
+            ("block.ember.glowing_amethyst", "Glowing Amethyst"),
+        ],
     );
 }
-"#,
+"##,
         )
         .unwrap();
     }
@@ -116,7 +131,12 @@ fn generate(m: &mut Mod) {
     fn datagen_writes_checks_and_validates_a_content_mod() {
         let dir = std::env::temp_dir().join(format!("horizon-mod-datagen-{}", std::process::id()));
         let path = dir.join("ember");
-        crate::new(&[path.display().to_string(), "--template".into(), "content".into()]).unwrap();
+        crate::new(&[
+            path.display().to_string(),
+            "--template".into(),
+            "content".into(),
+        ])
+        .unwrap();
         // A mod with no datagen crate is told so, and its folder is left as it was.
         let err = run(&path, false).unwrap_err();
         assert!(err.contains("datagen"), "{err}");
@@ -131,11 +151,20 @@ fn generate(m: &mut Mod) {
             "assets/ember/items/ember_ore.json",
             "assets/ember/lang/en_us.json",
             "data/ember/horizon/block/ember_ore.json",
+            "data/ember/horizon/item/ember_gem.json",
+            "data/ember/recipe/ember_gem.json",
+            "data/ember/loot_table/blocks/ember_ore.json",
+            "data/minecraft/tags/block/mineable/pickaxe.json",
+            "data/ember/horizon/enchantment/ember_touch.json",
+            "data/ember/horizon/damage_type/ember_burn.json",
+            "data/ember/horizon/game_rule/ember_fire.json",
         ] {
             assert!(path.join(file).is_file(), "{file} is not written");
         }
-        let block: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(path.join("data/ember/horizon/block/ember_ore.json")).unwrap()).unwrap();
+        let block: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(path.join("data/ember/horizon/block/ember_ore.json")).unwrap(),
+        )
+        .unwrap();
         assert_eq!(block["template"], "minecraft:iron_ore");
         assert_eq!(block["properties"]["light"], 7);
 
