@@ -100,6 +100,9 @@ pub struct SyncLedgerConfig {
     pub only: Vec<String>,
     /// `--frozen`: build the overlays exactly as the compiler wrapper does (read-only ledger), without a build.
     pub frozen: bool,
+    /// `--rename OLD=NEW` / `--tombstone KEY`: drift fixes applied while the overlay is stamped (sources untouched).
+    pub renames: Vec<(String, String)>,
+    pub tombstones: Vec<String>,
 }
 
 fn usage() -> &'static str {
@@ -111,6 +114,7 @@ fn usage() -> &'static str {
      [--exclude-module NAME]... [--min-stmts N] [--stamp-config FILE] (--module '*' = every top-level module)\n  \
      yoake-hook-codemod bridge --crate-root <dir> --crate-name <name> \
      --ledger <dir> --module <mod> [--module <mod>...] [--shallow] [--glue <file>...] [--exclude-file <file>] [--check]\n  \
+     yoake-hook-codemod sync-ledger --workspace-root <dir> [--crate NAME]... [--rename OLD=NEW]... [--tombstone KEY]... [--frozen]\n  \
      yoake-hook-codemod check-history --base <dir> --current <dir>\n  \
      yoake-hook-codemod track-caller-scan --workspace <dir> --out <file>\n  \
      yoake-hook-codemod verify-callsites --crate-name <name> --ledger <dir> --thir <calls.json>\n  \
@@ -418,12 +422,22 @@ fn parse_sync_ledger_args(args: &mut std::env::Args) -> Result<Option<Command>, 
     let mut overlay_root = None;
     let mut only = Vec::new();
     let mut frozen = false;
+    let mut renames = Vec::new();
+    let mut tombstones = Vec::new();
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-h" | "--help" => {
                 println!("{}", usage());
                 return Ok(None);
             }
+            "--rename" => {
+                let raw = next_arg(args, "--rename")?;
+                match raw.split_once('=') {
+                    Some((o, n)) if !o.is_empty() && !n.is_empty() => renames.push((o.to_string(), n.to_string())),
+                    _ => return Err(format!("--rename expects OLD_KEY=NEW_KEY, got '{raw}'")),
+                }
+            }
+            "--tombstone" => tombstones.push(next_arg(args, "--tombstone")?),
             "--workspace-root" => workspace_root = PathBuf::from(next_arg(args, "--workspace-root")?),
             "--stamp-config" => stamp_config = Some(PathBuf::from(next_arg(args, "--stamp-config")?)),
             "--ledger" => ledger = Some(PathBuf::from(next_arg(args, "--ledger")?)),
@@ -441,6 +455,8 @@ fn parse_sync_ledger_args(args: &mut std::env::Args) -> Result<Option<Command>, 
         workspace_root,
         only,
         frozen,
+        renames,
+        tombstones,
     })))
 }
 
@@ -465,6 +481,8 @@ fn sync_ledger(config: &SyncLedgerConfig) -> Result<bool, String> {
             ledger: config.ledger.clone(),
             stamp_config: config.stamp_config.clone(),
             frozen: config.frozen,
+            renames: config.renames.clone(),
+            tombstones: config.tombstones.clone(),
         })?;
     }
     Ok(true)

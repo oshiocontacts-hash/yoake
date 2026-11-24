@@ -333,6 +333,8 @@ fn stamp_round(config: &Config, options: &VerifyOptions) -> Result<(), String> {
             ledger: config.ledger.clone(),
             stamp_config: overlay.stamp_config.clone(),
             frozen: false,
+            renames: config.renames.clone(),
+            tombstones: config.tombstones.clone(),
         })
         .map(|_| ()),
     }

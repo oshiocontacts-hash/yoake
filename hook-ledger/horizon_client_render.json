@@ -5828,7 +5828,7 @@
     {
       "id": 9307,
       "key": "horizon_client_render::hud::HudAtlas::slots",
-      "sig": "7ebe0cc93acbfb15",
+      "sig": "f0b14df56b44ffea",
       "status": "live",
       "kind": "fn"
     },
@@ -5849,7 +5849,7 @@
     {
       "id": 9310,
       "key": "horizon_client_render::hud::HudAtlas::pack",
-      "sig": "bde9f8b12fb82060",
+      "sig": "cbdebf7ba0affce7",
       "status": "live",
       "kind": "fn"
     },
@@ -10836,9 +10836,22 @@
       "sig": "1bf8a345aa94bc83",
       "status": "live",
       "kind": "fn"
+    },
+    {
+      "id": 12360,
+      "key": "horizon_client_render::datapack::worldgen_overrides",
+      "sig": "5cdb57875cc13f11",
+      "status": "live",
+      "kind": "fn"
     }
   ],
   "excluded": [
+    {
+      "key": "horizon_client_render::assets::<Properties as TerrainBlockStates>::heightmap_state",
+      "reason": "hot: 1481011 calls in the REM-03 hit-count flight (0.53%)",
+      "kind": "fn",
+      "manual": true
+    },
     {
       "key": "horizon_client_render::assets::<StateFacts as HeightmapState>::blocks_motion_in_heightmap",
       "reason": "by-value or typed self",
@@ -11123,6 +11136,12 @@
       "key": "horizon_client_render::audio::Audio::stop_registered_playbacks",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::audio::Audio::sync_volumes",
+      "reason": "hot: 3401 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::audio::Audio::take_heard",
@@ -11425,6 +11444,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::biome::AmbientSounds::from_json",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::BackgroundMusic::from_json",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::BackgroundMusic::select",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_render::biome::BiomeInfo::snows_at",
       "reason": "small body",
       "kind": "fn"
@@ -11485,9 +11519,71 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::biome::Music::builtin",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::Music::creative",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::Music::credits",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::Music::end",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::Music::end_boss",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::Music::from_json",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::Music::game",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::Music::menu",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::Music::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::Music::under_water",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::blend_rgb",
+      "reason": "hot: 41817 calls in the REM-03 second hit-count flight (0.025%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::biome::color",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::biome::gaussian_weights",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::biome::identifier_order",
@@ -11633,6 +11729,18 @@
       "key": "horizon_client_render::block_entities::BlockEntities::note_box",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::block_entities::BlockEntities::put",
+      "reason": "hot: 21206 calls in the REM-03 second hit-count flight (0.013%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::block_entities::BlockEntities::remove",
+      "reason": "hot: 44815 calls in the REM-03 second hit-count flight (0.027%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::block_entities::BlockEntities::restore_attachments",
@@ -12025,6 +12133,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::block_entity_render::StaticGeometry::snapshot",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::block_entity_render::StaticGeometry::sweep",
       "reason": "small body",
       "kind": "fn"
@@ -12400,6 +12514,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::border_render::BorderRenderer::prepare",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::border_render::BorderRenderer::sides",
       "reason": "small body",
       "kind": "fn"
@@ -12418,6 +12538,12 @@
       "key": "horizon_client_render::border_render::ceil",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::border_render::extract",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::border_render::floor",
@@ -12580,6 +12706,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::camera::Camera::near_plane",
+      "reason": "hot: 79147 calls in the REM-03 second hit-count flight (0.047%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::camera::Camera::set_rotation",
+      "reason": "hot: 12380 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::camera::CameraEntity::view_x_rot",
       "reason": "small body",
       "kind": "fn"
@@ -12608,6 +12746,24 @@
       "key": "horizon_client_render::camera::NearPlane::points",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::camera::bob_hurt",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::camera::bob_matrix",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::camera::bob_view",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::camera::clamp",
@@ -12645,6 +12801,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::camera::joml::Mat4::rotate_axis",
+      "reason": "hot: 24664 calls in the REM-03 second hit-count flight (0.015%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::camera::joml::Mat4::rotate_x",
       "reason": "small body",
       "kind": "fn"
@@ -12660,14 +12822,50 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::camera::joml::Mat4::rotation_axis",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::camera::joml::Mat4::set",
       "reason": "small body",
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::camera::joml::Mat4::set_translation",
+      "reason": "hot: 12327 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::camera::joml::Mat4::translate",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::camera::joml::Mat4::translation",
+      "reason": "hot: 12327 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::camera::joml::Quat::rotation_yxz",
+      "reason": "hot: 34384 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::camera::joml::Quat::transform",
+      "reason": "hot: 37140 calls in the REM-03 second hit-count flight (0.022%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::camera::joml::cos_from_sin",
+      "reason": "hot: 112976 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::camera::joml::sin",
@@ -12690,9 +12888,27 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::camera::near_plane_bounds",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::camera::perspective",
+      "reason": "hot: 26268 calls in the REM-03 second hit-count flight (0.016%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::camera::rotate_degrees",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::camera::spinning_effect_matrix",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::camera::view_matrix",
@@ -12703,6 +12919,12 @@
       "key": "horizon_client_render::camera::view_matrix_with_roll",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::camera::wrap_degrees",
+      "reason": "hot: 12380 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::capture_time::AnimationInstant::elapsed",
@@ -12798,6 +13020,12 @@
       "key": "horizon_client_render::chat::Chat::hover_at",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::chat::Chat::layout",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::chat::Chat::line_at",
@@ -13100,6 +13328,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::chunk::Chunk::set",
+      "reason": "hot: 41118 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::chunk::Chunk::set_biome_cell",
       "reason": "small body",
       "kind": "fn"
@@ -13213,6 +13447,12 @@
       "key": "horizon_client_render::chunk::Light::heap_bytes",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::chunk::Light::packed",
+      "reason": "hot: 16202 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::chunk::Light::same_as",
@@ -13343,6 +13583,12 @@
       "key": "horizon_client_render::chunk::nibble",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::chunk::share_uniform",
+      "reason": "hot: 2755 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::chunk_map::<&'aChunkMap as IntoIterator>::into_iter",
@@ -13600,6 +13846,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::clouds::Input::state",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::clouds::Mesh::prepare",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::clouds::cells",
       "reason": "small body",
       "kind": "fn"
@@ -13610,9 +13868,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::clouds::emit_face",
+      "reason": "hot: 405083 calls in the REM-03 hit-count flight (0.15%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::clouds::emit_faces",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::clouds::face_mask",
+      "reason": "hot: 277050 calls in the REM-03 hit-count flight (0.10%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::clouds::faces",
@@ -13690,6 +13960,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::collisions::<SceneCollisions as BlockCollisionWorld>::context_shape",
+      "reason": "hot: 83592 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::collisions::<SceneCollisions as BlockCollisionWorld>::is_suffocating",
       "reason": "uses trait Self:: item",
       "kind": "fn"
@@ -13698,6 +13974,18 @@
       "key": "horizon_client_render::collisions::<SceneCollisions as BlockCollisionWorld>::may_reach_out",
       "reason": "uses trait Self:: item",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::collisions::<SceneCollisions as EntityMovementWorld>::entity_collisions",
+      "reason": "hot: 38747 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::collisions::<SceneCollisions as EntityMovementWorld>::movement_border",
+      "reason": "hot: 8526 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::collisions::EntityCollisions<W>::resolve",
@@ -13713,6 +14001,12 @@
       "key": "horizon_client_render::collisions::EntityCollisions<W>::with_border",
       "reason": "generic impl",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::collisions::SceneCollisions::cells_without_collision",
+      "reason": "hot: 23183 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::collisions::SceneCollisions::context",
@@ -13888,6 +14182,12 @@
       "key": "horizon_client_render::containers::BlockEntity::fits",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::containers::BlockEntity::for_block",
+      "reason": "hot: 45606 calls in the REM-03 second hit-count flight (0.027%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::containers::BlockEntity::id",
@@ -14155,6 +14455,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::crash::mod_guard::Registry::maintenance",
+      "reason": "hot: 14448 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::crash::mod_guard::Registry::new",
       "reason": "small body",
       "kind": "fn"
@@ -14385,6 +14691,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::datapack::resource_id",
+      "reason": "hot: 26809 calls in the REM-03 second hit-count flight (0.016%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::datapack::stringify",
       "reason": "small body",
       "kind": "fn"
@@ -14392,11 +14704,6 @@
     {
       "key": "horizon_client_render::datapack::tag_entries",
       "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::datapack::worldgen_overrides",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -14413,6 +14720,12 @@
       "key": "horizon_client_render::dynamic_light::level_at",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::dynamic_light::select",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::dynamic_light::select_colored",
@@ -14565,9 +14878,27 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::environment::Environment::sample",
+      "reason": "hot: 14692 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::environment::Environment::value",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::environment::Track::sample",
+      "reason": "hot: 57563 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::environment::apply_weather",
+      "reason": "hot: 14692 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::environment::parse_value",
@@ -14740,6 +15071,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::fog::FogState::next_float",
+      "reason": "hot: 3000 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::fog::FogState::tick",
       "reason": "small body",
       "kind": "fn"
@@ -14750,9 +15087,27 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::fog::FogState::water_vision",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::fog::FogTables::load",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::fog::camera_fluid_height",
+      "reason": "hot: 177798 calls in the REM-03 hit-count flight (0.06%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::fog::camera_fog_type",
+      "reason": "hot: 79147 calls in the REM-03 second hit-count flight (0.047%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::fog::clear_distance_fog",
@@ -14768,6 +15123,12 @@
       "key": "horizon_client_render::fog::rgb",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::fog::setup_fog",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::fog::update_rain_fog",
@@ -14818,6 +15179,12 @@
       "key": "horizon_client_render::font::Font::glyph_in",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::font::Font::glyph_of",
+      "reason": "hot: 127712 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::font::Font::glyph_styled",
@@ -14935,9 +15302,27 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::<Frusta as Cull>::contains",
+      "reason": "hot: 1256291 calls in the REM-03 hit-count flight (0.45%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::<Frusta as Cull>::intersects",
+      "reason": "hot: 1983930 calls in the REM-03 hit-count flight (0.71%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::<WindowDisplay as HasDisplayHandle>::display_handle",
       "reason": "calls trait method without trait in scope",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::DisplayWatch::changed",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::Frustum::contains",
@@ -15025,6 +15410,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::Renderer::compact_arena",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Renderer::complete_column",
       "reason": "small body",
       "kind": "fn"
@@ -15055,9 +15446,51 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::Renderer::display_changed",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::draw_frame",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::draw_hand",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::draw_overlay",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::draw_sections",
+      "reason": "hot: 33288 calls in the REM-03 second hit-count flight (0.020%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Renderer::flat_draws",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::flush_block_sprite_uploads",
+      "reason": "hot: 27878 calls in the REM-03 second hit-count flight (0.017%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::follow_translucent_layout",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::Renderer::frame_generation_share",
@@ -15095,6 +15528,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::Renderer::land_frame",
+      "reason": "hot: 27878 calls in the REM-03 second hit-count flight (0.017%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Renderer::leave_section",
       "reason": "small body",
       "kind": "fn"
@@ -15123,6 +15562,12 @@
       "key": "horizon_client_render::gfx::Renderer::lod_quads",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::mark_clouds",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::Renderer::mark_translucent_terrain",
@@ -15215,6 +15660,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::Renderer::release_mesh",
+      "reason": "hot: 2406 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::release_meshes",
+      "reason": "hot: 13948 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Renderer::release_section",
       "reason": "small body",
       "kind": "fn"
@@ -15230,6 +15687,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::Renderer::render",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Renderer::resident_sections",
       "reason": "small body",
       "kind": "fn"
@@ -15238,6 +15701,12 @@
       "key": "horizon_client_render::gfx::Renderer::screen_view",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::screenshot_size",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::Renderer::section_count",
@@ -15273,6 +15742,12 @@
       "key": "horizon_client_render::gfx::Renderer::send_hdr_metadata",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::set_detail",
+      "reason": "hot: 12304 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::Renderer::set_flat_draws",
@@ -15320,6 +15795,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::Renderer::shrink_translucent",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Renderer::skinned_models",
       "reason": "small body",
       "kind": "fn"
@@ -15365,9 +15846,33 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::Renderer::take_section_copies",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::update_lightmap",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::Renderer::update_native_world",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::upload",
+      "reason": "hot: 12304 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::Renderer::upload_mesh",
+      "reason": "hot: 12304 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::Renderer::views",
@@ -15430,9 +15935,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::animate::SpriteAnimator::animate",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::animate::SpriteAnimator::changed",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::animate::SpriteAnimator::collect",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::animate::SpriteAnimator::compute",
@@ -15458,6 +15975,12 @@
       "key": "horizon_client_render::gfx::arena::<Graveyard<T> as Default>::default",
       "reason": "generic impl",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::arena::Arena::alloc",
+      "reason": "hot: 9206 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::arena::Arena::alloc_existing",
@@ -15565,6 +16088,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::arena::Arena::sparsest_from",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::arena::Arena::stride",
       "reason": "small body",
       "kind": "fn"
@@ -15585,14 +16114,32 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::arena::Arena::trim",
+      "reason": "hot: 41817 calls in the REM-03 second hit-count flight (0.025%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::arena::Arena::used",
       "reason": "small body",
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::arena::FreeList::give",
+      "reason": "hot: 4885 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::arena::FreeList::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::arena::FreeList::take",
+      "reason": "hot: 9215 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::arena::Graveyard<T>::add",
@@ -15765,6 +16312,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::cull::Cull::begin",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::cull::Cull::bind_depth",
       "reason": "small body",
       "kind": "fn"
@@ -15778,6 +16331,12 @@
       "key": "horizon_client_render::gfx::cull::Cull::drawn",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::cull::Cull::end",
+      "reason": "hot: 5419 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::cull::Cull::features",
@@ -15808,6 +16367,24 @@
       "key": "horizon_client_render::gfx::cull::Cull::supported",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::cull::Cull::test",
+      "reason": "hot: 5410 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::cull::Cull::test_pass",
+      "reason": "hot: 5410 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::cull::Cull::upload",
+      "reason": "hot: 5419 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::cull::buffer",
@@ -15850,6 +16427,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::entity_batch::EntityBatch::update",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::entity_batch::mark_oit",
       "reason": "small body",
       "kind": "fn"
@@ -15858,6 +16441,18 @@
       "key": "horizon_client_render::gfx::entity_batch::material",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::entity_outline::EntityOutline::draw",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::entity_outline::EntityOutline::prepare",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::entity_outline::EntityOutline::vertex_buffer",
@@ -15890,6 +16485,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::entity_skin::EntitySkin::register",
+      "reason": "hot: 5444 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::entity_skin::EntitySkin::stored",
       "reason": "small body",
       "kind": "fn"
@@ -15898,6 +16499,18 @@
       "key": "horizon_client_render::gfx::entity_skin::EntitySkin::usage",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::entity_skin::Grow::ensure",
+      "reason": "hot: 10888 calls in the REM-03 second hit-count flight (0.006%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::entity_skin::SkinFrame::clear_draws",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::entity_skin::SkinFrame::handed",
@@ -15995,6 +16608,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::flat::Flat::place",
+      "reason": "hot: 7299 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::flat::Flat::prepare",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -16068,6 +16687,12 @@
       "key": "horizon_client_render::gfx::frame_gen::FrameGen::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::frame_gen::FrameGen::stop",
+      "reason": "hot: 13942 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::frame_gen::FrameGen::track_entities",
@@ -16388,6 +17013,12 @@
       "key": "horizon_client_render::gfx::lightning::Renderer::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::lightning::Renderer::prepare",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::lightning::offset",
@@ -17680,14 +18311,56 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::occlusion::Columns::set",
+      "reason": "hot: 16398 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::occlusion::Graph::contains",
       "reason": "small body",
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::occlusion::Graph::index",
+      "reason": "hot: 5264252 calls in the REM-03 hit-count flight (1.89%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::occlusion::Graph::key",
+      "reason": "hot: 141704 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::occlusion::Graph::propagate",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::occlusion::Graph::sees_camera",
+      "reason": "hot: 309598 calls in the REM-03 hit-count flight (0.11%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::occlusion::Graph::walk",
+      "reason": "hot: 182269 calls in the REM-03 hit-count flight (0.07%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::occlusion::Occlusion::changed",
+      "reason": "hot: 4094 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::occlusion::Occlusion::collect",
+      "reason": "hot: 26267 calls in the REM-03 second hit-count flight (0.016%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::occlusion::Occlusion::contains",
@@ -17705,6 +18378,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::occlusion::Occlusion::propagate_changes",
+      "reason": "hot: 26267 calls in the REM-03 second hit-count flight (0.016%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::occlusion::Occlusion::remove_column",
       "reason": "small body",
       "kind": "fn"
@@ -17718,6 +18397,12 @@
       "key": "horizon_client_render::gfx::occlusion::Occlusion::set",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::occlusion::Occlusion::update",
+      "reason": "hot: 26267 calls in the REM-03 second hit-count flight (0.016%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::occlusion::floor",
@@ -18495,6 +19180,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::projection_center",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::reported[cfg(target_os=\"linux\")]",
       "reason": "small body",
       "kind": "fn"
@@ -18715,6 +19406,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::stars::Stars::draw",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::stars::Stars::prepare",
       "reason": "small body",
       "kind": "fn"
@@ -18765,9 +19462,33 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::submit::Queue::wait",
+      "reason": "hot: 80416 calls in the REM-03 second hit-count flight (0.048%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::submit::wanted",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::sunrise_fan::mesh",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::sunrise_fan::normals",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::sunrise_fan::vertices",
+      "reason": "hot: 26268 calls in the REM-03 second hit-count flight (0.016%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::surface_format",
@@ -18785,14 +19506,38 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::timing::GpuTimer::begin",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::timing::GpuTimer::collect",
       "reason": "small body",
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::timing::GpuTimer::end",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::timing::GpuTimer::features",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::timing::GpuTimer::resolve",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::gfx::timing::GpuTimer::submitted",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::timing::end_pipeline",
@@ -18845,6 +19590,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::upload::Uploads::buffer",
+      "reason": "hot: 76008 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::upload::Uploads::finish",
       "reason": "small body",
       "kind": "fn"
@@ -18853,6 +19604,12 @@
       "key": "horizon_client_render::gfx::upload::Uploads::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::upload::Uploads::texture",
+      "reason": "hot: 15978 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::upload::Uploads::with_chunk",
@@ -18900,9 +19657,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::gfx::weather::Weather::draw",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::gfx::weather::Weather::pipeline",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::weather::Weather::prepare",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::weather::depth_stencil",
@@ -18938,6 +19707,12 @@
       "key": "horizon_client_render::gfx::world_post::Post::build_target",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::gfx::world_post::Post::jitter",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::gfx::world_post::Post::jitter_pixels",
@@ -19625,6 +20400,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud::HudAtlas::build_over_with_mob_textures",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_render::hud::HudAtlas::dump_contents",
       "reason": "small body",
       "kind": "fn"
@@ -19655,9 +20435,20 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud::HudAtlas::mob_texture_region",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_client_render::hud::HudAtlas::next_revision",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud::HudAtlas::pack_pixels",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::hud::HudAtlas::pixels",
@@ -19690,6 +20481,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud::HudBatch::fill",
+      "reason": "hot: 485915 calls in the REM-03 second hit-count flight (0.290%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::hud::HudBatch::fill_quad",
       "reason": "small body",
       "kind": "fn"
@@ -19703,6 +20500,12 @@
       "key": "horizon_client_render::hud::HudBatch::mark_carried",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud::HudBatch::new",
+      "reason": "hot: 28277 calls in the REM-03 second hit-count flight (0.017%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::hud::HudBatch::ordered_ranges",
@@ -19765,6 +20568,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud::HudBatch::styled_text",
+      "reason": "hot: 19308 calls in the REM-03 second hit-count flight (0.012%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::hud::HudBatch::text",
       "reason": "small body",
       "kind": "fn"
@@ -19803,6 +20612,12 @@
       "key": "horizon_client_render::hud::HudRenderer::draw",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud::HudRenderer::draw_range",
+      "reason": "hot: 27878 calls in the REM-03 second hit-count flight (0.017%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::hud::HudRenderer::draw_texture_runs",
@@ -19848,6 +20663,12 @@
       "key": "horizon_client_render::hud::HudRenderer::native_world_texture_restore",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud::HudRenderer::prepare",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::hud::HudRenderer::set_cit_glints",
@@ -19930,6 +20751,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud::decode_bytes",
+      "reason": "hot: 4102 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::hud::decode_image_bytes",
       "reason": "small body",
       "kind": "fn"
@@ -19948,6 +20775,12 @@
       "key": "horizon_client_render::hud::map_slot_sprite",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud::native_textures::<HudBatch as Drop>::drop",
+      "reason": "hot: 28277 calls in the REM-03 second hit-count flight (0.017%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::hud::native_textures::<TextureParts as Iterator>::next",
@@ -20220,9 +21053,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud_layout::hotbar",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::hud_layout::lerp_discrete",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud_layout::multiply",
+      "reason": "hot: 2303832 calls in the REM-03 second hit-count flight (1.374%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::hud_layout::paint",
@@ -20265,6 +21110,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud_overlays::SavingIndicator::draw",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::hud_overlays::SavingIndicator::tick",
       "reason": "small body",
       "kind": "fn"
@@ -20290,6 +21141,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud_overlays::SubtitleOverlay::extract",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::hud_overlays::SubtitleOverlay::listening",
       "reason": "small body",
       "kind": "fn"
@@ -20303,6 +21160,12 @@
       "key": "horizon_client_render::hud_overlays::Titles::clear",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud_overlays::Titles::overlay_message",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::hud_overlays::Titles::reset_times",
@@ -20330,6 +21193,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::hud_overlays::Titles::title",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::hud_overlays::ToolHighlight::draw",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::hud_overlays::ToolHighlight::tick",
       "reason": "small body",
       "kind": "fn"
@@ -20338,6 +21213,18 @@
       "key": "horizon_client_render::hud_overlays::border_warning",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud_overlays::boss_overlay",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::hud_overlays::camera_overlays",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::hud_overlays::closer_than",
@@ -20393,6 +21280,12 @@
       "key": "horizon_client_render::hud_overlays::screen_blit",
       "reason": "impl Trait argument",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::hud_overlays::sleep_overlay",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::hud_overlays::text",
@@ -20630,6 +21523,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::level_loading::ServerLoadView::status",
+      "reason": "hot: 465001 calls in the REM-03 second hit-count flight (0.277%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::level_loading::ServerLoadView::update",
       "reason": "small body",
       "kind": "fn"
@@ -20745,6 +21644,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::light::LightTables::blocked",
+      "reason": "hot: 181286 calls in the REM-03 hit-count flight (0.07%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::light::LightTables::dampening",
       "reason": "small body",
       "kind": "fn"
@@ -20780,14 +21685,38 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::light::Region::cell",
+      "reason": "hot: 454603 calls in the REM-03 hit-count flight (0.16%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::light::Region::finish",
       "reason": "small body",
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::light::Region::light",
+      "reason": "hot: 515699 calls in the REM-03 hit-count flight (0.19%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::light::Region::load",
+      "reason": "hot: 173999 calls in the REM-03 hit-count flight (0.06%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::light::Region::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::light::Region::slot",
+      "reason": "hot: 1221808 calls in the REM-03 hit-count flight (0.44%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::light::Region::state",
@@ -20828,6 +21757,12 @@
       "key": "horizon_client_render::light::light_from_layers",
       "reason": "generic type params",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::light::lowest_sky_source",
+      "reason": "hot: 13097 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::light::nibble",
@@ -21415,6 +22350,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::menu_blur::MenuBlur::pass",
+      "reason": "hot: 9660 calls in the REM-03 second hit-count flight (0.006%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::menu_blur::MenuBlur::release",
       "reason": "small body",
       "kind": "fn"
@@ -21430,6 +22371,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::<SectionMesh as Default>::default",
+      "reason": "hot: 3046 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::MeshTables::block_tints",
       "reason": "impl Trait return",
       "kind": "fn"
@@ -21443,6 +22390,12 @@
       "key": "horizon_client_render::mesher::MeshTables::facts",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::mesher::MeshTables::flat_light",
+      "reason": "hot: 26418 calls in the REM-03 second hit-count flight (0.016%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::mesher::MeshTables::hdr_tier",
@@ -21475,14 +22428,32 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::Mesher::face",
+      "reason": "hot: 1246817 calls in the REM-03 hit-count flight (0.45%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::Mesher::mesh",
       "reason": "small body",
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::Mesher::mesh_reusing",
+      "reason": "hot: 12370 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::Mesher::quad",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::mesher::Mesher::quad_as",
+      "reason": "hot: 1246817 calls in the REM-03 hit-count flight (0.45%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::mesher::Mesher::tint",
@@ -21495,9 +22466,27 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::Padded::fill",
+      "reason": "hot: 6107 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::SectionMesh::capacity_bytes",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::mesher::SectionMesh::clear",
+      "reason": "hot: 21786 calls in the REM-03 second hit-count flight (0.013%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::mesher::SectionMesh::compute_bounds",
+      "reason": "hot: 12370 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::mesher::SectionMesh::finish_sprite_layers",
@@ -21540,6 +22529,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::Tints::get",
+      "reason": "hot: 766055 calls in the REM-03 hit-count flight (0.27%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::Tints::new",
       "reason": "small body",
       "kind": "fn"
@@ -21548,6 +22543,12 @@
       "key": "horizon_client_render::mesher::Tints::quart_biome",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::mesher::Tints::uniform_biome",
+      "reason": "hot: 766055 calls in the REM-03 hit-count flight (0.27%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::mesher::borrow",
@@ -21560,14 +22561,50 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::fill_row",
+      "reason": "hot: 147127 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::fill_run",
       "reason": "small body",
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::fluid::<FlowView as FluidFlowWorld>::block",
+      "reason": "hot: 114708 calls in the REM-03 second hit-count flight (0.068%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::mesher::fluid::<FlowView as FluidFlowWorld>::blocks_fluid_flow",
+      "reason": "hot: 114705 calls in the REM-03 second hit-count flight (0.068%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::mesher::fluid::<FlowView as FluidFlowWorld>::fluid",
+      "reason": "hot: 103457 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::fluid::FlowView::id",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::mesher::fluid::atan2",
+      "reason": "hot: 10251 calls in the REM-03 second hit-count flight (0.006%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::mesher::fluid::coverage",
+      "reason": "hot: 25103 calls in the REM-03 second hit-count flight (0.015%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::mesher::fluid::occluded_by",
@@ -21580,6 +22617,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::fluid::tesselate",
+      "reason": "hot: 159771 calls in the REM-03 hit-count flight (0.06%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::fluid_face",
       "reason": "small body",
       "kind": "fn"
@@ -21588,6 +22631,12 @@
       "key": "horizon_client_render::mesher::hdr_tier",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::mesher::hidden",
+      "reason": "hot: 6251710 calls in the REM-03 hit-count flight (2.24%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::mesher::leaf_culling::in_section",
@@ -21608,6 +22657,12 @@
       "key": "horizon_client_render::mesher::lighting::adjacency",
       "reason": "const fn",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::mesher::lighting::ambient_occlusion",
+      "reason": "hot: 1129303 calls in the REM-03 hit-count flight (0.41%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::mesher::lighting::cardinal",
@@ -21655,6 +22710,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::lighting::shape",
+      "reason": "hot: 1246406 calls in the REM-03 hit-count flight (0.45%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::lighting::smooth_blend",
       "reason": "small body",
       "kind": "fn"
@@ -21678,6 +22739,12 @@
       "key": "horizon_client_render::mesher::lighting::with_min",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::mesher::offset",
+      "reason": "hot: 513564 calls in the REM-03 hit-count flight (0.18%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::mesher::open_rows",
@@ -21720,6 +22787,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::sides::Sides::runs",
+      "reason": "hot: 961886 calls in the REM-03 hit-count flight (0.35%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::sides::Sides::unsorted",
       "reason": "small body",
       "kind": "fn"
@@ -21760,6 +22833,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mesher::sides::sort_with",
+      "reason": "hot: 12370 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mesher::sides::total_order_key",
       "reason": "small body",
       "kind": "fn"
@@ -21778,6 +22857,12 @@
       "key": "horizon_client_render::mesher::stem_color",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::mesher::visibility_rows",
+      "reason": "hot: 6107 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::minimap::Minimap::clear",
@@ -21845,6 +22930,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::mipmap::alpha_test_coverage",
+      "reason": "hot: 9892 calls in the REM-03 second hit-count flight (0.006%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::mipmap::dither_cutouts",
       "reason": "small body",
       "kind": "fn"
@@ -21858,6 +22949,18 @@
       "key": "horizon_client_render::mipmap::linear_to_srgb",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::mipmap::mean_linear",
+      "reason": "hot: 185830 calls in the REM-03 second hit-count flight (0.111%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::mipmap::scale_alpha_to_coverage",
+      "reason": "hot: 2332 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::mipmap::set_dither_cutouts",
@@ -21965,6 +23068,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::models::catalog::bake_resolved",
+      "reason": "hot: 7880 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::models::catalog::bake_variant",
       "reason": "small body",
       "kind": "fn"
@@ -21988,6 +23097,12 @@
       "key": "horizon_client_render::models::catalog::topmost",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::models::cube::cube_styles",
+      "reason": "hot: 7880 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::models::cube::shade",
@@ -23465,6 +24580,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::particles::<ParticleLightCache as Default>::default",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::particles::ModBehaviour::parse",
       "reason": "small body",
       "kind": "fn"
@@ -23485,6 +24606,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::particles::Particle::base_moving",
+      "reason": "hot: 5966 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::particles::Particle::base_tick",
+      "reason": "hot: 55274 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::particles::Particle::blank",
       "reason": "small body",
       "kind": "fn"
@@ -23503,6 +24636,12 @@
       "key": "horizon_client_render::particles::Particle::light_coords",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::particles::Particle::move_by",
+      "reason": "hot: 52144 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::particles::Particle::moving",
@@ -23543,6 +24682,18 @@
       "key": "horizon_client_render::particles::ParticleEngine::add",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::particles::ParticleEngine::add_with",
+      "reason": "hot: 8222 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::particles::ParticleEngine::calculate_particle_level",
+      "reason": "hot: 8222 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::particles::ParticleEngine::clear",
@@ -23603,6 +24754,12 @@
       "key": "horizon_client_render::particles::ParticleEngine::made",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::particles::ParticleEngine::make",
+      "reason": "hot: 6438 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::particles::ParticleEngine::new",
@@ -23720,6 +24877,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::particles::ParticleLevel::collide",
+      "reason": "hot: 23183 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::particles::ParticleLevel::collision_top",
       "reason": "small body",
       "kind": "fn"
@@ -23728,6 +24891,12 @@
       "key": "horizon_client_render::particles::ParticleLevel::fluid_source",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::particles::ParticleLightCache::get",
+      "reason": "hot: 778369 calls in the REM-03 hit-count flight (0.28%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::particles::ParticleOptions::block",
@@ -23890,6 +25059,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::post_chain::PostEffects::apply",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::post_chain::PostEffects::collect_preloaded",
       "reason": "small body",
       "kind": "fn"
@@ -23898,6 +25073,12 @@
       "key": "horizon_client_render::post_chain::PostEffects::pipeline",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::post_chain::PostEffects::preload",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::post_chain::PostEffects::standin_pass",
@@ -23988,6 +25169,12 @@
       "key": "horizon_client_render::preedit::composing",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::preedit::draw_overlay",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::preedit::offset_by_codepoints",
@@ -24220,6 +25407,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::screen_effects::ScreenEffects::build",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::screen_effects::ScreenEffects::tick_spinning",
       "reason": "small body",
       "kind": "fn"
@@ -24425,6 +25618,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::section_mask::<Indexes as Iterator>::next",
+      "reason": "hot: 138837 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::section_mask::<SectionMask as BitAnd>::bitand",
       "reason": "by-value or typed self",
       "kind": "fn"
@@ -24433,6 +25632,12 @@
       "key": "horizon_client_render::section_mask::<SectionMask as BitOr>::bitor",
       "reason": "by-value or typed self",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::section_mask::<SectionMask as BitOrAssign>::bitor_assign",
+      "reason": "hot: 4203 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::section_mask::<SectionMask as FromIterator<usize>>::from_iter",
@@ -24928,6 +26133,12 @@
       "key": "horizon_client_render::skins::SkinSlots::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::skins::SkinSlots::next_frame",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::skins::base64_decode",
@@ -25535,6 +26746,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::spans::Laps::lap",
+      "reason": "hot: 137536 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::spans::cpu_if_enabled",
       "reason": "small body",
       "kind": "fn"
@@ -25890,6 +27107,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::sprites::SpriteAnimation::blend",
+      "reason": "hot: 297540 calls in the REM-03 hit-count flight (0.11%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::sprites::SpriteAnimation::frame",
       "reason": "small body",
       "kind": "fn"
@@ -25903,6 +27126,12 @@
       "key": "horizon_client_render::sprites::SpriteAnimation::pixels",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::sprites::SpriteAnimation::resized_pixels",
+      "reason": "hot: 23462 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::sprites::Sprites::count",
@@ -25940,6 +27169,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::sprites::Sprites::region_opaque",
+      "reason": "hot: 79851 calls in the REM-03 second hit-count flight (0.048%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::sprites::Sprites::save_disk_cache",
       "reason": "small body",
       "kind": "fn"
@@ -25958,6 +27193,12 @@
       "key": "horizon_client_render::sprites::labpbr_maps",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::sprites::resample",
+      "reason": "hot: 2425 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::sprites::set_labpbr_maps",
@@ -26025,6 +27266,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::streaming::<Queued as Ord>::cmp",
+      "reason": "hot: 97638 calls in the REM-03 second hit-count flight (0.058%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client_render::streaming::<Queued as PartialOrd>::partial_cmp",
+      "reason": "hot: 97638 calls in the REM-03 second hit-count flight (0.058%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::streaming::Band::priority",
       "reason": "small body",
       "kind": "fn"
@@ -26040,9 +27293,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::streaming::ExtraCover::new",
+      "reason": "hot: 16929 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::streaming::ExtraCover::refresh",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::streaming::GenerationScan::candidates",
+      "reason": "hot: 16929 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::streaming::GenerationScan::invalidate",
@@ -26090,6 +27355,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::streaming::MeshPool::put",
+      "reason": "hot: 12370 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::streaming::MeshPool::take",
       "reason": "small body",
       "kind": "fn"
@@ -26115,6 +27386,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::streaming::Ranges::in_main_range",
+      "reason": "hot: 613976 calls in the REM-03 hit-count flight (0.22%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::streaming::Ranges::in_range",
       "reason": "small body",
       "kind": "fn"
@@ -26128,6 +27405,12 @@
       "key": "horizon_client_render::streaming::Ranges::margins",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::streaming::Ranges::near_finished",
+      "reason": "hot: 78622 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::streaming::Ranges::priority",
@@ -26270,9 +27553,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::streaming::Streaming::relight_edits",
+      "reason": "hot: 16929 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::streaming::Streaming::relight_on_workers",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::streaming::Streaming::requeue",
+      "reason": "hot: 16929 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::streaming::Streaming::save_checked_out",
@@ -26295,6 +27590,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::streaming::Streaming::submit",
+      "reason": "hot: 16528 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::streaming::Streaming::terrain_loading",
       "reason": "small body",
       "kind": "fn"
@@ -26305,9 +27606,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::streaming::Streaming::update",
+      "reason": "hot: 16930 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::streaming::Streaming::wait",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::streaming::ViewArrival::arriving",
+      "reason": "hot: 16930 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::streaming::ViewArrival::recent",
@@ -26515,6 +27828,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::tab_list::default_skin",
+      "reason": "hot: 24659 calls in the REM-03 second hit-count flight (0.015%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::tab_list::face",
       "reason": "small body",
       "kind": "fn"
@@ -26573,6 +27892,12 @@
       "key": "horizon_client_render::telemetry::Session::finish",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::telemetry::Session::frame",
+      "reason": "hot: 12380 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::telemetry::Session::summary",
@@ -27048,6 +28373,12 @@
       "key": "horizon_client_render::ui::draw_native_nine_slice",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::ui::draw_nine_slice",
+      "reason": "hot: 8848 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::ui::draw_sprite",
@@ -27755,6 +29086,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::world::World::may_hold",
+      "reason": "hot: 103128 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::world::World::motion_blocking",
       "reason": "small body",
       "kind": "fn"
@@ -27763,6 +29100,12 @@
       "key": "horizon_client_render::world::World::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_client_render::world::World::set",
+      "reason": "hot: 41118 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_client_render::world::World::set_block_lock",
@@ -27910,6 +29253,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_client_render::zip::<Reader as Read>::read",
+      "reason": "hot: 2779 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_client_render::zip::Zip::contains",
       "reason": "small body",
       "kind": "fn"
@@ -27958,1278 +29307,6 @@
       "key": "horizon_client_render::zip::u32_at",
       "reason": "small body",
       "kind": "fn"
-    },
-    {
-      "key": "horizon_client_render::assets::<Properties as TerrainBlockStates>::heightmap_state",
-      "reason": "hot: 1481011 calls in the REM-03 hit-count flight (0.53%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::joml::cos_from_sin",
-      "reason": "hot: 112976 calls in the REM-03 hit-count flight (0.04%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::joml::Quat::rotation_yxz",
-      "reason": "hot: 34384 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::chunk::Chunk::set",
-      "reason": "hot: 41118 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::clouds::face_mask",
-      "reason": "hot: 277050 calls in the REM-03 hit-count flight (0.10%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::clouds::emit_face",
-      "reason": "hot: 405083 calls in the REM-03 hit-count flight (0.15%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::collisions::<SceneCollisions as BlockCollisionWorld>::context_shape",
-      "reason": "hot: 83592 calls in the REM-03 hit-count flight (0.03%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::collisions::<SceneCollisions as EntityMovementWorld>::entity_collisions",
-      "reason": "hot: 38747 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::environment::Track::sample",
-      "reason": "hot: 57563 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::fog::camera_fluid_height",
-      "reason": "hot: 177798 calls in the REM-03 hit-count flight (0.06%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::font::Font::glyph_of",
-      "reason": "hot: 127712 calls in the REM-03 hit-count flight (0.05%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::<Frusta as Cull>::intersects",
-      "reason": "hot: 1983930 calls in the REM-03 hit-count flight (0.71%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::<Frusta as Cull>::contains",
-      "reason": "hot: 1256291 calls in the REM-03 hit-count flight (0.45%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::occlusion::Graph::index",
-      "reason": "hot: 5264252 calls in the REM-03 hit-count flight (1.89%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::occlusion::Graph::key",
-      "reason": "hot: 141704 calls in the REM-03 hit-count flight (0.05%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::occlusion::Graph::sees_camera",
-      "reason": "hot: 309598 calls in the REM-03 hit-count flight (0.11%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::occlusion::Graph::walk",
-      "reason": "hot: 182269 calls in the REM-03 hit-count flight (0.07%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::upload::Uploads::buffer",
-      "reason": "hot: 76008 calls in the REM-03 hit-count flight (0.03%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::light::LightTables::blocked",
-      "reason": "hot: 181286 calls in the REM-03 hit-count flight (0.07%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::light::Region::slot",
-      "reason": "hot: 1221808 calls in the REM-03 hit-count flight (0.44%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::light::Region::load",
-      "reason": "hot: 173999 calls in the REM-03 hit-count flight (0.06%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::light::Region::light",
-      "reason": "hot: 515699 calls in the REM-03 hit-count flight (0.19%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::light::Region::cell",
-      "reason": "hot: 454603 calls in the REM-03 hit-count flight (0.16%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::fill_row",
-      "reason": "hot: 147127 calls in the REM-03 hit-count flight (0.05%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::offset",
-      "reason": "hot: 513564 calls in the REM-03 hit-count flight (0.18%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::hidden",
-      "reason": "hot: 6251710 calls in the REM-03 hit-count flight (2.24%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::Tints::uniform_biome",
-      "reason": "hot: 766055 calls in the REM-03 hit-count flight (0.27%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::Tints::get",
-      "reason": "hot: 766055 calls in the REM-03 hit-count flight (0.27%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::Mesher::face",
-      "reason": "hot: 1246817 calls in the REM-03 hit-count flight (0.45%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::Mesher::quad_as",
-      "reason": "hot: 1246817 calls in the REM-03 hit-count flight (0.45%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::fluid::<FlowView as FluidFlowWorld>::fluid",
-      "reason": "hot: 103457 calls in the REM-03 hit-count flight (0.04%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::fluid::tesselate",
-      "reason": "hot: 159771 calls in the REM-03 hit-count flight (0.06%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::lighting::shape",
-      "reason": "hot: 1246406 calls in the REM-03 hit-count flight (0.45%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::lighting::ambient_occlusion",
-      "reason": "hot: 1129303 calls in the REM-03 hit-count flight (0.41%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::particles::Particle::move_by",
-      "reason": "hot: 52144 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::particles::Particle::base_tick",
-      "reason": "hot: 55274 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::particles::ParticleLightCache::get",
-      "reason": "hot: 778369 calls in the REM-03 hit-count flight (0.28%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::section_mask::<Indexes as Iterator>::next",
-      "reason": "hot: 138837 calls in the REM-03 hit-count flight (0.05%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::spans::Laps::lap",
-      "reason": "hot: 137536 calls in the REM-03 hit-count flight (0.05%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::sprites::SpriteAnimation::blend",
-      "reason": "hot: 297540 calls in the REM-03 hit-count flight (0.11%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::streaming::Ranges::near_finished",
-      "reason": "hot: 78622 calls in the REM-03 hit-count flight (0.03%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::streaming::Ranges::in_main_range",
-      "reason": "hot: 613976 calls in the REM-03 hit-count flight (0.22%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::world::World::set",
-      "reason": "hot: 41118 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::sides::Sides::runs",
-      "reason": "hot: 961886 calls in the REM-03 hit-count flight (0.35%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::world::World::may_hold",
-      "reason": "hot: 103128 calls in the REM-03 hit-count flight (0.04%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::audio::Audio::sync_volumes",
-      "reason": "hot: 3401 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::block_entities::BlockEntities::remove",
-      "reason": "hot: 44815 calls in the REM-03 second hit-count flight (0.027%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::block_entities::BlockEntities::put",
-      "reason": "hot: 21206 calls in the REM-03 second hit-count flight (0.013%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::block_entity_render::StaticGeometry::snapshot",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::border_render::extract",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::border_render::BorderRenderer::prepare",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::wrap_degrees",
-      "reason": "hot: 12380 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::joml::Quat::transform",
-      "reason": "hot: 37140 calls in the REM-03 second hit-count flight (0.022%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::joml::Mat4::translation",
-      "reason": "hot: 12327 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::joml::Mat4::set_translation",
-      "reason": "hot: 12327 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::joml::Mat4::rotation_axis",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::joml::Mat4::rotate_axis",
-      "reason": "hot: 24664 calls in the REM-03 second hit-count flight (0.015%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::Camera::set_rotation",
-      "reason": "hot: 12380 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::Camera::near_plane",
-      "reason": "hot: 79147 calls in the REM-03 second hit-count flight (0.047%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::perspective",
-      "reason": "hot: 26268 calls in the REM-03 second hit-count flight (0.016%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::near_plane_bounds",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::bob_hurt",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::bob_view",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::bob_matrix",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::camera::spinning_effect_matrix",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::chat::Chat::layout",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::chunk::share_uniform",
-      "reason": "hot: 2755 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::chunk::Light::packed",
-      "reason": "hot: 16202 calls in the REM-03 second hit-count flight (0.010%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::clouds::Input::state",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::clouds::Mesh::prepare",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::collisions::SceneCollisions::cells_without_collision",
-      "reason": "hot: 23183 calls in the REM-03 second hit-count flight (0.014%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::collisions::<SceneCollisions as EntityMovementWorld>::movement_border",
-      "reason": "hot: 8526 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::containers::BlockEntity::for_block",
-      "reason": "hot: 45606 calls in the REM-03 second hit-count flight (0.027%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::crash::mod_guard::Registry::maintenance",
-      "reason": "hot: 14448 calls in the REM-03 second hit-count flight (0.009%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::datapack::resource_id",
-      "reason": "hot: 26809 calls in the REM-03 second hit-count flight (0.016%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::dynamic_light::select",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::environment::Environment::sample",
-      "reason": "hot: 14692 calls in the REM-03 second hit-count flight (0.009%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::environment::apply_weather",
-      "reason": "hot: 14692 calls in the REM-03 second hit-count flight (0.009%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::fog::FogState::next_float",
-      "reason": "hot: 3000 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::fog::FogState::water_vision",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::fog::setup_fog",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::draw_hand",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::mark_clouds",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::upload",
-      "reason": "hot: 12304 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::upload_mesh",
-      "reason": "hot: 12304 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::take_section_copies",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::draw_sections",
-      "reason": "hot: 33288 calls in the REM-03 second hit-count flight (0.020%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::release_mesh",
-      "reason": "hot: 2406 calls in the REM-03 second hit-count flight (0.001%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::compact_arena",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::shrink_translucent",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::follow_translucent_layout",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::set_detail",
-      "reason": "hot: 12304 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::release_meshes",
-      "reason": "hot: 13948 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::display_changed",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::update_lightmap",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::flush_block_sprite_uploads",
-      "reason": "hot: 27878 calls in the REM-03 second hit-count flight (0.017%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::render",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::screenshot_size",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::draw_frame",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::draw_overlay",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::Renderer::land_frame",
-      "reason": "hot: 27878 calls in the REM-03 second hit-count flight (0.017%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::projection_center",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::DisplayWatch::changed",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::entity_batch::EntityBatch::update",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::entity_outline::EntityOutline::prepare",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::entity_outline::EntityOutline::draw",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::weather::Weather::prepare",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::weather::Weather::draw",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::animate::SpriteAnimator::animate",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::animate::SpriteAnimator::collect",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::arena::FreeList::take",
-      "reason": "hot: 9215 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::arena::FreeList::give",
-      "reason": "hot: 4885 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::arena::Arena::alloc",
-      "reason": "hot: 9206 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::arena::Arena::sparsest_from",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::arena::Arena::trim",
-      "reason": "hot: 41817 calls in the REM-03 second hit-count flight (0.025%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::cull::Cull::begin",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::cull::Cull::upload",
-      "reason": "hot: 5419 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::cull::Cull::test",
-      "reason": "hot: 5410 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::cull::Cull::test_pass",
-      "reason": "hot: 5410 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::cull::Cull::end",
-      "reason": "hot: 5419 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::entity_skin::SkinFrame::clear_draws",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::entity_skin::Grow::ensure",
-      "reason": "hot: 10888 calls in the REM-03 second hit-count flight (0.006%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::entity_skin::EntitySkin::register",
-      "reason": "hot: 5444 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::flat::Flat::place",
-      "reason": "hot: 7299 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::frame_gen::FrameGen::stop",
-      "reason": "hot: 13942 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::lightning::Renderer::prepare",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::occlusion::Columns::set",
-      "reason": "hot: 16398 calls in the REM-03 second hit-count flight (0.010%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::occlusion::Occlusion::changed",
-      "reason": "hot: 4094 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::occlusion::Occlusion::update",
-      "reason": "hot: 26267 calls in the REM-03 second hit-count flight (0.016%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::occlusion::Occlusion::collect",
-      "reason": "hot: 26267 calls in the REM-03 second hit-count flight (0.016%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::occlusion::Occlusion::propagate_changes",
-      "reason": "hot: 26267 calls in the REM-03 second hit-count flight (0.016%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::stars::Stars::draw",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::submit::Queue::wait",
-      "reason": "hot: 80416 calls in the REM-03 second hit-count flight (0.048%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::sunrise_fan::normals",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::sunrise_fan::mesh",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::sunrise_fan::vertices",
-      "reason": "hot: 26268 calls in the REM-03 second hit-count flight (0.016%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::timing::GpuTimer::begin",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::timing::GpuTimer::end",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::timing::GpuTimer::resolve",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::timing::GpuTimer::submitted",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::upload::Uploads::texture",
-      "reason": "hot: 15978 calls in the REM-03 second hit-count flight (0.010%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::gfx::world_post::Post::jitter",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud::decode_bytes",
-      "reason": "hot: 4102 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud::HudAtlas::pack_pixels",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud::HudBatch::new",
-      "reason": "hot: 28277 calls in the REM-03 second hit-count flight (0.017%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud::HudBatch::fill",
-      "reason": "hot: 485915 calls in the REM-03 second hit-count flight (0.290%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud::HudBatch::styled_text",
-      "reason": "hot: 19308 calls in the REM-03 second hit-count flight (0.012%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud::HudRenderer::prepare",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud::HudRenderer::draw_range",
-      "reason": "hot: 27878 calls in the REM-03 second hit-count flight (0.017%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud::native_textures::<HudBatch as Drop>::drop",
-      "reason": "hot: 28277 calls in the REM-03 second hit-count flight (0.017%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud_layout::multiply",
-      "reason": "hot: 2303832 calls in the REM-03 second hit-count flight (1.374%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud_layout::hotbar",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud_overlays::SavingIndicator::draw",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud_overlays::Titles::overlay_message",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud_overlays::Titles::title",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud_overlays::ToolHighlight::draw",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud_overlays::boss_overlay",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud_overlays::camera_overlays",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud_overlays::sleep_overlay",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::hud_overlays::SubtitleOverlay::extract",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::level_loading::ServerLoadView::status",
-      "reason": "hot: 465001 calls in the REM-03 second hit-count flight (0.277%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::light::lowest_sky_source",
-      "reason": "hot: 13097 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::menu_blur::MenuBlur::pass",
-      "reason": "hot: 9660 calls in the REM-03 second hit-count flight (0.006%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::<SectionMesh as Default>::default",
-      "reason": "hot: 3046 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::SectionMesh::clear",
-      "reason": "hot: 21786 calls in the REM-03 second hit-count flight (0.013%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::SectionMesh::compute_bounds",
-      "reason": "hot: 12370 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::visibility_rows",
-      "reason": "hot: 6107 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::Padded::fill",
-      "reason": "hot: 6107 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::Mesher::mesh_reusing",
-      "reason": "hot: 12370 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::fluid::coverage",
-      "reason": "hot: 25103 calls in the REM-03 second hit-count flight (0.015%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::fluid::atan2",
-      "reason": "hot: 10251 calls in the REM-03 second hit-count flight (0.006%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::fluid::<FlowView as FluidFlowWorld>::block",
-      "reason": "hot: 114708 calls in the REM-03 second hit-count flight (0.068%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::fluid::<FlowView as FluidFlowWorld>::blocks_fluid_flow",
-      "reason": "hot: 114705 calls in the REM-03 second hit-count flight (0.068%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::sides::sort_with",
-      "reason": "hot: 12370 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mipmap::alpha_test_coverage",
-      "reason": "hot: 9892 calls in the REM-03 second hit-count flight (0.006%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mipmap::scale_alpha_to_coverage",
-      "reason": "hot: 2332 calls in the REM-03 second hit-count flight (0.001%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mipmap::mean_linear",
-      "reason": "hot: 185830 calls in the REM-03 second hit-count flight (0.111%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::models::catalog::bake_resolved",
-      "reason": "hot: 7880 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::models::cube::cube_styles",
-      "reason": "hot: 7880 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::particles::Particle::base_moving",
-      "reason": "hot: 5966 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::particles::ParticleLevel::collide",
-      "reason": "hot: 23183 calls in the REM-03 second hit-count flight (0.014%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::particles::<ParticleLightCache as Default>::default",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::particles::ParticleEngine::add_with",
-      "reason": "hot: 8222 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::particles::ParticleEngine::calculate_particle_level",
-      "reason": "hot: 8222 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::particles::ParticleEngine::make",
-      "reason": "hot: 6438 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::post_chain::PostEffects::preload",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::post_chain::PostEffects::apply",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::preedit::draw_overlay",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::screen_effects::ScreenEffects::build",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::section_mask::<SectionMask as BitOrAssign>::bitor_assign",
-      "reason": "hot: 4203 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::skins::SkinSlots::next_frame",
-      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::sprites::SpriteAnimation::resized_pixels",
-      "reason": "hot: 23462 calls in the REM-03 second hit-count flight (0.014%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::sprites::resample",
-      "reason": "hot: 2425 calls in the REM-03 second hit-count flight (0.001%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::sprites::Sprites::region_opaque",
-      "reason": "hot: 79851 calls in the REM-03 second hit-count flight (0.048%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::streaming::<Queued as PartialOrd>::partial_cmp",
-      "reason": "hot: 97638 calls in the REM-03 second hit-count flight (0.058%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::streaming::<Queued as Ord>::cmp",
-      "reason": "hot: 97638 calls in the REM-03 second hit-count flight (0.058%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::streaming::MeshPool::put",
-      "reason": "hot: 12370 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::streaming::GenerationScan::candidates",
-      "reason": "hot: 16929 calls in the REM-03 second hit-count flight (0.010%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::streaming::Streaming::submit",
-      "reason": "hot: 16528 calls in the REM-03 second hit-count flight (0.010%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::streaming::Streaming::requeue",
-      "reason": "hot: 16929 calls in the REM-03 second hit-count flight (0.010%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::streaming::Streaming::update",
-      "reason": "hot: 16930 calls in the REM-03 second hit-count flight (0.010%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::streaming::Streaming::relight_edits",
-      "reason": "hot: 16929 calls in the REM-03 second hit-count flight (0.010%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::streaming::ExtraCover::new",
-      "reason": "hot: 16929 calls in the REM-03 second hit-count flight (0.010%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::tab_list::default_skin",
-      "reason": "hot: 24659 calls in the REM-03 second hit-count flight (0.015%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::telemetry::Session::frame",
-      "reason": "hot: 12380 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::ui::draw_nine_slice",
-      "reason": "hot: 8848 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::zip::<Reader as Read>::read",
-      "reason": "hot: 2779 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::biome::gaussian_weights",
-      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::biome::blend_rgb",
-      "reason": "hot: 41817 calls in the REM-03 second hit-count flight (0.025%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::fog::camera_fog_type",
-      "reason": "hot: 79147 calls in the REM-03 second hit-count flight (0.047%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::mesher::MeshTables::flat_light",
-      "reason": "hot: 26418 calls in the REM-03 second hit-count flight (0.016%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_client_render::streaming::ViewArrival::arriving",
-      "reason": "hot: 16930 calls in the REM-03 second hit-count flight (0.010%)",
-      "kind": "fn",
-      "manual": true
     }
   ]
 }

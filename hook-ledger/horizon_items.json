@@ -998,6 +998,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_items::item_data::<BundleSelected as Default>::default",
+      "reason": "hot: 3387 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_items::item_data::ItemStack::crafting_enchantments",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -1173,6 +1179,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_items::item_data::decode_components",
+      "reason": "hot: 8528 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_items::item_data::encode_components",
       "reason": "small body",
       "kind": "fn"
@@ -1263,6 +1275,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_items::item_nbt::item_from_nbt",
+      "reason": "hot: 8439 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_items::item_nbt::item_to_nbt",
       "reason": "small body",
       "kind": "fn"
@@ -1271,6 +1289,12 @@
       "key": "horizon_items::items::BlocksAttacks::of_stack",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_items::items::BlocksAttacks::parse",
+      "reason": "hot: 3316 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_items::items::Instrument::use_ticks",
@@ -1563,6 +1587,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_items::random_sequences::<RandomSequences as Default>::default",
+      "reason": "hot: 13977 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_items::random_sequences::RandomSequences::clear",
       "reason": "small body",
       "kind": "fn"
@@ -1651,36 +1681,6 @@
       "key": "horizon_items::use_animation::consumable_animation",
       "reason": "small body",
       "kind": "fn"
-    },
-    {
-      "key": "horizon_items::item_data::<BundleSelected as Default>::default",
-      "reason": "hot: 3387 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_items::item_data::decode_components",
-      "reason": "hot: 8528 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_items::item_nbt::item_from_nbt",
-      "reason": "hot: 8439 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_items::items::BlocksAttacks::parse",
-      "reason": "hot: 3316 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_items::random_sequences::<RandomSequences as Default>::default",
-      "reason": "hot: 13977 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
     }
   ]
 }

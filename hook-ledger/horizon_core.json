@@ -1635,9 +1635,27 @@
   ],
   "excluded": [
     {
+      "key": "horizon_core::biome::BiomeZoom::corner_jitter",
+      "reason": "hot: 110715 calls in the REM-03 second hit-count flight (0.066%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::biome::BiomeZoom::new",
       "reason": "const fn",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::biome::BiomeZoom::quart_at_block",
+      "reason": "hot: 102709 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::biome::BiomeZoom::select_corner",
+      "reason": "hot: 287560 calls in the REM-03 hit-count flight (0.10%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::biome::fiddle",
@@ -1658,6 +1676,12 @@
       "key": "horizon_core::biome::obfuscate_seed",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::CarvingMask::carve",
+      "reason": "hot: 405787 calls in the REM-03 hit-count flight (0.15%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::carving::CarvingMask::columns",
@@ -1690,9 +1714,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::carving::CarvingMask::next_set",
+      "reason": "hot: 35342 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::carving::CarvingMask::try_visit_mut",
       "reason": "generic type params",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::carving::Cursor::next",
+      "reason": "hot: 35342 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::carving::ellipsoid::<CarveError<E> as Display>::fmt",
@@ -1705,6 +1741,24 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::carving::ellipsoid::<CarvingMask as CarverOutput>::max_y",
+      "reason": "hot: 45626 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::carving::ellipsoid::<CarvingMask as CarverOutput>::min_y",
+      "reason": "hot: 45626 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::carving::ellipsoid::can_reach",
+      "reason": "hot: 325216 calls in the REM-03 hit-count flight (0.12%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::carving::ellipsoid::carve_ellipsoid",
       "reason": "generic type params",
       "kind": "fn"
@@ -1715,9 +1769,57 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::<ConstantSampler as DensitySampler>::sample_value",
+      "reason": "hot: 59018 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::<ConstantSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 80692 calls in the REM-03 second hit-count flight (0.048%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::<GradientSampler as DensitySampler>::sample_value",
+      "reason": "hot: 144477 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::<GradientSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 66188 calls in the REM-03 second hit-count flight (0.039%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::<NoiseSampler as DensitySampler>::sample_value",
+      "reason": "hot: 215205 calls in the REM-03 hit-count flight (0.08%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::<NoiseSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 81058 calls in the REM-03 second hit-count flight (0.048%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::<SampleError as Display>::fmt",
       "reason": "calls trait method without trait in scope",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::<ShiftedNoiseSampler as DensitySampler>::sample_value",
+      "reason": "hot: 234122 calls in the REM-03 hit-count flight (0.08%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::<ShiftedNoiseSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 25862 calls in the REM-03 second hit-count flight (0.015%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::GradientSampler::compute",
@@ -1750,6 +1852,30 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::arithmetic::<BinarySampler as DensitySampler>::sample_value",
+      "reason": "hot: 123221 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::arithmetic::<BinarySampler as DensitySampler>::sample_volume",
+      "reason": "hot: 54528 calls in the REM-03 second hit-count flight (0.033%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::arithmetic::<UnarySampler as DensitySampler>::sample_value",
+      "reason": "hot: 709839 calls in the REM-03 hit-count flight (0.25%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::arithmetic::<UnarySampler as DensitySampler>::sample_volume",
+      "reason": "hot: 67646 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::arithmetic::BinaryOp::apply",
       "reason": "small body",
       "kind": "fn"
@@ -1763,6 +1889,12 @@
       "key": "horizon_core::density::arithmetic::UnaryOp::apply",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::arithmetic::UnaryOp::apply_bulk",
+      "reason": "hot: 67646 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::arithmetic::clamp",
@@ -1788,6 +1920,12 @@
       "key": "horizon_core::density::beardifier::Beardifier::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::beardifier::Beardifier::sample_unchecked",
+      "reason": "hot: 1407984 calls in the REM-03 second hit-count flight (0.840%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::beardifier::Beardifier::with_kernels",
@@ -1830,14 +1968,44 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::beardifier::beard",
+      "reason": "hot: 64102400 calls in the REM-03 second hit-count flight (38.230%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::beardifier::bury",
       "reason": "small body",
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::beardifier::fast_inverse_sqrt",
+      "reason": "hot: 6354552 calls in the REM-03 second hit-count flight (3.790%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::beardifier::kernel",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::cache::<CacheCell as Default>::default",
+      "reason": "hot: 28736 calls in the REM-03 second hit-count flight (0.017%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::cache::<CachingDensitySampler as DensitySampler>::sample_value",
+      "reason": "hot: 841602 calls in the REM-03 hit-count flight (0.30%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::cache::<CachingDensitySampler as DensitySampler>::sample_volume",
+      "reason": "hot: 44607 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::cache::CachingDensitySampler::id",
@@ -1858,6 +2026,12 @@
       "key": "horizon_core::density::cache::SamplerContext::clear_caches",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::cache::SamplerContext::prepare_cache",
+      "reason": "hot: 886209 calls in the REM-03 hit-count flight (0.32%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::cache::SamplerContext::sparse",
@@ -1890,6 +2064,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::graph::DensityGraph::domain_axes",
+      "reason": "hot: 7872 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::graph::DensityGraph::entry",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -1898,6 +2078,12 @@
       "key": "horizon_core::density::graph::DensityGraph::function",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::DensityGraph::insert",
+      "reason": "hot: 2345 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::graph::DensityGraph::java_equals",
@@ -1923,6 +2109,12 @@
       "key": "horizon_core::density::graph::GraphNode::children_mut",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::graph::GraphNode::key",
+      "reason": "hot: 2345 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::graph::GraphUnary::operation",
@@ -2000,9 +2192,27 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::interpolation::<InterpolatedSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 39928 calls in the REM-03 second hit-count flight (0.024%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::interpolation::InterpolatedSampler::fill_cell",
+      "reason": "hot: 832365 calls in the REM-03 hit-count flight (0.30%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::interpolation::InterpolatedSampler::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::interpolation::InterpolatedSampler::sample_block_volume",
+      "reason": "hot: 32131 calls in the REM-03 second hit-count flight (0.019%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::interpolation::lerp",
@@ -2160,6 +2370,30 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::selection::<IntervalSelectSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 2703 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::selection::<LerpSampler as DensitySampler>::sample_value",
+      "reason": "hot: 141848 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::selection::<LerpSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 14854 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::selection::<RangeChoiceSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 62464 calls in the REM-03 second hit-count flight (0.037%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::selection::DensityValue::sample_value",
       "reason": "small body",
       "kind": "fn"
@@ -2195,6 +2429,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::slice::<SliceSampler as DensitySampler>::sample_value",
+      "reason": "hot: 900265 calls in the REM-03 hit-count flight (0.32%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::slice::<SliceSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 34099 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::slice::SliceAxes::coordinates",
       "reason": "small body",
       "kind": "fn"
@@ -2203,6 +2449,18 @@
       "key": "horizon_core::density::slice::spread",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::spline::<SplineSampler as DensitySampler>::sample_value",
+      "reason": "hot: 59018 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::spline::<SplineSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 12151 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::spline::CubicSpline::compile",
@@ -2245,6 +2503,24 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::density::surface::<FindTopSurfaceSampler as DensitySampler>::sample_value",
+      "reason": "hot: 70258 calls in the REM-03 second hit-count flight (0.042%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::surface::<FindTopSurfaceSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 4212 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::surface::FindTopSurfaceSampler::find_surface_from",
+      "reason": "hot: 41415 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::density::surface::FindTopSurfaceSampler::new",
       "reason": "small body",
       "kind": "fn"
@@ -2253,6 +2529,18 @@
       "key": "horizon_core::density::surface::compile_surface_search",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::terrain_noise::<ShiftBSampler as DensitySampler>::sample_value",
+      "reason": "hot: 203885 calls in the REM-03 hit-count flight (0.07%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::terrain_noise::<ShiftBSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 18312 calls in the REM-03 second hit-count flight (0.011%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::terrain_noise::BlendedNoise::compile",
@@ -2283,6 +2571,24 @@
       "key": "horizon_core::density::terrain_noise::create_blended_fbm",
       "reason": "impl Trait argument",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::density::visit",
+      "reason": "hot: 30074 calls in the REM-03 second hit-count flight (0.018%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::world_fields::<ContextBoundSampler as DensitySampler>::sample_value",
+      "reason": "hot: 59018 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::density::world_fields::<ContextBoundSampler as DensitySampler>::sample_volume",
+      "reason": "hot: 19189 calls in the REM-03 second hit-count flight (0.011%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::density::world_fields::ContextBoundSampler::new",
@@ -2330,6 +2636,48 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::finish",
+      "reason": "hot: 17174615 calls in the REM-03 hit-count flight (6.16%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write",
+      "reason": "hot: 380512 calls in the REM-03 hit-count flight (0.14%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_i32",
+      "reason": "hot: 32275662 calls in the REM-03 hit-count flight (11.58%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u32",
+      "reason": "hot: 1007757 calls in the REM-03 hit-count flight (0.36%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u64",
+      "reason": "hot: 803802 calls in the REM-03 hit-count flight (0.29%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u8",
+      "reason": "hot: 68937 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_usize",
+      "reason": "hot: 486832 calls in the REM-03 hit-count flight (0.17%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::fast_hash::FxHasher::add",
       "reason": "small body",
       "kind": "fn"
@@ -2343,6 +2691,12 @@
       "key": "horizon_core::geometry::<Vec3 as InjectValue>::into_inject_value",
       "reason": "calls trait method without trait in scope",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::<Vec3 as PartialEq>::eq",
+      "reason": "hot: 50318 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::Aabb::average_size",
@@ -2363,6 +2717,12 @@
       "key": "horizon_core::geometry::Aabb::center",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Aabb::change_extent",
+      "reason": "hot: 185977 calls in the REM-03 hit-count flight (0.07%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::Aabb::clip",
@@ -2553,6 +2913,12 @@
       "key": "horizon_core::geometry::Vec3::distance",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::Vec3::distance_squared",
+      "reason": "hot: 34699 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::Vec3::dot",
@@ -2875,9 +3241,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::geometry::shape::VoxelShape::build",
+      "reason": "hot: 146347 calls in the REM-03 second hit-count flight (0.087%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::geometry::shape::VoxelShape::closest_point",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::collide",
+      "reason": "hot: 56202 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::shape::VoxelShape::collide_all",
@@ -2895,6 +3273,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::geometry::shape::VoxelShape::decompose",
+      "reason": "hot: 146347 calls in the REM-03 second hit-count flight (0.087%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::geometry::shape::VoxelShape::discrete_bounds",
       "reason": "small body",
       "kind": "fn"
@@ -2908,6 +3292,12 @@
       "key": "horizon_core::geometry::shape::VoxelShape::empty_ref",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::VoxelShape::find_index",
+      "reason": "hot: 281013 calls in the REM-03 hit-count flight (0.10%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::shape::VoxelShape::fresh_identity",
@@ -2970,6 +3360,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::geometry::shape::VoxelShape::moved",
+      "reason": "hot: 65249 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::geometry::shape::VoxelShape::same_identity",
       "reason": "small body",
       "kind": "fn"
@@ -2990,6 +3386,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::geometry::shape::create::VoxelShape::from_box",
+      "reason": "hot: 30692 calls in the REM-03 second hit-count flight (0.018%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::geometry::shape::create::VoxelShape::join",
       "reason": "small body",
       "kind": "fn"
@@ -3008,6 +3410,12 @@
       "key": "horizon_core::geometry::shape::create::round_small",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::face::VoxelShape::calculate_face",
+      "reason": "hot: 136912 calls in the REM-03 second hit-count flight (0.082%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::shape::face::VoxelShape::cube_like_along",
@@ -3055,9 +3463,33 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::geometry::shape::join::VoxelShape::join_is_not_empty",
+      "reason": "hot: 244561 calls in the REM-03 second hit-count flight (0.146%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::geometry::shape::join::VoxelShape::join_unoptimized",
+      "reason": "hot: 3104 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::geometry::shape::join::VoxelShape::mergers",
+      "reason": "hot: 198983 calls in the REM-03 second hit-count flight (0.119%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::geometry::shape::join::gcd",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::shape::join::merge",
+      "reason": "hot: 596949 calls in the REM-03 second hit-count flight (0.356%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::shape::strip_full",
@@ -3085,6 +3517,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::geometry::sweep::sweep_intersected_blocks",
+      "reason": "hot: 7582 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::geometry::traversal::traverse_blocks",
       "reason": "generic type params",
       "kind": "fn"
@@ -3098,6 +3536,12 @@
       "key": "horizon_core::geometry::trig::<f32 as Mth>::msin",
       "reason": "trait impl on a type that cannot take an inherent impl",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::geometry::trig::atan2",
+      "reason": "hot: 72031 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::geometry::trig::atan2_degrees",
@@ -3385,6 +3829,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::noise::perlin::PerlinNoise::gradients_at",
+      "reason": "hot: 15290388 calls in the REM-03 hit-count flight (5.49%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::noise::perlin::PerlinNoise::new",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -3440,6 +3890,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::noise::perlin::add_four",
+      "reason": "hot: 4064117 calls in the REM-03 hit-count flight (1.46%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::noise::perlin::compute_fudge_y",
       "reason": "small body",
       "kind": "fn"
@@ -3448,6 +3904,12 @@
       "key": "horizon_core::noise::simplex::SimplexNoise::corner",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::simplex::SimplexNoise::get2",
+      "reason": "hot: 7195 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::noise::simplex::SimplexNoise::new",
@@ -3478,6 +3940,18 @@
       "key": "horizon_core::noise::smoothstep_derivative",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::noise::stack::<NoiseStack as Noise>::add_to_volume",
+      "reason": "hot: 31650 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::noise::stack::<NoiseStack as Noise>::get3",
+      "reason": "hot: 962884 calls in the REM-03 hit-count flight (0.35%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::noise::stack::<PerlinNoise as Noise>::add_to_volume",
@@ -3595,6 +4069,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::noise::volume::DensityVolume::new",
+      "reason": "hot: 56577 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::noise::volume::DensityVolume::size",
       "reason": "small body",
       "kind": "fn"
@@ -3615,6 +4095,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::paletted::<PalettedContainer as PartialEq>::eq",
+      "reason": "hot: 12302 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::all_equal",
+      "reason": "hot: 31115 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::paletted::PalettedContainer::bits",
       "reason": "small body",
       "kind": "fn"
@@ -3625,9 +4117,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::paletted::PalettedContainer::check_indices",
+      "reason": "hot: 4345 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::paletted::PalettedContainer::from_values",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::from_wire",
+      "reason": "hot: 12000 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::paletted::PalettedContainer::get",
@@ -3638,6 +4142,12 @@
       "key": "horizon_core::paletted::PalettedContainer::get_run",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::has",
+      "reason": "hot: 13023 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::paletted::PalettedContainer::heap_bytes",
@@ -3668,6 +4178,12 @@
       "key": "horizon_core::paletted::PalettedContainer::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::PalettedContainer::pack",
+      "reason": "hot: 39984 calls in the REM-03 second hit-count flight (0.024%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::paletted::PalettedContainer::palette_len",
@@ -3753,6 +4269,12 @@
       "key": "horizon_core::paletted::pack_words",
       "reason": "impl Trait argument",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::paletted::palette_ids",
+      "reason": "hot: 81894 calls in the REM-03 second hit-count flight (0.049%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::paletted::read",
@@ -3870,6 +4392,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::position::iter::BlockBoxIter::new",
+      "reason": "hot: 17556 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::position::iter::BlockPos::between_box_corners_in_direction",
       "reason": "small body",
       "kind": "fn"
@@ -3930,6 +4458,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::prepared_files::open",
+      "reason": "hot: 14962 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::prepared_files::pad",
       "reason": "small body",
       "kind": "fn"
@@ -3975,9 +4509,93 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_boolean",
+      "reason": "hot: 5692 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_double",
+      "reason": "hot: 51079 calls in the REM-03 second hit-count flight (0.030%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_float",
+      "reason": "hot: 3122220 calls in the REM-03 hit-count flight (1.12%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_gaussian",
+      "reason": "hot: 8280 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_int_bound",
+      "reason": "hot: 3234714 calls in the REM-03 hit-count flight (1.16%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_long",
+      "reason": "hot: 369905 calls in the REM-03 hit-count flight (0.13%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<LegacyRandom as RandomSource>::set_seed",
+      "reason": "hot: 201988 calls in the REM-03 hit-count flight (0.07%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::fork_positional",
       "reason": "uses trait Self:: item",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_double",
+      "reason": "hot: 45898 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_float",
+      "reason": "hot: 483624 calls in the REM-03 hit-count flight (0.17%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_int",
+      "reason": "hot: 54072 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_int_bound",
+      "reason": "hot: 54072 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_long",
+      "reason": "hot: 1972836 calls in the REM-03 hit-count flight (0.71%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::set_seed",
+      "reason": "hot: 75521 calls in the REM-03 second hit-count flight (0.045%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::random::LegacyRandom::bits",
+      "reason": "hot: 7138082 calls in the REM-03 hit-count flight (2.56%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::random::LegacyRandom::from_state",
@@ -4010,6 +4628,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::random::hash::Md5::block",
+      "reason": "hot: 9717 calls in the REM-03 second hit-count flight (0.006%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::random::hash::Md5::finish",
       "reason": "by-value or typed self",
       "kind": "fn"
@@ -4018,6 +4642,12 @@
       "key": "horizon_core::random::hash::Md5::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::random::hash::Md5::update",
+      "reason": "hot: 29151 calls in the REM-03 second hit-count flight (0.017%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::random::hash::seed",
@@ -4115,6 +4745,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::random::worldgen::<LegacyRandom as WorldgenSource>::worldgen_bits",
+      "reason": "hot: 575391 calls in the REM-03 hit-count flight (0.21%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::random::worldgen::<WorldgenPositional<P> as PositionalRandom>::at",
       "reason": "generic impl",
       "kind": "fn"
@@ -4190,6 +4826,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::random::worldgen::<XoroshiroRandom as WorldgenSource>::worldgen_bits",
+      "reason": "hot: 1385630 calls in the REM-03 hit-count flight (0.50%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::random::worldgen::WorldgenRandom<R>::count",
       "reason": "generic impl",
       "kind": "fn"
@@ -4255,6 +4897,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::storage::PackedStorage::from_words",
+      "reason": "hot: 32140 calls in the REM-03 second hit-count flight (0.019%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::storage::PackedStorage::get",
       "reason": "small body",
       "kind": "fn"
@@ -4295,6 +4943,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::storage::PackedStorage::set",
+      "reason": "hot: 632595 calls in the REM-03 hit-count flight (0.23%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::storage::PackedStorage::slot",
       "reason": "small body",
       "kind": "fn"
@@ -4313,6 +4967,12 @@
       "key": "horizon_core::storage::PackedStorage::words",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::storage::PackedStorage::write",
+      "reason": "hot: 10835381 calls in the REM-03 hit-count flight (3.89%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::storage::locate",
@@ -4400,9 +5060,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::ticks::LevelTicks::next_tick",
+      "reason": "hot: 93955 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::ticks::LevelTicks::remove_chunk",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_core::ticks::LevelTicks::schedule",
+      "reason": "hot: 104745 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_core::ticks::LevelTicks::schedule_copy",
@@ -4600,6 +5272,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_core::ticks::index::DeadlineIndex::find",
+      "reason": "hot: 4738 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_core::ticks::index::DeadlineIndex::put",
+      "reason": "hot: 4119 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_core::ticks::index::DeadlineIndex::shift_keys",
       "reason": "small body",
       "kind": "fn"
@@ -4613,690 +5297,6 @@
       "key": "horizon_core::ticks::index::mix",
       "reason": "small body",
       "kind": "fn"
-    },
-    {
-      "key": "horizon_core::biome::BiomeZoom::select_corner",
-      "reason": "hot: 287560 calls in the REM-03 hit-count flight (0.10%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::carving::CarvingMask::carve",
-      "reason": "hot: 405787 calls in the REM-03 hit-count flight (0.15%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::carving::CarvingMask::next_set",
-      "reason": "hot: 35342 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::carving::Cursor::next",
-      "reason": "hot: 35342 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::carving::ellipsoid::<CarvingMask as CarverOutput>::min_y",
-      "reason": "hot: 45626 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::carving::ellipsoid::<CarvingMask as CarverOutput>::max_y",
-      "reason": "hot: 45626 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::carving::ellipsoid::can_reach",
-      "reason": "hot: 325216 calls in the REM-03 hit-count flight (0.12%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::<ConstantSampler as DensitySampler>::sample_value",
-      "reason": "hot: 59018 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::<GradientSampler as DensitySampler>::sample_value",
-      "reason": "hot: 144477 calls in the REM-03 hit-count flight (0.05%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::<NoiseSampler as DensitySampler>::sample_value",
-      "reason": "hot: 215205 calls in the REM-03 hit-count flight (0.08%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::<ShiftedNoiseSampler as DensitySampler>::sample_value",
-      "reason": "hot: 234122 calls in the REM-03 hit-count flight (0.08%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::cache::SamplerContext::prepare_cache",
-      "reason": "hot: 886209 calls in the REM-03 hit-count flight (0.32%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::cache::<CachingDensitySampler as DensitySampler>::sample_value",
-      "reason": "hot: 841602 calls in the REM-03 hit-count flight (0.30%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::cache::<CachingDensitySampler as DensitySampler>::sample_volume",
-      "reason": "hot: 44607 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::world_fields::<ContextBoundSampler as DensitySampler>::sample_value",
-      "reason": "hot: 59018 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::arithmetic::<UnarySampler as DensitySampler>::sample_value",
-      "reason": "hot: 709839 calls in the REM-03 hit-count flight (0.25%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::arithmetic::<UnarySampler as DensitySampler>::sample_volume",
-      "reason": "hot: 67646 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::arithmetic::<BinarySampler as DensitySampler>::sample_value",
-      "reason": "hot: 123221 calls in the REM-03 hit-count flight (0.04%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::interpolation::InterpolatedSampler::fill_cell",
-      "reason": "hot: 832365 calls in the REM-03 hit-count flight (0.30%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::selection::<LerpSampler as DensitySampler>::sample_value",
-      "reason": "hot: 141848 calls in the REM-03 hit-count flight (0.05%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::slice::<SliceSampler as DensitySampler>::sample_value",
-      "reason": "hot: 900265 calls in the REM-03 hit-count flight (0.32%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::slice::<SliceSampler as DensitySampler>::sample_volume",
-      "reason": "hot: 34099 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::spline::<SplineSampler as DensitySampler>::sample_value",
-      "reason": "hot: 59018 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::surface::FindTopSurfaceSampler::find_surface_from",
-      "reason": "hot: 41415 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::terrain_noise::<ShiftBSampler as DensitySampler>::sample_value",
-      "reason": "hot: 203885 calls in the REM-03 hit-count flight (0.07%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write",
-      "reason": "hot: 380512 calls in the REM-03 hit-count flight (0.14%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u8",
-      "reason": "hot: 68937 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u32",
-      "reason": "hot: 1007757 calls in the REM-03 hit-count flight (0.36%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_u64",
-      "reason": "hot: 803802 calls in the REM-03 hit-count flight (0.29%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_usize",
-      "reason": "hot: 486832 calls in the REM-03 hit-count flight (0.17%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::write_i32",
-      "reason": "hot: 32275662 calls in the REM-03 hit-count flight (11.58%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::fast_hash::<FxHasher as Hasher>::finish",
-      "reason": "hot: 17174615 calls in the REM-03 hit-count flight (6.16%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::<Vec3 as PartialEq>::eq",
-      "reason": "hot: 50318 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::shape::VoxelShape::moved",
-      "reason": "hot: 65249 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::shape::VoxelShape::find_index",
-      "reason": "hot: 281013 calls in the REM-03 hit-count flight (0.10%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::shape::VoxelShape::collide",
-      "reason": "hot: 56202 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::trig::atan2",
-      "reason": "hot: 72031 calls in the REM-03 hit-count flight (0.03%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::noise::perlin::PerlinNoise::gradients_at",
-      "reason": "hot: 15290388 calls in the REM-03 hit-count flight (5.49%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::noise::perlin::add_four",
-      "reason": "hot: 4064117 calls in the REM-03 hit-count flight (1.46%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::noise::stack::<NoiseStack as Noise>::get3",
-      "reason": "hot: 962884 calls in the REM-03 hit-count flight (0.35%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::noise::stack::<NoiseStack as Noise>::add_to_volume",
-      "reason": "hot: 31650 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::noise::volume::DensityVolume::new",
-      "reason": "hot: 56577 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::paletted::PalettedContainer::all_equal",
-      "reason": "hot: 31115 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::LegacyRandom::bits",
-      "reason": "hot: 7138082 calls in the REM-03 hit-count flight (2.56%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::<LegacyRandom as RandomSource>::set_seed",
-      "reason": "hot: 201988 calls in the REM-03 hit-count flight (0.07%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_int_bound",
-      "reason": "hot: 3234714 calls in the REM-03 hit-count flight (1.16%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_long",
-      "reason": "hot: 369905 calls in the REM-03 hit-count flight (0.13%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_float",
-      "reason": "hot: 3122220 calls in the REM-03 hit-count flight (1.12%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_int",
-      "reason": "hot: 54072 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_int_bound",
-      "reason": "hot: 54072 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_long",
-      "reason": "hot: 1972836 calls in the REM-03 hit-count flight (0.71%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_float",
-      "reason": "hot: 483624 calls in the REM-03 hit-count flight (0.17%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::next_double",
-      "reason": "hot: 45898 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::worldgen::<LegacyRandom as WorldgenSource>::worldgen_bits",
-      "reason": "hot: 575391 calls in the REM-03 hit-count flight (0.21%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::worldgen::<XoroshiroRandom as WorldgenSource>::worldgen_bits",
-      "reason": "hot: 1385630 calls in the REM-03 hit-count flight (0.50%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::storage::PackedStorage::write",
-      "reason": "hot: 10835381 calls in the REM-03 hit-count flight (3.89%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::storage::PackedStorage::set",
-      "reason": "hot: 632595 calls in the REM-03 hit-count flight (0.23%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::ticks::LevelTicks::schedule",
-      "reason": "hot: 104745 calls in the REM-03 hit-count flight (0.04%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::ticks::LevelTicks::next_tick",
-      "reason": "hot: 93955 calls in the REM-03 hit-count flight (0.03%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::biome::BiomeZoom::quart_at_block",
-      "reason": "hot: 102709 calls in the REM-03 hit-count flight (0.04%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::arithmetic::UnaryOp::apply_bulk",
-      "reason": "hot: 67646 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::Vec3::distance_squared",
-      "reason": "hot: 34699 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::Aabb::change_extent",
-      "reason": "hot: 185977 calls in the REM-03 hit-count flight (0.07%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::<ConstantSampler as DensitySampler>::sample_volume",
-      "reason": "hot: 80692 calls in the REM-03 second hit-count flight (0.048%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::<GradientSampler as DensitySampler>::sample_volume",
-      "reason": "hot: 66188 calls in the REM-03 second hit-count flight (0.039%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::<NoiseSampler as DensitySampler>::sample_volume",
-      "reason": "hot: 81058 calls in the REM-03 second hit-count flight (0.048%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::<ShiftedNoiseSampler as DensitySampler>::sample_volume",
-      "reason": "hot: 25862 calls in the REM-03 second hit-count flight (0.015%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::beardifier::Beardifier::sample_unchecked",
-      "reason": "hot: 1407984 calls in the REM-03 second hit-count flight (0.840%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::beardifier::beard",
-      "reason": "hot: 64102400 calls in the REM-03 second hit-count flight (38.230%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::beardifier::fast_inverse_sqrt",
-      "reason": "hot: 6354552 calls in the REM-03 second hit-count flight (3.790%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::cache::<CacheCell as Default>::default",
-      "reason": "hot: 28736 calls in the REM-03 second hit-count flight (0.017%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::world_fields::<ContextBoundSampler as DensitySampler>::sample_volume",
-      "reason": "hot: 19189 calls in the REM-03 second hit-count flight (0.011%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::graph::GraphNode::key",
-      "reason": "hot: 2345 calls in the REM-03 second hit-count flight (0.001%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::graph::DensityGraph::insert",
-      "reason": "hot: 2345 calls in the REM-03 second hit-count flight (0.001%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::graph::DensityGraph::domain_axes",
-      "reason": "hot: 7872 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::arithmetic::<BinarySampler as DensitySampler>::sample_volume",
-      "reason": "hot: 54528 calls in the REM-03 second hit-count flight (0.033%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::interpolation::InterpolatedSampler::sample_block_volume",
-      "reason": "hot: 32131 calls in the REM-03 second hit-count flight (0.019%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::interpolation::<InterpolatedSampler as DensitySampler>::sample_volume",
-      "reason": "hot: 39928 calls in the REM-03 second hit-count flight (0.024%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::selection::<RangeChoiceSampler as DensitySampler>::sample_volume",
-      "reason": "hot: 62464 calls in the REM-03 second hit-count flight (0.037%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::selection::<LerpSampler as DensitySampler>::sample_volume",
-      "reason": "hot: 14854 calls in the REM-03 second hit-count flight (0.009%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::selection::<IntervalSelectSampler as DensitySampler>::sample_volume",
-      "reason": "hot: 2703 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::spline::<SplineSampler as DensitySampler>::sample_volume",
-      "reason": "hot: 12151 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::surface::<FindTopSurfaceSampler as DensitySampler>::sample_value",
-      "reason": "hot: 70258 calls in the REM-03 second hit-count flight (0.042%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::surface::<FindTopSurfaceSampler as DensitySampler>::sample_volume",
-      "reason": "hot: 4212 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::terrain_noise::<ShiftBSampler as DensitySampler>::sample_volume",
-      "reason": "hot: 18312 calls in the REM-03 second hit-count flight (0.011%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::shape::VoxelShape::build",
-      "reason": "hot: 146347 calls in the REM-03 second hit-count flight (0.087%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::shape::VoxelShape::decompose",
-      "reason": "hot: 146347 calls in the REM-03 second hit-count flight (0.087%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::shape::create::VoxelShape::from_box",
-      "reason": "hot: 30692 calls in the REM-03 second hit-count flight (0.018%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::shape::face::VoxelShape::calculate_face",
-      "reason": "hot: 136912 calls in the REM-03 second hit-count flight (0.082%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::shape::join::VoxelShape::join_unoptimized",
-      "reason": "hot: 3104 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::shape::join::VoxelShape::join_is_not_empty",
-      "reason": "hot: 244561 calls in the REM-03 second hit-count flight (0.146%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::shape::join::VoxelShape::mergers",
-      "reason": "hot: 198983 calls in the REM-03 second hit-count flight (0.119%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::shape::join::merge",
-      "reason": "hot: 596949 calls in the REM-03 second hit-count flight (0.356%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::noise::simplex::SimplexNoise::get2",
-      "reason": "hot: 7195 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::paletted::palette_ids",
-      "reason": "hot: 81894 calls in the REM-03 second hit-count flight (0.049%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::paletted::PalettedContainer::from_wire",
-      "reason": "hot: 12000 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::paletted::PalettedContainer::check_indices",
-      "reason": "hot: 4345 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::paletted::PalettedContainer::pack",
-      "reason": "hot: 39984 calls in the REM-03 second hit-count flight (0.024%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::paletted::<PalettedContainer as PartialEq>::eq",
-      "reason": "hot: 12302 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::position::iter::BlockBoxIter::new",
-      "reason": "hot: 17556 calls in the REM-03 second hit-count flight (0.010%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::prepared_files::open",
-      "reason": "hot: 14962 calls in the REM-03 second hit-count flight (0.009%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_boolean",
-      "reason": "hot: 5692 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_double",
-      "reason": "hot: 51079 calls in the REM-03 second hit-count flight (0.030%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::<LegacyRandom as RandomSource>::next_gaussian",
-      "reason": "hot: 8280 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::<XoroshiroRandom as RandomSource>::set_seed",
-      "reason": "hot: 75521 calls in the REM-03 second hit-count flight (0.045%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::hash::Md5::block",
-      "reason": "hot: 9717 calls in the REM-03 second hit-count flight (0.006%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::random::hash::Md5::update",
-      "reason": "hot: 29151 calls in the REM-03 second hit-count flight (0.017%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::storage::PackedStorage::from_words",
-      "reason": "hot: 32140 calls in the REM-03 second hit-count flight (0.019%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::ticks::index::DeadlineIndex::find",
-      "reason": "hot: 4738 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::ticks::index::DeadlineIndex::put",
-      "reason": "hot: 4119 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::biome::BiomeZoom::corner_jitter",
-      "reason": "hot: 110715 calls in the REM-03 second hit-count flight (0.066%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::density::visit",
-      "reason": "hot: 30074 calls in the REM-03 second hit-count flight (0.018%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::geometry::sweep::sweep_intersected_blocks",
-      "reason": "hot: 7582 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_core::paletted::PalettedContainer::has",
-      "reason": "hot: 13023 calls in the REM-03 second hit-count flight (0.008%)",
-      "kind": "fn",
-      "manual": true
     }
   ]
 }

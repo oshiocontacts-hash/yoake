@@ -2327,6 +2327,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::read",
+      "reason": "hot: 3188 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::write",
+      "reason": "hot: 3188 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_protocol::buf::<BytesN<N> as Codec<Vec<u8>>>::read",
       "reason": "generic impl",
       "kind": "fn"
@@ -2345,6 +2357,18 @@
       "key": "horizon_protocol::buf::<List<C> as Codec<Vec<T>>>::write",
       "reason": "generic impl",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::<LpVec3 as Codec<[f64;3]>>::read",
+      "reason": "hot: 4438 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::buf::<LpVec3 as Codec<[f64;3]>>::write",
+      "reason": "hot: 4438 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::buf::<Opt<C> as Codec<Option<T>>>::read",
@@ -2405,6 +2429,12 @@
       "key": "horizon_protocol::buf::Reader::bytes",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::count",
+      "reason": "hot: 28605 calls in the REM-03 second hit-count flight (0.017%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::buf::Reader::f32",
@@ -2470,6 +2500,12 @@
       "key": "horizon_protocol::buf::Reader::since",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::string",
+      "reason": "hot: 3886 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::buf::Reader::u16",
@@ -2652,9 +2688,27 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_protocol::chunk::Paletted::from_palette",
+      "reason": "hot: 7403 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::chunk::Paletted::from_values",
+      "reason": "hot: 2990 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_protocol::chunk::Paletted::get",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::Paletted::read",
+      "reason": "hot: 24000 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::chunk::Paletted::write",
@@ -2665,6 +2719,12 @@
       "key": "horizon_protocol::chunk::Section::read",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::Section::write",
+      "reason": "hot: 6326 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::chunk::Strategy::configuration",
@@ -2687,9 +2747,27 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_protocol::chunk::storage_get",
+      "reason": "hot: 50688 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_protocol::chunk::storage_len",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::<Pipe as Write>::write",
+      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::connection::<Stream as Write>::write",
+      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::connection::CaptureFenceId::decode[cfg(feature=\"dev-capture\")]",
@@ -2755,6 +2833,12 @@
       "key": "horizon_protocol::connection::ConnWriter::send",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::connection::ConnWriter::send_contents",
+      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::connection::ConnWriter::shutdown",
@@ -3012,6 +3096,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_protocol::frame::body",
+      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_protocol::frame::contents",
       "reason": "small body",
       "kind": "fn"
@@ -3025,6 +3115,12 @@
       "key": "horizon_protocol::frame::header",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::frame::prefixed",
+      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::hash_ops::HashCode::as_bytes",
@@ -3165,6 +3261,12 @@
       "key": "horizon_protocol::ids::name",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::item::<WirePatch as PartialEq>::eq",
+      "reason": "hot: 9475 calls in the REM-03 second hit-count flight (0.006%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_protocol::item::Component::read",
@@ -4435,108 +4537,6 @@
       "key": "horizon_protocol::text::translatable",
       "reason": "small body",
       "kind": "fn"
-    },
-    {
-      "key": "horizon_protocol::chunk::storage_get",
-      "reason": "hot: 50688 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::buf::Reader::count",
-      "reason": "hot: 28605 calls in the REM-03 second hit-count flight (0.017%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::buf::Reader::string",
-      "reason": "hot: 3886 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::read",
-      "reason": "hot: 3188 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::write",
-      "reason": "hot: 3188 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::buf::<LpVec3 as Codec<[f64;3]>>::read",
-      "reason": "hot: 4438 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::buf::<LpVec3 as Codec<[f64;3]>>::write",
-      "reason": "hot: 4438 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::chunk::Paletted::read",
-      "reason": "hot: 24000 calls in the REM-03 second hit-count flight (0.014%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::chunk::Paletted::from_values",
-      "reason": "hot: 2990 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::chunk::Paletted::from_palette",
-      "reason": "hot: 7403 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::chunk::Section::write",
-      "reason": "hot: 6326 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::connection::<Pipe as Write>::write",
-      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::connection::<Stream as Write>::write",
-      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::connection::ConnWriter::send_contents",
-      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::frame::prefixed",
-      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::frame::body",
-      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_protocol::item::<WirePatch as PartialEq>::eq",
-      "reason": "hot: 9475 calls in the REM-03 second hit-count flight (0.006%)",
-      "kind": "fn",
-      "manual": true
     }
   ]
 }
