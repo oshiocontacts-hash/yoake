@@ -29,7 +29,7 @@ const MAX_RECIPE_LIST: usize = 4096;
 /// Most items or slots in a list a guest passes.
 const MAX_LIST: usize = 512;
 /// Nested `mod-call`s, the outer one included.
-const MAX_CALL_DEPTH: usize = 4;
+pub(super) const MAX_CALL_DEPTH: usize = 4;
 
 // ---------------------------------------------------------------------------------------------
 // Value checks and conversions

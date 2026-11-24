@@ -141,6 +141,7 @@ impl FullMod {
             reported: false,
         }));
         super::mob_runtime::register_client(&client_slot);
+        super::client_services::register_client_endpoint(&id, &client_slot);
         Self {
             id,
             client: client_slot,
@@ -2012,8 +2013,9 @@ mod tests {
     }
 
     fn module(kind: &str) -> Option<Vec<u8>> {
-        use yoake_wasm::test_guests::{FULL_DEMO_CLIENT, FULL_DEMO_PEER, FULL_DEMO_SERVER, load};
+        use yoake_wasm::test_guests::{FULL_DEMO_CLIENT, FULL_DEMO_CLIENT_PEER, FULL_DEMO_PEER, FULL_DEMO_SERVER, load};
         load(match kind {
+            "client-peer" => &FULL_DEMO_CLIENT_PEER,
             "server" => &FULL_DEMO_SERVER,
             "peer" => &FULL_DEMO_PEER,
             _ => &FULL_DEMO_CLIENT,
@@ -2785,6 +2787,42 @@ mod tests {
         );
         drop(held);
         assert!(super::server_services::call_mod("w2-caller", "w2-peer", "echo", b"x").is_ok());
+    }
+
+    #[test]
+    fn client_mod_call_reaches_the_peers_handle_call_with_the_servers_guards() {
+        use super::super::client_services::call_client_mod as call;
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+        let Some(peer_bytes) = module("client-peer") else { return };
+        let load = |id: &str| {
+            let module = load_client(&ModuleSource { id, bytes: &peer_bytes, commands: false, gpu: false }).expect("client peer loads");
+            FullMod::new(id.to_owned(), Some(module), None)
+        };
+        let (a, b, c) = (load("w3-a"), load("w3-b"), load("w3-c"));
+        let mut host = FakeHost::default();
+        let mut invocation = Invocation { host: HostAccess::Write(&mut host), batch: None, batch_start: 0, client: ClientExtras::default() };
+        let _scope = Scope::enter(&mut invocation);
+        assert_eq!(String::from_utf8(call("w3-a", "w3-b", "echo", b"hi").expect("b answers")).unwrap(), "w3-a said: hi");
+        assert_eq!(String::from_utf8(call("w3-a", "w3-b", "count", b"").unwrap()).unwrap(), "2 call(s) so far");
+        // The peer's own error is the caller's error.
+        assert!(call("w3-a", "w3-b", "nope", b"").unwrap_err().contains("unknown method"));
+        // Guards: ids, method names, payload size, itself, an unknown package.
+        assert!(call("w3-a", "b/../c", "m", b"").is_err());
+        assert!(call("w3-a", "w3-b", "", b"").is_err());
+        assert!(call("w3-a", "w3-b", "echo", &vec![0u8; (1 << 20) + 1]).unwrap_err().contains("1 MiB"));
+        assert!(call("w3-a", "w3-a", "echo", b"").unwrap_err().contains("itself"));
+        assert!(call("w3-a", "no-such-package", "echo", b"").unwrap_err().contains("no package"));
+        // A nested call from inside a handler (b relays to c): the guest calls the service while b runs.
+        assert_eq!(String::from_utf8(call("w3-a", "w3-b", "relay", b"w3-c").unwrap()).unwrap(), "w3-b said: relayed");
+        // A callee that is busy (waiting, mid-hook) is refused, not waited for; so is a re-entry into a waiting caller.
+        let held = b.client.lock().unwrap();
+        assert!(call("w3-a", "w3-b", "echo", b"x").unwrap_err().contains("busy"));
+        drop(held);
+        let held = c.client.lock().unwrap();
+        assert!(call("w3-a", "w3-b", "relay", b"w3-c").unwrap_err().contains("busy"));
+        drop(held);
+        assert!(call("w3-a", "w3-b", "echo", b"x").is_ok());
+        let _ = &a;
     }
 
     #[test]

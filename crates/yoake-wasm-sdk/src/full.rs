@@ -120,6 +120,13 @@ pub mod client {
         services::client_attachment_get(holder, id, kind)
     }
 
+    /// Calls another client package's `handle_call` (payload and answer at most 1 MiB, nested at most 4 deep,
+    /// never back into a package that is waiting on this call). The callee's `Err` is this call's `Err`.
+    /// (Service 298.)
+    pub fn call(target: &str, method: &str, payload: &[u8]) -> Result<Vec<u8>, String> {
+        services::client_mod_call(method, payload, target)
+    }
+
     /// The stack on the cursor in the open screen, or `None` when it is empty. Needs
     /// `service.screen`. (Service 221.)
     pub fn screen_carried() -> Result<Option<types::ItemStack>, String> {

@@ -153,7 +153,7 @@ fn world_text(full: &FullWit, client: bool) -> String {
     if client {
         text.push_str("    fn gpu_frame(&mut self) {}\n");
     }
-    if !client {
+    {
         text.push_str("    /// Another package's `mod_call` reaches this: `caller` is its package id, `method` and `payload` are the two\n    /// packages' own protocol (up to 1 MiB each way). The default refuses every call.\n    fn handle_call(&mut self, caller: String, method: String, payload: Vec<u8>) -> Result<Vec<u8>, String> {\n        Err(String::from(\"this package does not handle calls\"))\n    }\n");
     }
     for plan in &plans {
@@ -198,7 +198,7 @@ fn world_text(full: &FullWit, client: bool) -> String {
     if client {
         text.push_str("                fn gpu_frame() {\n                    $crate::rt::with::<$ty, _>(|m| m.gpu_frame()).expect(\"mod instance\");\n                }\n");
     }
-    if !client {
+    {
         text.push_str("                fn handle_call(caller: $crate::__private::String, method: $crate::__private::String, payload: $crate::__private::Vec<u8>) -> ::core::result::Result<$crate::__private::Vec<u8>, $crate::__private::String> {\n                    $crate::rt::with::<$ty, _>(|m| m.handle_call(caller, method, payload)).expect(\"mod instance\")\n                }\n");
     }
     text.push_str("            }\n\n            #[allow(unused_variables)]\n            impl HooksGuest for Shim {\n");

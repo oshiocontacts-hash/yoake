@@ -143,4 +143,5 @@ client_services! {
     mob_texture_write(id: u32, origin: (u32, u32), rgba: Vec<u8>, size: (u32, u32)) -> ();
     mob_texture_bind(entity: u32, id: Option<u32>, slot: String) -> ();
     client_attachment_get(holder: String, id: String, kind: String) -> Option<Vec<u8>>;
+    client_mod_call(method: String, payload: Vec<u8>, target_mod: String) -> Vec<u8>;
 }

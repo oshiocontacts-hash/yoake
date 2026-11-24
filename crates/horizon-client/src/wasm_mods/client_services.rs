@@ -39,6 +39,88 @@ impl GameHost {
     }
 }
 
+// ---------------------------------------------------------------------------------------------
+// mod-call between client modules (the registry of client modules and the call)
+// ---------------------------------------------------------------------------------------------
+
+type ClientEndpoint = Arc<Mutex<full::SideState<yoake_wasm::ClientFullMod>>>;
+
+static CLIENT_ENDPOINTS: Mutex<Vec<(String, std::sync::Weak<Mutex<full::SideState<yoake_wasm::ClientFullMod>>>)>> =
+    Mutex::new(Vec::new());
+
+thread_local! {
+    static CLIENT_CALL_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Makes a package's client module reachable by `client_mod_call` under its id (replacing an older one).
+pub(super) fn register_client_endpoint(id: &str, slot: &ClientEndpoint) {
+    let mut endpoints = CLIENT_ENDPOINTS.lock().unwrap_or_else(|error| error.into_inner());
+    endpoints.retain(|(name, weak)| name != id && weak.strong_count() > 0);
+    endpoints.push((id.to_owned(), Arc::downgrade(slot)));
+}
+
+fn client_endpoint(id: &str) -> Option<ClientEndpoint> {
+    let endpoints = CLIENT_ENDPOINTS.lock().unwrap_or_else(|error| error.into_inner());
+    endpoints.iter().find(|(name, _)| name == id).and_then(|(_, weak)| weak.upgrade())
+}
+
+/// `caller` calls the client module of `target`'s `handle-call`, with the current hook's game access.
+/// Same guards as the server's `mod-call`: a bounded method name and payload (1 MiB, the answer too),
+/// at most 4 nested calls, no call to oneself, and a callee that is busy (it is waiting on this very
+/// call, directly or through others) is refused rather than waited for. Every failure is an `Err`.
+pub(super) fn call_client_mod(caller: &str, target: &str, method: &str, payload: &[u8]) -> Result<Vec<u8>, String> {
+    use super::server_services::{MAX_BLOB, MAX_CALL_DEPTH};
+    let valid = !target.is_empty()
+        && target.len() <= 64
+        && target.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'.' | b'-' | b'+' | b':' | b'/'));
+    if !valid {
+        return Err("not a valid package id".into());
+    }
+    if method.is_empty() || method.len() > 128 || method.chars().any(char::is_control) {
+        return Err("a method name is 1 to 128 characters of plain text".into());
+    }
+    if payload.len() > MAX_BLOB {
+        return Err("a mod-call payload is at most 1 MiB".into());
+    }
+    let depth = CLIENT_CALL_DEPTH.with(std::cell::Cell::get);
+    if depth + 1 >= MAX_CALL_DEPTH {
+        return Err("mod-calls are nested at most 4 deep".into());
+    }
+    if target == caller {
+        return Err("a package cannot call itself".into());
+    }
+    let slot = client_endpoint(target).ok_or_else(|| format!("no package {target:.64} with a client module"))?;
+    service(|invocation| {
+        let Ok(mut state) = slot.try_lock() else {
+            return Ok(Err(format!("{target:.64} is busy: it is waiting on this call (no calls back into a waiting caller)")));
+        };
+        let Some(module) = state.module.as_mut() else {
+            return Ok(Err(format!("{target:.64} has no running client module")));
+        };
+        let host = match &mut invocation.host {
+            HostAccess::None => HostAccess::None,
+            HostAccess::Read(host) => HostAccess::Read(&**host),
+            HostAccess::Write(host) => HostAccess::Write(&mut **host),
+        };
+        let mut inner = Invocation { host, batch: None, batch_start: 0, client: ClientExtras::default() };
+        CLIENT_CALL_DEPTH.with(|d| d.set(depth + 1));
+        let answer = {
+            let _scope = Scope::enter(&mut inner);
+            module.handle_call(caller, method, payload)
+        };
+        CLIENT_CALL_DEPTH.with(|d| d.set(depth));
+        if module.is_disabled() {
+            log::error!("wasm mod {target} (client) disabled during a call from {caller}");
+        }
+        Ok(match answer {
+            None => Err(format!("{target:.64} did not answer (trapped or over its limits)")),
+            Some(Ok(bytes)) if bytes.len() > MAX_BLOB => Err("the answer is larger than 1 MiB".to_owned()),
+            Some(answer) => answer,
+        })
+    })
+    .map_err(|error| format!("{error:?}"))?
+}
+
 /// Most stacks `local_player_stacks` returns: the main inventory, the armor and the off hand.
 const MAX_LOCAL_STACKS: usize = 41;
 
@@ -226,6 +308,10 @@ impl ClientServices for GameHost {
             let value = attachments.read_named(namespace, name).map_err(|error| format!("attachment: {error:?}"))?;
             Ok(value.and_then(|compound| super::server_services::attachment_bytes(&compound)))
         })
+    }
+
+    fn client_mod_call(&mut self, method: String, payload: Vec<u8>, target_mod: String) -> Result<Vec<u8>, String> {
+        call_client_mod(&self.id, &target_mod, &method, &payload)
     }
 
     fn register_key_binding(

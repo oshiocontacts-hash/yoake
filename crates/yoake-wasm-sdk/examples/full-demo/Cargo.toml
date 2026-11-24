@@ -17,6 +17,8 @@ client = ["dep:yoake-wasm-sdk"]
 server = ["dep:yoake-wasm-sdk"]
 #   cargo build --release --target wasm32-wasip2 --features peer     -> a second package that answers mod-call
 peer = ["dep:yoake-wasm-sdk"]
+#   cargo build --release --target wasm32-wasip2 --features client-peer -> a client-full package that answers client mod-call
+client-peer = ["dep:yoake-wasm-sdk"]
 
 [dependencies]
 yoake-wasm-sdk = { path = "../..", features = ["full"], optional = true }

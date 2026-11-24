@@ -12,6 +12,11 @@ pub trait ClientMod: Default + 'static {
     /// Called once right before the subscription list is returned.
     fn init(&mut self) {}
     fn gpu_frame(&mut self) {}
+    /// Another package's `mod_call` reaches this: `caller` is its package id, `method` and `payload` are the two
+    /// packages' own protocol (up to 1 MiB each way). The default refuses every call.
+    fn handle_call(&mut self, caller: String, method: String, payload: Vec<u8>) -> Result<Vec<u8>, String> {
+        Err(String::from("this package does not handle calls"))
+    }
     fn frame(&mut self, elapsed: u64) {  }
     fn tick(&mut self) {  }
     fn visuals(&mut self, rims: Vec<et::NativeBlockRim>, lights: Vec<et::NativeColoredLight>) -> et::VisualsOutcome { et::VisualsOutcome { rims: None, lights: None } }
@@ -249,6 +254,9 @@ macro_rules! export_client_full {
                 }
                 fn gpu_frame() {
                     $crate::rt::with::<$ty, _>(|m| m.gpu_frame()).expect("mod instance");
+                }
+                fn handle_call(caller: $crate::__private::String, method: $crate::__private::String, payload: $crate::__private::Vec<u8>) -> ::core::result::Result<$crate::__private::Vec<u8>, $crate::__private::String> {
+                    $crate::rt::with::<$ty, _>(|m| m.handle_call(caller, method, payload)).expect("mod instance")
                 }
             }
 

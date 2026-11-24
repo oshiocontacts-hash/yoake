@@ -282,6 +282,29 @@ impl ClientFullMod {
         self.dispatch("gpu_frame", |exports, store| exports.call_gpu_frame(store));
     }
 
+    /// Calls the module's `handle-call` export (another client package's `mod-call`). `None` when the
+    /// module is disabled, trapped or ran out of its limits on this call (it is then disabled).
+    pub fn handle_call(
+        &mut self,
+        caller: &str,
+        method: &str,
+        payload: &[u8],
+    ) -> Option<Result<Vec<u8>, String>> {
+        self.notify_config_changes();
+        if self.raw.is_disabled() {
+            return None;
+        }
+        let exports = &self.exports;
+        let result = self.raw.call("handle_call", |store, _| {
+            exports
+                .call_handle_call(store, caller, method, payload)
+                .map_err(|error| format!("{error:#}"))
+        });
+        flush_output(&mut self.raw, |host, line| host.log_output(line));
+        self.notify_config_changes();
+        result
+    }
+
     /// Runs `call` against the guest's exports if it subscribed to `hook`; `None` when it did not
     /// subscribe, trapped, or ran out of fuel or time (the module is then disabled).
     pub fn dispatch<R>(

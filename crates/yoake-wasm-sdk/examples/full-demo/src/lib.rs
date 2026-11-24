@@ -6,9 +6,15 @@
 //!   answers them through the `tell` server service. `/wasmsvc` walks through the W2 services (storage,
 //!   give and exact take, attribute add and read, break-block-as, a chest read and rearranged, tags, vitals,
 //!   advancements, sound, mod-call) and tells the player one line per step;
-//! * `peer` (`server-full`, a second package `full-demo-peer`): answers `mod-call` through `handle_call`.
+//! * `peer` (`server-full`, a second package `full-demo-peer`): answers `mod-call` through `handle_call`;
+//! * `client-peer` (`client-full`, package `full-demo-client-peer`): the same on the client side (`client::call`).
 
-#[cfg(any(all(feature = "client", feature = "server"), all(feature = "client", feature = "peer"), all(feature = "server", feature = "peer")))]
+#[cfg(any(
+    all(feature = "client", feature = "server"),
+    all(feature = "client", feature = "peer"),
+    all(feature = "server", feature = "peer"),
+    all(feature = "client-peer", any(feature = "client", feature = "server", feature = "peer"))
+))]
 compile_error!("build the client, server and peer modules separately: one world per component");
 
 #[cfg(feature = "client")]
@@ -307,4 +313,38 @@ mod peer {
     }
 
     export_server_full!(Peer);
+}
+
+#[cfg(feature = "client-peer")]
+mod client_peer {
+    use yoake_wasm_sdk::export_client_full;
+    use yoake_wasm_sdk::full::client::ClientMod;
+
+    /// A client package that does nothing but answer another client package's `client::call`.
+    /// `relay` calls `target` (given as the payload) so the tests can nest calls.
+    #[derive(Default)]
+    struct ClientPeer {
+        calls: u64,
+    }
+
+    impl ClientMod for ClientPeer {
+        fn handle_call(&mut self, caller: String, method: String, payload: Vec<u8>) -> Result<Vec<u8>, String> {
+            self.calls += 1;
+            match method.as_str() {
+                "echo" => {
+                    let mut answer = format!("{caller} said: ").into_bytes();
+                    answer.extend(payload);
+                    Ok(answer)
+                }
+                "count" => Ok(format!("{} call(s) so far", self.calls).into_bytes()),
+                "relay" => {
+                    let target = String::from_utf8(payload).map_err(|_| "relay target must be text".to_owned())?;
+                    yoake_wasm_sdk::full::client::call(&target, "echo", b"relayed")
+                }
+                _ => Err(format!("unknown method {method}")),
+            }
+        }
+    }
+
+    export_client_full!(ClientPeer);
 }

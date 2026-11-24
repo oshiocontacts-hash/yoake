@@ -181,6 +181,14 @@ pub const FULL_DEMO_PEER: Guest = Guest {
     artifact: "yoake_wasm_full_demo.wasm",
 };
 
+/// The client-full package of the client `mod-call` tests: only answers `handle-call`.
+pub const FULL_DEMO_CLIENT_PEER: Guest = Guest {
+    name: "full-demo-client-peer",
+    example: "full-demo",
+    features: "client-peer",
+    artifact: "yoake_wasm_full_demo.wasm",
+};
+
 pub const INVALID_HOOK: Guest = Guest {
     name: "invalid-hook",
     example: "validation-fixture",

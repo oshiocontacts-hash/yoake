@@ -2342,7 +2342,7 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
         if side == "client" {
             wit.push_str("    export gpu-frame: func();\n");
         }
-        if side == "server" {
+        {
             wit.push_str("    /// Called by another package's `mod-call` service: `caller` is the calling package's id, `method` and `payload` are the\n    /// caller's own protocol (payload at most 1 MiB, the answer too). An `Err` reaches the caller as its `mod-call` error.\n    export handle-call: func(caller: string, method: string, payload: list<u8>) -> result<list<u8>, string>;\n");
         }
         wit.push_str("}\n");
