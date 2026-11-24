@@ -853,9 +853,10 @@ A mod with none of the files changes nothing in the game.
 
 From a module: a `set-game-rule` change of `world-control` takes the namespaced name (`ruby:gem_rate`) of a rule the game
 registered (a name it does not know, or `minecraft:...`, is refused as before); `/damage` works through `execute-command`
-with the damage type id. Rules and fluids are registered once at start, so adding or removing one needs a restart;
-fluids from files and from a module's `fluids` registration join one registry (125 families at most), and a name that two
-families bind is refused with the fluid named.
+with the damage type id. Rules and fluids are registered at start, so adding or removing one needs a restart. A fluid
+reload updates an existing family's `motion`, `tick_rate` and `viscosity`; its other field changes also need a restart.
+Fluids from files and from a module's `fluids` registration join one registry (125 families at most), and a name that
+two families bind is refused with the fluid named.
 
 Blocks gain an `int` state property next to `boolean` and `enum`: `"state_properties": { "age": { "type": "int", "min": 0, "max": 7 } }`
 (vanilla's `IntegerProperty`: `min` 0 or more and below `max`, at most 256 values, ascending). Its values are decimal text in
@@ -963,8 +964,8 @@ a menu of another package uses `recipe-match`. Neither crafts or removes anythin
 | block entity data, recipe data | 64 KiB |
 | a menu | at most 256 slots; `create` is asked once per opening and only on the server |
 
-Not in this chapter: a block with no vanilla template row (section 18), behaviours of fluids and entities, and
-capabilities by hook (`capability_providers`: energy, item and fluid handlers). The catalog's global hooks (`random-tick`
+Not in this chapter: a block with no vanilla template row (section 18), entity behaviours and custom fluid behaviour
+beyond the built-in flow and buckets, and capabilities by hook (`capability_providers`: energy, item and fluid handlers). The catalog's global hooks (`random-tick`
 for every block, `use-item-on`, ...) stay as they were, for a mod that wants every block, not its own. See the report FR-REM15.
 
 ## 要確認 (not verified)

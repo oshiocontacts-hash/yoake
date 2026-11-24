@@ -33,7 +33,9 @@ impl FluidKind {
             Self::Water => "minecraft:water",
             Self::FlowingLava => "minecraft:flowing_lava",
             Self::Lava => "minecraft:lava",
-            Self::Custom(_) => custom::definition(self).map_or("minecraft:empty", |fluid| &fluid.id),
+            Self::Custom(_) => {
+                custom::definition(self).map_or("minecraft:empty", |fluid| &fluid.id)
+            }
             Self::FlowingCustom(_) => {
                 custom::definition(self).map_or("minecraft:empty", |fluid| &fluid.flowing_id)
             }
@@ -286,8 +288,16 @@ impl FluidState {
                 .filter(|level| *level < 16)
                 .ok_or_else(|| invalid("custom fluid needs level 0..15"))?;
             return Ok(Self::new(
-                if level == 0 { kind.source() } else { kind.flowing() },
-                if level == 0 || level >= 8 { 8 } else { 8 - level },
+                if level == 0 {
+                    kind.source()
+                } else {
+                    kind.flowing()
+                },
+                if level == 0 || level >= 8 {
+                    8
+                } else {
+                    8 - level
+                },
                 level >= 8,
             ));
         }
@@ -379,6 +389,12 @@ pub struct FluidBlockBindings {
 }
 impl FluidBlockBindings {
     pub fn new(registry: &BlockRegistry) -> io::Result<Self> {
+        Self::with_custom(registry, custom::definitions())
+    }
+    fn with_custom(
+        registry: &BlockRegistry,
+        custom: &[custom::FluidDefinition],
+    ) -> io::Result<Self> {
         let levels = |name: &str| -> io::Result<[BlockStateId; 16]> {
             let default = registry
                 .default_state(name)
@@ -399,7 +415,7 @@ impl FluidBlockBindings {
                 .ok_or_else(|| invalid("missing air block"))?,
             water: levels("minecraft:water")?,
             lava: levels("minecraft:lava")?,
-            custom: custom::definitions()
+            custom: custom
                 .iter()
                 .map(|fluid| Ok((levels(&fluid.still_block)?, levels(&fluid.flowing_block)?)))
                 .collect::<io::Result<_>>()?,
@@ -510,5 +526,73 @@ mod custom_tests {
         let current = flow_at(&mut world, source, position).unwrap();
         assert!(current.x > 0.0);
         assert_eq!(current.z, 0.0);
+    }
+
+    #[test]
+    fn custom_blocks_bind_every_source_and_flowing_level() {
+        let fluid = custom::tests::oil();
+        let mut states = vec![serde_json::json!([
+            "air",
+            true,
+            false,
+            null,
+            "minecraft:air"
+        ])];
+        let mut defaults = serde_json::Map::new();
+        defaults.insert("minecraft:air".into(), 0.into());
+        for name in [
+            "minecraft:water",
+            "minecraft:lava",
+            &fluid.still_block,
+            &fluid.flowing_block,
+        ] {
+            defaults.insert(name.into(), states.len().into());
+            for level in 0..16 {
+                states.push(serde_json::json!([
+                    name,
+                    false,
+                    true,
+                    null,
+                    {"id": name, "properties": {"level": level.to_string()}}
+                ]));
+            }
+        }
+        let facts = serde_json::json!({"states": states, "defaults": defaults});
+        let registry = BlockRegistry::from_facts_json(facts.to_string().as_bytes()).unwrap();
+        let bindings = FluidBlockBindings::with_custom(&registry, std::slice::from_ref(&fluid))
+            .expect("every custom fluid level is present");
+        let placed = bindings.block(FluidState::new(FluidKind::Custom(0), 8, false));
+        let source = registry.state(placed).unwrap();
+        assert_eq!(source.name, fluid.still_block);
+        assert_eq!(
+            source.properties.get("level").map(String::as_str),
+            Some("0")
+        );
+        for level in 0..16u8 {
+            let fluid = if level == 0 {
+                FluidState::new(FluidKind::Custom(0), 8, false)
+            } else {
+                FluidState::new(
+                    FluidKind::FlowingCustom(0),
+                    // a falling state's block level is 8 + (8 - amount)
+                    if level >= 8 { 16 - level } else { 8 - level },
+                    level >= 8,
+                )
+            };
+            let state = registry.state(bindings.block(fluid)).unwrap();
+            assert_eq!(
+                state.name,
+                if level == 0 {
+                    "test:oil"
+                } else {
+                    "test:flowing_oil"
+                }
+            );
+            let level = level.to_string();
+            assert_eq!(
+                state.properties.get("level").map(String::as_str),
+                Some(level.as_str())
+            );
+        }
     }
 }

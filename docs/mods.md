@@ -496,7 +496,16 @@ that has such a file the game is exactly vanilla's.
   (`flowing_<path>`, `<path>_bucket`, `block/<path>_still`, `block/<path>_flow`). The blocks must be the mod's own
   (declared in `block/`, a template such as `minecraft:water`), the bucket one of its items (`item/`), and the textures
   files of the mod (`assets/<id>/textures/block/<path>_still.png`). Fluids from the files and from native mods
-  share one registry of at most 125 families.
+  share one registry of at most 125 families. Declare both blocks with `minecraft:water` as their template so all
+  sixteen `level` states exist; the fluid renderer uses the family's own still and flowing textures.
+  Water and lava motion use the vanilla spread, falling and slope-search paths with the family's `viscosity` and
+  `tick_rate`; `none` does not flow. Water motion can form a source between two sources when
+  `water_source_conversion` is on. Custom lava never forms sources, even when `lava_source_conversion` is on.
+  Custom fluids do not mix with vanilla water or lava, and vanilla's stone, obsidian and cobblestone reactions stay
+  vanilla-only. An empty bucket takes a custom source and returns the declared bucket; using that bucket places the
+  source and, outside creative mode, returns an empty bucket. A reload applies changes to `motion`, `tick_rate` or
+  `viscosity`. Adding or removing a fluid and changing its other fields require a game restart: the running game's
+  block-state registry and behaviour tables are fixed at startup.
 
 #### Namespaces and limits
 

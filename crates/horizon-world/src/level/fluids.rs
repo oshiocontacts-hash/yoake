@@ -6,7 +6,10 @@ use super::{
     update::{HORIZONTAL, above, below, rel},
 };
 use crate::{
-    fluid::{FluidKind, FluidState},
+    fluid::{
+        FluidKind, FluidState,
+        custom::{FluidDefinition, FluidMotion},
+    },
     registry::BlockStateId,
 };
 use horizon_core::{
@@ -32,6 +35,38 @@ fn source_of(kind: FluidKind) -> FluidKind {
 }
 fn flowing_of(kind: FluidKind) -> FluidKind {
     kind.flowing()
+}
+fn tick_delay(kind: FluidKind, custom: Option<&FluidDefinition>, fast_lava: bool) -> i32 {
+    if let Some(definition) = custom {
+        return definition.tick_rate as i32;
+    }
+    match kind {
+        FluidKind::Empty => 0,
+        FluidKind::Water | FluidKind::FlowingWater => 5,
+        _ if fast_lava => 10,
+        _ => 30,
+    }
+}
+fn forms_source(
+    kind: FluidKind,
+    custom: Option<&FluidDefinition>,
+    rules: super::GameRules,
+    sources: i32,
+) -> bool {
+    if sources < 2 {
+        return false;
+    }
+    if let Some(definition) = custom {
+        return definition.motion == FluidMotion::Water && rules.water_source_conversion;
+    }
+    if is_water(kind) {
+        rules.water_source_conversion
+    } else {
+        rules.lava_source_conversion
+    }
+}
+fn is_mobile(custom: Option<&FluidDefinition>) -> bool {
+    custom.is_none_or(|definition| definition.motion != FluidMotion::None)
 }
 
 /// `FlowingFluid.SpreadContext`: per-spread caches keyed by horizontal offset.
@@ -101,20 +136,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     }
     /// `Fluid.getTickDelay`.
     pub(crate) fn fluid_tick_delay(&self, kind: FluidKind) -> i32 {
-        if let Some(definition) = crate::fluid::custom::definition(kind) {
-            return definition.tick_rate as i32;
-        }
-        match kind {
-            FluidKind::Empty => 0,
-            FluidKind::Water | FluidKind::FlowingWater => 5,
-            _ => {
-                if self.fast_lava() {
-                    10
-                } else {
-                    30
-                }
-            }
-        }
+        tick_delay(
+            kind,
+            crate::fluid::custom::definition(kind),
+            self.fast_lava(),
+        )
     }
     fn drop_off(&self, kind: FluidKind) -> i32 {
         if let Some(definition) = crate::fluid::custom::definition(kind) {
@@ -136,16 +162,13 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             2
         }
     }
-    fn can_convert_to_source(&self, kind: FluidKind) -> bool {
-        if crate::fluid::custom::definition(kind).is_some() {
-            return false;
-        }
-        let rules = self.level.game_rules();
-        if is_water(kind) {
-            rules.water_source_conversion
-        } else {
-            rules.lava_source_conversion
-        }
+    fn can_convert_to_source(&self, kind: FluidKind, sources: i32) -> bool {
+        forms_source(
+            kind,
+            crate::fluid::custom::definition(kind),
+            self.level.game_rules(),
+            sources,
+        )
     }
     fn fluid_height(&self, fluid: FluidState, pos: BlockPos) -> f32 {
         if fluid.kind() == FluidKind::Empty {
@@ -372,7 +395,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 highest = highest.max(i32::from(fluid.amount()));
             }
         }
-        if sources >= 2 && self.can_convert_to_source(kind) {
+        if self.can_convert_to_source(kind, sources) {
             let below_state = self.below_state(pos);
             if b.is_solid(below_state) || self.is_source_of(kind, b.fluid(below_state)) {
                 return FluidState::new(source_of(kind), 8, false);
@@ -612,7 +635,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let mut state = self.state(pos);
         let mut fluid = self.b.fluid(state);
         let kind = fluid.kind();
-        if kind == FluidKind::Empty {
+        if kind == FluidKind::Empty || !is_mobile(crate::fluid::custom::definition(kind)) {
             return;
         }
         if !fluid.is_source() {
@@ -655,7 +678,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         new: FluidState,
     ) -> i32 {
         let delay = self.fluid_tick_delay(kind);
-        if is_water(kind) || crate::fluid::custom::definition(kind).is_some() {
+        if is_water(kind)
+            || crate::fluid::custom::definition(kind)
+                .is_some_and(|definition| definition.motion == FluidMotion::Water)
+        {
             return delay;
         }
         if old.kind() != FluidKind::Empty
@@ -828,4 +854,84 @@ pub(crate) fn merged_face_occludes(
     !block
         .join_is_not_empty(&union, ShapeOp::ONLY_FIRST)
         .unwrap_or(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fluid::{custom::tests::oil, spread_state};
+
+    #[test]
+    fn water_motion_decays_to_seven_levels_and_falls() {
+        let mut definition = oil();
+        definition.viscosity = 1;
+        let kind = FluidKind::Custom(0);
+        let mut highest = 8;
+        for expected in (1..=7).rev() {
+            let spread = spread_state(kind, highest, false, definition.viscosity);
+            assert_eq!(spread.kind(), FluidKind::FlowingCustom(0));
+            assert_eq!(spread.amount(), expected);
+            assert!(!spread.falling());
+            highest = expected;
+        }
+        assert_eq!(
+            spread_state(kind, highest, false, definition.viscosity),
+            FluidState::EMPTY
+        );
+        let falling = spread_state(kind, 0, true, definition.viscosity);
+        assert_eq!(falling.kind(), FluidKind::FlowingCustom(0));
+        assert_eq!(falling.amount(), 8);
+        assert!(falling.falling());
+    }
+
+    #[test]
+    fn only_water_motion_makes_sources_under_the_water_rule() {
+        let kind = FluidKind::Custom(0);
+        let mut definition = oil();
+        let mut rules = super::super::GameRules::default();
+        assert!(!forms_source(kind, Some(&definition), rules, 1));
+        assert!(forms_source(kind, Some(&definition), rules, 2));
+        rules.water_source_conversion = false;
+        assert!(!forms_source(kind, Some(&definition), rules, 2));
+        rules.water_source_conversion = true;
+        rules.lava_source_conversion = true;
+        for motion in [FluidMotion::Lava, FluidMotion::None] {
+            definition.motion = motion;
+            assert!(!forms_source(kind, Some(&definition), rules, 2));
+        }
+        assert!(forms_source(FluidKind::Lava, None, rules, 2));
+        assert!(forms_source(FluidKind::Water, None, rules, 2));
+    }
+
+    #[test]
+    fn custom_lava_keeps_its_tick_rate_and_none_does_not_flow() {
+        let kind = FluidKind::Custom(0);
+        let mut definition = oil();
+        definition.motion = FluidMotion::Lava;
+        definition.tick_rate = 17;
+        assert_eq!(tick_delay(kind, Some(&definition), false), 17);
+        assert_eq!(tick_delay(kind, Some(&definition), true), 17);
+        assert!(is_mobile(Some(&definition)));
+        definition.motion = FluidMotion::None;
+        assert!(!is_mobile(Some(&definition)));
+        assert_eq!(tick_delay(FluidKind::Water, None, false), 5);
+        assert_eq!(tick_delay(FluidKind::Lava, None, false), 30);
+        assert_eq!(tick_delay(FluidKind::Lava, None, true), 10);
+    }
+
+    #[test]
+    fn custom_fluid_is_not_a_vanilla_fluid_family() {
+        let custom = FluidKind::Custom(0);
+        let flowing = FluidKind::FlowingCustom(0);
+        assert!(custom.same_family(flowing));
+        for vanilla in [
+            FluidKind::Water,
+            FluidKind::FlowingWater,
+            FluidKind::Lava,
+            FluidKind::FlowingLava,
+        ] {
+            assert!(!custom.same_family(vanilla));
+            assert!(!flowing.same_family(vanilla));
+        }
+    }
 }
