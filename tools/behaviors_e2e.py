@@ -97,6 +97,19 @@ def wait_lit(game, pos, want, ticks=60):
     return lit_of(game, pos) == want
 
 
+def wait_in_inventory(game, item, seconds=20):
+    """Whether the item shows in the inventory within the time. A `give` is applied by the server and reaches the
+    client's inventory a few ticks later, so a `select` right after it can find no slot yet."""
+    import time
+    end = time.monotonic() + seconds
+    while True:
+        if game('inventory').get('counts', {}).get(item, 0) >= 1:
+            return True
+        if time.monotonic() > end:
+            return False
+        game.wait(5)
+
+
 def run(ctl, out, resources, wasm):
     os.environ['YOAKE_WASM_UNSIGNED'] = '1'
     game = Game('behaviors', ctl, resources)
@@ -137,12 +150,15 @@ def run(ctl, out, resources, wasm):
                           'detail': {'lines': lines, 'alternate': alternates, 'block_now': now}}
         # wand: the item behaviour tells the player.
         ok, _ = accepted(game, 'give @s ruby:wand')
-        game.raw('select', 'ruby:wand')
+        in_inventory = wait_in_inventory(game, 'ruby:wand')
+        if in_inventory:
+            game.raw('select', 'ruby:wand')
         game.wait(10)
         before = len(game.raw('messages', 50).get('chat', []))
         game.raw('use-item')
         hummed = wait_chat(game, 'The ruby wand hums.')
-        results['wand'] = {'pass': ok and hummed, 'detail': {'given': ok, 'chat_before': before, 'hummed': hummed}}
+        results['wand'] = {'pass': ok and in_inventory and hummed,
+                           'detail': {'given': ok, 'in_inventory': in_inventory, 'chat_before': before, 'hummed': hummed}}
         game.shot(out, 'end')
         # vanilla: a game without the package.
         plain.pid = plain.raw('launch', *args)['pid']
