@@ -44,8 +44,17 @@ impl Slot {
         Self(AtomicPtr::new(std::ptr::null_mut()))
     }
 
+    /// The hot-path entry: every stamped function and call site reaches its slot here.
     #[inline(always)]
     pub fn load(&'static self) -> Option<Snapshot> {
+        #[cfg(feature = "hit-count")]
+        hit_count::record(self);
+        self.peek()
+    }
+
+    /// `load` without counting a hit (registration reads the chain this way).
+    #[inline(always)]
+    fn peek(&'static self) -> Option<Snapshot> {
         let pointer = self.0.load(Ordering::Acquire);
         if pointer.is_null() {
             None
@@ -303,7 +312,7 @@ pub fn __register_typed<Callback: Copy + Send + Sync + 'static>(
         }
     }
     let slot = &SLOTS[id];
-    let mut entries = slot.load().map(|snapshot| snapshot.0.to_vec()).unwrap_or_default();
+    let mut entries = slot.peek().map(|snapshot| snapshot.0.to_vec()).unwrap_or_default();
     let sequence = entries.len();
     if sequence >= MAX_ENTRIES_PER_SLOT {
         return Err("S2 spike limits each slot to 64 registrations");
@@ -327,3 +336,131 @@ pub fn __register_typed<Callback: Copy + Send + Sync + 'static>(
     slot.0.store(published, Ordering::Release);
     Ok(())
 }
+
+/// Per-slot hit counters for `--features hit-count`: which hook slots a run actually calls.
+#[cfg(feature = "hit-count")]
+mod hit_count {
+    use super::{Slot, SLOTS, SLOT_CAPACITY};
+    use std::cmp::Reverse;
+    use std::io::{self, Write};
+    use std::path::Path;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    // Sized to the whole slot space rather than the ledger's `next_id` (12,210 at 0.1), because
+    // the test slots sit at the top of it. Zero-initialised, so it costs address space only.
+    const ZERO: AtomicU64 = AtomicU64::new(0);
+    static HITS: [AtomicU64; SLOT_CAPACITY] = [ZERO; SLOT_CAPACITY];
+
+    /// Counts one call. Every entry into a slot goes through `Slot::load`, which passes the slot
+    /// here; `SLOTS` is one array, so the slot's index is its offset from the array's start.
+    #[inline(always)]
+    pub(super) fn record(slot: &'static Slot) {
+        let offset = (slot as *const Slot as usize).wrapping_sub(SLOTS.as_ptr() as usize);
+        let index = offset / std::mem::size_of::<Slot>();
+        if index < SLOT_CAPACITY {
+            HITS[index].fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    /// The non-zero counts as `(slot id, calls)`, most calls first (ties by slot id).
+    pub fn hit_counts() -> Vec<(usize, u64)> {
+        let mut rows: Vec<(usize, u64)> = HITS
+            .iter()
+            .enumerate()
+            .filter_map(|(slot, count)| {
+                let calls = count.load(Ordering::Relaxed);
+                (calls > 0).then_some((slot, calls))
+            })
+            .collect();
+        rows.sort_by_key(|&(slot, calls)| (Reverse(calls), slot));
+        rows
+    }
+
+    /// Writes `<slot>\t<calls>` lines in the order given.
+    pub fn write_hit_counts(out: &mut impl Write, rows: &[(usize, u64)]) -> io::Result<()> {
+        for (slot, calls) in rows {
+            writeln!(out, "{slot}\t{calls}")?;
+        }
+        Ok(())
+    }
+
+    /// Writes the current counts to `path`, replacing it.
+    pub fn dump_hit_counts(path: &Path) -> io::Result<()> {
+        let rows = hit_counts();
+        let mut out = io::BufWriter::new(std::fs::File::create(path)?);
+        write_hit_counts(&mut out, &rows)?;
+        out.flush()
+    }
+
+    /// Dumps to the path in `YOAKE_HOOK_HITS`; does nothing when it is unset. A failed write is
+    /// reported on stderr and never stops the game's exit.
+    pub fn dump_hit_counts_from_env() {
+        let Some(path) = std::env::var_os("YOAKE_HOOK_HITS") else {
+            return;
+        };
+        if let Err(error) = dump_hit_counts(Path::new(&path)) {
+            eprintln!("YOAKE_HOOK_HITS: cannot write {}: {error}", Path::new(&path).display());
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::TEST_ID_BASE;
+
+        fn calls_of(slot: usize) -> u64 {
+            hit_counts().iter().find(|(id, _)| *id == slot).map_or(0, |&(_, calls)| calls)
+        }
+
+        #[test]
+        fn load_counts_each_entry_under_its_slot_id() {
+            let slot = TEST_ID_BASE + 7;
+            let other = TEST_ID_BASE + 8;
+            let (before, other_before) = (calls_of(slot), calls_of(other));
+            for _ in 0..3 {
+                assert!(SLOTS[slot].load().is_none());
+            }
+            assert!(SLOTS[other].load().is_none());
+            assert_eq!(calls_of(slot) - before, 3);
+            assert_eq!(calls_of(other) - other_before, 1);
+        }
+
+        #[test]
+        fn dump_format_is_tab_separated_per_slot() {
+            let mut bytes = Vec::new();
+            write_hit_counts(&mut bytes, &[(42, 9), (3, 1)]).unwrap();
+            assert_eq!(String::from_utf8(bytes).unwrap(), "42\t9\n3\t1\n");
+        }
+
+        #[test]
+        fn dump_writes_only_nonzero_slots_most_calls_first() {
+            let busy = TEST_ID_BASE + 20;
+            let quiet = TEST_ID_BASE + 21;
+            for _ in 0..5 {
+                let _ = SLOTS[busy].load();
+            }
+            let _ = SLOTS[quiet].load();
+            let path = std::env::temp_dir()
+                .join(format!("yoake-hook-hits-test-{}.txt", std::process::id()));
+            dump_hit_counts(&path).unwrap();
+            let text = std::fs::read_to_string(&path).unwrap();
+            std::fs::remove_file(&path).unwrap();
+            let rows: Vec<(usize, u64)> = text
+                .lines()
+                .map(|line| {
+                    let (slot, calls) = line.split_once('\t').unwrap();
+                    (slot.parse().unwrap(), calls.parse().unwrap())
+                })
+                .collect();
+            assert!(rows.iter().all(|&(_, calls)| calls > 0));
+            assert!(rows.windows(2).all(|pair| pair[0].1 >= pair[1].1));
+            let at = |slot| rows.iter().position(|&(id, _)| id == slot).unwrap();
+            assert!(at(busy) < at(quiet));
+            assert_eq!(rows[at(busy)].1, 5);
+            assert_eq!(rows[at(quiet)].1, 1);
+        }
+    }
+}
+
+#[cfg(feature = "hit-count")]
+pub use hit_count::{dump_hit_counts, dump_hit_counts_from_env, hit_counts, write_hit_counts};

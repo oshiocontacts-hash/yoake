@@ -263,6 +263,9 @@ fn run(mods: crate::mod_api::Mods) {
             game::exit_code::ERROR
         });
     }
+    // A clean exit: this run's hit counts (feature yoake-hook-hit-count), to $YOAKE_HOOK_HITS.
+    #[cfg(feature = "yoake-hook-hit-count")]
+    yoake_hook_rt::dump_hit_counts_from_env();
     logging::flush();
 }
 

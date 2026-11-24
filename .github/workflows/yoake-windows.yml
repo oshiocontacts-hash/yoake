@@ -75,9 +75,12 @@ jobs:
       - name: Build launcher
         run: cargo build --release --locked --manifest-path launcher/Cargo.toml
 
-      - name: Build plain game client
-        # Yoake 2.0: full-access WASM mods (engine calls, hooks, dev reload, join-time mod sync).
-        run: cargo build --release --locked -p horizon-client --bin horizon-client --features yoake2-slice
+      - name: Build stamped game client
+        # Yoake 2.0: full-access WASM mods (engine calls, hooks, dev reload, join-time mod sync, stamped hooks).
+        shell: bash
+        run: |
+          cargo fetch --locked
+          tools/yoake-stamped-cargo.sh build --release --locked -p horizon-client --bin horizon-client --features yoake2-slice
         # Social features are built into the game from these repository variables (values are
         # public keys and host names, set in Settings > Variables). Empty: social is disabled.
         env:
@@ -91,7 +94,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item -LiteralPath 'launcher/target/release/horizon-launcher.exe' -Destination 'dist/YoakeLauncher.exe'
-          Copy-Item -LiteralPath 'target/release/horizon-client.exe' -Destination 'dist/yoake.exe'
+          Copy-Item -LiteralPath 'target-stamped/release/horizon-client.exe' -Destination 'dist/yoake.exe'
           Copy-Item -LiteralPath 'LICENSE' -Destination 'dist/LICENSE'
           Copy-Item -LiteralPath 'THIRD_PARTY_NOTICES.md' -Destination 'dist/THIRD_PARTY_NOTICES.md'
           Copy-Item -LiteralPath 'packaging/windows/README.txt' -Destination 'dist/README.txt'
@@ -199,9 +202,12 @@ jobs:
       - name: Build Store launcher
         run: cargo build --release --locked --manifest-path launcher/Cargo.toml
 
-      - name: Build plain game client
-        # Yoake 2.0: full-access WASM mods (engine calls, hooks, dev reload, join-time mod sync).
-        run: cargo build --release --locked -p horizon-client --bin horizon-client --features yoake2-slice
+      - name: Build stamped game client
+        # Yoake 2.0: full-access WASM mods (engine calls, hooks, dev reload, join-time mod sync, stamped hooks).
+        shell: bash
+        run: |
+          cargo fetch --locked
+          tools/yoake-stamped-cargo.sh build --release --locked -p horizon-client --bin horizon-client --features yoake2-slice
         # Social features are built into the game from these repository variables (values are
         # public keys and host names, set in Settings > Variables). Empty: social is disabled.
         env:
@@ -227,7 +233,7 @@ jobs:
         run: |
           $stage = Join-Path $env:RUNNER_TEMP 'yoake-msix-staging'
           Copy-Item -LiteralPath 'launcher/target/release/horizon-launcher.exe' -Destination (Join-Path $stage 'YoakeLauncher.exe')
-          Copy-Item -LiteralPath 'target/release/horizon-client.exe' -Destination (Join-Path $stage 'yoake.exe')
+          Copy-Item -LiteralPath 'target-stamped/release/horizon-client.exe' -Destination (Join-Path $stage 'yoake.exe')
           Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $stage 'LICENSE')
           Copy-Item -LiteralPath 'THIRD_PARTY_NOTICES.md' -Destination (Join-Path $stage 'THIRD_PARTY_NOTICES.md')
           $manifest = Get-Content -LiteralPath 'packaging/msix/AppxManifest.xml.in' -Raw

@@ -208,14 +208,14 @@
       "id": 10232,
       "key": "horizon_protocol::buf::Reader::count",
       "sig": "f7129e00659f1889",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10233,
       "key": "horizon_protocol::buf::Reader::string",
       "sig": "ea0656722685656c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -383,56 +383,56 @@
       "id": 10257,
       "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::read",
       "sig": "73d0b8c54e77448a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10258,
       "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::write",
       "sig": "f94211f8a330c09a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10259,
       "key": "horizon_protocol::buf::<LpVec3 as Codec<[f64;3]>>::read",
       "sig": "fafaec581f01ff0b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10260,
       "key": "horizon_protocol::buf::<LpVec3 as Codec<[f64;3]>>::write",
       "sig": "0cfdcbe3ea3359b9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10261,
       "key": "horizon_protocol::chunk::storage_get",
       "sig": "062175368a4b0c10",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10262,
       "key": "horizon_protocol::chunk::Paletted::read",
       "sig": "e4f29598440a3530",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10263,
       "key": "horizon_protocol::chunk::Paletted::from_values",
       "sig": "f12707d5260bf19f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10264,
       "key": "horizon_protocol::chunk::Paletted::from_palette",
       "sig": "3cfbca972b67cded",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -446,7 +446,7 @@
       "id": 10266,
       "key": "horizon_protocol::chunk::Section::write",
       "sig": "fe4751f411c957d1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -523,7 +523,7 @@
       "id": 10277,
       "key": "horizon_protocol::connection::<Pipe as Write>::write",
       "sig": "b52052a5c9a93de9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -544,7 +544,7 @@
       "id": 10280,
       "key": "horizon_protocol::connection::<Stream as Write>::write",
       "sig": "b52052a5c9a93de9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -579,7 +579,7 @@
       "id": 10285,
       "key": "horizon_protocol::connection::ConnWriter::send_contents",
       "sig": "81d99699a76be66b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -656,7 +656,7 @@
       "id": 10296,
       "key": "horizon_protocol::frame::prefixed",
       "sig": "79d69723aad999d6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -677,7 +677,7 @@
       "id": 10299,
       "key": "horizon_protocol::frame::body",
       "sig": "8efff987c58affca",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -733,7 +733,7 @@
       "id": 10307,
       "key": "horizon_protocol::item::<WirePatch as PartialEq>::eq",
       "sig": "398ce4253199ec58",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2042,6 +2042,55 @@
       "id": 10754,
       "key": "horizon_protocol::adapter::ServerVersion::serverbound_body",
       "sig": "b4e515df4fb587b7",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11755,
+      "key": "horizon_protocol::mob_sync::ValueSet::read",
+      "sig": "6b872055f26ff80c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11756,
+      "key": "horizon_protocol::mob_sync::LayerAnchor::write",
+      "sig": "74fc7749bfe9f2d2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11757,
+      "key": "horizon_protocol::mob_sync::LayerAnchor::read",
+      "sig": "3a6e38701f751f25",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11758,
+      "key": "horizon_protocol::mob_sync::Message::write",
+      "sig": "74fc7749bfe9f2d2",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11759,
+      "key": "horizon_protocol::mob_sync::Message::read",
+      "sig": "f767d724bf07272c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11760,
+      "key": "horizon_protocol::mob_sync::encode",
+      "sig": "eec40bedd3306857",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 11761,
+      "key": "horizon_protocol::mob_sync::decode",
+      "sig": "ad60735f6c993ee0",
       "status": "live",
       "kind": "fn"
     }
@@ -3558,6 +3607,96 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_protocol::mob_sync::Delta::is_empty",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Frame::new",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Message::entity",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Trigger::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Trigger::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Value::read",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Value::wire_len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::Value::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::ValueSet::check",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::ValueSet::iter",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::ValueSet::value_bytes",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::ValueSet::write",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::max_value_len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::message_len",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::read_anchors",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::speed_byte",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::speed_from_byte",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::mob_sync::write_anchors",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_protocol::mod_list::Difference::is_empty",
       "reason": "small body",
       "kind": "fn"
@@ -4296,6 +4435,108 @@
       "key": "horizon_protocol::text::translatable",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_protocol::chunk::storage_get",
+      "reason": "hot: 50688 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::count",
+      "reason": "hot: 28605 calls in the REM-03 second hit-count flight (0.017%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::buf::Reader::string",
+      "reason": "hot: 3886 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::read",
+      "reason": "hot: 3188 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::buf::<BitSet as Codec<Vec<u8>>>::write",
+      "reason": "hot: 3188 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::buf::<LpVec3 as Codec<[f64;3]>>::read",
+      "reason": "hot: 4438 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::buf::<LpVec3 as Codec<[f64;3]>>::write",
+      "reason": "hot: 4438 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::chunk::Paletted::read",
+      "reason": "hot: 24000 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::chunk::Paletted::from_values",
+      "reason": "hot: 2990 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::chunk::Paletted::from_palette",
+      "reason": "hot: 7403 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::chunk::Section::write",
+      "reason": "hot: 6326 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::connection::<Pipe as Write>::write",
+      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::connection::<Stream as Write>::write",
+      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::connection::ConnWriter::send_contents",
+      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::frame::prefixed",
+      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::frame::body",
+      "reason": "hot: 22929 calls in the REM-03 second hit-count flight (0.014%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_protocol::item::<WirePatch as PartialEq>::eq",
+      "reason": "hot: 9475 calls in the REM-03 second hit-count flight (0.006%)",
+      "kind": "fn",
+      "manual": true
     }
   ]
 }
