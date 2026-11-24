@@ -2306,4 +2306,76 @@ mod tests {
         tr_auto.draw(&MobRender::new(tr_auto), &ctx_auto, &mut out);
         assert!(out[n..].iter().all(|v| inside(v, glow_uv)));
     }
+
+    /// F4M-14 scenario `custom_mobs_200` (headless, no window): 200 Cinder Foxes, each posed (`update`)
+    /// and vertex-built (`draw`) every frame, the two stages timed apart over 300 frames after 30 warm-up
+    /// frames. `CUSTOM_MOBS_SCENE=near` puts every mob 10..30 blocks away (Full LOD, the worst case of
+    /// section 8); the default `spread` puts them 0..120 blocks away so every LOD mode is in use.
+    /// Run: `hz-cargo test -p horizon-client-lib --lib custom_mobs_200 -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "benchmark: run with --ignored --nocapture"]
+    fn custom_mobs_200() {
+        use std::time::Instant;
+        const MOBS: usize = 200;
+        const WARM: usize = 30;
+        const FRAMES: usize = 300;
+        let near = std::env::var("CUSTOM_MOBS_SCENE").is_ok_and(|s| s == "near");
+        let ct = fox();
+        let tr = ct.render.as_ref().unwrap();
+        let mut mobs: Vec<(MobRender, f32)> = (0..MOBS)
+            .map(|i| {
+                let d = if near { 10.0 + 20.0 * i as f32 / MOBS as f32 } else { 120.0 * i as f32 / MOBS as f32 };
+                (MobRender::new(tr), d)
+            })
+            .collect();
+        let mut out: Vec<Vertex> = Vec::with_capacity(MOBS * 1024);
+        let (mut upd, mut drw, mut frm, mut evald, mut verts) = (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        for frame in 0..WARM + FRAMES {
+            let t0 = Instant::now();
+            let mut n_eval = 0usize;
+            for (i, (mr, d)) in mobs.iter_mut().enumerate() {
+                let facts = MobFacts { seed: i as u32, max_health: 14.0, health: 14.0, on_ground: true, ..Default::default() };
+                let mut ctx = PoseCtx::new((frame / 3) as i64, 0.0, facts);
+                ctx.frame = frame as u64;
+                ctx.lod = tr.lod_mode(*d);
+                n_eval += usize::from(mr.update(&ct, tr, None, &ctx));
+            }
+            let t1 = Instant::now();
+            out.clear();
+            for (i, (mr, d)) in mobs.iter().enumerate() {
+                let pos = Vec3::new((i % 20) as f32 * 2.0, 2.0, (i / 20) as f32 * 2.0);
+                let ctx = DrawCtx {
+                    world_from_model: world_from_model(pos, 1.0, 7.0 * i as f32, 0.0),
+                    light: 0x00F0_00F0,
+                    overlay: 0,
+                    lod: tr.lod_mode(*d),
+                    atlas: &atlas,
+                    texture_overrides: None,
+                };
+                tr.draw(mr, &ctx, &mut out);
+            }
+            let t2 = Instant::now();
+            if frame >= WARM {
+                upd.push((t1 - t0).as_secs_f64() * 1e3);
+                drw.push((t2 - t1).as_secs_f64() * 1e3);
+                frm.push((t2 - t0).as_secs_f64() * 1e3);
+                evald.push(n_eval as f64);
+                verts.push(out.len() as f64);
+            }
+        }
+        let med = |v: &mut Vec<f64>| {
+            v.sort_by(f64::total_cmp);
+            (v[v.len() / 2], v[(v.len() * 95 / 100).min(v.len() - 1)])
+        };
+        let (um, up) = med(&mut upd);
+        let (dm, dp) = med(&mut drw);
+        let (fm, fp) = med(&mut frm);
+        let (em, _) = med(&mut evald);
+        let (vm, _) = med(&mut verts);
+        println!(
+            "custom_mobs_200 scene={} mobs={MOBS} frames={FRAMES} update_ms(med/p95)={um:.3}/{up:.3} \
+             draw_ms(med/p95)={dm:.3}/{dp:.3} total_ms(med/p95)={fm:.3}/{fp:.3} evaluated_per_frame={em:.0} verts_per_frame={vm:.0}",
+            if near { "near" } else { "spread" }
+        );
+    }
 }
