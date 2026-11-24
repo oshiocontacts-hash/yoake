@@ -675,7 +675,9 @@ impl Game<'_> {
     /// ReloadCommand: the message, then the (asynchronous) reload; returns 0.
     pub(super) fn cmd_reload(&mut self) -> R<i32> {
         self.feedback(Text::translate("commands.reload.success", &[]));
+        super::mods::reload_content_root(self);
         self.reload_datapacks(true);
+        self.resend_commands_filtered();
         Ok(0)
     }
     /// `PackLocationInfo.createChatLink`: the id decorated with its source

@@ -479,6 +479,11 @@ impl Game<'_> {
         self.creative_screen.forget_items();
         self.native_client_resources_reloaded();
         self.refresh_native_item_render(true);
+        if let Some(server) = &self.integrated {
+            let _ = server.call(|game| game.resend_commands_filtered());
+        } else {
+            self.resend_commands_filtered();
+        }
         Ok(())
     }
 }
