@@ -682,6 +682,9 @@ impl Game<'_> {
             "minecraft:brush" => self.dispense_brush(pos, facing, stack),
             "minecraft:honeycomb" => self.dispense_honeycomb(pos, facing, stack)?,
             "minecraft:potion" => self.dispense_potion(pos, facing, stack)?,
+            _ if horizon_world::fluid::custom::bucket(&item).is_some() => {
+                self.dispense_filled_bucket(pos, facing, stack)?
+            }
             _ if item.ends_with("shulker_box") => self.dispense_shulker_box(pos, facing, stack)?,
             _ if super::boats::any_boat_wood(&item).is_some() => {
                 self.dispense_boat(pos, facing, stack)

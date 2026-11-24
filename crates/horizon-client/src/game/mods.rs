@@ -124,7 +124,9 @@ pub(super) fn content_root(
     // The first load's list stays (`set_local`): a reload does not hash the files again.
     let announce = !horizon_protocol::mod_list::is_set();
     let mut announced = Vec::new();
-    for (path, package, from_yak) in crate::yak_mods::content_packages(paths, crate::yak_mods::entries()) {
+    for (path, package, from_yak) in
+        crate::yak_mods::content_packages(paths, crate::yak_mods::entries())
+    {
         let path = &path;
         let m = &package.manifest;
         let on = from_yak || enabled.contains(&m.id) || dev.contains(path);
@@ -155,6 +157,7 @@ pub(super) fn content_root(
                 Err(e) => {
                     log::warn!("Horizon: content mods not loaded: {e}");
                     register_mob_effects(&[]);
+                    register_fluids(&[]);
                     return root.to_owned().into();
                 }
             },
@@ -230,6 +233,7 @@ pub(super) fn content_root(
             register_entity_types(&[]);
             register_menu_types(&[]);
             register_game_rules(&[]);
+            register_fluids(&[]);
             root.to_owned().into()
         }
     }
@@ -285,7 +289,13 @@ fn register_mob_effects(mods: &[horizon_client::mod_content::ContentMod]) {
                         format!("minecraft:{}", a.attribute)
                     };
                     let path = attribute.replace(':', ".");
-                    (e.id.clone(), attribute, format!("{}/{path}", e.id), a.amount, a.operation.clone())
+                    (
+                        e.id.clone(),
+                        attribute,
+                        format!("{}/{path}", e.id),
+                        a.amount,
+                        a.operation.clone(),
+                    )
                 })
             }),
     );
@@ -361,18 +371,16 @@ fn register_game_rules(mods: &[horizon_client::mod_content::ContentMod]) {
 }
 
 /// The mods' fluid families (`data/<id>/horizon/fluid/`) join the world's fluid registry beside
-/// the native mods' (which `native_fluids::register` installed first). A family an earlier root
-/// (a pack reload) already registered stays as it is.
+/// the native mods' (which `native_fluids::register` installed first). Reload applies safe physics
+/// edits without moving an index; registry additions and removals wait for restart with `Resources`.
 fn register_fluids(mods: &[horizon_client::mod_content::ContentMod]) {
     use horizon_world::fluid::custom;
-    let have: std::collections::BTreeSet<String> =
-        custom::definitions().iter().map(|d| d.id.clone()).collect();
-    let new: Vec<_> = horizon_client::mod_content::fluid_definitions(mods)
-        .into_iter()
-        .filter(|d| !have.contains(&d.id))
-        .collect();
-    if let Err(e) = custom::install(new) {
-        log::warn!("Horizon: the mods' fluids are not registered: {e}");
+    match custom::reload(horizon_client::mod_content::fluid_definitions(mods)) {
+        Ok(true) => log::warn!(
+            "Horizon: added or removed fluids, or changes beyond motion, tick_rate and viscosity, need a game restart"
+        ),
+        Ok(false) => {}
+        Err(e) => log::warn!("Horizon: the mods' fluids are not registered: {e}"),
     }
 }
 

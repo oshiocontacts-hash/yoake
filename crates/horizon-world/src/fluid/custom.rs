@@ -1,5 +1,9 @@
 use super::FluidKind;
-use std::{collections::HashMap, io, sync::RwLock};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashMap},
+    io,
+    sync::RwLock,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FluidMotion {
@@ -8,7 +12,7 @@ pub enum FluidMotion {
     None,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FluidDefinition {
     pub id: String,
     pub flowing_id: String,
@@ -30,6 +34,10 @@ struct Catalog {
     names: HashMap<String, FluidKind>,
     blocks: HashMap<String, FluidKind>,
     buckets: HashMap<String, FluidKind>,
+    /// Content-managed ids stay in this set even when a reload removes their files.
+    content: BTreeSet<String>,
+    /// Only the first content load may add families; later ones would not be in `Resources`.
+    content_loaded: bool,
 }
 
 fn identifier(value: &str) -> bool {
@@ -49,6 +57,9 @@ fn identifier(value: &str) -> bool {
 impl Catalog {
     fn new(mut definitions: Vec<FluidDefinition>) -> io::Result<Self> {
         definitions.sort_by(|left, right| left.id.cmp(&right.id));
+        Self::ordered(definitions)
+    }
+    fn ordered(definitions: Vec<FluidDefinition>) -> io::Result<Self> {
         if definitions.len() > 125 {
             return Err(io::Error::other("too many custom fluid families"));
         }
@@ -57,6 +68,8 @@ impl Catalog {
             names: HashMap::new(),
             blocks: HashMap::new(),
             buckets: HashMap::new(),
+            content: BTreeSet::new(),
+            content_loaded: false,
         };
         for (index, definition) in catalog.definitions.iter().enumerate() {
             if ![
@@ -79,7 +92,10 @@ impl Catalog {
             }
             let source = FluidKind::Custom(index as u8);
             let flowing = FluidKind::FlowingCustom(index as u8);
-            if catalog.names.insert(definition.id.clone(), source).is_some()
+            if catalog
+                .names
+                .insert(definition.id.clone(), source)
+                .is_some()
                 || catalog
                     .names
                     .insert(definition.flowing_id.clone(), flowing)
@@ -104,8 +120,8 @@ impl Catalog {
     }
 }
 
-/// The registered families. Set while the game starts (native mods', then content mods'
-/// fluids, each a call of [`install`]) and read for the rest of the run.
+/// Native mods [`install`] once, then the initial content load and later [`reload`]s replace the
+/// catalog reference. Old references stay alive for readers on other threads.
 static CATALOG: RwLock<Option<&'static Catalog>> = RwLock::new(None);
 
 fn current() -> Option<&'static Catalog> {
@@ -115,14 +131,17 @@ fn current() -> Option<&'static Catalog> {
 /// `existing` with `added` joined (the families sort by id, so a fluid's index is its place
 /// among them all), checked as one registry.
 fn extended(existing: Option<&Catalog>, added: Vec<FluidDefinition>) -> io::Result<Catalog> {
+    let content = existing.map(|c| c.content.clone()).unwrap_or_default();
+    let content_loaded = existing.is_some_and(|c| c.content_loaded);
     let mut all = existing.map(|c| c.definitions.clone()).unwrap_or_default();
     all.extend(added);
-    Catalog::new(all)
+    let mut catalog = Catalog::new(all)?;
+    catalog.content = content;
+    catalog.content_loaded = content_loaded;
+    Ok(catalog)
 }
 
-/// Adds fluid families to the registry. Each source of fluids (a native mod's `fluids` hook,
-/// the content mods' `fluid` files) calls this once at startup, before a world loads; a name
-/// two families both bind is refused and leaves the registry as it was.
+/// Adds native fluid families at startup, before a world loads. Content mods use [`reload`].
 pub fn install(definitions: Vec<FluidDefinition>) -> io::Result<()> {
     if definitions.is_empty() {
         return Ok(());
@@ -131,6 +150,69 @@ pub fn install(definitions: Vec<FluidDefinition>) -> io::Result<()> {
     let catalog = extended(*slot, definitions)?;
     *slot = Some(Box::leak(Box::new(catalog)));
     Ok(())
+}
+
+/// Reconciles content files without changing any existing family's index or identity bindings.
+/// Additions after the initial content load, removals and unsupported edits request a restart.
+fn reloaded(
+    existing: Option<&Catalog>,
+    definitions: Vec<FluidDefinition>,
+) -> io::Result<(Catalog, bool)> {
+    let mut incoming = BTreeMap::new();
+    for definition in definitions {
+        if incoming.insert(definition.id.clone(), definition).is_some() {
+            return Err(io::Error::other("duplicate custom fluid id"));
+        }
+    }
+    let startup = existing.is_none_or(|catalog| !catalog.content_loaded);
+    let mut content = existing.map(|c| c.content.clone()).unwrap_or_default();
+    if startup {
+        content.extend(incoming.keys().cloned());
+    }
+    let mut all = Vec::new();
+    let mut restart = false;
+    if let Some(existing) = existing {
+        all.reserve(existing.definitions.len() + incoming.len());
+        for old in &existing.definitions {
+            let mut kept = old.clone();
+            if existing.content.contains(&old.id) {
+                if let Some(new) = incoming.remove(&old.id) {
+                    kept.motion = new.motion;
+                    kept.tick_rate = new.tick_rate;
+                    kept.viscosity = new.viscosity;
+                    restart |= kept != new;
+                } else {
+                    restart = true;
+                }
+            }
+            all.push(kept);
+        }
+    }
+    if startup {
+        all.extend(incoming.into_values());
+    } else {
+        restart |= !incoming.is_empty();
+    }
+    let mut catalog = Catalog::ordered(all)?;
+    catalog.content = content;
+    catalog.content_loaded = true;
+    Ok((catalog, restart))
+}
+
+/// Applies the current content mods' fluid files. Motion, tick rate and viscosity update in
+/// place. Returns whether additions, removals or other changes were left for restart: the game's
+/// `Resources` and its block-state-indexed behaviour tables do not change during a pack reload.
+pub fn reload(definitions: Vec<FluidDefinition>) -> io::Result<bool> {
+    let mut slot = CATALOG.write().unwrap_or_else(|e| e.into_inner());
+    let (catalog, restart) = reloaded(*slot, definitions)?;
+    if (*slot).is_none_or(|old| {
+        old.definitions != catalog.definitions
+            || old.content != catalog.content
+            || old.content_loaded != catalog.content_loaded
+    }) {
+        *slot = Some(Box::leak(Box::new(catalog)));
+    }
+    Ok(restart)
 }
 
 pub fn definitions() -> &'static [FluidDefinition] {
@@ -216,11 +298,95 @@ pub(crate) mod tests {
         let first = extended(None, vec![oil()]).unwrap();
         let both = extended(Some(&first), vec![tar()]).unwrap();
         // sorted by id, as one registry: `mod:tar` before `test:oil`.
-        assert_eq!(both.definitions.iter().map(|d| d.id.as_str()).collect::<Vec<_>>(), ["mod:tar", "test:oil"]);
+        assert_eq!(
+            both.definitions
+                .iter()
+                .map(|d| d.id.as_str())
+                .collect::<Vec<_>>(),
+            ["mod:tar", "test:oil"]
+        );
         assert_eq!(both.names["mod:tar"], FluidKind::Custom(0));
         assert_eq!(both.names["test:oil"], FluidKind::Custom(1));
         // a name both bind is refused, whichever source came first.
         assert!(extended(Some(&both), vec![tar()]).is_err());
         assert!(extended(Some(&first), vec![oil()]).is_err());
+    }
+
+    #[test]
+    fn bucket_fill_and_place_resolve_the_same_family() {
+        let catalog = Catalog::new(vec![oil()]).unwrap();
+        let picked_up = catalog.blocks["test:oil"];
+        let bucket = &catalog.definitions[usize::from(match picked_up {
+            FluidKind::Custom(index) => index,
+            other => panic!("not a custom source: {other:?}"),
+        })]
+        .bucket;
+        assert_eq!(bucket, "test:oil_bucket");
+        assert_eq!(catalog.buckets[bucket], picked_up);
+        assert_eq!(catalog.blocks["test:oil"], picked_up);
+    }
+
+    #[test]
+    fn content_reload_updates_physics_and_defers_registry_changes() {
+        let added = FluidDefinition {
+            id: "a:new".into(),
+            flowing_id: "a:flowing_new".into(),
+            still_block: "a:new".into(),
+            flowing_block: "a:flowing_new".into(),
+            bucket: "a:new_bucket".into(),
+            still_texture: "a:block/new_still".into(),
+            flowing_texture: "a:block/new_flow".into(),
+            ..oil()
+        };
+        let native = Catalog::new(vec![added.clone()]).unwrap();
+        let (startup, restart) = reloaded(Some(&native), vec![oil()]).unwrap();
+        assert!(!restart);
+        assert_eq!(startup.names["a:new"], FluidKind::Custom(0));
+        assert_eq!(startup.names["test:oil"], FluidKind::Custom(1));
+
+        let (first, restart) = reloaded(None, vec![oil()]).unwrap();
+        assert!(!restart);
+        let changed = FluidDefinition {
+            motion: FluidMotion::Lava,
+            tick_rate: 33,
+            viscosity: 1,
+            ..oil()
+        };
+        let (updated, restart) = reloaded(Some(&first), vec![changed, added]).unwrap();
+        assert!(
+            restart,
+            "a fluid added after the initial load needs restart"
+        );
+        assert_eq!(updated.definitions.len(), 1);
+        assert_eq!(updated.names["test:oil"], FluidKind::Custom(0));
+        assert!(!updated.names.contains_key("a:new"));
+        assert_eq!(updated.definitions[0].tick_rate, 33);
+        assert_eq!(updated.definitions[0].viscosity, 1);
+        assert_eq!(updated.definitions[0].motion, FluidMotion::Lava);
+        assert_eq!(FluidKind::Custom(0).wire_id(), 5);
+
+        let rebound = FluidDefinition {
+            bucket: "test:different_bucket".into(),
+            tint: 0,
+            tick_rate: 7,
+            ..oil()
+        };
+        let (after, restart) = reloaded(Some(&updated), vec![rebound]).unwrap();
+        assert!(
+            restart,
+            "rebinding oil and changing its tint need a restart"
+        );
+        assert_eq!(after.definitions.len(), 1);
+        assert_eq!(after.names["test:oil"], FluidKind::Custom(0));
+        assert_eq!(after.definitions[0].bucket, "test:oil_bucket");
+        assert_eq!(after.definitions[0].tint, 0x443322);
+        assert_eq!(after.definitions[0].tick_rate, 7);
+        assert!(after.buckets.contains_key("test:oil_bucket"));
+        assert!(!after.buckets.contains_key("test:different_bucket"));
+
+        let (removed, restart) = reloaded(Some(&after), Vec::new()).unwrap();
+        assert!(restart);
+        assert_eq!(removed.names["test:oil"], FluidKind::Custom(0));
+        assert_eq!(removed.definitions.len(), 1);
     }
 }
