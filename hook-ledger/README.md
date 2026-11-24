@@ -37,3 +37,13 @@ key is not hookable (a generic impl whose parameters are not `'static`, say) is 
 New functions get their ids in the same run. Afterwards `check-history --base <old ledger dir> --current hook-ledger`
 must still say `ok` (ids are never reused or moved to another key without a rename).
 The flags are also read by `apply --verify --overlay` (`--rename`, `--tombstone`).
+
+## `<crate>.callsites.patch` (REM-11)
+
+Call-site hooks (kind `callsite`) of the stamped crates that are not in `modules.txt`. The sites are in the shard; the
+rewrite of the source (calls to `__yoake_cs_<id>(...)` plus the shim block) is stored as a line patch that the stamping
+overlay applies before the function stamps. The tree itself stays unstamped. Make or refresh one with
+`yoake-hook-thir dump` and `yoake-hook-codemod callsite-patch --crate <name> --thir <file>`
+(docs/yoake2/CALLSITE-PLAN.md, section 8). A hunk that no longer fits after a source change is skipped with a
+`yoake-stamp: ... call-site patch` warning; its site is then not hooked until the patch is made again. The crate needs
+the empty feature `yoake-callsite-baseline`.

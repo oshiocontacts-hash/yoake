@@ -180,8 +180,14 @@ pub fn tokenize_windows(command: &str) -> Vec<String> {
     let mut result = Vec::new();
     let mut token = String::new();
     let mut quote = None;
-    for character in command.chars() {
+    let mut chars = command.chars().peekable();
+    while let Some(character) = chars.next() {
         match (character, quote) {
+            // cargo prints `"cfg(feature, values(\"a\", \"b\"))"`: a backslash-quote inside quotes is a literal quote
+            ('\\', Some('"')) if chars.peek() == Some(&'"') => {
+                token.push('"');
+                chars.next();
+            }
             ('\'' | '"', None) => quote = Some(character),
             (value, Some(active)) if value == active => quote = None,
             (value, None) if value.is_whitespace() => {
@@ -431,6 +437,15 @@ pub fn check_target_dir_guard_at(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_backslash_quote_inside_quotes_is_a_literal_quote() {
+        let args = tokenize_windows(r#"rustc --check-cfg "cfg(feature, values(\"a-b\", \"c\"))" --cfg 'x y' C:\work\src\lib.rs"#);
+        assert_eq!(
+            args,
+            ["rustc", "--check-cfg", r#"cfg(feature, values("a-b", "c"))"#, "--cfg", "x y", r"C:\work\src\lib.rs"]
+        );
+    }
 
     #[test]
     fn target_dir_guard_decisions() {
