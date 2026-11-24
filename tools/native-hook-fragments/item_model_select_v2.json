@@ -1,0 +1,13 @@
+{
+  "hooks": [
+    {
+      "name": "item_model_select_v2",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_item_model_select_v2",
+      "side": "client",
+      "mod_api": { "contract": "collect", "out": "value" }
+    }
+  ],
+  "rust_summary": "a select item model property a WebAssembly mod can answer (`native_item_model_select_v2`), leaving v1 compatible.",
+  "doc_summary": "`native_item_model_select_v2`: like `native_item_model_select`, but `value` is a `serde_json::Value` (a string for a `select` model's case, as `\"worn\"`), which crosses the WebAssembly boundary as JSON text. It is asked after v1 and sees what v1 answered; an answer replaces it, `None` keeps it. Additive, like `menu_button_v2`: v1 keeps its signature. Bundles need hooks version @API:item_presentation@.",
+  "comments": ["crates/horizon-client/src/game/native_hooks.rs", "docs/native-mods.md"]
+}

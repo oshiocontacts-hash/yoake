@@ -318,7 +318,8 @@ mod peer {
 #[cfg(feature = "client-peer")]
 mod client_peer {
     use yoake_wasm_sdk::export_client_full;
-    use yoake_wasm_sdk::full::client::ClientMod;
+    use yoake_wasm_sdk::full::client::{ClientMod, et};
+    use yoake_wasm_sdk::full::hook;
 
     /// A client package that does nothing but answer another client package's `client::call`.
     /// `relay` calls `target` (given as the payload) so the tests can nest calls.
@@ -328,6 +329,25 @@ mod client_peer {
     }
 
     impl ClientMod for ClientPeer {
+        fn subscriptions() -> &'static [&'static str] {
+            &[hook::ITEM_MODEL_SELECT_V2]
+        }
+
+        /// The `full-demo-peer:wear` select property: a sword is `worn`, anything else keeps what is asked so far.
+        fn item_model_select_v2(
+            &mut self,
+            property: String,
+            stack: et::StackView,
+            _components: Vec<(String, String)>,
+            _context: et::ItemModelContext,
+            _value: Option<String>,
+        ) -> Option<Option<String>> {
+            if property != "full-demo-peer:wear" {
+                return None;
+            }
+            stack.item.ends_with("_sword").then(|| Some("\"worn\"".to_owned()))
+        }
+
         fn handle_call(&mut self, caller: String, method: String, payload: Vec<u8>) -> Result<Vec<u8>, String> {
             self.calls += 1;
             match method.as_str() {

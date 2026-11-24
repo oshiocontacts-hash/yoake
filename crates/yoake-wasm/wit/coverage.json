@@ -1,10 +1,10 @@
 {
   "generated_by": "horizon-mod-api-gen",
-  "hook_count": 496,
-  "fully_typed": 468,
+  "hook_count": 497,
+  "fully_typed": 469,
   "partial": 13,
   "with_handles": 15,
-  "client_hooks": 214,
+  "client_hooks": 215,
   "server_hooks": 395,
   "named_types": 228,
   "handle_types": [
@@ -4564,6 +4564,16 @@
       "side": "client",
       "side_source": "explicit",
       "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "item_model_select_v2",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "collect",
       "fully_typed": true,
       "partial": false,
       "partial_notes": [],

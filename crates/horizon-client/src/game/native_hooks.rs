@@ -2445,6 +2445,27 @@ impl Game<'_> {
             value,
         );
     }
+    /// `native_item_model_select` with a JSON `value` (a `select` model's case, a string such as
+    /// `"worn"`), which a WebAssembly mod can answer. Asked after v1, which it sees the answer of.
+    /// @API:item_presentation@.
+    pub(super) fn native_item_model_select_v2(
+        &self,
+        property: &str,
+        stack: &StackView,
+        components: &Components,
+        context: &ItemModelContext<'_>,
+        value: &mut Option<serde_json::Value>,
+    ) {
+        mod_api::dispatch_item_model_select_v2(
+            self,
+            mod_api::mods(),
+            property,
+            stack,
+            components,
+            context,
+            value,
+        );
+    }
     /// @API:item_presentation@.
     pub(super) fn native_item_tint(
         &self,

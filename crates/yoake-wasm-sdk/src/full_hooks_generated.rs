@@ -441,6 +441,7 @@ pub const INVENTORY_SLOT_RULES: &str = "inventory_slot_rules";
 pub const ITEM_BEHAVIORS: &str = "item_behaviors";
 pub const ITEM_CONTAINER: &str = "item_container";
 pub const ITEM_MODEL_PROPERTY: &str = "item_model_property";
+pub const ITEM_MODEL_SELECT_V2: &str = "item_model_select_v2";
 pub const ITEM_MODEL_NUMBER: &str = "item_model_number";
 pub const ITEM_MODEL_SELECT: &str = "item_model_select";
 pub const ITEM_TINT: &str = "item_tint";

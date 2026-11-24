@@ -2847,6 +2847,32 @@ mod tests {
     }
 
     #[test]
+    fn a_guest_chooses_an_item_models_select_case() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+        let Some(bytes) = module("client-peer") else { return };
+        let module = load_client(&ModuleSource { id: "w3-select", bytes: &bytes, commands: false, gpu: false }).expect("client peer loads");
+        let mod_ = FullMod::new("w3-select".into(), Some(module), None);
+        let host = FakeHost::default();
+        let context = ItemModelContext { display: DisplayContext::Gui, owner: None, level: None, seed: 0 };
+        let components = Components::new();
+        let ask = |property: &str, item: &str, mut value: Option<serde_json::Value>| {
+            let stack = StackView::new(item, 1);
+            mod_.item_model_select_v2(
+                &host,
+                &mut ItemModelSelectV2Event { property, stack: &stack, components: &components, context: &context, value: &mut value },
+            );
+            value
+        };
+        // Its own property: a sword is `worn`, the case reaches the resolver as a JSON string.
+        assert_eq!(ask("full-demo-peer:wear", "minecraft:iron_sword", None), Some(serde_json::Value::String("worn".into())));
+        // Not a sword, or not its property: what v1 answered is kept, answered or not.
+        assert_eq!(ask("full-demo-peer:wear", "minecraft:apple", None), None);
+        let kept = Some(serde_json::Value::String("v1".into()));
+        assert_eq!(ask("full-demo-peer:wear", "minecraft:apple", kept.clone()), kept);
+        assert_eq!(ask("other:wear", "minecraft:iron_sword", kept.clone()), kept);
+    }
+
+    #[test]
     fn guest_commands_are_gated_by_permission_and_a_denylist() {
         assert!(
             command_gate("say hi", false)

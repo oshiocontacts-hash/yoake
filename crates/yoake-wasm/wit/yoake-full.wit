@@ -4133,6 +4133,12 @@ interface client-hooks {
     ///
     /// Also returns the changed values of `value`.
     item-model-property: func(property: string, stack: stack-view, components: list<tuple<string, json>>, context: item-model-context, value: bool) -> item-model-property-outcome;
+    /// `native_item_model_select` with a JSON `value` (a `select` model's case, a string such as
+    /// `"worn"`), which a WebAssembly mod can answer. Asked after v1, which it sees the answer of.
+    /// @API:item_presentation@.
+    ///
+    /// Collect: `value` is the current value; return Some to change it (None keeps it).
+    item-model-select-v2: func(property: string, stack: stack-view, components: list<tuple<string, json>>, context: item-model-context, value: option<json>) -> option<option<json>>;
     /// @API:item_presentation@.
     ///
     /// Collect: `value` is the current value; return Some to change it (None keeps it).

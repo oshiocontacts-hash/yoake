@@ -71,6 +71,8 @@ impl ItemEnv for Env<'_, '_> {
         let mut value = None;
         self.game
             .native_item_model_select(property, stack, components, context, &mut value);
+        self.game
+            .native_item_model_select_v2(property, stack, components, context, &mut value);
         value
     }
     fn item_tint(

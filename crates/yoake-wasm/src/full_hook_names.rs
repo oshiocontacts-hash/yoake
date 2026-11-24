@@ -449,6 +449,7 @@ pub const FULL_HOOKS: &[(&str, HookSide)] = &[
     ("item_behaviors", HookSide::Both),
     ("item_container", HookSide::Both),
     ("item_model_property", HookSide::Client),
+    ("item_model_select_v2", HookSide::Client),
     ("item_model_number", HookSide::Client),
     ("item_model_select", HookSide::Client),
     ("item_tint", HookSide::Client),
