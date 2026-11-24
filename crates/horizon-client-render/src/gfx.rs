@@ -49,6 +49,7 @@ mod entity_outline;
 pub(crate) mod test_gpu;
 mod weather;
 use entity_batch::EntityBatch;
+pub use crate::hud::{MOB_TEXTURE_SLOTS, MOB_TEXTURES_SIZE, MOB_TEXTURES_SPRITE};
 pub use entity_batch::{
     DISSOLVE_OVERLAY, DRAGON_RAYS_OVERLAY, ENERGY_SWIRL_OVERLAY, OIT_ENTITY, SHADOW_OVERLAY,
     TEXT_POLYGON_OFFSET_OVERLAY, TRANSLUCENT_GLINT_ITEM_OVERLAY, TRANSLUCENT_ITEM_OVERLAY,

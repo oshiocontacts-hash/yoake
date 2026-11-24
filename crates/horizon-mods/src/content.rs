@@ -1,7 +1,9 @@
 //! A content mod's `assets/` and `data/` (API 0.2, docs/modpacks.md): the
 //! files it adds to the game's resource tree, and the blocks, items, mob
 //! effects, entity types, menu types and portal types it declares in
-//! `data/<id>/horizon/{block,item,mob_effect,entity_type,menu,portal}/`.
+//! `data/<id>/horizon/{block,item,mob_effect,entity_type,menu,portal}/`, and the
+//! enchantments, damage types, game rules and fluids of
+//! `data/<id>/horizon/{enchantment,damage_type,game_rule,fluid}/` ([`crate::content_kinds`]).
 //!
 //! Content is data, not code: nothing here runs in the sandbox. What a mod
 //! may add is fenced instead. Its own namespaces (its id and the ones its
@@ -226,15 +228,27 @@ pub enum StateProperty {
     Boolean,
     /// A list of values, in the order the state space is built in.
     Enum { values: Vec<String> },
+    /// `IntegerProperty.create(name, min, max)`: the whole numbers `min` to
+    /// `max`, in ascending order, spelled as decimal text in a state.
+    Int { min: u32, max: u32 },
 }
+
+/// The most values an integer state property may have.
+pub const MAX_INT_PROPERTY_VALUES: u32 = 256;
 
 impl StateProperty {
     /// Its values, in the order the state space is built in; a boolean's two
-    /// come `false` first, as vanilla orders them.
-    pub fn values(&self) -> Vec<&str> {
+    /// come `false` first, as vanilla orders them, an integer's ascending.
+    pub fn values(&self) -> Vec<String> {
         match self {
-            StateProperty::Boolean => vec!["false", "true"],
-            StateProperty::Enum { values } => values.iter().map(String::as_str).collect(),
+            StateProperty::Boolean => vec!["false".to_owned(), "true".to_owned()],
+            StateProperty::Enum { values } => values.clone(),
+            StateProperty::Int { min, max } => {
+                // A bad range is refused by `check_block`; this stays small meanwhile.
+                (*min..=(*max).min(min.saturating_add(MAX_INT_PROPERTY_VALUES)))
+                    .map(|v| v.to_string())
+                    .collect()
+            }
         }
     }
 }
@@ -246,6 +260,14 @@ fn state_name(s: &str) -> bool {
         && s.bytes()
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
 }
+
+/// `"template": "yoake:cube"`: a plain full cube, with none of a vanilla block's behaviour
+/// to ask for. It is stone's single state and shape, whose looks and stats the block's own
+/// `properties` (hardness, light, sounds, map colour...) and files (blockstate, model, loot
+/// table) replace.
+pub const PLAIN_CUBE: &str = "yoake:cube";
+/// What [`PLAIN_CUBE`] copies.
+pub const PLAIN_CUBE_TEMPLATE: &str = "minecraft:stone";
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -786,6 +808,11 @@ pub struct Content {
     /// otherwise without effect until the engine registers them (F4M-3).
     pub custom_mobs: Vec<crate::custom_mob::CustomMobFile>,
     pub menu_types: Vec<MenuType>,
+    /// Its enchantments, damage types, game rules and fluids (REM-16).
+    pub enchantments: Vec<crate::content_kinds::Enchantment>,
+    pub damage_types: Vec<crate::content_kinds::DamageType>,
+    pub game_rules: Vec<crate::content_kinds::GameRule>,
+    pub fluids: Vec<crate::content_kinds::Fluid>,
     /// The namespaces it owns: the mod id, then the manifest's `namespaces`.
     pub namespaces: Vec<String>,
 }
@@ -934,6 +961,10 @@ impl Content {
             entity_types: Vec::new(),
             custom_mobs: Vec::new(),
             menu_types: Vec::new(),
+            enchantments: Vec::new(),
+            damage_types: Vec::new(),
+            game_rules: Vec::new(),
+            fluids: Vec::new(),
             namespaces: manifest.owned_namespaces().map(str::to_owned).collect(),
         };
         content.check(manifest, declared)?;
@@ -953,6 +984,10 @@ impl Content {
             entity_types: Vec::new(),
             custom_mobs: Vec::new(),
             menu_types: Vec::new(),
+            enchantments: Vec::new(),
+            damage_types: Vec::new(),
+            game_rules: Vec::new(),
+            fluids: Vec::new(),
             namespaces: vec![namespace.to_owned()],
         }
     }
@@ -1069,6 +1104,10 @@ impl Content {
         let mut tabs = Vec::new();
         let mut types = Vec::new();
         let mut menus = Vec::new();
+        let mut enchantments = Vec::new();
+        let mut damage_types = Vec::new();
+        let mut game_rules = Vec::new();
+        let mut fluids = Vec::new();
         let mut data_json = Vec::new();
         for name in &self.files {
             let mut parts = name.splitn(3, '/');
@@ -1102,7 +1141,7 @@ impl Content {
             }
             if !own && top == "data" && rest.starts_with("horizon/") {
                 return Err(format!(
-                    "{name}: blocks, items, mob effects, entity types, menu types and portal types are declared in data/{id}/horizon/"
+                    "{name}: blocks, items, mob effects, entity types, menu types, portal types, enchantments, damage types, game rules and fluids are declared in data/{id}/horizon/"
                 ));
             }
             let Some(decl) = (own && top == "data")
@@ -1130,10 +1169,18 @@ impl Content {
                 types.push((kind, name.clone()));
             } else if let Some(menu) = parse("menu") {
                 menus.push((menu, name.clone()));
+            } else if let Some(e) = parse("enchantment") {
+                enchantments.push((e, name.clone()));
+            } else if let Some(d) = parse("damage_type") {
+                damage_types.push((d, name.clone()));
+            } else if let Some(g) = parse("game_rule") {
+                game_rules.push((g, name.clone()));
+            } else if let Some(f) = parse("fluid") {
+                fluids.push((f, name.clone()));
             } else if parse("portal").is_some() {
             } else {
                 return Err(format!(
-                    "{name}: data/{id}/horizon/ holds block/, item/, mob_effect/, creative_tab/, entity_type/, menu/ and portal/*.json only"
+                    "{name}: data/{id}/horizon/ holds block/, item/, mob_effect/, creative_tab/, entity_type/, menu/, portal/, enchantment/, damage_type/, game_rule/ and fluid/*.json only"
                 ));
             }
         }
@@ -1163,7 +1210,11 @@ impl Content {
             }
             let block = Block {
                 id: block,
-                template: file.template,
+                template: if file.template == PLAIN_CUBE {
+                    PLAIN_CUBE_TEMPLATE.to_owned()
+                } else {
+                    file.template
+                },
                 properties: file.properties,
                 shapes: file.shapes,
                 collision_shapes: file.collision_shapes,
@@ -1382,6 +1433,90 @@ impl Content {
                 }
             }
             self.menu_types.push(MenuType { id: menu, ..file });
+        }
+        self.check_registry_kinds(
+            manifest,
+            enchantments,
+            damage_types,
+            game_rules,
+            fluids,
+            &ids,
+            declared,
+        )
+    }
+
+    /// The enchantments, damage types, game rules and fluids (REM-16): each file is checked
+    /// on its own, then the fluids' blocks, bucket and textures against the mod's own.
+    fn check_registry_kinds(
+        &mut self,
+        manifest: &Manifest,
+        enchantments: Vec<(String, String)>,
+        damage_types: Vec<(String, String)>,
+        game_rules: Vec<(String, String)>,
+        fluids: Vec<(String, String)>,
+        item_ids: &BTreeSet<String>,
+        declared: &[String],
+    ) -> Result<(), String> {
+        use crate::content_kinds::{DamageType, Enchantment, Fluid, GameRule};
+        for (id, name) in enchantments {
+            let e = Enchantment::parse(&id, &self.file(&name)?).map_err(|e| format!("{name}: {e}"))?;
+            self.enchantments.push(e);
+        }
+        for (id, name) in damage_types {
+            let d = DamageType::parse(&id, &self.file(&name)?).map_err(|e| format!("{name}: {e}"))?;
+            self.damage_types.push(d);
+        }
+        for (id, name) in game_rules {
+            let g = GameRule::parse(&id, &self.file(&name)?).map_err(|e| format!("{name}: {e}"))?;
+            self.game_rules.push(g);
+        }
+        let mod_id = manifest.id.as_str();
+        let (mut fluid_names, mut block_names, mut bucket_names) =
+            (BTreeSet::new(), BTreeSet::new(), BTreeSet::new());
+        for (id, name) in fluids {
+            let f = Fluid::parse(&id, &self.file(&name)?).map_err(|e| format!("{name}: {e}"))?;
+            let own = |v: &str| v.split_once(':').is_some_and(|(ns, _)| ns == mod_id);
+            for block in [&f.still_block, &f.flowing_block] {
+                if !self.blocks.iter().any(|b| &b.id == block) {
+                    return Err(format!(
+                        "{name}: block {block:?} is not one of this mod's blocks (declare it in data/{mod_id}/horizon/block/)"
+                    ));
+                }
+            }
+            if !item_ids.contains(&f.bucket) && !declared.contains(&f.bucket) {
+                return Err(format!(
+                    "{name}: bucket {:?} is not one of this mod's items (declare it in data/{mod_id}/horizon/item/)",
+                    f.bucket
+                ));
+            }
+            for texture in [&f.still_texture, &f.flowing_texture] {
+                if let Some((ns, path)) = texture.split_once(':')
+                    && own(texture)
+                    && !self
+                        .files
+                        .iter()
+                        .any(|file| *file == format!("assets/{ns}/textures/{path}.png"))
+                {
+                    return Err(format!(
+                        "{name}: no file assets/{ns}/textures/{path}.png for texture {texture:?}"
+                    ));
+                }
+            }
+            // every name binds once, as the engine's registry does.
+            for (used, names) in [
+                (&mut fluid_names, [&f.id, &f.flowing_id]),
+                (&mut block_names, [&f.still_block, &f.flowing_block]),
+            ] {
+                for n in names {
+                    if !used.insert(n.clone()) {
+                        return Err(format!("{name}: {n:?} is used by another fluid"));
+                    }
+                }
+            }
+            if !bucket_names.insert(f.bucket.clone()) {
+                return Err(format!("{name}: bucket {:?} is used by another fluid", f.bucket));
+            }
+            self.fluids.push(f);
         }
         Ok(())
     }
@@ -1643,18 +1778,25 @@ fn check_block(file: &Block) -> Result<(), String> {
                 "state property {name:?} is lower case letters, digits and underscores"
             ));
         }
+        if let StateProperty::Int { min, max } = property
+            && (min >= max || max - min >= MAX_INT_PROPERTY_VALUES)
+        {
+            return Err(format!(
+                "state property {name:?}: an int has min below max, at most {MAX_INT_PROPERTY_VALUES} values"
+            ));
+        }
         let values = property.values();
         if values.is_empty() {
             return Err(format!("state property {name:?} needs a value"));
         }
         let mut seen = BTreeSet::new();
-        for value in values {
+        for value in &values {
             if !state_name(value) {
                 return Err(format!(
                     "state property {name:?}: value {value:?} is lower case letters, digits and underscores"
                 ));
             }
-            if !seen.insert(value) {
+            if !seen.insert(value.as_str()) {
                 return Err(format!("state property {name:?}: value {value:?} repeats"));
             }
         }
@@ -1673,7 +1815,7 @@ fn check_block(file: &Block) -> Result<(), String> {
             .get(property)
             .map(StateProperty::values);
         if declared.is_none_or(|all| {
-            values.is_empty() || values.iter().any(|v| !all.contains(&v.as_str()))
+            values.is_empty() || values.iter().any(|v| !all.contains(v))
         }) {
             return Err(format!(
                 "random_ticks needs values of the block's own state property {property:?} (state_properties)"
@@ -2570,6 +2712,120 @@ capabilities = ["registries"]
             assert!(e.contains("random_ticks"), "{bad}: {e}");
         }
         assert!(block("3").is_err());
+    }
+
+    #[test]
+    fn blocks_declare_integer_state_properties() {
+        let block = |props: &str, rest: &str| {
+            let text = format!(
+                r#"{{"template": "minecraft:dirt", "state_properties": {{{props}}}{rest}}}"#
+            );
+            let files: &[(&str, &[u8])] = &[("data/ruby/horizon/block/crop.json", text.as_bytes())];
+            hmod("int-property", MANIFEST_TEXT, files)
+        };
+        let content = block(r#""age": {"type": "int", "min": 0, "max": 7}"#, "").unwrap();
+        let age = &content.blocks[0].state_properties["age"];
+        assert_eq!(age, &StateProperty::Int { min: 0, max: 7 });
+        // vanilla's IntegerProperty order: ascending, decimal text.
+        assert_eq!(age.values(), ["0", "1", "2", "3", "4", "5", "6", "7"]);
+        // a default_state value and random ticks may name an integer's values.
+        let ok = block(
+            r#""age": {"type": "int", "min": 1, "max": 3}"#,
+            r#", "default_state": {"age": "2"}, "properties": {"random_ticks": {"property": "age", "values": ["1", "2"]}}"#,
+        );
+        assert!(ok.is_ok(), "{ok:?}");
+        for (bad, why) in [
+            (r#""age": {"type": "int", "min": 3, "max": 3}"#, "min below max"),
+            (r#""age": {"type": "int", "min": 5, "max": 2}"#, "min below max"),
+            (r#""age": {"type": "int", "min": 0, "max": 300}"#, "at most 256"),
+            (r#""age": {"type": "int", "min": -1, "max": 2}"#, "invalid value"),
+            (r#""age": {"type": "int", "min": 0}"#, "missing field"),
+        ] {
+            let e = block(bad, "").unwrap_err();
+            assert!(e.contains(why), "{bad}: {e}");
+        }
+    }
+
+    #[test]
+    fn registry_kinds_are_read_from_the_horizon_folder() {
+        let water = br#"{"template": "minecraft:water"}"#;
+        let bucket = br#"{"template": "minecraft:water_bucket"}"#;
+        let files: &[(&str, &[u8])] = &[
+            ("data/ruby/horizon/block/oil.json", water),
+            ("data/ruby/horizon/block/flowing_oil.json", water),
+            ("data/ruby/horizon/item/oil_bucket.json", bucket),
+            ("assets/ruby/textures/block/oil_still.png", b"png"),
+            ("assets/ruby/textures/block/oil_flow.png", b"png"),
+            ("data/ruby/horizon/fluid/oil.json", br#"{"tint": 255, "tick_rate": 20}"#),
+            (
+                "data/ruby/horizon/damage_type/shatter.json",
+                br#"{"message_id": "shatter", "scaling": "never"}"#,
+            ),
+            (
+                "data/ruby/horizon/game_rule/gem_rate.json",
+                br#"{"type": "int", "default": 3, "min": 1, "max": 9}"#,
+            ),
+            (
+                "data/ruby/horizon/enchantment/edge/keen.json",
+                br#"{"description": {"translate": "enchantment.ruby.keen"}, "supported_items": "minecraft:diamond_sword",
+                "weight": 2, "max_level": 1, "min_cost": {"base": 1, "per_level_above_first": 0},
+                "max_cost": {"base": 9, "per_level_above_first": 0}, "anvil_cost": 1, "slots": ["hand"]}"#,
+            ),
+        ];
+        let c = hmod("registry-kinds", MANIFEST_TEXT, files).unwrap();
+        assert_eq!(c.fluids.len(), 1);
+        let f = &c.fluids[0];
+        assert_eq!((f.id.as_str(), f.tint, f.tick_rate), ("ruby:oil", 255, 20));
+        assert_eq!(c.damage_types[0].id, "ruby:shatter");
+        assert_eq!(c.game_rules[0].id, "ruby:gem_rate");
+        // a subfolder is part of the path, as in a data pack.
+        assert_eq!(c.enchantments[0].id, "ruby:edge/keen");
+        // none of them is a vanilla thing: a mod with none of the files has none.
+        let none = hmod("registry-none", MANIFEST_TEXT, &[("data/ruby/horizon/block/a.json", BLOCK)]).unwrap();
+        assert!(none.fluids.is_empty() && none.damage_types.is_empty());
+        assert!(none.game_rules.is_empty() && none.enchantments.is_empty());
+
+        // errors name the file; a fluid's blocks, bucket and textures are the mod's own.
+        let without = |skip: &str| -> Vec<(&str, &[u8])> {
+            files.iter().filter(|(n, _)| !n.ends_with(skip)).cloned().collect()
+        };
+        for (skip, why) in [
+            ("flowing_oil.json", "block \"ruby:flowing_oil\" is not one of this mod's blocks"),
+            ("oil_bucket.json", "bucket \"ruby:oil_bucket\" is not one of this mod's items"),
+            ("oil_flow.png", "no file assets/ruby/textures/block/oil_flow.png"),
+        ] {
+            let e = hmod("registry-fluid", MANIFEST_TEXT, &without(skip)).unwrap_err();
+            assert!(e.contains(why), "{skip}: {e}");
+        }
+        let mut dup = files.to_vec();
+        dup.push(("data/ruby/horizon/fluid/oil2.json", br#"{"bucket": "ruby:oil_bucket", "still_block": "ruby:oil2", "flowing_block": "ruby:flowing_oil2"}"#));
+        let e = hmod("registry-dup", MANIFEST_TEXT, &dup).unwrap_err();
+        assert!(e.contains("is not one of this mod's blocks") || e.contains("used by another"), "{e}");
+        let bad: &[(&str, &[u8])] = &[("data/ruby/horizon/damage_type/x.json", br#"{"scaling": "never"}"#)];
+        let e = hmod("registry-bad", MANIFEST_TEXT, bad).unwrap_err();
+        assert!(e.contains("damage_type/x.json") && e.contains("message_id"), "{e}");
+        // not for another namespace's folder, or another kind.
+        let other: &[(&str, &[u8])] = &[("data/ruby/horizon/biome/x.json", b"{}")];
+        let e = hmod("registry-unknown", MANIFEST_TEXT, other).unwrap_err();
+        assert!(e.contains("enchantment/, damage_type/, game_rule/ and fluid/"), "{e}");
+    }
+
+    #[test]
+    fn a_plain_cube_needs_no_vanilla_block_to_name() {
+        let block = |template: &str| {
+            let text = format!(
+                r#"{{"template": "{template}", "properties": {{"hardness": 2.0, "sounds": "minecraft:amethyst_block"}},
+                "state_properties": {{"charge": {{"type": "int", "min": 0, "max": 3}}}}}}"#
+            );
+            let files: &[(&str, &[u8])] = &[("data/ruby/horizon/block/cell.json", text.as_bytes())];
+            hmod("plain-cube", MANIFEST_TEXT, files)
+        };
+        let c = block("yoake:cube").unwrap();
+        assert_eq!(c.blocks[0].template, PLAIN_CUBE_TEMPLATE);
+        assert_eq!(c.blocks[0].properties.hardness, Some(2.0));
+        // only that name is special: other non-vanilla templates are refused as before.
+        let e = block("yoake:sphere").unwrap_err();
+        assert!(e.contains("not a vanilla block"), "{e}");
     }
 
     #[test]

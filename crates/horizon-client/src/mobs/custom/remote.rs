@@ -257,6 +257,13 @@ impl RemoteCustomMobs {
     pub fn is_empty(&self) -> bool {
         self.mobs.is_empty()
     }
+    /// A hot reload replaced type `kind.id` (F4M-13): the mobs of it keep their clocks and values and
+    /// read the new type from now on. The caller checked the wire layout is the same.
+    pub fn retype(&mut self, kind: &Arc<CustomType>) {
+        for m in self.mobs.values_mut().filter(|m| m.kind.id == kind.id) {
+            m.kind = kind.clone();
+        }
+    }
     /// The entity left the client (`RemoveEntities`).
     pub fn remove(&mut self, entity: i32) {
         self.mobs.remove(&entity);
@@ -265,6 +272,10 @@ impl RemoteCustomMobs {
     pub fn clear(&mut self) {
         self.mobs.clear();
         self.changes.clear();
+    }
+    /// Queues a `synced-changed` notification the store did not see arrive (the local mirror's values).
+    pub fn note_change(&mut self, change: SyncedChanged) {
+        self.changes.push(change);
     }
     /// The `synced-changed` notifications since the last call, in order.
     pub fn take_changes(&mut self) -> Vec<SyncedChanged> {

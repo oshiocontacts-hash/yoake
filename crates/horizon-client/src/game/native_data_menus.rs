@@ -28,6 +28,21 @@ pub trait MenuBehavior: Send + Sync {
     }
 
     fn closed(&self, _host: &mut dyn Host, _player: u128, _inventory: &dyn ItemHandler) {}
+
+    /// A shift-click on the menu's own slot `slot`, or (`from_inventory`) on the player's inventory slot
+    /// `slot`, holding `stack`: true when the behaviour moved the stack itself (it changes `inventory`
+    /// and the player's items through its own services), so the engine's quick move does not run.
+    fn quick_move(
+        &self,
+        _host: &mut dyn Host,
+        _player: u128,
+        _inventory: &dyn ItemHandler,
+        _slot: usize,
+        _from_inventory: bool,
+        _stack: &ItemStack,
+    ) -> bool {
+        false
+    }
 }
 
 pub struct NativeMenuBehavior {
@@ -646,6 +661,13 @@ impl Game<'_> {
         let Kind::Mod(menu_type) = kind else {
             return false;
         };
+        if let Some(behavior) = lookup(menu_type.id) {
+            let player = self.native_acting_id();
+            let from_inventory = matches!(at, MenuSlot::Inventory(_));
+            if behavior.quick_move(self, player, inventory, slot, from_inventory, &stack) {
+                return true;
+            }
+        }
         let mut entity = ModBlockEntity::from(ModBlockEntityFields {
             id: menu_type.id.into(),
             items: before.to_vec(),

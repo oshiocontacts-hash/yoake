@@ -133,6 +133,10 @@ impl Registration {
         }
     }
 
+    pub(super) fn generation(&self) -> u64 {
+        self.generation
+    }
+
     pub(super) fn claim_shader(&self, id: String) {
         registry().shaders.insert((self.owner, id), self.generation);
     }

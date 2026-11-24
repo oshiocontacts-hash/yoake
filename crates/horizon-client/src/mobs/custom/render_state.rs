@@ -599,6 +599,23 @@ impl MobRender {
         }
     }
 
+    /// The type this mob is drawn with was replaced (a hot reload, F4M-13): drops what the old model
+    /// shaped (the pose buffers, the bone visibility, the layer states and the procedural state) and keeps
+    /// what is the mob's. The animation phase is not lost: it is the clocks the server anchored, which the
+    /// next [`update`](Self::update) applies to the new rig (a mob seen for the first time shows its state
+    /// at once, with no fade from the type's initial one).
+    pub fn rebind(&mut self, t: &TypeRender) {
+        self.rig_state = None;
+        self.last_now = None;
+        self.pose = Pose::default();
+        self.pstate = t.procedural.as_ref().map(ProceduralState::new);
+        self.matrices.clone_from(&t.rest_matrices);
+        self.visibility = BoneVisibility::new(t.skeleton.len());
+        self.writes.clear();
+        self.triggers.clear();
+        self.evaluated_frame = None;
+    }
+
     /// The expression inputs of the last update (layer tints and visibility read them).
     pub fn inputs(&self) -> &ExprInputs {
         &self.inputs
@@ -755,6 +772,11 @@ impl LocalMirror {
         self.store.is_empty() && self.memo.is_empty()
     }
 
+    /// A hot reload replaced type `kind.id` (F4M-13): its mirrored mobs read the new type.
+    pub fn retype(&mut self, kind: &std::sync::Arc<CustomType>) {
+        self.store.retype(kind);
+    }
+
     pub fn get(&self, id: u32) -> Option<&RemoteCustomMob> {
         self.store.get(id as i32)
     }
@@ -819,12 +841,27 @@ impl LocalMirror {
         // Every value, not only the announced ones (the animations of this process read them all),
         // but as the host's window sees them: a `sync: owner` value of a mob the host's player does
         // not own reads as its default, as for a remote client (`lan::mob_sync::value_visible_to`).
+        let mut noted = Vec::new();
         if let Some(rm) = self.store.get_mut(id as i32) {
-            rm.values.clear();
+            let old = std::mem::take(&mut rm.values);
             for (slot, value) in state.synced.iter().enumerate() {
                 let visible = crate::lan::mob_sync::value_visible_to(m, slot, viewer);
-                rm.values.push(if visible { value.clone() } else { t.synced[slot].default.clone() });
+                let new = if visible { value.clone() } else { t.synced[slot].default.clone() };
+                // A change the host's own client sees too: `synced-changed-client` fires for it as for a remote one.
+                if let Some(was) = old.get(slot).filter(|was| **was != new) {
+                    noted.push(super::remote::SyncedChanged {
+                        entity: id as i32,
+                        slot,
+                        name: t.synced[slot].name.clone(),
+                        old: was.clone(),
+                        new: new.clone(),
+                    });
+                }
+                rm.values.push(new);
             }
+        }
+        for change in noted {
+            self.store.note_change(change);
         }
     }
 
@@ -875,6 +912,15 @@ impl CustomRender {
         let i = t.locators.iter().position(|l| l.name == name)?;
         let p = t.locator_point(i, &m.matrices)?;
         Some(crate::mobs::custom::hitbox::model_to_mob([f64::from(p.x), f64::from(p.y), f64::from(p.z)]))
+    }
+
+    /// Rebinds the mobs `ids` that have a render state to the replaced type's model (F4M-13).
+    pub fn rebind(&mut self, ids: impl IntoIterator<Item = u32>, t: &TypeRender) {
+        for id in ids {
+            if let Some(m) = self.mobs.get_mut(&id) {
+                m.rebind(t);
+            }
+        }
     }
 
     /// The render state of mob `id`, made on first use.
@@ -1003,6 +1049,8 @@ pub struct DrawCtx<'a> {
     pub lod: LodMode,
     /// Texture rectangles by atlas name.
     pub atlas: &'a dyn Fn(&str) -> Option<[f32; 4]>,
+    /// Per-mob runtime texture UV overrides (F4M-7): `default`, layer name, `glowmask`, or bone name.
+    pub texture_overrides: Option<&'a super::textures::MobTextureOverrides>,
 }
 
 /// Whether a quad is shaded by its normal or drawn as it is.
@@ -1031,8 +1079,19 @@ impl TypeRender {
             return stats;
         }
         out.reserve(self.quads.len() * 4 * 2);
-        let body = self.texture.as_deref().and_then(|t| (ctx.atlas)(t));
-        if let Some(uv) = body {
+        let body = ctx
+            .texture_overrides
+            .and_then(|o| o.get("default"))
+            .or_else(|| self.texture.as_deref().and_then(|t| (ctx.atlas)(t)));
+        let bone_uvs = self.bone_texture_overrides(ctx.texture_overrides);
+        if let Some(bone_uvs) = bone_uvs.as_deref() {
+            for (b, custom_uv) in bone_uvs.iter().enumerate() {
+                let Some(uv) = custom_uv.or(body) else {
+                    continue;
+                };
+                stats.cutout += self.emit_bone(mr, ctx, b, uv, WHITE, ctx.light, ctx.overlay, Shade::Lit, out);
+            }
+        } else if let Some(uv) = body {
             stats.cutout += self.emit(mr, ctx, None, uv, WHITE, ctx.light, ctx.overlay, Shade::Lit, out);
         }
         let mut glow_named = false;
@@ -1052,7 +1111,10 @@ impl TypeRender {
         }
         // `<texture>_glowmask` beside the body texture is an emissive layer of the whole model.
         if !glow_named
-            && let Some(uv) = self.glow_texture.as_deref().and_then(|t| (ctx.atlas)(t))
+            && let Some(uv) = ctx
+                .texture_overrides
+                .and_then(|o| o.get("glowmask"))
+                .or_else(|| self.glow_texture.as_deref().and_then(|t| (ctx.atlas)(t)))
         {
             stats.emissive += self.emit(mr, ctx, None, uv, WHITE, FULL_BRIGHT, 0, Shade::Lit, out);
         }
@@ -1081,14 +1143,46 @@ impl TypeRender {
         stats
     }
 
+    fn bone_texture_overrides(
+        &self,
+        overrides: Option<&super::textures::MobTextureOverrides>,
+    ) -> Option<Vec<Option<[f32; 4]>>> {
+        let overrides = overrides?;
+        let mut bone_uvs: Option<Vec<Option<[f32; 4]>>> = None;
+        for (slot, uv) in overrides.iter() {
+            if slot == "default"
+                || slot == "glowmask"
+                || self.layers.iter().any(|l| l.name == slot)
+            {
+                continue;
+            }
+            let bone_name = slot.strip_prefix("bone:").unwrap_or(slot);
+            if let Some(bone) = self.skeleton.find(bone_name) {
+                let list = bone_uvs.get_or_insert_with(|| vec![None; self.bone_quads.len()]);
+                if let Some(cell) = list.get_mut(bone.index()) {
+                    *cell = Some(uv);
+                }
+            }
+        }
+        bone_uvs
+    }
+
     /// The texture rectangle and colour a layer draws with this frame, `None` when it is hidden
     /// (`visible` false, no texture in the atlas).
     fn layer_paint(&self, l: &LayerDef, mr: &MobRender, ctx: &DrawCtx) -> Option<([f32; 4], u32)> {
         if l.visible.as_ref().is_some_and(|e| !e.eval_bool(mr.inputs())) {
             return None;
         }
-        let name = l.texture.as_deref().or(self.texture.as_deref())?;
-        let uv = (ctx.atlas)(name)?;
+        let uv = if let Some(uv) = ctx.texture_overrides.and_then(|o| o.get(&l.name)) {
+            uv
+        } else if l.texture.is_none()
+            && let Some(uv) = ctx.texture_overrides.and_then(|o| o.get("default"))
+        {
+            uv
+        } else {
+            let name = l.texture.as_deref().or(self.texture.as_deref())?;
+            (ctx.atlas)(name)?
+        };
         let color = match &l.tint {
             Some(e) => {
                 let rgb = e.eval(mr.inputs());
@@ -1097,6 +1191,58 @@ impl TypeRender {
             None => WHITE,
         };
         Some((uv, color))
+    }
+
+    /// Emits the quads of a single bone `b`.
+    #[allow(clippy::too_many_arguments)]
+    fn emit_bone(
+        &self,
+        mr: &MobRender,
+        ctx: &DrawCtx,
+        b: usize,
+        uv: [f32; 4],
+        color: u32,
+        light: u32,
+        overlay: u32,
+        shade: Shade,
+        out: &mut Vec<Vertex>,
+    ) -> usize {
+        let Some(range) = self.bone_quads.get(b) else {
+            return 0;
+        };
+        if range.is_empty() || !self.bone_drawn(b, ctx.lod, &mr.visibility) {
+            return 0;
+        }
+        let Some(bone) = mr.matrices.get(b) else {
+            return 0;
+        };
+        let m = ctx.world_from_model * *bone;
+        let m3 = glam::Mat3::from_mat4(m);
+        let det = m3.determinant();
+        if !det.is_finite() || det.abs() < 1.0e-18 {
+            return 0;
+        }
+        let normals = m3.inverse().transpose();
+        let start = out.len();
+        for q in &self.quads[range.start as usize..range.end as usize] {
+            let normal = match shade {
+                Shade::Lit => pack_normal((normals * Vec3::from(q.normal)).normalize_or_zero()),
+                Shade::Flat => [0; 4],
+            };
+            for k in 0..4 {
+                let p = m.transform_point3(Vec3::from(q.pos[k]));
+                out.push(Vertex {
+                    pos: p.to_array(),
+                    uv: [uv[0] + (uv[2] - uv[0]) * q.uv[k][0], uv[1] + (uv[3] - uv[1]) * q.uv[k][1]],
+                    layer: overlay,
+                    color,
+                    light,
+                    normal,
+                    glint_uv: [0.0; 2],
+                });
+            }
+        }
+        out.len() - start
     }
 
     /// One pass over the (drawn) bones: every quad transformed by its bone's matrix.
@@ -1113,44 +1259,14 @@ impl TypeRender {
         shade: Shade,
         out: &mut Vec<Vertex>,
     ) -> usize {
-        let start = out.len();
-        for (b, range) in self.bone_quads.iter().enumerate() {
-            if range.is_empty()
-                || !self.bone_drawn(b, ctx.lod, &mr.visibility)
-                || only.is_some_and(|o| !o.get(b).copied().unwrap_or(false))
-            {
+        let mut count = 0;
+        for b in 0..self.bone_quads.len() {
+            if only.is_some_and(|o| !o.get(b).copied().unwrap_or(false)) {
                 continue;
             }
-            let Some(bone) = mr.matrices.get(b) else {
-                continue;
-            };
-            let m = ctx.world_from_model * *bone;
-            let m3 = glam::Mat3::from_mat4(m);
-            let det = m3.determinant();
-            if !det.is_finite() || det.abs() < 1.0e-18 {
-                continue;
-            }
-            let normals = m3.inverse().transpose();
-            for q in &self.quads[range.start as usize..range.end as usize] {
-                let normal = match shade {
-                    Shade::Lit => pack_normal((normals * Vec3::from(q.normal)).normalize_or_zero()),
-                    Shade::Flat => [0; 4],
-                };
-                for k in 0..4 {
-                    let p = m.transform_point3(Vec3::from(q.pos[k]));
-                    out.push(Vertex {
-                        pos: p.to_array(),
-                        uv: [uv[0] + (uv[2] - uv[0]) * q.uv[k][0], uv[1] + (uv[3] - uv[1]) * q.uv[k][1]],
-                        layer: overlay,
-                        color,
-                        light,
-                        normal,
-                        glint_uv: [0.0; 2],
-                    });
-                }
-            }
+            count += self.emit_bone(mr, ctx, b, uv, color, light, overlay, shade, out);
         }
-        out.len() - start
+        count
     }
 }
 
@@ -1329,6 +1445,7 @@ mod tests {
             overlay: 0,
             lod,
             atlas: &atlas,
+            texture_overrides: None,
         }
     }
 
@@ -1776,6 +1893,45 @@ mod tests {
         assert!(a.matrices.iter().zip(&tr.rest_matrices).any(|(x, r)| !x.abs_diff_eq(*r, 1e-3)));
     }
 
+    /// Scenario 7's pose half (F4M-13): the type is replaced under a walking mob. With the same files
+    /// the pose goes on exactly; with another model (another skeleton) nothing indexes the old one and
+    /// the mob stands where a late joiner of the new type stands: the phase is the anchored clocks'.
+    #[test]
+    fn a_swapped_type_keeps_the_animation_phase() {
+        let old = fox();
+        let otr = old.render.as_ref().unwrap();
+        let anchors = vec![anchor(0, 1, 100, 0.0, 1.0)];
+        let watched = store(&old, anchors.clone(), vec![], 100);
+        let mut mob = MobRender::new(otr);
+        for tick in 100..=140 {
+            mob.update(&old, otr, watched.get(ENTITY), &context(tick, tick as u64, LodMode::Full));
+        }
+        let before = mob.matrices.clone();
+        assert!(before.iter().zip(&otr.rest_matrices).any(|(x, r)| !x.abs_diff_eq(*r, 1e-3)), "it is walking");
+        // The same files again.
+        let same = fox();
+        let same_tr = same.render.as_ref().unwrap();
+        mob.rebind(same_tr);
+        let again = store(&same, anchors.clone(), vec![], 100);
+        mob.update(&same, same_tr, again.get(ENTITY), &context(140, 141, LodMode::Full));
+        for (x, y) in before.iter().zip(&mob.matrices) {
+            assert!(x.abs_diff_eq(*y, 1e-4), "{x:?} vs {y:?}");
+        }
+        // Another model.
+        let (other, _) = fox_with(false, |_| {}, |_| {});
+        let other_tr = other.render.as_ref().unwrap();
+        mob.rebind(other_tr);
+        assert_eq!(mob.matrices.len(), other_tr.skeleton.len());
+        let moved = store(&other, anchors, vec![], 100);
+        mob.update(&other, other_tr, moved.get(ENTITY), &context(141, 142, LodMode::Full));
+        let mut joined = MobRender::new(other_tr);
+        joined.update(&other, other_tr, moved.get(ENTITY), &context(141, 142, LodMode::Full));
+        assert_eq!(mob.matrices.len(), joined.matrices.len());
+        for (x, y) in mob.matrices.iter().zip(&joined.matrices) {
+            assert!(x.abs_diff_eq(*y, 1e-4), "{x:?} vs {y:?}");
+        }
+    }
+
     #[test]
     fn a_state_change_fades_over_the_blend_not_instantly() {
         let ct = fox();
@@ -1996,6 +2152,25 @@ mod tests {
         assert!(mirror.is_empty(), "a mob that is gone is forgotten");
     }
 
+    /// A tracked value of a local mob that changes is reported to `synced-changed-client` like a remote one.
+    #[test]
+    fn a_local_mobs_value_change_is_noted_for_the_client_hook() {
+        use crate::mobs::custom::SyncedValue;
+        let ct = fox_with_effects();
+        let mut mob = anim_sync::tests::fox_mob(&ct, horizon_core::geometry::Vec3::new(0.5, 1.0, 0.5));
+        let mut mirror = LocalMirror::default();
+        mirror.sync(&mob, 0, 1, None);
+        let slot = ct.synced_slot("warmth").expect("the fox tracks warmth");
+        assert!(mirror.take_changes().iter().all(|c| c.slot != slot));
+        assert!(mob.extra.custom.as_mut().unwrap().set_synced(&ct, "warmth", SyncedValue::I32(4)));
+        mirror.sync(&mob, 1, 1, None);
+        let changes = mirror.take_changes();
+        let c = changes.iter().find(|c| c.slot == slot).expect("warmth change noted");
+        assert_eq!((c.name.as_str(), &c.new), ("warmth", &SyncedValue::I32(4)));
+        mirror.sync(&mob, 2, 1, None);
+        assert!(mirror.take_changes().is_empty(), "a value that stays is not noted again");
+    }
+
     /// The integrated host reads synced values as a remote client would: a `sync: owner` value of a
     /// mob the host's player does not own is its default, the owner's window sees it (F4M-4c).
     #[test]
@@ -2064,5 +2239,71 @@ mod tests {
             render.parts(2, tr);
         }
         assert_eq!(render.len(), 1, "mob 1 was not drawn for 600 frames");
+    }
+
+    #[test]
+    fn runtime_texture_overrides_default_layer_glowmask_and_bone() {
+        let ct = fox();
+        let tr = ct.render.as_ref().unwrap();
+        let mr = MobRender::new(tr);
+        let region = [2560, 0, 1024, 1024];
+        let atlas_size = [4096, 4096];
+
+        let mut store = super::super::textures::MobTextureStore::default();
+        let t_body = store.create("m", 1, 64, 32).unwrap();
+        let t_glow = store.create("m", 1, 64, 32).unwrap();
+        let t_head = store.create("m", 1, 64, 32).unwrap();
+        store.bind("m", 1, "default", Some(t_body)).unwrap();
+        store.bind("m", 1, "glow", Some(t_glow)).unwrap();
+        let ov = store.overrides_for(1, region, atlas_size).unwrap();
+        let body_uv = ov.get("default").unwrap();
+        let glow_uv = ov.get("glow").unwrap();
+
+        let mut out = Vec::new();
+        let ctx = DrawCtx {
+            texture_overrides: Some(&ov),
+            ..draw_ctx(LodMode::Full)
+        };
+        let stats = tr.draw(&mr, &ctx, &mut out);
+        let n = tr.quads.len() * 4;
+        assert_eq!(stats, DrawStats { cutout: n, translucent: 0, emissive: n });
+        let inside = |v: &Vertex, r: [f32; 4]| {
+            v.uv[0] >= r[0] - 1e-6 && v.uv[0] <= r[2] + 1e-6 && v.uv[1] >= r[1] - 1e-6 && v.uv[1] <= r[3] + 1e-6
+        };
+        assert!(out[..n].iter().all(|v| inside(v, body_uv)));
+        assert!(out[n..].iter().all(|v| inside(v, glow_uv)));
+
+        // Binding a single bone ("head") overrides only that bone's quads on the body pass.
+        store.bind("m", 1, "default", None).unwrap();
+        store.bind("m", 1, "glow", None).unwrap();
+        store.bind("m", 1, "head", Some(t_head)).unwrap();
+        let ov_head = store.overrides_for(1, region, atlas_size).unwrap();
+        let head_uv = ov_head.get("head").unwrap();
+        let head_idx = tr.skeleton.find("head").unwrap().index();
+        let head_verts = (tr.bone_quads[head_idx].end - tr.bone_quads[head_idx].start) as usize * 4;
+        assert!(head_verts > 0 && head_verts < n);
+        out.clear();
+        let ctx_head = DrawCtx {
+            texture_overrides: Some(&ov_head),
+            ..draw_ctx(LodMode::Full)
+        };
+        tr.draw(&mr, &ctx_head, &mut out);
+        let in_head_uv = out[..n].iter().filter(|v| inside(v, head_uv)).count();
+        assert_eq!(in_head_uv, head_verts);
+        let in_atlas_body = out[..n].iter().filter(|v| inside(v, [0.0, 0.0, 0.5, 0.5])).count();
+        assert_eq!(in_atlas_body, n - head_verts);
+
+        // Automatic _glowmask (without an explicit layer) obeys "glowmask" override.
+        let ct_auto = fox_with(true, |v| v["model"]["layers"] = serde_json::json!([]), |_| {}).0;
+        let tr_auto = ct_auto.render.as_ref().unwrap();
+        store.bind("m", 2, "glowmask", Some(t_glow)).unwrap();
+        let ov_auto = store.overrides_for(2, region, atlas_size).unwrap();
+        out.clear();
+        let ctx_auto = DrawCtx {
+            texture_overrides: Some(&ov_auto),
+            ..draw_ctx(LodMode::Full)
+        };
+        tr_auto.draw(&MobRender::new(tr_auto), &ctx_auto, &mut out);
+        assert!(out[n..].iter().all(|v| inside(v, glow_uv)));
     }
 }

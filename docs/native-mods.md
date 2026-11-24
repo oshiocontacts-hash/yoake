@@ -5242,3 +5242,23 @@ Queries run during client frame hooks and share the per-mod, eight-query frame
 budget with `crosshair_entity`. The stable DLL SDK and ABI do not expose this
 helper yet. The existing `view_hit` catalog helper keeps its original meaning;
 `client_view_hit` is the new world-raycast helper, not a rename of `view_hit`.
+
+## Block entity data by position, behaviour hooks for WebAssembly packages
+
+Fragment `@API:block_entity_data@` adds two server helpers, `block_entity_data(pos) -> Option<(String, Compound)>` and
+`block_entity_patch(pos, nbt, replace) -> Result<(), String>`. The first answers the type id and the saved data (as `/data get block`
+shows it, without `id`, `x`, `y`, `z`) of the block entity at a position, vanilla's or a mod's; the second merges a compound into it as
+`/data merge block` does, or with `replace` makes it a mod block entity's whole data. The chunk is saved next time, the block entity's
+update tag is sent with the level's other block changes, and an error says why nothing changed. They answer `None` or an error for an
+unloaded block or one with no block entity. `recipe_data(kind)` (`@API:recipe_data@`) lists the loaded recipes of a registered recipe type
+with the data the type's `decode` kept for each.
+
+`BlockBehavior` has two more methods with default bodies, `placed(dimension, pos, state, previous)` and
+`removed(dimension, pos, state, new)`: after `Level.setBlock` committed a change on an authoritative server, the block that went away hears
+`removed` and the block that arrived hears `placed` (a change of state alone is neither). They run where `native_block_changed` does, with no
+host. `MenuBehavior::quick_move` (true when the behaviour moved the stack itself) and `ItemHandler::clicked(slot, button, mode)` (a click was
+applied to the storage) are called for a mod menu's shift-click and for each click its menu engine stored; both default to doing nothing.
+
+WebAssembly server packages use these through `behavior-register` (`docs/yoake2/MOD-GUIDE.md`, chapter 19): the collectors of
+`native_block_behaviors`, `native_item_behaviors`, `native_menu_behaviors` and `native_recipe_types` append the objects the packages
+registered in `init` to the native mods' own, and `native_level_tick_pre` applies the commands their hooks left for that level.

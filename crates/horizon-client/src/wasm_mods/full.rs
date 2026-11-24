@@ -55,7 +55,7 @@ pub(super) struct FullMod {
     client: Arc<Mutex<SideState<ClientFullMod>>>,
     gpu_owner: Option<crate::gfx::mod_gpu::ModId>,
     gpu_version: String,
-    server: Arc<ServerSlot>,
+    pub(super) server: Arc<ServerSlot>,
     /// One bit per catalog hook, per side: the guest subscribed and has not been disabled.
     masks: Arc<[[AtomicU64; MASK_WORDS]; 2]>,
     /// Hooks dropped because the module was busy, per side.
@@ -63,6 +63,10 @@ pub(super) struct FullMod {
     client_reload: Option<Arc<Reload>>,
     /// What starts the server module afresh at each world start.
     server_source: Option<ServerSource>,
+    /// F4M-13 R3: the watched file's new bytes, swapped in at a server tick.
+    server_reload: Option<Arc<Reload>>,
+    /// The bytes of the last swapped-in server module: the next world starts from them, not from the first ones.
+    server_latest: Mutex<Option<Arc<Vec<u8>>>>,
 }
 
 /// The bytes of a server module and its grants, kept so every world starts with a fresh instance.
@@ -147,6 +151,8 @@ impl FullMod {
             dropped: [AtomicU64::new(0), AtomicU64::new(0)],
             client_reload: None,
             server_source: None,
+            server_reload: None,
+            server_latest: Mutex::new(None),
         }
     }
 
@@ -236,6 +242,50 @@ impl FullMod {
         self
     }
 
+    pub(super) fn with_server_reload(mut self, reload: Option<Arc<Reload>>) -> Self {
+        self.server_reload = reload;
+        self
+    }
+
+    /// R3 (F4M-13): when the watched server module file changed, the new build becomes the running
+    /// instance here, at a server tick, between two hook calls (a hook that is running keeps the
+    /// module locked, and the swap waits for the next tick). The engine owns the mobs, so only what the
+    /// guest keeps in its own instance starts afresh; the goals are called by name, so the new
+    /// instance's exports take their place and the subscription masks are read again. A build that does
+    /// not load keeps the old instance running, with one warning.
+    fn reload_server(&self) {
+        let Some(reload) = &self.server_reload else { return };
+        if !reload.ready.load(Ordering::Acquire) {
+            return;
+        }
+        let Ok(mut state) = self.server.state.try_lock() else { return };
+        if !reload.ready.swap(false, Ordering::Acquire) {
+            return;
+        }
+        let Some(bytes) = reload.bytes.lock().unwrap_or_else(|error| error.into_inner()).take() else {
+            return;
+        };
+        let commands = self.server_source.as_ref().is_some_and(|source| source.commands);
+        match load_server(&ModuleSource { id: &self.id, bytes: &bytes, commands, gpu: false }) {
+            Ok(module) => {
+                for (word, fresh) in self.masks[Side::Server as usize].iter().zip(mask_of(|name| module.subscribed(name))) {
+                    word.store(fresh.load(Ordering::Relaxed), Ordering::Relaxed);
+                }
+                state.module = Some(module);
+                state.reported = false;
+                *self.server_latest.lock().unwrap_or_else(|error| error.into_inner()) = Some(Arc::new(bytes));
+                log::info!(
+                    "wasm mod {} (server): reloaded at a tick boundary (the guest's own state starts afresh; the mobs keep theirs)",
+                    self.id
+                );
+            }
+            Err(error) => log::warn!(
+                "wasm mod {} (server) not reloaded, the old instance keeps running: {error}",
+                self.id
+            ),
+        }
+    }
+
     pub(super) fn with_client_reload(mut self, reload: Option<Arc<Reload>>) -> Self {
         self.client_reload = reload;
         self
@@ -288,7 +338,12 @@ impl FullMod {
         let Some(source) = &self.server_source else { return };
         let Ok(mut state) = self.server.state.try_lock() else { return };
         self.server.dirty.store(false, Ordering::Relaxed);
-        match load_server(&source.module()) {
+        let latest = self.server_latest.lock().unwrap_or_else(|error| error.into_inner()).clone();
+        let module = match &latest {
+            Some(bytes) => ModuleSource { bytes, ..source.module() },
+            None => source.module(),
+        };
+        match load_server(&module) {
             Ok(module) => {
                 for (word, fresh) in self.masks[Side::Server as usize]
                     .iter()
@@ -325,6 +380,8 @@ impl FullMod {
         }
         if side == Side::Client {
             self.reload_client();
+        } else if hook == H_SERVER_TICK {
+            self.reload_server();
         }
         self.masks[side as usize][hook / 64].load(Ordering::Relaxed) >> (hook % 64) & 1 != 0
     }
@@ -600,7 +657,7 @@ fn nbt_tag_from(bytes: &[u8]) -> Option<Tag> {
     convert::nbt_to_tag(bytes).ok()
 }
 
-fn nbt_compound_from(bytes: &[u8]) -> Option<Compound> {
+pub(super) fn nbt_compound_from(bytes: &[u8]) -> Option<Compound> {
     convert::nbt_to_compound(bytes).ok()
 }
 
@@ -1098,7 +1155,7 @@ thread_local! {
 pub(super) struct ServerInitScope(Option<String>);
 
 impl ServerInitScope {
-    fn enter(owner: &str) -> Self {
+    pub(super) fn enter(owner: &str) -> Self {
         Self(SERVER_INIT_OWNER.with(|active| active.replace(Some(owner.to_owned()))))
     }
 }
@@ -2273,6 +2330,71 @@ mod tests {
             "the second world began with a fresh instance: {told:?}"
         );
         assert!(told[1].1[1].contains("pong #2 "), "{told:?}");
+    }
+
+    /// F4M-13 R3: a rebuilt server module is swapped in at a server tick; the guest's counter starts afresh,
+    /// a build that does not load keeps the old instance, and the next world starts from the new bytes.
+    #[test]
+    fn a_rebuilt_server_module_is_swapped_in_at_a_server_tick() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+        let Some(bytes) = module("server") else {
+            return;
+        };
+        let source = ServerSource::new("rl-demo", bytes.clone(), false);
+        let server = load_server(&source.module()).unwrap();
+        let reload = Arc::new(Reload::default());
+        let mod_ = Arc::new(
+            FullMod::new("rl-demo".into(), None, Some(server))
+                .with_server_source(source)
+                .with_server_reload(Some(Arc::clone(&reload))),
+        );
+        let runner = Arc::clone(&mod_);
+        let told = std::thread::spawn(move || {
+            let _server = crate::mod_guard::enter_thread(crate::mod_guard::ModThread::Server);
+            let player = NativeServerPlayer {
+                uuid: 7,
+                name: "G".into(),
+                permission: 0,
+                dimension: "d".into(),
+                position: [0.0; 3],
+                game_mode: 0,
+                health: 1.0,
+                yaw: 0.0,
+                pitch: 0.0,
+            };
+            let ping = |runner: &FullMod| {
+                let mut host = FakeHost::default();
+                runner.perform_command(&mut host, &mut PerformCommandEvent { player: &player, command: "wasmping" });
+                let told = host.told.borrow().clone();
+                told
+            };
+            let mut lines = vec![ping(&runner), ping(&runner)];
+            // The file changed: nothing happens until a server tick asks.
+            *reload.bytes.lock().unwrap() = Some(bytes.clone());
+            reload.ready.store(true, Ordering::Release);
+            lines.push(ping(&runner));
+            assert!(reload.ready.load(Ordering::Acquire), "no swap between ticks");
+            let _ = runner.wants(Side::Server, H_SERVER_TICK);
+            assert!(!reload.ready.load(Ordering::Acquire), "taken at the tick");
+            lines.push(ping(&runner));
+            // A build that is not a component: the old instance (the new one) keeps counting.
+            *reload.bytes.lock().unwrap() = Some(b"not a wasm component".to_vec());
+            reload.ready.store(true, Ordering::Release);
+            runner.wants(Side::Server, H_SERVER_TICK);
+            lines.push(ping(&runner));
+            // The next world starts from the swapped-in bytes.
+            runner.reset_server(None);
+            lines.push(ping(&runner));
+            lines
+        })
+        .join()
+        .unwrap();
+        assert!(told[0][0].contains("pong #1 "), "{told:?}");
+        assert!(told[1][0].contains("pong #2 "), "{told:?}");
+        assert!(told[2][0].contains("pong #3 "), "no swap before a tick: {told:?}");
+        assert!(told[3][0].contains("pong #1 "), "swapped at the tick, counting afresh: {told:?}");
+        assert!(told[4][0].contains("pong #2 "), "a bad build keeps the running instance: {told:?}");
+        assert!(told[5][0].contains("pong #1 "), "{told:?}");
     }
 
     #[test]

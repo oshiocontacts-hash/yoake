@@ -6,7 +6,7 @@ use horizon_world::{
     compression::Compression,
     nbt::{self, Limits, NamedTag, Tag},
 };
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{collections::BTreeMap, fs, path::Path, sync::OnceLock};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Value {
@@ -133,11 +133,77 @@ pub fn available_rules(minecart_improvements: bool) -> impl Iterator<Item = &'st
     RULES
         .iter()
         .chain(minecart_improvements.then_some(&MAX_MINECART_SPEED))
+        .chain(mod_rules().iter().copied())
 }
 
 pub fn rule(name: &str) -> Option<&'static Rule> {
     let name = name.strip_prefix("minecraft:").unwrap_or(name);
     available_rules(true).find(|r| r.name == name)
+}
+
+/// The game rules content mods declare (`data/<mod>/horizon/game_rule/`), under the name
+/// `<mod id>:<path>`; set once from the startup content root, like the mods' mob effects.
+static MOD_RULES: OnceLock<Vec<&'static Rule>> = OnceLock::new();
+
+fn mod_rules() -> &'static [&'static Rule] {
+    MOD_RULES.get().map_or(&[], Vec::as_slice)
+}
+
+/// One mod rule as a file declares it: its `<mod id>:<path>` name, default, bounds (for an
+/// integer rule) and category.
+pub struct ModRule {
+    pub name: String,
+    pub default: Value,
+    pub min: i32,
+    pub max: i32,
+    pub category: String,
+}
+
+/// Registers the content mods' game rules, once: what a second call gives is the first's.
+/// Returns false when they were already set (the caller warns if the lists differ).
+pub fn register_mod_rules(rules: Vec<ModRule>) -> bool {
+    // Categories are vanilla's, so a leaked name is the only allocation a rule needs.
+    let leak = |s: String| -> &'static str { Box::leak(s.into_boxed_str()) };
+    let mut list: Vec<&'static Rule> = rules
+        .into_iter()
+        .filter(|r| r.name.contains(':') && !r.name.starts_with("minecraft:"))
+        .map(|r| {
+            let category = ["player", "mobs", "spawning", "drops", "updates", "chat", "misc"]
+                .into_iter()
+                .find(|c| *c == r.category)
+                .unwrap_or("misc");
+            &*Box::leak(Box::new(Rule {
+                name: leak(r.name),
+                category,
+                default: r.default,
+                min: r.min,
+                max: r.max,
+            }))
+        })
+        .collect();
+    list.sort_by_key(|r| r.name);
+    MOD_RULES.set(list).is_ok()
+}
+
+/// The names of the registered mod rules, sorted (for comparing a second registration).
+pub fn mod_rule_names() -> Vec<&'static str> {
+    mod_rules().iter().map(|r| r.name).collect()
+}
+
+impl Rule {
+    /// The rule's id in saved data and on the wire: `minecraft:<name>`, or a mod rule's own
+    /// `<mod id>:<path>`.
+    pub fn id(&self) -> String {
+        if self.name.contains(':') {
+            self.name.to_owned()
+        } else {
+            format!("minecraft:{}", self.name)
+        }
+    }
+    /// The translation key of the rule's name (`gamerule.<namespace>.<path>`).
+    pub fn name_key(&self) -> String {
+        format!("gamerule.{}", self.id().replace(':', "."))
+    }
 }
 
 /// Current values (defaults unless set).
@@ -231,7 +297,7 @@ impl GameRules {
                     Value::Int(i) => Tag::Int(i),
                 };
                 (
-                    horizon_world::nbt::JavaString::from(format!("minecraft:{}", r.name).as_str()),
+                    horizon_world::nbt::JavaString::from(r.id().as_str()),
                     tag,
                 )
             })
@@ -253,7 +319,7 @@ impl GameRules {
             return rules;
         };
         for r in rules.available_rules() {
-            let key = format!("minecraft:{}", r.name);
+            let key = r.id();
             let value = data.get(&key).or_else(|| data.get(r.name));
             match (r.default, value) {
                 (Value::Bool(_), Some(Tag::Byte(v))) => {
@@ -330,5 +396,64 @@ mod tests {
         rules.save(&dir).unwrap();
         assert_eq!(GameRules::load(&dir), rules);
         let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn mod_rules_register_once_and_work_like_vanilla_ones() {
+        // No mod: only vanilla's, unchanged.
+        let before: Vec<&str> = available_rules(false).map(|r| r.name).collect();
+        assert!(before.iter().all(|n| !n.contains(':')));
+        assert!(rule("ruby:fast_mining").is_none());
+        assert!(!GameRules::default().set("ruby:fast_mining", Value::Bool(true)));
+        // Mods' rules are `<mod id>:<path>`; a name without a namespace is refused.
+        assert!(register_mod_rules(vec![
+            ModRule {
+                name: "ruby:fast_mining".into(),
+                default: Value::Bool(false),
+                min: 0,
+                max: 0,
+                category: "player".into(),
+            },
+            ModRule {
+                name: "ruby:gem_rate".into(),
+                default: Value::Int(3),
+                min: 1,
+                max: 9,
+                category: "nonsense".into(),
+            },
+            ModRule {
+                name: "bare".into(),
+                default: Value::Bool(true),
+                min: 0,
+                max: 0,
+                category: "misc".into(),
+            },
+        ]));
+        assert!(!register_mod_rules(Vec::new()), "set once");
+        assert_eq!(mod_rule_names(), ["ruby:fast_mining", "ruby:gem_rate"]);
+        // Vanilla's rules come first and are the same.
+        let after: Vec<&str> = available_rules(false).map(|r| r.name).collect();
+        assert_eq!(&after[..before.len()], before.as_slice());
+        assert_eq!(rule("ruby:gem_rate").unwrap().category, "misc");
+        assert_eq!(rule("ruby:fast_mining").unwrap().category, "player");
+        assert_eq!(rule("ruby:fast_mining").unwrap().id(), "ruby:fast_mining");
+        assert_eq!(rule("keep_inventory").unwrap().id(), "minecraft:keep_inventory");
+        assert_eq!(rule("ruby:gem_rate").unwrap().name_key(), "gamerule.ruby.gem_rate");
+        let mut rules = GameRules::default();
+        assert!(!rules.bool("ruby:fast_mining"));
+        assert_eq!(rules.int("ruby:gem_rate"), 3);
+        assert!(rules.set_string("ruby:fast_mining", "true"));
+        assert!(rules.bool("ruby:fast_mining"));
+        assert!(rules.set("ruby:gem_rate", Value::Int(9)));
+        assert!(!rules.set("ruby:gem_rate", Value::Int(10)), "bounds");
+        assert!(!rules.set("ruby:gem_rate", Value::Bool(true)), "type");
+        assert_eq!(rules.by_name()["ruby:gem_rate"], 9);
+        // Saved under the rule's own id and read back.
+        let tag = rules.to_nbt().tag;
+        assert!(tag.get("data").unwrap().get("ruby:gem_rate").is_some());
+        assert!(tag.get("data").unwrap().get("minecraft:ruby:gem_rate").is_none());
+        let back = GameRules::from_nbt(&tag);
+        assert_eq!(back, rules);
+        assert_eq!(back.int("ruby:gem_rate"), 9);
     }
 }

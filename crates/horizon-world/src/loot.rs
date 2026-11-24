@@ -692,6 +692,8 @@ impl LootData {
             "",
             &mut raw_enchantments,
         )?;
+        // A content mod's enchantments (`data/<ns>/enchantment/`), in a root built for mods.
+        load_kind(&all, "enchantment", &mut raw_enchantments)?;
         let mut names: Vec<&String> = raw_enchantments.keys().collect();
         names.sort();
         let enchantments = names

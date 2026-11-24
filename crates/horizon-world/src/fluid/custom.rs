@@ -1,5 +1,5 @@
 use super::FluidKind;
-use std::{collections::HashMap, io, sync::OnceLock};
+use std::{collections::HashMap, io, sync::RwLock};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FluidMotion {
@@ -104,22 +104,37 @@ impl Catalog {
     }
 }
 
-static CATALOG: OnceLock<Catalog> = OnceLock::new();
+/// The registered families. Set while the game starts (native mods', then content mods'
+/// fluids, each a call of [`install`]) and read for the rest of the run.
+static CATALOG: RwLock<Option<&'static Catalog>> = RwLock::new(None);
 
+fn current() -> Option<&'static Catalog> {
+    *CATALOG.read().unwrap_or_else(|e| e.into_inner())
+}
+
+/// `existing` with `added` joined (the families sort by id, so a fluid's index is its place
+/// among them all), checked as one registry.
+fn extended(existing: Option<&Catalog>, added: Vec<FluidDefinition>) -> io::Result<Catalog> {
+    let mut all = existing.map(|c| c.definitions.clone()).unwrap_or_default();
+    all.extend(added);
+    Catalog::new(all)
+}
+
+/// Adds fluid families to the registry. Each source of fluids (a native mod's `fluids` hook,
+/// the content mods' `fluid` files) calls this once at startup, before a world loads; a name
+/// two families both bind is refused and leaves the registry as it was.
 pub fn install(definitions: Vec<FluidDefinition>) -> io::Result<()> {
     if definitions.is_empty() {
         return Ok(());
     }
-    let catalog = Catalog::new(definitions)?;
-    CATALOG
-        .set(catalog)
-        .map_err(|_| io::Error::other("fluid registry already frozen"))
+    let mut slot = CATALOG.write().unwrap_or_else(|e| e.into_inner());
+    let catalog = extended(*slot, definitions)?;
+    *slot = Some(Box::leak(Box::new(catalog)));
+    Ok(())
 }
 
 pub fn definitions() -> &'static [FluidDefinition] {
-    CATALOG
-        .get()
-        .map_or(&[], |catalog| catalog.definitions.as_slice())
+    current().map_or(&[], |catalog| catalog.definitions.as_slice())
 }
 
 pub fn definition(kind: FluidKind) -> Option<&'static FluidDefinition> {
@@ -127,19 +142,19 @@ pub fn definition(kind: FluidKind) -> Option<&'static FluidDefinition> {
         FluidKind::Custom(index) | FluidKind::FlowingCustom(index) => index,
         _ => return None,
     };
-    CATALOG.get()?.definitions.get(usize::from(index))
+    current()?.definitions.get(usize::from(index))
 }
 
 pub(super) fn named(name: &str) -> Option<FluidKind> {
-    CATALOG.get()?.names.get(name).copied()
+    current()?.names.get(name).copied()
 }
 
 pub fn block(name: &str) -> Option<FluidKind> {
-    CATALOG.get()?.blocks.get(name).copied()
+    current()?.blocks.get(name).copied()
 }
 
 pub fn bucket(name: &str) -> Option<FluidKind> {
-    CATALOG.get()?.buckets.get(name).copied()
+    current()?.buckets.get(name).copied()
 }
 
 #[cfg(test)]
@@ -184,5 +199,28 @@ pub(crate) mod tests {
         assert_eq!(source.wire_id(), 5);
         assert_eq!(flowing.wire_id(), 6);
         assert_eq!(source.mask(), 0);
+    }
+
+    #[test]
+    fn families_from_two_sources_join_one_registry() {
+        let tar = || FluidDefinition {
+            id: "mod:tar".into(),
+            flowing_id: "mod:flowing_tar".into(),
+            still_block: "mod:tar".into(),
+            flowing_block: "mod:flowing_tar".into(),
+            bucket: "mod:tar_bucket".into(),
+            still_texture: "mod:block/tar_still".into(),
+            flowing_texture: "mod:block/tar_flow".into(),
+            ..oil()
+        };
+        let first = extended(None, vec![oil()]).unwrap();
+        let both = extended(Some(&first), vec![tar()]).unwrap();
+        // sorted by id, as one registry: `mod:tar` before `test:oil`.
+        assert_eq!(both.definitions.iter().map(|d| d.id.as_str()).collect::<Vec<_>>(), ["mod:tar", "test:oil"]);
+        assert_eq!(both.names["mod:tar"], FluidKind::Custom(0));
+        assert_eq!(both.names["test:oil"], FluidKind::Custom(1));
+        // a name both bind is refused, whichever source came first.
+        assert!(extended(Some(&both), vec![tar()]).is_err());
+        assert!(extended(Some(&first), vec![oil()]).is_err());
     }
 }

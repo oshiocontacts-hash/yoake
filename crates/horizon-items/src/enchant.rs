@@ -191,12 +191,33 @@ impl Enchantments {
                 }
             }
         }
+        // A content mod's enchantments (`data/<ns>/enchantment/`, subfolders too, as a data
+        // pack's registry has them); no namespaces in a root without content mods.
+        let mod_namespaces = crate::content_namespaces::namespaces(root);
+        for ns in &mod_namespaces {
+            let dir = root.join("data").join(ns).join("enchantment");
+            let Ok(folder) = horizon_world::json_folder::read(&dir) else {
+                continue;
+            };
+            for file in &folder.files {
+                if let Ok(v) = serde_json::from_slice(file.bytes().unwrap_or_default()) {
+                    files.insert(format!("{ns}:{}", file.name), v);
+                }
+            }
+        }
+        let mod_lang = mod_namespaces.iter().filter_map(|ns| {
+            let bytes =
+                horizon_core::prepared_files::read(&root.join(format!("assets/{ns}/lang/en_us.json")))
+                    .ok()?;
+            serde_json::from_slice::<HashMap<String, String>>(&bytes).ok()
+        });
         let lang: HashMap<String, String> =
             horizon_core::prepared_files::read(&root.join("assets/minecraft/lang/en_us.json"))
                 .ok()
                 .and_then(|b| serde_json::from_slice::<HashMap<String, String>>(&b).ok())
                 .unwrap_or_default()
                 .into_iter()
+                .chain(mod_lang.flatten())
                 .filter(|(k, _)| {
                     k.starts_with("enchantment.")
                         || k.starts_with("attribute.")

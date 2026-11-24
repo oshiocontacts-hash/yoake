@@ -20,6 +20,12 @@ use yoake_wasm::{ServerFullMod, ServerHost, server_types as st};
 
 /// Largest value of a storage write, a `mod-call` payload and its answer.
 pub(super) const MAX_BLOB: usize = 1 << 20;
+/// Largest block entity data a guest reads or writes.
+const MAX_BE_DATA: usize = 64 * 1024;
+/// Most stacks of a crafting grid a guest passes, and most recipes or outputs it is answered.
+const MAX_RECIPE_GRID: usize = 64;
+/// Most recipes of a type a guest reads at once.
+const MAX_RECIPE_LIST: usize = 4096;
 /// Most items or slots in a list a guest passes.
 const MAX_LIST: usize = 512;
 /// Nested `mod-call`s, the outer one included.
@@ -951,6 +957,68 @@ impl ServerHost for GameServerHost {
         server_service(|host| host.edit_blocks(&dimension, &edit))
     }
 
+    fn behavior_register(&mut self, hooks: Vec<String>, id: String, kind: String) -> Result<(), String> {
+        super::behaviors::register(&self.id, &kind, &id, &hooks)
+    }
+
+    fn block_entity_read_at(&mut self, position: st::BlockPos) -> Result<Option<st::BlockEntityData>, String> {
+        read_service(|host| {
+            let Some((entity_type, data)) = host.block_entity_data(block_pos(&position)) else {
+                return Ok(None);
+            };
+            let nbt = yoake_wasm::convert::compound_to_nbt(&data).map_err(|_| "the block entity's data cannot be encoded".to_owned())?;
+            if nbt.len() > MAX_BE_DATA {
+                return Err("the block entity's data is larger than 64 KiB".into());
+            }
+            Ok(Some(st::BlockEntityData { entity_type, nbt }))
+        })
+    }
+
+    fn block_entity_patch_at(&mut self, nbt: Vec<u8>, position: st::BlockPos, replace: bool) -> Result<(), String> {
+        if nbt.len() > MAX_BE_DATA {
+            return Err("the data is larger than 64 KiB".into());
+        }
+        let data = super::full::nbt_compound_from(&nbt).ok_or("the data is not a network-encoded NBT compound")?;
+        server_service(|host| host.block_entity_patch(block_pos(&position), data, replace))
+    }
+
+    fn recipe_data_call(&mut self, recipe_type: String) -> Result<Vec<st::RecipeData>, String> {
+        registry_id(&recipe_type)?;
+        read_service(|host| {
+            Ok(host
+                .recipe_data(&recipe_type)
+                .into_iter()
+                .take(MAX_RECIPE_LIST)
+                .filter_map(|(recipe, data)| {
+                    let data = super::behaviors::recipe_data_bytes(&data)?;
+                    Some(st::RecipeData { recipe, data })
+                })
+                .collect())
+        })
+    }
+
+    fn recipe_match_call(&mut self, input: Vec<st::ItemStack>, recipe_type: String) -> Result<Vec<st::RecipeMatch>, String> {
+        registry_id(&recipe_type)?;
+        if super::behaviors::recipe_owner(&recipe_type).is_some_and(|owner| owner == self.id) {
+            return Err("the recipe type is this package's own, and the engine cannot call a package that is running a hook: read its recipes with `recipe-data` and match them with your own code".into());
+        }
+        if input.len() > MAX_RECIPE_GRID {
+            return Err("a crafting grid has at most 64 stacks".into());
+        }
+        let stacks = input.iter().map(game_item).collect::<Result<Vec<_>, _>>()?;
+        read_service(|host| {
+            Ok(host
+                .recipes_matching(&recipe_type, &stacks)
+                .into_iter()
+                .take(MAX_RECIPE_GRID)
+                .map(|found| st::RecipeMatch {
+                    recipe: found.recipe.id,
+                    outputs: found.outputs.iter().take(MAX_RECIPE_GRID).map(st_item).collect(),
+                })
+                .collect())
+        })
+    }
+
     fn block_entity_sync(&mut self, position: st::BlockPos) -> Result<(), String> {
         server_service(|host| {
             host.block_entity_sync(block_pos(&position));
@@ -1145,7 +1213,13 @@ fn world_control_line(change: &st::WorldControlChange) -> Result<String, String>
         }
         st::WorldControlOperation::SetGameRule => {
             command_word(&change.key, "game rule")?;
-            if change.key.contains(':') || change.value.len() > GAME_RULE_VALUE_MAX {
+            // A content mod's rule is `<mod id>:<path>` and must be one the game registered
+            // (`data/<id>/horizon/game_rule/`); a vanilla rule is its short name.
+            let namespaced = change.key.contains(':');
+            let known_mod_rule = || {
+                horizon_client::gamerules::rule(&change.key).is_some_and(|r| r.name.contains(':'))
+            };
+            if (namespaced && !known_mod_rule()) || change.value.len() > GAME_RULE_VALUE_MAX {
                 return Err("not a valid game rule".into());
             }
             let value = change.value.as_str();
@@ -1240,6 +1314,9 @@ mod tests {
         assert!(world_control_line(&change(st::WorldControlOperation::SetTime, "", "day; stop")).is_err());
         assert!(world_control_line(&change(st::WorldControlOperation::SetGameRule, "doDaylightCycle", "false")).unwrap().starts_with("gamerule"));
         assert!(world_control_line(&change(st::WorldControlOperation::SetGameRule, "x y", "false")).is_err());
+        // a namespaced name is a content mod's rule, which must be registered.
+        assert!(world_control_line(&change(st::WorldControlOperation::SetGameRule, "ruby:unregistered", "true")).is_err());
+        assert!(world_control_line(&change(st::WorldControlOperation::SetGameRule, "minecraft:keep_inventory", "true")).is_err());
         assert!(world_control_line(&change(st::WorldControlOperation::SetGameRule, "keepInventory", "run stop")).is_err());
         let line = world_control_line(&change(st::WorldControlOperation::AddForceLoad, "", "")).unwrap();
         assert_eq!(line, "execute in minecraft:overworld run forceload add 0 0 0 0");

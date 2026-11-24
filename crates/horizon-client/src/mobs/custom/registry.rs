@@ -42,6 +42,12 @@ impl CustomRegistry {
         for kind in kinds {
             self.insert(kind);
         }
+        super::reload::note_replaced();
+    }
+    /// Puts `kind` in place of the type of its id (a hot reload), or adds it.
+    pub fn replace_one(&mut self, kind: Arc<CustomType>) {
+        self.types.insert(kind.id.clone(), kind);
+        super::reload::note_replaced();
     }
 }
 

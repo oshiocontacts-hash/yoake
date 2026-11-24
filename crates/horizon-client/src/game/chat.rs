@@ -306,12 +306,13 @@ fn resource_ids(root: &Path) -> Arc<ResourceIds> {
     let (timelines, markers) = overworld_timelines(root);
     let ids = Arc::new(ResourceIds {
         recipes: ids_under(&data.join("recipe"), "json"),
-        damage_types: ids_under(&data.join("damage_type"), "json"),
+        // A content mod's damage types and enchantments (`data/<ns>/...`) too.
+        damage_types: json_ids_of_every_namespace(root, "damage_type"),
         // `/loot ... loot <id>` must find a content mod's tables too.
         loot_tables: json_ids_of_every_namespace(root, "loot_table"),
         templates: templates_under(&root.join("worldgen/structure")),
         entity_types,
-        enchantments: json_ids_in(&data.join("enchantment")),
+        enchantments: json_ids_of_every_namespace(root, "enchantment"),
         structures: json_ids_in(&data.join("worldgen/structure")),
         biomes: json_ids_in(&data.join("worldgen/biome")),
         clocks: json_ids_in(&data.join("world_clock")),
@@ -964,6 +965,12 @@ impl Game<'_> {
             return;
         }
         self.ui.chat.add_recent(&message);
+        // `/yoake mobdebug`, `/yoake mobs` and `/yoake mob reload` are the player's own client's, on any server.
+        if let Some(command) = message.strip_prefix('/')
+            && self.yoake_command(command)
+        {
+            return;
+        }
         // On a server (single player's own included) the server runs it,
         // unless a client mod owns the command.
         if self.remote.is_some() {

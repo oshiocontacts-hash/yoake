@@ -24,6 +24,11 @@ Checks:
 - strike:  a second fox with AI, a survival host in reach: one strike (the server `hit` frame logged once, the host loses
            exactly 2 health) in the window; its client events come in the same tick as the server frame (or the next).
 - death:   `kill`: the fox is still there after 6 ticks and gone after 30 (its death animation is 0.6 s = 12 ticks).
+- reload (F4M-13, scenario 7, without --wasm): the ear of the running fox is moved in the geo file of the dev folder: within
+           about two seconds both games log the reload and the picture changes; a truncated geo keeps the old fox and logs
+           one warning; the restored file and `/yoake mob reload` bring the first picture back.
+- debug (F4M-12, without --wasm): `/yoake mobdebug on` changes the picture (boxes, bones, texts), `/yoake mobs` lists the
+           fox, `/yoake mobdebug off` brings the picture back.
 
 Not covered here: parity golden C (cargo test), the comparison of the laptop's golden vertex hashes (see FR-MERGE6.md).
 """
@@ -57,17 +62,35 @@ EVENTS = re.compile(r'Horizon custom-mob events: mob (\d+) tick (\d+) count (\d+
 SOUND = re.compile(r'Horizon custom-mob sound: mob (\d+) (\S+) at')
 PARTICLE = re.compile(r'Horizon custom-mob particle: mob (\d+) (\S+) at')
 EVENT = re.compile(r'Horizon custom-mob event: mob (\d+) "(\w+)" at')
+RELOADED = re.compile(r'Horizon custom-mob reload: sample_mobs:cinder_fox reloaded \(')
+RELOADED_BY_COMMAND = re.compile(r'Horizon custom-mob reload: sample_mobs:cinder_fox reloaded by command')
+NOT_RELOADED = re.compile(r'Horizon custom-mob reload: sample_mobs:cinder_fox not reloaded, the old version keeps running')
+SWAPPED = re.compile(r'Horizon custom-mob reload: sample_mobs:cinder_fox: (\d+) mob\(s\) now use the new version')
+GEO = 'content/assets/sample_mobs/geo/cinder_fox.geo.json'
+FOX_TEXTURE_LINE = re.compile(r'Horizon custom-mob texture: mob (\d+) slot "(\w*)" texture Some\((\d+)\)')
 
 
-def patched_fixture(scratch, wasm=None):
+def patched_fixture(scratch, wasm=None, client_wasm=None):
     """A copy of the package with a sound and a particle at the pounce's hit. With `wasm` (the built fox_ai guest) the
     real script goal stays and the player becomes a target; without it the script goal is replaced by a data
-    `melee_attack` that pounces."""
+    `melee_attack` that pounces. With `client_wasm` (the built fox_texture guest) the package also loads the
+    client-full texture module."""
     dest = scratch / 'cinder_fox'
     shutil.copytree(FIXTURE, dest)
     if wasm is not None:
         (dest / 'bin/wasm').mkdir(parents=True, exist_ok=True)
         shutil.copyfile(wasm, dest / 'bin/wasm/fox_ai.wasm')
+    if client_wasm is not None:
+        (dest / 'bin/wasm').mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(client_wasm, dest / 'bin/wasm/fox_texture.wasm')
+        yak_path = dest / 'yak.toml'
+        yak_text = yak_path.read_text(encoding='utf-8')
+        yak_text = yak_text.replace(
+            'interface = "1.0"\n',
+            'interface = "1.0"\nworld = "client-full"\nclient = "bin/wasm/fox_texture.wasm"\n',
+            1,
+        )
+        yak_path.write_text(yak_text, encoding='utf-8')
     path = dest / ANIM
     data = json.loads(path.read_text(encoding='utf-8'))
     pounce = data['animations']['animation.cinder_fox.pounce']
@@ -104,7 +127,7 @@ def install_package(game, package):
     (game.work / 'yoake-mods.txt').write_text('sample_mobs 0.1.0' + chr(10))
 
 
-STRIKE_LINE = re.compile(r'^.*Horizon custom-mob (?:strike|death|script goal|target|goal):.*$', re.M)
+STRIKE_LINE = re.compile(r'^.*(?:Horizon custom-mob (?:strike|death|script goal|target|goal|texture):).*$', re.M)
 
 
 def log_of(game):
@@ -126,6 +149,119 @@ def clear_foxes(game):
     raise Failed('foxes are still there after five kills')
 
 
+def move_ear(path, dy):
+    """The left ear `dy` model pixels up: its pivot and its cubes (a visible change of the geo)."""
+    data = json.loads(path.read_text(encoding='utf-8'))
+    for bone in data['minecraft:geometry'][0]['bones']:
+        if bone['name'] == 'ear_l':
+            bone['pivot'][1] += dy
+            for cube in bone.get('cubes', []):
+                cube['origin'][1] += dy
+    path.write_text(json.dumps(data, indent=2), encoding='utf-8')
+
+
+def typed(game, line):
+    """A line typed in the chat box (`/yoake ...` is answered by the window's own game; the control `command` runs on the
+    server side): the newest chat lines as one text."""
+    game.raw('chat', '/' + line)
+    game.wait(2)
+    return ' '.join(game.raw('chat-log', 6).get('chat', []))
+
+
+EAR_BOX = (600, 40, 1100, 360)  # above the head, where the ear floats once it is half a block up (clear of the toasts at the right)
+
+
+def box_changed(a, b, box=EAR_BOX):
+    """Pixels that differ between two screenshots inside `box`."""
+    from PIL import Image, ImageChops
+    diff = ImageChops.difference(Image.open(a).convert('RGB').crop(box), Image.open(b).convert('RGB').crop(box))
+    return diff.convert('L').point(lambda v: 255 if v > 24 else 0).histogram()[255]
+
+
+def debug_pixels(path):
+    """Pixels of the debug view's own colours (hitbox green, bone yellow, locator cyan) above the chat lines: the fox's
+    fur has none of them."""
+    from PIL import Image
+    im = Image.open(path).convert('RGB').crop((0, 0, 1600, 570))
+    colours = [(63, 255, 0), (255, 255, 0), (0, 255, 255)]
+    return sum(1 for px in im.getdata() if any(all(abs(px[i] - c[i]) <= 16 for i in range(3)) for c in colours))
+
+
+def reload_and_debug(host, guest, shot, mod, hx, hy, hz):
+    """F4M-13 scenario 7 and the F4M-12 debug view on the running fox; returns the two results."""
+    clear_foxes(host)
+    host('command', command='kill @e[type=minecraft:item]')  # the drops bob about and would blur the pixel counts
+    host('command', command=f'summon {FOX} {hx + 0.5} {hy} {hz - 6.5}')
+    host.wait(20)
+    look_at_fox(host, fox_list(host)[0], back=2.0, dy=0.6)
+    geo = mod / GEO
+    original = geo.read_text(encoding='utf-8')
+    first = str(shot(host, 'reload-before'))
+    mark_h, mark_g = len(log_of(host)), len(log_of(guest))
+    move_ear(geo, 12)  # three quarters of a block up: clear of the head
+    host.wait(90)  # the watcher polls once a second and wants two equal looks
+    moved = str(shot(host, 'reload-ear'))
+    h_moved, g_moved = log_of(host)[mark_h:], log_of(guest)[mark_g:]
+    ear_ok = (len(RELOADED.findall(h_moved)) >= 1 and len(RELOADED.findall(g_moved)) >= 1
+              and any(int(n) >= 1 for n in SWAPPED.findall(h_moved)) and any(int(n) >= 1 for n in SWAPPED.findall(g_moved)))
+    # a malformed edit: the old model keeps running and one warning says so.
+    mark_h, mark_g = len(log_of(host)), len(log_of(guest))
+    geo.write_text(original[:len(original) // 2], encoding='utf-8')
+    host.wait(90)
+    broken = str(shot(host, 'reload-broken'))
+    h_broken, g_broken = log_of(host)[mark_h:], log_of(guest)[mark_g:]
+    broken_ok = (len(NOT_RELOADED.findall(h_broken)) == 1 and len(NOT_RELOADED.findall(g_broken)) == 1
+                 and len(fox_list(host)) == 1)
+    # the file is right again; the command reads it at once.
+    mark_h = len(log_of(host))
+    geo.write_text(original, encoding='utf-8')
+    reply_text = typed(host, 'yoake mob reload')
+    host.wait(15)
+    restored = str(shot(host, 'reload-restored'))
+    command_ok = len(RELOADED_BY_COMMAND.findall(log_of(host)[mark_h:])) == 1 and 'Reloaded sample_mobs:cinder_fox' in reply_text
+    moved_px, broken_px, restored_px = box_changed(first, moved), box_changed(moved, broken), box_changed(first, restored)
+    reload_result = {
+        'pass': (ear_ok and broken_ok and command_ok and moved_px > 400 and broken_px < moved_px / 3 and restored_px < moved_px / 3),
+        'detail': {'ear_logged': ear_ok, 'broken_warned_once': broken_ok, 'command_ok': command_ok, 'command_reply': reply_text,
+                   'ear_box_changed_before_to_ear': moved_px, 'ear_box_changed_ear_to_broken': broken_px, 'ear_box_changed_before_to_restored': restored_px,
+                   'host_lines': RELOADED.findall(h_moved) and h_moved.count('custom-mob reload'),
+                   'png': [first, moved, broken, restored]},
+    }
+    # the debug view on the same fox.
+    on = typed(host, 'yoake mobdebug on')
+    host.wait(10)
+    debug_on = str(shot(host, 'debug-on'))
+    host.wait(40)
+    first_mobs = typed(host, 'yoake mobs')
+    host.wait(60)
+    mobs = typed(host, 'yoake mobs')
+    typed(host, 'yoake mobs stop')
+    off = typed(host, 'yoake mobdebug off')
+    host.wait(10)
+    debug_off = str(shot(host, 'debug-off'))
+    text = str
+    shown, back = debug_pixels(debug_on), debug_pixels(debug_off)
+    # the key chord F3+M is the same toggle.
+    host.script(['key f3 down', 'wait 2', 'key m tap', 'wait 2', 'key f3 up', 'wait 4'])
+    host.wait(6)
+    chord_on = str(shot(host, 'debug-chord'))
+    host.script(['key f3 down', 'wait 2', 'key m tap', 'wait 2', 'key f3 up', 'wait 4'])
+    host.wait(6)
+    chord_off = str(shot(host, 'debug-chord-off'))
+    chord_shown, chord_back = debug_pixels(chord_on), debug_pixels(chord_off)
+    debug_result = {
+        'pass': ('on: hitboxes, bones, anim, ai' in text(on) and 'sample_mobs:cinder_fox: 1 live' in text(mobs)
+                 and 'view off' in text(off) and shown > 100 and back < shown / 10
+                 and chord_shown > 100 and chord_back < chord_shown / 10),
+        'detail': {'on': text(on), 'mobs_first': text(first_mobs), 'mobs': text(mobs), 'off': text(off),
+                   'debug_pixels_with_view': shown, 'debug_pixels_after_off': back,
+                   'debug_pixels_chord': chord_shown, 'debug_pixels_chord_off': chord_back,
+                   'png': [debug_on, debug_off, chord_on, chord_off]},
+    }
+    clear_foxes(host)
+    return reload_result, debug_result
+
+
 def look_at_fox(game, fox, back=2.0, dy=0.6):
     """Put the player `back` blocks south of the fox, at its height, looking at it."""
     x, y, z = fox['pos']
@@ -135,11 +271,10 @@ def look_at_fox(game, fox, back=2.0, dy=0.6):
     game.wait(6)
 
 
-def run(ctl, out, shots, resources, wasm=None):
+def run(ctl, out, shots, resources, wasm=None, client_wasm=None):
     scratch = Path(tempfile.mkdtemp(prefix='hzfox-'))
-    mod = patched_fixture(scratch, wasm)
-    if wasm is not None:
-        os.environ['YOAKE_WASM_UNSIGNED'] = '1'  # developer mode: the package is not signed
+    mod = patched_fixture(scratch, wasm, client_wasm)
+    os.environ['YOAKE_WASM_UNSIGNED'] = '1'  # developer mode: the package is not signed (and its folder reloads, F4M-13)
     host, guest = Game('host', ctl, resources), Game('guest', ctl, resources)
     args = ['--offscreen', '--no-focus', '--no-pause', '--pregen']  # --pregen turns Horizon's own commands on
     if wasm is None:
@@ -292,10 +427,15 @@ def run(ctl, out, shots, resources, wasm=None):
                                      'detail': {'chicken_health_samples': chicken_hp[-6:]}}
             host('command', command='kill @e[type=minecraft:chicken]')
             clear_foxes(host)
+        if wasm is None:
+            results['reload'], results['debug'] = reload_and_debug(host, guest, shot, mod, hx, hy, hz)
         # strike: a fox with AI and survival players in reach. Data goal: the fox next to the host; real guest: the
         # script goal needs the target 3 to 6 blocks away. Both players' health is recorded (the fox may pick the guest).
         host('command', command='gamemode survival')
         guest('command', command='gamemode survival')
+        # No regeneration: saturated food heals 5/6 of a point every 10 ticks, and the lowest health the loop samples
+        # (it can miss the trough on a loaded machine) would read as a smaller blow than the fox's fixed 3.0.
+        host('command', command='gamerule natural_health_regeneration false')
         host('command', command=f'tp @s {hx + 0.5} {hy} {hz + 0.5}')
         guest('command', command=f'tp @s {hx + 3.5} {hy} {hz + 3.5}')
         host.wait(20)
@@ -315,7 +455,9 @@ def run(ctl, out, shots, resources, wasm=None):
             host.wait(2)
             for name, game in (('host', host), ('guest', guest)):
                 health[name].append(game('state')['player']['health'])
-        after = {k: min(v) for k, v in health.items()}
+        # The first blow's trough: the first sample below the starting health (a later blow, with regeneration off,
+        # would lower it again).
+        after = {k: next((h for h in v if h < v[0]), v[0]) for k, v in health.items()}
         h_text, g_text = log_of(host)[mark_h:], log_of(guest)[mark_g:]
         server = list(SERVER_FRAME.finditer(h_text))
         st = int(server[0].group(3)) if server else None
@@ -331,13 +473,51 @@ def run(ctl, out, shots, resources, wasm=None):
                                         'strike_lines': STRIKE_LINE.findall(h_text)[:30]}}
         host('command', command='gamemode creative')
         guest('command', command='gamemode creative')
+        host('command', command='gamerule natural_health_regeneration true')
 
         clear_foxes(host)
-        # death: the death animation (0.6 s = 12 ticks) keeps the body, then it is removed.
+        # runtime_texture (F4M-7, with client_wasm) + death: summon a fresh fox in daylight.
         host('command', command=f'summon {FOX} {hx + 0.5} {hy} {hz - 6.5}')
         host.wait(20)
         fox = fox_list(host)
         look_at_fox(host, fox[0])
+        if client_wasm is not None:
+            tex_before = shot(host, 'tex-before')
+            mark_th, mark_tg = len(log_of(host)), len(log_of(guest))
+            for _ in range(3):
+                near = fox_list(host)[0]  # a blow knocks the fox back: step up to it again
+                look_at_fox(host, near, back=1.5)
+                host.raw('attack', near['id'])
+                host.wait(14)
+            host.wait(10)
+            tex_after = shot(host, 'tex-after')
+            for _ in range(4):
+                near = fox_list(host)[0]  # a blow knocks the fox back: step up to it again
+                look_at_fox(host, near, back=1.5)
+                host.raw('attack', near['id'])
+                host.wait(14)
+            host.wait(10)
+            tex_after2 = shot(host, 'tex-after2')
+            h_tex = [(m.group(2), int(m.group(3))) for m in FOX_TEXTURE_LINE.finditer(log_of(host)[mark_th:])]
+            g_tex = [(m.group(2), int(m.group(3))) for m in FOX_TEXTURE_LINE.finditer(log_of(guest)[mark_tg:])]
+            diff1 = changed_pixels(tex_before, tex_after)
+            diff2 = changed_pixels(tex_after, tex_after2)
+            results['runtime_texture'] = {
+                'pass': (
+                    len(h_tex) >= 2 and len(g_tex) >= 2
+                    and {slot for slot, _ in h_tex} == {'default'}
+                    and {slot for slot, _ in g_tex} == {'default'}
+                    and diff1 > 300 and diff2 > 50
+                ),
+                'detail': {
+                    'host_bindings': h_tex,
+                    'guest_bindings': g_tex,
+                    'changed_before_to_w3': diff1,
+                    'changed_w3_to_w8': diff2,
+                    'png': [saved['tex-before'], saved['tex-after'], saved['tex-after2']],
+                },
+            }
+        # death: the death animation (0.6 s = 12 ticks) keeps the body, then it is removed.
         mark_death = len(log_of(host))
         host('command', command=f'damage @e[type=sample_mobs:cinder_fox,limit=1] 100 minecraft:generic')
         presence = []
@@ -375,6 +555,7 @@ def main():
     parser.add_argument('--shots', default=str(ROOT / 'docs/yoake2/reports/img'))
     parser.add_argument('--resources', default=os.environ.get('HORIZON_TEST_RESOURCES') or str(lab.RESOURCES))
     parser.add_argument('--wasm', help='the built fox_ai guest: the real script goal runs (default: a data melee_attack goal instead)')
+    parser.add_argument('--client-wasm', help='the built fox_texture client guest (defaults to yoake_wasm_fox_texture.wasm beside --wasm when present)')
     parser.add_argument('--wait-minutes', type=int, default=30)
     args = parser.parse_args()
     resources = Path(args.resources).resolve()
@@ -388,7 +569,13 @@ def main():
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     ext = '.exe' if sys.platform == 'win32' else ''
-    results = run(Path(args.bin_dir).resolve() / f'horizon-ctl{ext}', out, Path(args.shots).resolve(), resources, Path(args.wasm).resolve() if args.wasm else None)
+    wasm_path = Path(args.wasm).resolve() if args.wasm else None
+    client_wasm_path = Path(args.client_wasm).resolve() if args.client_wasm else None
+    if client_wasm_path is None and wasm_path is not None:
+        sibling = wasm_path.with_name('yoake_wasm_fox_texture.wasm')
+        if sibling.exists():
+            client_wasm_path = sibling
+    results = run(Path(args.bin_dir).resolve() / f'horizon-ctl{ext}', out, Path(args.shots).resolve(), resources, wasm_path, client_wasm_path)
     (out / 'results.json').write_text(json.dumps({'checks': results}, indent=2) + '\n')
     print(json.dumps(results, indent=1))
     sys.exit(0 if all(r['pass'] for r in results.values()) else 1)

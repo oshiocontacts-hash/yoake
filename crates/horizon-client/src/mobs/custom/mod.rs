@@ -13,15 +13,18 @@ pub mod ai;
 pub mod anim_sync;
 pub mod attrs;
 pub mod build;
+pub mod debug;
 pub mod hitbox;
 pub mod persist;
 pub mod registry;
+pub mod reload;
 pub mod remote;
 pub mod render_state;
 pub mod script;
 pub mod script_apply;
 pub mod spawn;
 pub mod stats;
+pub mod textures;
 
 pub use registry::{CustomRegistry, get, ids, registry};
 

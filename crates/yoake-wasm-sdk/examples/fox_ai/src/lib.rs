@@ -3,7 +3,7 @@
 //! with a line of sight; it starts the `pounce` animation and holds the fox still; on the server
 //! timeline event `hit` of that animation it leaps and bites; it ends after the animation.
 use yoake_wasm_sdk::full::hook;
-use yoake_wasm_sdk::full::server::{ServerMod, mobs, types::Vec3};
+use yoake_wasm_sdk::full::server::{ServerMod, et, mobs, types::Vec3};
 
 /// The animation is 0.8 s long.
 const POUNCE_TICKS: u32 = 16;
@@ -20,7 +20,15 @@ fn dist(a: &Vec3, b: &Vec3) -> f64 {
 
 impl ServerMod for Fox {
     fn subscriptions() -> &'static [&'static str] {
-        &[hook::MOB_GOAL_CAN_USE, hook::MOB_GOAL_CAN_CONTINUE, hook::MOB_GOAL_START, hook::MOB_GOAL_TICK, hook::MOB_GOAL_STOP, hook::MOB_ANIM_EVENT]
+        &[
+            hook::MOB_GOAL_CAN_USE,
+            hook::MOB_GOAL_CAN_CONTINUE,
+            hook::MOB_GOAL_START,
+            hook::MOB_GOAL_TICK,
+            hook::MOB_GOAL_STOP,
+            hook::MOB_ANIM_EVENT,
+            hook::MOB_HURT,
+        ]
     }
     fn mob_goal_can_use(&mut self, mob: u32, goal: String) -> bool {
         if cfg!(feature = "trap") {
@@ -76,6 +84,32 @@ impl ServerMod for Fox {
         let _ = mobs::impulse(mob, Vec3 { x: dx * 0.6, y: 0.35, z: dz * 0.6 });
         if d <= 4.0 {
             let _ = mobs::attack(mob, i.target, i.target_player.as_deref(), 3.0, 0.4);
+        }
+    }
+
+    fn mob_hurt(
+        &mut self,
+        mob: u32,
+        _part: String,
+        _source: String,
+        amount: f32,
+        cancel: bool,
+    ) -> et::MobHurtOutcome {
+        if !cancel {
+            if let Ok(Some(info)) = mobs::info(mob) {
+                let next_hp = (info.health - amount).max(0.0);
+                let max_hp = info.max_health.max(1.0);
+                let warmth = if next_hp <= 0.0 {
+                    0
+                } else {
+                    (((max_hp - next_hp) * 10.0) / max_hp).ceil().clamp(1.0, 10.0) as i32
+                };
+                let _ = mobs::set_synced(mob, "warmth", mobs::int_value(warmth));
+            }
+        }
+        et::MobHurtOutcome {
+            amount: None,
+            cancel: None,
         }
     }
 }

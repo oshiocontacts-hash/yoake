@@ -571,3 +571,77 @@ fn native_gpu_deferred_pass_and_copy_errors_are_caught_at_finish() {
         .all(|pixel| *pixel == [0, 0, 255, 255])
     );
 }
+
+#[test]
+fn mob_texture_patch_uploads_persist_across_shader_pack_view_toggle() {
+    let Some((device, queue)) = gpu() else { return };
+    let atlas = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("Entity/HUD shared atlas"),
+        size: wgpu::Extent3d {
+            width: 32,
+            height: 32,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING
+            | wgpu::TextureUsages::COPY_DST
+            | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let entity_view = atlas.create_view(&Default::default());
+    let glint = device.create_texture(&wgpu::TextureDescriptor {
+        label: None,
+        size: wgpu::Extent3d {
+            width: 1,
+            height: 1,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+    });
+    let glint_view = glint.create_view(&Default::default());
+    let sampler = device.create_sampler(&Default::default());
+    let mut hud = HudRenderer::new(
+        &device,
+        wgpu::TextureFormat::Rgba8Unorm,
+        &entity_view,
+        &glint_view,
+        &sampler,
+    )
+    .unwrap();
+    hud.atlas_texture = Some(atlas.clone());
+    let mut uploads = crate::gfx::upload::Uploads::new(&device);
+    let mut encoder = device.create_command_encoder(&Default::default());
+    let patch_rgba = [12, 234, 56, 255];
+    hud.upload_patches(
+        &mut uploads,
+        &mut encoder,
+        &[crate::font::Patch {
+            x: 8,
+            y: 12,
+            width: 1,
+            height: 1,
+            rgba: patch_rgba.to_vec(),
+        }],
+    );
+    uploads.finish(&encoder);
+    queue.submit([encoder.finish()]);
+
+    // Simulates shader pack toggle creating a new celestial/entity view from `hud.atlas_texture`.
+    let _pack_on_view = hud.atlas_texture.as_ref().unwrap().create_view(&Default::default());
+    drop(_pack_on_view);
+    let readback = pixels(
+        &device,
+        &queue,
+        device.create_command_encoder(&Default::default()),
+        &atlas,
+    );
+    assert_eq!(readback[12 * 32 + 8], patch_rgba);
+}

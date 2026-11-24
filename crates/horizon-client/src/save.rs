@@ -4526,6 +4526,22 @@ impl Level {
                     Tag::Int(value),
                 );
             }
+            // A content mod's rules (`<mod id>:<path>`), only where they differ from their
+            // default so a world that never touched them stays what vanilla reads.
+            for (name, &value) in &self.game_rules {
+                let Some(rule) = crate::gamerules::rule(name).filter(|r| r.name.contains(':'))
+                else {
+                    continue;
+                };
+                let tag = match rule.default {
+                    crate::gamerules::Value::Int(default) if value != default => Tag::Int(value),
+                    crate::gamerules::Value::Bool(default) if (value != 0) != default => {
+                        Tag::Byte(i8::from(value != 0))
+                    }
+                    _ => continue,
+                };
+                put(&mut rules, &rule.id(), tag);
+            }
             write_saved_data(dir, "game_rules", rules)?;
         }
         if write_player {

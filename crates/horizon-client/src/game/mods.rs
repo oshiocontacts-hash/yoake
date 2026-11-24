@@ -118,6 +118,7 @@ pub(super) fn content_root(
     paths.retain(|p| !dev.contains(p));
     paths.extend(dev.iter().cloned());
     let mut known = None;
+    horizon_client::mobs::custom::reload::clear_sources();
     let mut mods: Vec<ContentMod> = Vec::new();
     let mut manifests = Vec::new();
     // The first load's list stays (`set_local`): a reload does not hash the files again.
@@ -158,12 +159,21 @@ pub(super) fn content_root(
                 }
             },
         };
+        let custom_ids: Vec<String> = content.custom_mobs.iter().map(|c| c.id.clone()).collect();
         let candidate = ContentMod {
             id: m.id.clone(),
             content,
         };
         match mod_content::accept_mod(&mut mods, candidate, known) {
             Ok(_) => {
+                // Developer mode: an unsigned folder's custom mobs can be read again while the game runs (F4M-13).
+                if horizon_client::mobs::custom::reload::dev_enabled()
+                    && horizon_client::mobs::custom::reload::is_unsigned_dir(path)
+                {
+                    for id in &custom_ids {
+                        horizon_client::mobs::custom::reload::register_source(id, path);
+                    }
+                }
                 if announce {
                     announced.push(announced_entry(m, path));
                 }
@@ -206,6 +216,8 @@ pub(super) fn content_root(
             register_mob_effects(&mods);
             register_entity_types(&mods);
             register_menu_types(&mods);
+            register_game_rules(&mods);
+            register_fluids(&mods);
             let accepted = mods.iter().map(|entry| entry.id.clone()).collect();
             ContentRoot {
                 path: out,
@@ -217,6 +229,7 @@ pub(super) fn content_root(
             register_mob_effects(&[]);
             register_entity_types(&[]);
             register_menu_types(&[]);
+            register_game_rules(&[]);
             root.to_owned().into()
         }
     }
@@ -331,6 +344,35 @@ fn register_menu_types(mods: &[horizon_client::mod_content::ContentMod]) {
             .ne(menus.iter().map(|m| m.id.as_str()))
     {
         log::warn!("Horizon: the mods' menu types changed; restart the game to use them");
+    }
+}
+
+/// The mods' game rules (`data/<id>/horizon/game_rule/`) join vanilla's under their
+/// `<mod id>:<path>` names, once, from the startup root, as the mob effects do.
+fn register_game_rules(mods: &[horizon_client::mod_content::ContentMod]) {
+    use horizon_client::{gamerules, mod_content};
+    let rules = mod_content::rule_declarations(mods);
+    let names: Vec<String> = rules.iter().map(|r| r.name.clone()).collect();
+    if !gamerules::register_mod_rules(rules)
+        && gamerules::mod_rule_names() != names.iter().map(String::as_str).collect::<Vec<_>>()
+    {
+        log::warn!("Horizon: the mods' game rules changed; restart the game to use them");
+    }
+}
+
+/// The mods' fluid families (`data/<id>/horizon/fluid/`) join the world's fluid registry beside
+/// the native mods' (which `native_fluids::register` installed first). A family an earlier root
+/// (a pack reload) already registered stays as it is.
+fn register_fluids(mods: &[horizon_client::mod_content::ContentMod]) {
+    use horizon_world::fluid::custom;
+    let have: std::collections::BTreeSet<String> =
+        custom::definitions().iter().map(|d| d.id.clone()).collect();
+    let new: Vec<_> = horizon_client::mod_content::fluid_definitions(mods)
+        .into_iter()
+        .filter(|d| !have.contains(&d.id))
+        .collect();
+    if let Err(e) = custom::install(new) {
+        log::warn!("Horizon: the mods' fluids are not registered: {e}");
     }
 }
 

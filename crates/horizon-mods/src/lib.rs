@@ -8,6 +8,7 @@ mod test_support;
 #[cfg(test)]
 mod temp_dir_cleanup_tests;
 pub mod content;
+pub mod content_kinds;
 pub mod custom_mob;
 #[cfg(feature = "index")]
 pub mod index;

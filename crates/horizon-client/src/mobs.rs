@@ -3036,18 +3036,7 @@ impl Mob {
     pub fn damage_aimed(&mut self, amount: f32, source: Damage, aim: Option<Aim>) -> bool {
         // F4M: the part of a custom mob that is hit scales the blow (`damage_multiplier`).
         let amount = if self.kind.custom.is_some() {
-            let scaled = custom::hitbox::scale_damage(self, amount, aim);
-            // F4M-10: `mob-hurt` may change the amount or cancel the blow.
-            if custom::script::installed() {
-                let part = custom::hitbox::hit_part_name(self, aim);
-                match custom::script::hurt(self, &part, &format!("{:?}", source.kind), scaled) {
-                    Some(reply) if reply.cancel => return false,
-                    Some(reply) => reply.amount,
-                    None => scaled,
-                }
-            } else {
-                scaled
-            }
+            custom::hitbox::scale_damage(self, amount, aim)
         } else {
             amount
         };
@@ -3122,6 +3111,18 @@ impl Mob {
         if !ai::accepts_damage(self, &source, amount) {
             return false;
         }
+        // F4M-10: `mob-hurt` may change the amount or cancel the blow. Every blow passes here (a player's
+        // swing, /damage, a mob's or a projectile's), not only the aimed ones (F4M-7 found it skipped the rest).
+        let amount = if self.kind.custom.is_some() && custom::script::installed() {
+            let part = custom::hitbox::hit_part_name(self, self.attacker_aim);
+            match custom::script::hurt(self, &part, &format!("{:?}", source.kind), amount) {
+                Some(reply) if reply.cancel => return false,
+                Some(reply) => reply.amount,
+                None => amount,
+            }
+        } else {
+            amount
+        };
         // LivingEntity.hurtServer refuses fire before hooks and damage processing.
         if source.is_fire() && self.has_effect("minecraft:fire_resistance") {
             // Ghast.hurtServer reports success for a reflected fireball even

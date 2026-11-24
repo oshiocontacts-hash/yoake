@@ -466,6 +466,7 @@ impl Game<'_> {
             self.restore_native_services(&mut renderer);
             self.renderer = Some(renderer);
             self.reapply_native_sprites();
+            self.reapply_custom_mob_textures();
             self.apply_ui_settings();
         }
         // Horizon's own shader pack is built again: its sprite tags name the old atlas's
@@ -510,10 +511,17 @@ pub(super) fn stage_pack(
     // the frame that applies the reload (about 20 ms of it).
     let (render, atlas, panorama, (sounds, ui_metadata, language)) = std::thread::scope(|s| {
         let atlas = s.spawn(|| {
+            let reserve_mob_textures = super::custom_mob_textures::should_reserve_mob_textures();
             // A custom mob's embedded bbmodel texture joins the entity atlas (F4M-6).
             let embedded = horizon_client::mobs::custom::render_state::embedded_textures();
-            HudAtlas::build_over_with_images(&root, vanilla_root, mod_image, embedded)
-                .map_err(|e| e.to_string())
+            HudAtlas::build_over_with_mob_textures(
+                &root,
+                vanilla_root,
+                mod_image,
+                reserve_mob_textures,
+                embedded,
+            )
+            .map_err(|e| e.to_string())
         });
         let panorama = s.spawn(|| horizon_client::gfx::panorama::Faces::load(&root, vanilla_root));
         let small = s.spawn(|| {

@@ -109,7 +109,10 @@ impl Game<'_> {
             };
             state.writes = script::bone_writes(&rt.mob_pose(mob.id, &ct.id, &pf), tr.skeleton.len());
         }
+        // The cost meter of `/yoake mobs` (F4M-12): two clock reads a mob, only while it runs.
+        let meter = self.custom_mob_debug.now();
         state.update(ct, tr, anim, &ctx);
+        let posed = meter.map(|t| t.elapsed());
         if tr.script_pose {
             let at = [feet.x, feet.y, feet.z];
             let places = (0..tr.locators.len())
@@ -127,14 +130,20 @@ impl Game<'_> {
         }
         let world_from_model = rs::world_from_model(rel, scale, yaw, roll);
         let red = mob.hurt_time > 0 || mob.death_time > 0;
+        let texture_overrides = self.custom_mob_texture_overrides(mob.id);
         let draw = DrawCtx {
             world_from_model,
             light,
             overlay: horizon_client::overlay::living(0.0, red),
             lod,
             atlas: lookup,
+            texture_overrides: texture_overrides.as_ref(),
         };
+        let drawn_at = meter.map(|_| std::time::Instant::now());
         tr.draw(state, &draw, out);
+        if let (Some(pose), Some(at)) = (posed, drawn_at) {
+            self.custom_mob_debug.record(&ct.id, pose, at.elapsed(), frame);
+        }
         if lod != rs::LodMode::Hidden && lod != rs::LodMode::Static {
             self.custom_mob_items(mob, tr, &state.matrices, rel, scale, yaw, roll, light, out);
         }

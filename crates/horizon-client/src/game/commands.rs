@@ -1157,7 +1157,7 @@ impl Game<'_> {
             "spreadplayers" => self.cmd_spreadplayers(ctx),
             id if id.starts_with("forceload.") => self.cmd_forceload(id, ctx),
             id if id.starts_with("pregen.") => self.cmd_pregen(id, ctx),
-            id if id.starts_with("horizon.") => self.cmd_horizon(id, ctx),
+            id if id.starts_with("horizon.") || id.starts_with("yoake.") => self.cmd_horizon(id, ctx),
             "fillbiome" => self.cmd_fillbiome(ctx),
             id if id.starts_with("worldborder.") => self.cmd_worldborder(id, ctx),
             id if id.starts_with("loot.") => self.cmd_loot(id, ctx),
@@ -3129,7 +3129,7 @@ impl Game<'_> {
             super::dedicated::events::record_server(
                 "gamerule",
                 serde_json::json!({
-                    "key": format!("minecraft:{}", rule.name),
+                    "key": rule.id(),
                     "valueType": value_type,
                     "value": json,
                 }),

@@ -1,0 +1,18 @@
+{
+  "hooks": [],
+  "helpers": [
+    {
+      "name": "block_entity_data",
+      "target": "horizon_client::game::native_block_entity_data::Game<'_>::native_block_entity_data"
+    },
+    {
+      "name": "block_entity_patch",
+      "target": "horizon_client::game::native_block_entity_data::Game<'_>::native_block_entity_patch"
+    }
+  ],
+  "rust_summary": "a block entity's saved data by position: read it and merge into it (or replace a mod block entity's), as `/data get block` and `/data merge block` do.",
+  "doc_summary": "`block_entity_data(pos)` answers the block entity's type id and its saved data (without `id`, `x`, `y`, `z`), `block_entity_patch(pos, nbt, replace)` merges a compound into it, or with `replace` makes it a mod block entity's whole data; the chunk is saved and clients get the update tag. Bundles need \"hooks\": @API:block_entity_data@.",
+  "comments": [
+    "crates/horizon-client/src/game/native_block_entity_data.rs"
+  ]
+}

@@ -744,6 +744,229 @@ write a mob's declared brain memories:
 - Value constructors: `mobs::memory_bool`, `memory_i32`, `memory_f32`, `memory_string`, `memory_vec3`, `memory_block_pos`, `memory_entity_mob`, `memory_entity_player`.
 - See `crates/yoake-wasm-sdk/examples/fox_ai` and `tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json`.
 
+### Runtime entity textures (`service.mobs`, F4M-7)
+
+A client module in the `client-full` world (`[wasm] world = "client-full"`, `client = "bin/wasm/..."`,
+`permissions = ["service.mobs"]`) can allocate, paint, and bind RGBA8 textures to custom mobs at run time via
+`yoake_wasm_sdk::full::client`. Everything is local to each client: nothing is sent over the network, and each
+client renders its own bindings (commonly driven by `hook::SYNCED_CHANGED_CLIENT`).
+
+- `client::mob_texture_create(width, height) -> Result<u32, String>` (service 289: `mob-texture-create`): allocates a
+  `width` x `height` (`1..=1024` on each side) slot inside the reserved `1024x1024` `horizon/mob-textures` region of the
+  entity atlas. Each mod may keep at most **64** live textures at once.
+- `client::mob_texture_write(id, origin, size, rgba) -> Result<(), String>` (service 290: `mob-texture-write`): uploads
+  RGBA8 pixels into the sub-rectangle `[origin.0, origin.1, size.0, size.1]` of texture `id` (full or partial upload,
+  at most **4 MiB** per call).
+- `client::mob_texture_bind(entity, slot, id: Option<u32>) -> Result<(), String>` (service 291: `mob-texture-bind`):
+  binds texture `id` (or `None` to restore the pack texture) to `slot` on custom mob `entity`:
+  - `""` or `"default"`: replaces the model's `default` texture (and any layer in `model.layers` that inherits it).
+  - `<layer_name>`: replaces the named layer in `model.layers`.
+  - `"glowmask"`: replaces the automatic `<texture>_glowmask` emissive pass.
+  - `<bone_name>` or `"bone:<bone_name>"`: replaces only that bone's quads on the body pass.
+- **Argument order trap:** the generator sorts WIT arguments alphabetically (`services::mob_texture_create(height, width)`,
+  `services::mob_texture_write(id, origin, rgba, size)`, `services::mob_texture_bind(entity, id, slot)`). Always call
+  the `yoake_wasm_sdk::full::client::mob_texture_*` wrappers, which keep `(width, height)`, `(id, origin, size, rgba)`,
+  and `(entity, slot, id)`.
+- **Lifetime and reloads:** active textures and bindings persist across resource-pack reloads (atlas rebuilds) and
+  shader-pack toggles. Unloading or reloading the mod automatically frees its textures and clears its bindings.
+- Example: `crates/yoake-wasm-sdk/examples/fox_texture` (updates the Cinder Fox skin when `fox_ai` updates `warmth` in
+  `mob_hurt`).
+
+### Debug view and hot reload of custom mobs (F4M-12, F4M-13)
+
+**Debug view.** It is the player's own client: nothing is sent to the server, and it costs nothing while it is off.
+
+- `/yoake mobdebug [on|off] [hitboxes] [bones] [anim] [ai]`: with no words it toggles everything; `on` alone switches all
+  four parts on, `off` switches the view off, and part names alone switch exactly those parts on. F3+M is the same toggle
+  (only in a world that has custom mob types).
+  - `hitboxes`: every hit and pick part of the type's `hitboxes` as a box with its name and damage multiplier. Green is
+    hurt and pick, red hurt only, blue pick only, grey a part that is switched off (`set_hitbox_enabled`).
+  - `bones`: the skeleton as lines from each bone's origin to its children (drawn over the body, in the pose the mob is
+    drawn in), the bone names, the `locators` as small cyan boxes with their names, and the `seats` as orange boxes.
+  - `anim`: per controller layer the state and the time of its first clock, and the tracked (`synced`) values.
+  - `ai`: an arrow to the mob's target, the navigator's path from its next node, the running goals and target goals, and
+    the brain's current activity.
+  - Every mob in view (the 48 nearest within 48 blocks) also gets a header line: type id, mob id and health.
+- `/yoake mobs`: the loaded custom types with their live and drawn mobs. The first call starts a cost meter; run it again
+  after a few seconds to see the mean microseconds a frame spends posing and building vertices per type. The path-budget
+  lines of `/horizon custommobs stats` follow. `/yoake mobs stop` ends the meter. (The server tick cost per type is not
+  in this report yet: the path searches are the only per-type server cost counted today.)
+- The commands are answered by your own game on any server, for every player who types them in the chat. With Horizon's
+  own commands on (`--pregen`) they are also in the command tree for game masters (tab completion, and the control
+  socket's `command`).
+
+**Hot reload (development only).** It needs developer mode (`YOAKE_WASM_UNSIGNED=1`) and a package folder that has no
+`SIGNATURE` (a `--dev-mod` folder, or an unsigned installed package). A signed package never reloads.
+
+- **Assets (R1)**: the game looks at the files of each custom type once a second: its JSON, the geo or bbmodel, the
+  animation files, the controllers, the textures and the glow mask. A change counts once the files have stayed the same for
+  a whole second (your editor or exporter may still be writing). The type is then read again through the same loaders as
+  at start, and every running mob of it switches to the new model, animations and layers at the next game tick (between two
+  frames). **The animation phase is kept**: it is carried by the clocks the server anchored, so a walking fox keeps
+  walking from the same point of its stride. A texture change reloads the resources (like F3+T) instead.
+- **Definitions (R2)**: `/yoake mob reload [type]` reads the named type (every reloadable type without a name) now,
+  without waiting. Live mobs get the new numbers (`max_health`, `movement_speed`, attributes: a value you did not change on
+  the mob follows the file, a hurt mob stays hurt), a rebuilt goal list when the `ai` section changed, and the new hitbox
+  parts. A mob spawned a moment after the reload is brought over within a tick.
+- **A broken file keeps the old version**: the log gets one warning that names the file and why
+  (`Horizon custom-mob reload: <type> not reloaded, the old version keeps running ...`), and the game goes on with the
+  last good type. Fix the file and save again.
+- **Not reloadable while the game runs**: a change to the `synced` values, or to the controllers' layers, states or
+  triggers (what the network format depends on). The reload is refused with a message; restart the game. Deleting a type
+  and adding a new one also needs a restart.
+- **Server modules (R3)**: with `YOAKE_WASM_SERVER_RELOAD=1` as well, the `.wasm` file of an unsigned server module is
+  watched and a new build is swapped in at a server tick. The engine owns the mobs, so they keep their state; the guest's
+  own memory (anything it kept in variables) starts afresh. A build that does not load keeps the old instance running with
+  one warning. Without that switch server modules load once, as before.
+
+## 18. Data content kinds: enchantments, damage types, game rules, fluids and integer block states (REM-16)
+
+A `.yak` (or a `.hmod`) with capability `registries` adds these without any module code, in `data/<id>/horizon/<kind>/<path>.json`
+(the id is `<id>:<path>`; the full field lists are in [docs/mods.md](../mods.md#enchantments-damage-types-game-rules-and-fluids)).
+A mod with none of the files changes nothing in the game.
+
+| Kind | File | What it becomes |
+| --- | --- | --- |
+| `enchantment` | vanilla's enchantment JSON | `data/<id>/enchantment/<path>.json` of the content root: the registry (synced to clients with its data), `/enchant`, the enchanting table, the anvil, loot functions, item `enchantments` components |
+| `damage_type` | vanilla's damage type JSON | `data/<id>/damage_type/<path>.json`, the damage catalog, the commands' id lists (`/damage`) |
+| `game_rule` | `{"type": "bool"/"int", "default", "min", "max", "category"}` | the rule `<id>:<path>` for `/gamerule`, the rules screen, the management API, saved with the world |
+| `fluid` | `flowing_id`, `still_block`, `flowing_block`, `bucket`, `still_texture`, `flowing_texture`, `tint`, `viscosity`, `tick_rate`, `light`, `can_drown`, `motion` | one family in the world's fluid registry, as a module's `fluids` registration |
+
+```json
+// data/ruby/horizon/enchantment/keen.json
+{ "description": { "translate": "enchantment.ruby.keen" },
+  "supported_items": "#minecraft:enchantable/sharp_weapon",
+  "weight": 5, "max_level": 3,
+  "min_cost": { "base": 5, "per_level_above_first": 8 },
+  "max_cost": { "base": 25, "per_level_above_first": 8 },
+  "anvil_cost": 2, "slots": ["mainhand"] }
+
+// data/ruby/horizon/damage_type/shatter.json
+{ "message_id": "shatter", "scaling": "when_caused_by_living_non_player", "exhaustion": 0.1, "effects": "freezing" }
+
+// data/ruby/horizon/game_rule/gem_rate.json
+{ "type": "int", "default": 3, "min": 0, "max": 10, "category": "misc" }
+
+// data/ruby/horizon/fluid/oil.json   (blocks ruby:oil and ruby:flowing_oil, item ruby:oil_bucket, textures block/oil_still.png and block/oil_flow.png)
+{ "tint": 4473924, "viscosity": 4, "tick_rate": 10, "motion": "water" }
+```
+
+From a module: a `set-game-rule` change of `world-control` takes the namespaced name (`ruby:gem_rate`) of a rule the game
+registered (a name it does not know, or `minecraft:...`, is refused as before); `/damage` works through `execute-command`
+with the damage type id. Rules and fluids are registered once at start, so adding or removing one needs a restart;
+fluids from files and from a module's `fluids` registration join one registry (125 families at most), and a name that two
+families bind is refused with the fluid named.
+
+Blocks gain an `int` state property next to `boolean` and `enum`: `"state_properties": { "age": { "type": "int", "min": 0, "max": 7 } }`
+(vanilla's `IntegerProperty`: `min` 0 or more and below `max`, at most 256 values, ascending). Its values are decimal text in
+`default_state` and `random_ticks` (`"default_state": { "age": "0" }`), and the model schema lists it as an integer range, so
+a blockstate file can select on `age=3` as it does for a vanilla crop. A block is still a copy of a vanilla *template*, but
+`"template": "yoake:cube"` gives a plain full cube (stone's single state, whose stats and files the block's own `properties`,
+blockstate, model and loot table replace); a block with no vanilla row at all is not available (report FR-REM16).
+
+## 19. Behaviours of the mod's own blocks, items, menus and recipe types (REM-15)
+
+Forge mods subclass `Block`, `Item` and `MenuType`; a server module does the same with **behaviours**. From `init` it
+tells the game which of the package's own content objects it acts on and which hooks it implements; from then on the
+game calls the module's `handle-call` export for *those objects only*. Every other block, item and menu costs exactly
+what it did (a lookup that finds nothing; nothing at all while no module registered anything), and a game with no such mod
+behaves as before.
+
+```rust
+use yoake_wasm_sdk::full::behaviors::{self, Behaviors, BlockAnswer, BlockUse, Interaction, block};
+use yoake_wasm_sdk::full::server::{ServerMod, ext, services, types::BlockPos};
+
+#[derive(Default)]
+struct Guest;
+
+impl Behaviors for Guest {
+    fn on_block_use(&mut self, call: &BlockUse) -> BlockAnswer {
+        // the services of the hook work here: flip `lit` of the block that was clicked
+        let pos = BlockPos { x: call.block.pos[0], y: call.block.pos[1], z: call.block.pos[2] };
+        // ... block_property / set_block_property ...
+        BlockAnswer::result(Interaction::Success)
+    }
+}
+
+impl ServerMod for Guest {
+    fn subscriptions() -> &'static [&'static str] { &[] }
+    fn init(&mut self) {
+        ext::register_behavior("block", "ruby:lamp", &[block::USE]).ok();
+    }
+    fn handle_call(&mut self, _caller: String, method: String, payload: Vec<u8>) -> Result<Vec<u8>, String> {
+        behaviors::handle(self, &method, &payload).unwrap_or_else(|| Err(format!("unknown method {method}")))
+    }
+}
+yoake_wasm_sdk::export_server_full!(Guest);
+```
+
+`ext::register_behavior(kind, id, hooks)` is the service `behavior-register` (292). The sample is
+`crates/yoake-wasm-sdk/examples/ruby-behaviors` (a lamp that toggles on use, a wand, a vault menu and an alloy recipe type,
+with its content files); its host tests are `crates/horizon-client/src/wasm_mods/behaviors/tests.rs`.
+
+**Rules of registration.** `id` must be one of the package's own objects (`<package id>:<path>`); `kind` is `block`, `item`,
+`menu` or `recipe`; the hook names are those below; the same object may not be taken by two packages. The game reads the
+table once, when it starts, and a world start runs `init` again: the same registration is accepted again, a new object or a
+different hook set after the game has started is refused with a message (restart the game to change them). At most 256
+objects of a kind per package.
+
+| Kind | Hooks | The engine calls it | Game access of the hook |
+| --- | --- | --- | --- |
+| `block` | `use` | a player right-clicks the block (server side; the answer is `Pass`, `Success`, `Consume` or `Fail`, as `InteractionResult`) | the services (`block-property`, `set-block-property`, `give-items`, ...) |
+| | `placed`, `removed` | a block of the id arrived or left through `Level.setBlock` (a change of state alone is neither) | none: answer commands |
+| | `neighbor-changed`, `random-tick`, `scheduled-tick` | the level's own ticks (`random-tick` makes the block tick at random) | none: answer commands, applied at once |
+| | `entity-inside`, `step-on` | an entity touches the block | none: answer commands |
+| `item` | `use`, `use-on-block`, `use-on-entity` | a use of the item in the air, on a block (when the block did not take the click), on an entity | the services |
+| | `finish-using` | eating or drinking ended; the answer may leave another stack | the services |
+| | `inventory-tick` | every tick the item is in a player's inventory | the services |
+| `menu` | `create` | a player opens the menu type (`open_menu`): answers its size and first contents | the services |
+| | `may-place`, `clicked` | a stack is offered to a slot; a click on a slot was applied (slot, button, click mode, the contents after it; the answer may set slots) | none |
+| | `quick-move` | shift-click: the answer says whether the guest took the move over and may set slots | the services |
+| | `still-valid`, `closed` | every tick the menu is open; it closed (the contents then) | the services |
+| `recipe` | `describe`, `decode`, `matches`, `assemble`, `display` | see below | none |
+
+A hook that has no game access of its own (a tick the level runs, a block observed changing, an entity touching a block) cannot call
+the write services; it **answers commands** instead, which the engine checks and applies: `set-property` (a block's property at
+a position), `schedule-tick` and `play-sound`; at most 64, within 32 blocks of the object. Commands of the level's ticks are
+applied in that tick; those of `placed`, `removed`, `entity-inside` and `step-on` wait for the next tick of that level and can
+set properties only.
+
+**Where they run.** On a server, as every server module hook does: a dedicated server, or a game that opened its world to LAN
+(its integrated server). A client's prediction (a game that joined a server) calls nothing, and neither does a plain single-player
+window that has not opened its world to LAN (it holds no server): the server decides. A hook that is still busy
+because one of its own services caused it (it set a block, and the block's neighbour update came back to the same module) is
+dropped, and counted and logged once; the object then does what it does without the hook. A guest over its per-call limits is
+disabled as for any hook, and a call that fails or answers something that does not check changes nothing. The calls count in
+the module's usual limits.
+
+**Block entities, by position.** The services `block-entity-read-at` (293) and `block-entity-patch-at` (294), `ext::block_entity_read`,
+`block_entity_merge` and `block_entity_replace` in the SDK, read and change the saved data of the block entity at a position, a vanilla
+chest or a mod block entity alike, as `/data get block` and `/data merge block` do: the data is one network-encoded NBT compound
+(`yoake_wasm_sdk::nbt::Compound`), at most 64 KiB, merged into the entity's data (or, for a mod block entity only, replacing it).
+The chunk is saved next time and clients receive the update tag. A mod block entity's data (`nbt`, `items`, `data`) was already
+saved and loaded with the chunk; this service is how a guest outside its tick hooks reaches it.
+
+**Recipe types.** A `recipe` object is a recipe type that recipe files can name (`"type": "ruby:alloy", "version": 1`). The
+guest answers `describe` (the version its recipes carry and a recipe book category, whose id and icon are its own), may answer
+`decode` (turn a recipe's JSON into the data the game keeps, at most 64 KiB; without it the data is the JSON text), and answers `matches`
+(a crafting grid), `assemble` (what it makes) and, for the recipe book, `display`. `behaviors::json_fields` and `json_strings` read a recipe's
+JSON without a JSON library. Two services let a hook with game access use the types: `recipe-match` (295, `ext::recipe_match`) asks the game what a
+crafting grid makes with a type, and `recipe-data` (296, `ext::recipe_data`) lists the loaded recipes of a type with the data it kept for each.
+A package cannot be called while it runs a hook, so `recipe-match` refuses the package that defines the type (with an error that says so):
+a menu of the same package takes the data from `recipe-data` and matches with its own `on_recipe_matches` (the vault of the sample does, in `quick-move`), and
+a menu of another package uses `recipe-match`. Neither crafts or removes anything.
+
+| Limits | |
+| --- | --- |
+| objects per kind and package | 256 |
+| commands per answer, reach | 64, 32 blocks |
+| block entity data, recipe data | 64 KiB |
+| a menu | at most 256 slots; `create` is asked once per opening and only on the server |
+
+Not in this chapter: a block with no vanilla template row (section 18), behaviours of fluids and entities, and
+capabilities by hook (`capability_providers`: energy, item and fluid handlers). The catalog's global hooks (`random-tick`
+for every block, `use-item-on`, ...) stay as they were, for a mod that wants every block, not its own. See the report FR-REM15.
+
 ## 要確認 (not verified)
 
 1. **Client modules** are merged (MX3CL1) and tested through the loader, but not in a running game client: no client

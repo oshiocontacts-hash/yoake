@@ -167,6 +167,50 @@ impl ClientServices for GameHost {
             pitch: p.pitch,
         }))
     }
+
+    fn mob_texture_create(&mut self, height: u32, width: u32) -> Result<u32, String> {
+        super::mob_services::gate(super::mob_services::granted(&self.id))?;
+        let made = crate::mobs::custom::textures::create(&self.id, self.resources.generation(), width, height);
+        if let Err(error) = &made {
+            log::warn!("Horizon custom-mob texture: create {width}x{height} failed: {error}");
+        }
+        made
+    }
+
+    fn mob_texture_write(
+        &mut self,
+        id: u32,
+        origin: (u32, u32),
+        rgba: Vec<u8>,
+        size: (u32, u32),
+    ) -> Result<(), String> {
+        super::mob_services::gate(super::mob_services::granted(&self.id))?;
+        crate::mobs::custom::textures::write(
+            &self.id,
+            id,
+            [origin.0, origin.1],
+            [size.0, size.1],
+            &rgba,
+        )
+    }
+
+    fn mob_texture_bind(
+        &mut self,
+        entity: u32,
+        id: Option<u32>,
+        slot: String,
+    ) -> Result<(), String> {
+        super::mob_services::gate(super::mob_services::granted(&self.id))?;
+        let bound = crate::mobs::custom::textures::bind(&self.id, entity, &slot, id);
+        if let Err(error) = &bound {
+            log::warn!("Horizon custom-mob texture: bind mob {entity} slot {slot:?} failed: {error}");
+        }
+        if bound.is_ok() {
+            // One info line per binding, for the end-to-end run (tools/custom_mob_render_e2e.py).
+            log::info!("Horizon custom-mob texture: mob {entity} slot {slot:?} texture {id:?}");
+        }
+        bound
+    }
     fn register_key_binding(
         &mut self,
         category: String,

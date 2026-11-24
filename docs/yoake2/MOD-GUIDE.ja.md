@@ -546,6 +546,174 @@ host_filesystem = false               # 省略できます
 - 値コンストラクタ: `mobs::memory_bool`、`memory_i32`、`memory_f32`、`memory_string`、`memory_vec3`、`memory_block_pos`、`memory_entity_mob`、`memory_entity_player`。
 - 例: `crates/yoake-wasm-sdk/examples/fox_ai` と `tools/fixtures/cinder_fox/content/data/sample_mobs/horizon/entity_type/cinder_fox.json`。
 
+### 実行時エンティティテクスチャ (`service.mobs`, F4M-7)
+
+`client-full` ワールドのクライアントモジュール（`[wasm] world = "client-full"`、`client = "bin/wasm/..."`、`permissions = ["service.mobs"]`）は、`yoake_wasm_sdk::full::client` を通じてカスタム Mob 用の RGBA8 テクスチャを実行時に確保・描画・バインドできます。すべて各クライアント上で完結し、ネットワークには送信されません（一般的には `hook::SYNCED_CHANGED_CLIENT` から更新します）。
+
+- `client::mob_texture_create(width, height) -> Result<u32, String>`（サービス 289: `mob-texture-create`）: エンティティ・アトラス内の予約領域 `1024x1024`（`horizon/mob-textures`）に `width` x `height`（各辺 `1..=1024`）のスロットを確保します。1 MOD あたり同時に保持できるテクスチャは最大 **64** 個です。
+- `client::mob_texture_write(id, origin, size, rgba) -> Result<(), String>`（サービス 290: `mob-texture-write`）: テクスチャ `id` の矩形 `[origin.0, origin.1, size.0, size.1]` に RGBA8 ピクセルを書き込みます（全体更新・部分更新の両対応、1 回あたり最大 **4 MiB**）。
+- `client::mob_texture_bind(entity, slot, id: Option<u32>) -> Result<(), String>`（サービス 291: `mob-texture-bind`）: カスタム Mob `entity` の `slot` にテクスチャ `id` をバインドします（`None` でパック元のテクスチャへ戻します）。
+  - `""` または `"default"`: モデルの `default` テクスチャ（およびそれを継承する `model.layers` のレイヤー）を差し替えます。
+  - `<layer_name>`: `model.layers` 内の指定名のレイヤーを差し替えます。
+  - `"glowmask"`: 自動検出された `<texture>_glowmask` 発光パスを差し替えます。
+  - `<bone_name>` または `"bone:<bone_name>"`: 本体パスのうち、そのボーンのクワッドだけを差し替えます。
+- **引数の順番の注意:** ジェネレーターは WIT 引数をアルファベット順に並べるため、生のインポートは `services::mob_texture_create(height, width)`、`services::mob_texture_write(id, origin, rgba, size)`、`services::mob_texture_bind(entity, id, slot)` になります。`(width, height)`、`(id, origin, size, rgba)`、`(entity, slot, id)` の順を保つ `yoake_wasm_sdk::full::client::mob_texture_*` ラッパーを使ってください。
+- **寿命とリロード:** 作成済みのテクスチャとバインドは、リソースパックの再読み込み（アトラス再構築）やシェーダーパックの切り替えを跨いで維持されます。MOD のアンロード／再読み込み時には、その MOD が所有するテクスチャとバインドが自動的に解放・解除されます。
+- 例: `crates/yoake-wasm-sdk/examples/fox_texture`（`fox_ai` が `mob_hurt` で `warmth` を更新した際に Cinder Fox のテクスチャを塗り替えます）。
+
+### カスタム Mob のデバッグ表示とホットリロード (F4M-12, F4M-13)
+
+**デバッグ表示**はプレイヤー自身のクライアントだけのもので、サーバーには何も送りません。オフの間は何のコストもかかりません。
+
+- `/yoake mobdebug [on|off] [hitboxes] [bones] [anim] [ai]`: 何も付けないと全部をオン／オフの切り替え、`on` だけだと 4 つすべてオン、`off` で表示オフ、パーツ名だけを付けるとそのパーツだけがオンになります。F3+M も同じ切り替えです（カスタム Mob の型があるワールドだけ）。
+  - `hitboxes`: 型の `hitboxes` の当たり判定・選択パーツを、名前とダメージ倍率つきの箱で表示します。緑は被ダメージと選択の両方、赤は被ダメージのみ、青は選択のみ、灰色は無効にしているパーツ（`set_hitbox_enabled`）です。
+  - `bones`: 骨格を、各ボーンの原点から子ボーンへの線（体の上に重ねて、描画中のポーズのまま）で、ボーン名、`locators`（水色の小さな箱と名前）、`seats`（橙色の箱）とあわせて表示します。
+  - `anim`: コントローラーのレイヤーごとに、現在のステートと最初のクロックの時間、そして同期値（`synced`）を表示します。
+  - `ai`: ターゲットへの矢印、ナビゲーターの経路（次のノードから）、実行中のゴールとターゲットゴール、ブレインの現在のアクティビティを表示します。
+  - 見えている Mob（近い順に 48 体、48 ブロック以内）には、型 ID・Mob ID・体力の見出し行も付きます。
+- `/yoake mobs`: 読み込まれているカスタム型と、その生きている数・描画している数を表示します。最初の呼び出しでコスト計測が始まり、数秒後にもう一度実行すると、型ごとに 1 フレームあたりの姿勢計算と頂点生成の平均マイクロ秒が出ます。続けて `/horizon custommobs stats` の経路予算の行が出ます。`/yoake mobs stop` で計測を止めます。（型ごとのサーバーのティックコストはこのレポートにはまだ入っていません。今カウントしているサーバー側の型別コストは経路探索だけです。）
+- コマンドは、どのサーバーでも、チャットで入力したプレイヤー本人のゲームが答えます。Horizon 独自コマンドを有効にしている場合（`--pregen`）は、ゲームマスター向けにコマンドツリーにも載るので、タブ補完や制御ソケットの `command` から使えます。
+
+**ホットリロード（開発用）**は、開発者モード（`YOAKE_WASM_UNSIGNED=1`）と、`SIGNATURE` のないパッケージフォルダ（`--dev-mod` のフォルダ、または署名なしでインストールしたパッケージ）が必要です。署名つきパッケージはリロードされません。
+
+- **アセット (R1)**: ゲームは 1 秒に 1 回、各カスタム型のファイル（JSON、geo／bbmodel、アニメーション、コントローラー、テクスチャ、グローマスク）を調べます。ファイルが丸 1 秒変わらずにいたとき（エディターや書き出しがまだ書き込み中かもしれないため）に変更として扱います。その型を起動時と同じローダーで読み直し、動いているその型の Mob は、次のゲームティック（フレームとフレームの間）で新しいモデル・アニメーション・レイヤーに切り替わります。**アニメーションの位相は保たれます**。位相はサーバーが固定したクロックが持っているので、歩いているキツネは歩幅の同じ位置から歩き続けます。テクスチャの変更は、代わりにリソースの再読み込み（F3+T と同じ）を行います。
+- **定義 (R2)**: `/yoake mob reload [型]` は、指定した型（名前なしならリロードできるすべての型）を、待たずにすぐ読み直します。生きている Mob には新しい数値（`max_health`、`movement_speed`、属性。Mob 側で変えていない値はファイルに追従し、ケガをした Mob はケガをしたままです）、`ai` が変わったときは作り直したゴールリスト、新しい当たり判定パーツが反映されます。リロードの直後にスポーンした Mob も 1 ティック以内に切り替わります。
+- **壊れたファイルは古い版のまま**: ログに、ファイルと理由を示す警告が 1 回出て（`Horizon custom-mob reload: <型> not reloaded, the old version keeps running ...`）、直前に読めた型で動き続けます。ファイルを直して保存し直してください。
+- **ゲームを動かしたままではリロードできないもの**: `synced` の値の変更、コントローラーのレイヤー・ステート・トリガーの変更（ネットワーク形式が依存するもの）。メッセージつきで拒否されるので、ゲームを再起動してください。型の削除と新しい型の追加も再起動が必要です。
+- **サーバーモジュール (R3)**: `YOAKE_WASM_SERVER_RELOAD=1` も指定すると、署名なしサーバーモジュールの `.wasm` ファイルを監視し、新しいビルドをサーバーティックで差し替えます。Mob はエンジンが持っているので状態は残り、ゲスト自身のメモリ（変数に持っていたもの）はやり直しになります。読み込めないビルドは、警告を 1 回出して古いインスタンスを動かし続けます。このスイッチがなければ、サーバーモジュールはこれまでどおり 1 回だけ読み込まれます。
+
+## 18. データだけで足せるもの: エンチャント・ダメージ種別・ゲームルール・流体・整数のブロック状態 (REM-16)
+
+`registries` 権限をもつ `.yak`（または `.hmod`）は、モジュールのコードなしで、`data/<id>/horizon/<種類>/<パス>.json` にこれらを書いて足せます（ID は `<id>:<パス>`）。項目の全リストは [docs/mods.md](../mods.md#enchantments-damage-types-game-rules-and-fluids) にあります。これらのファイルがない MOD は、ゲームを何も変えません。
+
+| 種類 | ファイル | 何になるか |
+| --- | --- | --- |
+| `enchantment` | バニラのエンチャント JSON | コンテンツルートの `data/<id>/enchantment/<パス>.json`。レジストリ（データごとクライアントへ同期）、`/enchant`、エンチャントテーブル、金床、ルートの関数、アイテムの `enchantments` コンポーネントで使える |
+| `damage_type` | バニラのダメージ種別 JSON | `data/<id>/damage_type/<パス>.json`、ダメージカタログ、コマンドの ID 候補（`/damage`） |
+| `game_rule` | `{"type": "bool"/"int", "default", "min", "max", "category"}` | ルール `<id>:<パス>`。`/gamerule`、ルール画面、管理 API で読み書きでき、ワールドと一緒に保存される |
+| `fluid` | `flowing_id`、`still_block`、`flowing_block`、`bucket`、`still_texture`、`flowing_texture`、`tint`、`viscosity`、`tick_rate`、`light`、`can_drown`、`motion` | ワールドの流体レジストリの 1 ファミリー。モジュールの `fluids` 登録と同じもの |
+
+```json
+// data/ruby/horizon/enchantment/keen.json
+{ "description": { "translate": "enchantment.ruby.keen" },
+  "supported_items": "#minecraft:enchantable/sharp_weapon",
+  "weight": 5, "max_level": 3,
+  "min_cost": { "base": 5, "per_level_above_first": 8 },
+  "max_cost": { "base": 25, "per_level_above_first": 8 },
+  "anvil_cost": 2, "slots": ["mainhand"] }
+
+// data/ruby/horizon/damage_type/shatter.json
+{ "message_id": "shatter", "scaling": "when_caused_by_living_non_player", "exhaustion": 0.1, "effects": "freezing" }
+
+// data/ruby/horizon/game_rule/gem_rate.json
+{ "type": "int", "default": 3, "min": 0, "max": 10, "category": "misc" }
+
+// data/ruby/horizon/fluid/oil.json （ブロック ruby:oil と ruby:flowing_oil、アイテム ruby:oil_bucket、テクスチャ block/oil_still.png と block/oil_flow.png）
+{ "tint": 4473924, "viscosity": 4, "tick_rate": 10, "motion": "water" }
+```
+
+モジュールからは、`world-control` の `set-game-rule` に、ゲームが登録したルールの名前空間つきの名前（`ruby:gem_rate`）を渡せます（知らない名前や `minecraft:...` はこれまでどおり拒否されます）。`/damage` はダメージ種別の ID で `execute-command` から使えます。ルールと流体は起動時に 1 回だけ登録するので、増減には再起動が必要です。ファイルの流体とモジュールの `fluids` 登録は 1 つのレジストリ（最大 125 ファミリー）に入り、2 つのファミリーが同じ名前を使うと、その流体の名前つきで拒否されます。
+
+ブロックの状態プロパティには、`boolean`・`enum` のほかに `int` が加わりました: `"state_properties": { "age": { "type": "int", "min": 0, "max": 7 } }`（バニラの `IntegerProperty`。`min` は 0 以上で `max` より小さく、値は最大 256 個、昇順）。値は `default_state` と `random_ticks` では 10 進のテキスト（`"default_state": { "age": "0" }`）で、モデルのスキーマには整数の範囲として載るので、ブロック状態ファイルでバニラの作物と同じように `age=3` で選べます。ブロックはこれまでどおりバニラの*テンプレート*のコピーですが、`"template": "yoake:cube"` で素の立方体（石の 1 つだけの状態。性質とファイルはブロック自身の `properties`・ブロック状態・モデル・ルートテーブルで置き換わる）が作れます。バニラの行をまったく持たないブロックはまだ使えません（レポート FR-REM16 を参照）。
+
+## 19. 自分のブロック・アイテム・メニュー・レシピ種別に振る舞いを付ける (REM-15)
+
+Forge の mod は `Block`・`Item`・`MenuType` を継承して振る舞いを書きます。サーバーモジュールは **behaviour（振る舞い）** で同じことをします。
+`init` の中で、パッケージ自身のコンテンツのどれに対して、どのフックを実装しているかをゲームに伝えます。以後ゲームは、
+その対象に限って、モジュールの `handle-call` エクスポートを呼びます。それ以外のブロック・アイテム・メニューのコストは今までと
+同じです（何も見つからない表引きが 1 回。どのモジュールも何も登録しなければ、それすらありません）。こうした mod の
+入っていないゲームは今まで通りに動きます。
+
+```rust
+use yoake_wasm_sdk::full::behaviors::{self, Behaviors, BlockAnswer, BlockUse, Interaction, block};
+use yoake_wasm_sdk::full::server::{ServerMod, ext, services, types::BlockPos};
+
+#[derive(Default)]
+struct Guest;
+
+impl Behaviors for Guest {
+    fn on_block_use(&mut self, call: &BlockUse) -> BlockAnswer {
+        // フックの中ではサービスが使える: クリックされたブロックの `lit` を反転する
+        let pos = BlockPos { x: call.block.pos[0], y: call.block.pos[1], z: call.block.pos[2] };
+        // ... block_property / set_block_property ...
+        BlockAnswer::result(Interaction::Success)
+    }
+}
+
+impl ServerMod for Guest {
+    fn subscriptions() -> &'static [&'static str] { &[] }
+    fn init(&mut self) {
+        ext::register_behavior("block", "ruby:lamp", &[block::USE]).ok();
+    }
+    fn handle_call(&mut self, _caller: String, method: String, payload: Vec<u8>) -> Result<Vec<u8>, String> {
+        behaviors::handle(self, &method, &payload).unwrap_or_else(|| Err(format!("unknown method {method}")))
+    }
+}
+yoake_wasm_sdk::export_server_full!(Guest);
+```
+
+`ext::register_behavior(kind, id, hooks)` はサービス `behavior-register`（292）です。サンプルは
+`crates/yoake-wasm-sdk/examples/ruby-behaviors`（使うと切り替わるランプ、杖、金庫メニュー、合金レシピ種別。コンテンツファイル付き）、
+ホスト側のテストは `crates/horizon-client/src/wasm_mods/behaviors/tests.rs` です。
+
+**登録の決まり。** `id` はパッケージ自身のもの（`<パッケージ id>:<パス>`）に限ります。`kind` は `block`・`item`・`menu`・`recipe`。
+フック名は下の表のもの。同じ対象を 2 つのパッケージが取ることはできません。ゲームは表をゲーム起動時に 1 度だけ読み、ワールド開始のたびに
+`init` がもう一度走ります。同じ登録は再び受け付けられ、ゲーム起動後に新しい対象を足したり別のフックの組にしたりするとメッセージ付きで
+断られます（変えるにはゲームを再起動）。1 パッケージ・1 種別につき 256 個までです。
+
+| 種別 | フック | エンジンが呼ぶとき | フックが持つゲームへの手 |
+| --- | --- | --- | --- |
+| `block` | `use` | プレイヤーがブロックを右クリックした（サーバー側。答えは `InteractionResult` と同じ `Pass`・`Success`・`Consume`・`Fail`） | サービス（`block-property`・`set-block-property`・`give-items` など） |
+| | `placed`、`removed` | この id のブロックが `Level.setBlock` で現れた／消えた（状態だけの変化はどちらでもない） | なし。コマンドで答える |
+| | `neighbor-changed`、`random-tick`、`scheduled-tick` | レベルの tick（`random-tick` を持つとランダム tick を受ける） | なし。コマンドで答える（その場で適用） |
+| | `entity-inside`、`step-on` | エンティティがブロックに触れた | なし。コマンドで答える |
+| `item` | `use`、`use-on-block`、`use-on-entity` | 空中で／ブロックに（ブロックがクリックを取らなかったとき）／エンティティに使った | サービス |
+| | `finish-using` | 食べる・飲むが終わった。別のスタックを残せる | サービス |
+| | `inventory-tick` | プレイヤーのインベントリにある間、毎 tick | サービス |
+| `menu` | `create` | プレイヤーがメニュー種別を開いた（`open_menu`）: 大きさと最初の中身を答える | サービス |
+| | `may-place`、`clicked` | スロットにスタックを入れようとした／スロットのクリックが適用された（スロット・ボタン・クリックの種類・その後の中身。答えでスロットを書き換えられる） | なし |
+| | `quick-move` | シフトクリック: 答えで「ゲスト側が移動を引き取った」かどうかとスロットの書き換えを返す | サービス |
+| | `still-valid`、`closed` | 開いている間毎 tick／閉じた（そのときの中身） | サービス |
+| `recipe` | `describe`、`decode`、`matches`、`assemble`、`display` | 下を参照 | なし |
+
+自分のゲームへの手を持たないフック（レベルが回す tick、変化の観測、ブロックに触れたエンティティ）は、書き込みサービスを呼べません。
+代わりに **コマンドで答え**、エンジンが検査して適用します: `set-property`（位置のブロックのプロパティ）、`schedule-tick`、`play-sound`。
+1 回の答えに 64 個まで、対象から 32 ブロック以内。レベルの tick のコマンドはその tick で、`placed`・`removed`・`entity-inside`・`step-on`
+のコマンドはそのレベルの次の tick まで待ち、プロパティの設定だけができます。
+
+**どこで動くか。** ほかのサーバーモジュールのフックと同じく、サーバーの上です。専用サーバー、またはワールドを LAN に公開したゲーム（その内蔵サーバー）。
+クライアント側の予測（サーバーに参加したゲームの中）では何も呼びません。LAN に公開していない単独プレイの窓も（サーバーを持たないので）呼びません。決めるのはサーバーです。自分のサービスが原因で
+同じモジュールにフックが戻ってきた場合（ブロックを置いたら隣の更新が同じモジュールに来た、など）は、モジュールがまだ使用中なので
+そのフックは捨てられ、数えられ、1 回だけログに出ます。そのときは対象はフックなしのまま振る舞います。呼び出し 1 回あたりの上限を超えた
+ゲストはほかのフックと同じように止められ、失敗した呼び出しや検査を通らない答えは何も変えません。呼び出しはモジュールの通常の上限に
+数えられます。
+
+**位置で指すブロックエンティティ。** サービス `block-entity-read-at`（293）と `block-entity-patch-at`（294）、SDK の
+`ext::block_entity_read`・`block_entity_merge`・`block_entity_replace` は、位置にあるブロックエンティティの保存データを読み書きします。
+バニラのチェストでも mod のブロックエンティティでも、`/data get block`・`/data merge block` と同じです。データはネットワーク形式の NBT
+コンパウンド 1 つ（`yoake_wasm_sdk::nbt::Compound`）で 64 KiB まで。エンティティのデータにマージされ（mod のブロックエンティティに限り置き換えも可）、
+チャンクは次に保存され、クライアントには更新タグが届きます。mod ブロックエンティティのデータ（`nbt`・`items`・`data`）はもともとチャンクと一緒に保存・読み込みされます。
+このサービスは tick フックの外からそれに触れるための手段です。
+
+**レシピ種別。** `recipe` の対象は、レシピファイルが名前で指せるレシピ種別です（`"type": "ruby:alloy", "version": 1`）。ゲストは
+`describe`（レシピが持つバージョンと、独自の id・アイコンのレシピブック分類）に答え、`decode`（レシピの JSON をゲームが持っておくデータ、64 KiB まで、に変える。
+なければデータは JSON テキストそのもの）に答えてもよく、`matches`（クラフトの並び）・`assemble`（できるもの）・レシピブック用の `display` に答えます。
+`behaviors::json_fields` と `json_strings` で JSON ライブラリなしにレシピの JSON を読めます。ゲームへの手を持つフックから使えるサービスが 2 つあります。
+`recipe-match`（295、`ext::recipe_match`）は「この並びからこの種別でできるもの」をゲームに尋ね、`recipe-data`（296、`ext::recipe_data`）は読み込み済みの
+その種別のレシピを、種別が持っているデータ付きで並べます。フックの実行中のパッケージは呼び出せないので、`recipe-match` は種別を定義した
+パッケージ自身には（その旨のエラーで）断ります。同じパッケージのメニューは `recipe-data` のデータを自分の `on_recipe_matches` で照合し（サンプルの金庫は
+`quick-move` でそうしています）、別のパッケージのメニューは `recipe-match` を使います。どちらも作ったり消したりはしません。
+
+| 上限 | |
+| --- | --- |
+| 1 パッケージ・1 種別の対象 | 256 |
+| 1 回の答えのコマンドと届く範囲 | 64 個、32 ブロック |
+| ブロックエンティティのデータ、レシピのデータ | 64 KiB |
+| メニュー | 256 スロットまで。`create` は開くたびに 1 回、サーバーだけ |
+
+この章にないもの: バニラのテンプレート行を持たないブロック（18 章）、流体やエンティティの振る舞い、フックで書く能力（`capability_providers`: エネルギー・アイテム・流体のハンドラ）。
+カタログの全体フック（全ブロックの `random-tick`、`use-item-on` など）は今まで通りで、自分のものでなく全部を相手にしたい mod 向けです。詳しくは報告書 FR-REM15。
+
 ## 要確認（確かめられていないこと）
 
 1. **クライアント側モジュール** はマージ済み（MX3CL1）で、ローダーを通したテストはしてあります。ただし、実際に動いているゲームのクライアントでは試していません。本物のウィンドウや HUD に対して、クライアント側モジュールを動かしたことはありません。

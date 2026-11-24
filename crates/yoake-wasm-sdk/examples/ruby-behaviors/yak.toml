@@ -1,0 +1,19 @@
+format = 1
+id = "ruby"
+version = "0.1.0"
+name = "Ruby Behaviours"
+authors = ["yoake"]
+description = "A lamp that toggles on use, lights while stepped on and goes dark again; a wand; a vault menu: block, item and menu behaviours written in WebAssembly."
+license = "MIT"
+
+[yoake]
+version = "*"
+
+[side]
+client = true
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+server = "bin/wasm/ruby-behaviors-server.wasm"

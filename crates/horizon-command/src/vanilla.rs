@@ -299,7 +299,13 @@ fn registered_with_features(dev: bool, minecart_improvements: bool) -> Dispatche
     let gr = d.literal(root, "gamerule");
     d.requires(gr, GAMEMASTERS);
     for rule in available_rules(minecart_improvements) {
-        for name in [rule.name.to_owned(), format!("minecraft:{}", rule.name)] {
+        // A mod rule is `<mod id>:<path>` only; a vanilla one also has the short name.
+        let names = if rule.name.contains(':') {
+            vec![rule.name.to_owned()]
+        } else {
+            vec![rule.name.to_owned(), format!("minecraft:{}", rule.name)]
+        };
+        for name in names {
             let r = d.literal(gr, &name);
             d.executes(r, "gamerule");
             let ty = match rule.default {
@@ -659,6 +665,23 @@ fn horizon_commands(d: &mut Dispatcher, root: usize) {
     let targets = d.argument(trigger, "targets", ENTITIES);
     let trigger_name = d.argument(targets, "name", ArgType::Word);
     d.executes(trigger_name, "horizon.custommobs.trigger");
+    // yoake mobdebug [options], yoake mobs [stop], yoake mob reload [<type>]: the custom mob debug view
+    // and hot reload (F4M-12, F4M-13). The game also answers them typed in the chat on any server.
+    let yoake = d.literal(root, "yoake");
+    d.requires(yoake, GAMEMASTERS);
+    let mobdebug = d.literal(yoake, "mobdebug");
+    d.executes(mobdebug, "yoake.mobdebug");
+    let mobdebug_options = d.argument(mobdebug, "options", ArgType::Greedy);
+    d.executes(mobdebug_options, "yoake.mobdebug");
+    let mobs = d.literal(yoake, "mobs");
+    d.executes(mobs, "yoake.mobs");
+    let mobs_options = d.argument(mobs, "options", ArgType::Greedy);
+    d.executes(mobs_options, "yoake.mobs");
+    let mob = d.literal(yoake, "mob");
+    let reload = d.literal(mob, "reload");
+    d.executes(reload, "yoake.mob.reload");
+    let reload_type = d.argument(reload, "type", ArgType::ResKey(CUSTOM_MOB_REGISTRY));
+    d.executes(reload_type, "yoake.mob.reload");
     let pregen = d.literal(root, "pregen");
     d.requires(pregen, GAMEMASTERS);
     let start = d.literal(pregen, "start");

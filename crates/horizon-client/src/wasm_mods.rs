@@ -12,6 +12,8 @@
 //! Raw file ids use a `dev-` prefix and cannot reuse an installed YAK id, keeping settings and
 //! storage namespaces separate from installed mods.
 
+#[path = "wasm_mods/behaviors.rs"]
+pub(crate) mod behaviors;
 #[path = "wasm_mods/client_services.rs"]
 mod client_services;
 #[path = "wasm_mods/dev_shaders.rs"]
@@ -21,7 +23,7 @@ mod full;
 #[path = "wasm_mods/gpu_services.rs"]
 mod gpu_services;
 #[path = "wasm_mods/mob_services.rs"]
-mod mob_services;
+pub(crate) mod mob_services;
 #[path = "wasm_mods/mob_runtime.rs"]
 mod mob_runtime;
 
@@ -339,6 +341,8 @@ struct Accepted {
     server_full: Option<yoake_wasm::ServerFullMod>,
     /// The server module's bytes and its `service.commands` grant, kept to start each world afresh.
     server_source: Option<full::ServerSource>,
+    /// Watched for a swap at a server tick (developer mode, unsigned, `YOAKE_WASM_SERVER_RELOAD=1`; F4M-13 R3).
+    server_reload: Option<Arc<Reload>>,
     worlds: Vec<&'static str>,
 }
 
@@ -470,6 +474,7 @@ pub(super) fn extend(
             client_reload: None,
             server_full: None,
             server_source: None,
+            server_reload: None,
             worlds: Vec::new(),
             gpu: source.gpu,
         };
@@ -613,6 +618,7 @@ pub(super) fn extend(
                 gpu: false,
                 server_full: None,
                 server_source: None,
+                server_reload: None,
                 worlds: Vec::new(),
             },
         };
@@ -655,6 +661,17 @@ pub(super) fn extend(
                     }
                     package.server_full = Some(module);
                     package.server_source = Some(source);
+                    // F4M-13 R3: the file of an unsigned server module is watched too, behind its own switch
+                    // (a guest keeps its state in its instance, so a swap starts it afresh).
+                    if !server.signed && crate::mobs::custom::reload::server_reload_enabled() {
+                        let reload = Arc::new(Reload::default());
+                        watches.push(Watch::new(server.path.clone(), Arc::clone(&reload)));
+                        package.server_reload = Some(reload);
+                        emit(format!(
+                            "wasm: mod {} server module is watched for reload (YOAKE_WASM_SERVER_RELOAD=1)",
+                            server.mod_id
+                        ));
+                    }
                     package.worlds.push("server-full");
                 }
                 Err(error) => emit(format!(
@@ -708,6 +725,7 @@ pub(super) fn extend(
             if let Some(source) = package.server_source.take() {
                 full_mod = full_mod.with_server_source(source);
             }
+            full_mod = full_mod.with_server_reload(package.server_reload.take());
             package.hooks.push(Box::new(full_mod));
         }
         if !package.worlds.is_empty() {
@@ -1412,6 +1430,7 @@ impl ClientHost for GameHost {
             client_services::unregister_named_texture(&client_services::named_texture_id(&self.id, *texture));
         }
         self.textures.clear();
+        crate::mobs::custom::textures::release_instance(&self.id, self.resources.generation());
         self.resources
             .release(self.streams.drain().map(|(_, stream)| stream).collect());
         resources::drain();

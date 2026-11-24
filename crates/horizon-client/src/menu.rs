@@ -2716,6 +2716,8 @@ impl Menu {
         if outcome.is_err() || !crate::native_inventory::store(self, handler.as_ref()) {
             *self = before;
             self.reset_quick_craft();
+        } else {
+            handler.clicked(slot_index, button, input as i32);
         }
         outcome
     }
