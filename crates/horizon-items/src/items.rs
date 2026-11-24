@@ -1529,7 +1529,14 @@ impl LootContext<'_> {
             Value::Null => return true,
             Value::Array(list) => return list.iter().all(|c| self.condition(c, random)),
             Value::String(s) => (s.as_str(), &Value::Null),
-            Value::Object(o) => (o.get("type").and_then(Value::as_str).unwrap_or(""), c),
+            // Vanilla 26.3 writes `{"condition": "minecraft:..."}`; older mod data wrote `"type"`.
+            Value::Object(o) => (
+                o.get("condition")
+                    .or_else(|| o.get("type"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                c,
+            ),
             _ => return false,
         };
         match kind {
@@ -2411,6 +2418,28 @@ mod tests {
         assert_eq!(roll("test:inline"), ["minecraft:diamond 1"]);
         // `test:loop` is already rolling: its own entry adds nothing.
         assert_eq!(roll("test:loop"), ["minecraft:stick 1"]);
+    }
+
+    /// Vanilla 26.3 pool form: `conditions` is an array of `{"condition": ...}`
+    /// objects. An explosion-only pool drops with no explosion in play.
+    #[test]
+    fn vanilla_pool_conditions_array_is_honoured() {
+        let mut items = Items::for_tests(HashMap::new());
+        items.loot = Arc::new(
+            [(
+                "test:vanilla".to_owned(),
+                json!({"pools":[{"conditions":[{"condition":"minecraft:survives_explosion"}],
+                    "rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:stone"}]}]}),
+            )]
+            .into_iter()
+            .collect(),
+        );
+        let drops = items
+            .loot_table("test:vanilla", false, None, &mut LegacyRandom::new(1))
+            .into_iter()
+            .map(|s| format!("{} {}", s.item, s.count))
+            .collect::<Vec<_>>();
+        assert_eq!(drops, ["minecraft:stone 1"]);
     }
 
     /// `Blocks.wallVariant`: a wall block without a table of its own drops
