@@ -579,8 +579,12 @@ export_guest!(init, hook);
             assert_eq!(activation::get(h, 1), Ok(16));
             assert_eq!(activation::get(h, 3), Ok(42));
             assert_eq!(activation::get(h, 4), Ok(1));
-            assert_eq!(activation::set(h, 1, 8), Err(Status::BadField));
+            // REM-11: the table has setters now (access-transformer parity); `distance` is plain data
+            assert_eq!(activation::set(h, 1, 8), Ok(()));
+            assert_eq!(activation::get(h, 1), Ok(8));
+            assert_eq!(activation::set(h, 2, 8), Err(Status::BadField), "index 2 is not a scalar field");
         });
+        assert_eq!(root.options.distance, 8);
 
         let stats = runtime::stats();
         assert!(!stats.disabled, "{:?}", stats.trap);
