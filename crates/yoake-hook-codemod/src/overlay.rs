@@ -93,18 +93,61 @@ pub fn source_closure(crate_root: &Path, crate_name: &str) -> Result<(PathBuf, V
     Ok((root_file, files.into_iter().collect()))
 }
 
-fn stat_line(path: &Path) -> String {
-    match std::fs::metadata(path) {
-        Ok(m) => {
-            let t = m
-                .modified()
-                .ok()
-                .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
-                .map_or(0, |d: Duration| d.as_nanos());
-            format!("{}\t{}\t{t}", path.display(), m.len())
-        }
+/// FNV-1a 64 over the bytes: a cheap, stable content hash for the overlay cache key.
+fn fnv1a(bytes: &[u8]) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in bytes {
+        h ^= u64::from(*b);
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    h
+}
+
+fn content_line(path: &Path) -> String {
+    match std::fs::read(path) {
+        Ok(bytes) => format!("{}\t{}\t{:016x}", path.display(), bytes.len(), fnv1a(&bytes)),
         Err(_) => format!("{}\tmissing", path.display()),
     }
+}
+
+/// Regular files directly inside `dir`, sorted (empty when the directory does not exist).
+fn list_files(dir: &Path) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = std::fs::read_dir(dir).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.is_file()).collect();
+    out.sort();
+    out
+}
+
+/// Cache key of one overlay: every input the overlay output depends on. Contents are hashed, not stat'ed, so a
+/// change that keeps size and mtime still rebuilds. Covered: the crate's source closure (`rels`, workspace paths),
+/// every file of the ledger directory (all crates' shards matter: bridges and chain functions read them, and
+/// tombstones/excludes in other shards change this crate's ids), the stamp config, and the committed glue
+/// (`<src>/yoake_glue/*.rs` and this crate's `yoake_glue/tables/<ident>/`) that the bridges copy and include.
+/// The codemod executable is only stat'ed (hashing it on every rustc call would be slow).
+pub(crate) fn overlay_state(rels: &[(PathBuf, PathBuf)], root_file: &Path, ident: &str, ledger: &Path, stamp_config: &Path, exe: &Path) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    for (f, _) in rels {
+        lines.push(content_line(f));
+    }
+    if let Some(src) = root_file.parent() {
+        let glue = src.join("yoake_glue");
+        for p in list_files(&glue).into_iter().chain(list_files(&glue.join("tables").join(ident))) {
+            lines.push(content_line(&p));
+        }
+    }
+    for p in list_files(ledger) {
+        lines.push(content_line(&p));
+    }
+    lines.push(content_line(stamp_config));
+    lines.push(match std::fs::metadata(exe) {
+        Ok(m) => {
+            let t = m.modified().ok().and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok()).map_or(0, |d: Duration| d.as_nanos());
+            format!("{}\t{}\t{t}", exe.display(), m.len())
+        }
+        Err(_) => format!("{}\tmissing", exe.display()),
+    });
+    let mut state = lines.join("\n");
+    state.push('\n');
+    state
 }
 
 /// Builds (or reuses) the overlay of one crate.
@@ -139,34 +182,8 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
     let ident = crate::key::normalize_crate_name(&args.crate_name);
     let state_dir = args.overlay_root.join(".state");
     let state_file = state_dir.join(format!("{ident}.{}.txt", if args.frozen { "frozen" } else { "sync" }));
-    let mut state = String::new();
-    for (f, _) in &rels {
-        state.push_str(&stat_line(f));
-        state.push('\n');
-    }
-    // the committed field-table glue the bridges are built from
-    let tables_dir = root_file.parent().map(|p| p.join("yoake_glue").join("tables").join(&ident));
-    if let Some(dir) = &tables_dir
-        && let Ok(entries) = std::fs::read_dir(dir)
-    {
-        let mut names: Vec<PathBuf> = entries.flatten().map(|e| e.path()).collect();
-        names.sort();
-        for p in names {
-            state.push_str(&stat_line(&p));
-            state.push(char::from(10));
-        }
-    }
-    for extra in [
-        args.ledger.join(format!("{ident}.json")),
-        args.ledger.join("meta.json"),
-        args.ledger.join("stamp-allow.txt"),
-        args.ledger.join("stamp-exclude.txt"),
-        args.stamp_config.clone(),
-        std::env::current_exe().unwrap_or_default(),
-    ] {
-        state.push_str(&stat_line(&extra));
-        state.push('\n');
-    }
+    let exe = std::env::current_exe().unwrap_or_default();
+    let state = overlay_state(&rels, &root_file, &ident, &args.ledger, &args.stamp_config, &exe);
     if !args.frozen {
         // a sync run always runs: it is how ids are assigned
     } else if std::fs::read_to_string(&state_file).is_ok_and(|old| old == state) && result.root_file.is_file() {
@@ -510,6 +527,46 @@ mod tests {
         assert_eq!(found.len(), 3, "{found:?}");
         assert!(found.contains(&PathBuf::from("/w/src/../data/a.txt")));
         assert!(found.contains(&PathBuf::from("/w/src/gen/c.rs")));
+    }
+
+    #[test]
+    fn overlay_cache_key_follows_other_crates_shards_and_glue() {
+        let dir = std::env::temp_dir().join(format!("yoake-overlay-state-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let ledger = dir.join("hook-ledger");
+        let src = dir.join("crates").join("demo").join("src");
+        std::fs::create_dir_all(&ledger).unwrap();
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(ledger.join("demo.json"), "{}").unwrap();
+        std::fs::write(ledger.join("other.json"), "{\"a\":1}").unwrap();
+        std::fs::write(ledger.join("meta.json"), "{}").unwrap();
+        let cfg = ledger.join("stamp-config.txt");
+        std::fs::write(&cfg, "crates/demo demo\n").unwrap();
+        let root = src.join("lib.rs");
+        std::fs::write(&root, "pub fn f() {}\n").unwrap();
+        let rels = vec![(root.clone(), PathBuf::from("crates/demo/src/lib.rs"))];
+        let exe = dir.join("codemod.exe");
+        let state = || overlay_state(&rels, &root, "demo", &ledger, &cfg, &exe);
+
+        let before = state();
+        assert_eq!(before, state(), "unchanged inputs keep the cached overlay");
+
+        // another crate's shard, same size: the content hash must notice
+        std::fs::write(ledger.join("other.json"), "{\"a\":2}").unwrap();
+        let after_shard = state();
+        assert_ne!(before, after_shard, "a changed shard of another crate invalidates the overlay");
+        assert_eq!(after_shard, state());
+
+        // committed glue table of this crate
+        let table_dir = src.join("yoake_glue").join("tables").join("demo");
+        std::fs::create_dir_all(&table_dir).unwrap();
+        std::fs::write(table_dir.join("world.rs"), "// t1").unwrap();
+        let with_table = state();
+        assert_ne!(after_shard, with_table, "a glue table change invalidates the overlay");
+        std::fs::write(table_dir.join("world.rs"), "// t2").unwrap();
+        assert_ne!(with_table, state(), "a same-size glue table change invalidates the overlay");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
