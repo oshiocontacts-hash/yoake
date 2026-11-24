@@ -716,6 +716,13 @@ G5 = F4M-15 and optional F4M-16, F4M-17, F4M-18.
   the measured numbers into the doc.
 * Files: `horizon-bench`, `horizon-mobmodel` (inner loops), `game/custom_mob_draw.rs` (hot loop only).
 * Depends on: F4M-6, F4M-2. Size: M. Tests: scenario 9, goldens unchanged.
+* **Measured (F4M-14, report `reports/FR-F4M-14.md`)**: `custom_mobs_200` is the ignored test in
+  `mobs/custom/render_state.rs` (`cargo test -p horizon-client-lib --lib custom_mobs_200 -- --ignored --nocapture`,
+  release, headless, 200 Cinder Foxes, 300 frames after 30 warm-up). Release, spread scene (0..120 blocks), median of 5:
+  pose (update) 0.17 ms, vertices (draw) 0.78 ms, total 0.95 ms; p95 total 1.06 ms. Near scene (10..30 blocks, all Full
+  LOD): pose 0.42 ms, vertices 0.78 ms, total 1.21 ms. Section 8 budgets: animation 1.0 ms, vertices 1.5 ms, custom
+  total 3 ms: all met. 124,800 vertices per frame in both scenes. Server tick not measured (the bench has no server).
+  Tuning kept: none; see the report for what was tried and rejected.
 
 ### F4M-15 (critical, last): kit, docs and acceptance
 * Goal: Cinder Fox complete, Blockbench workflow guide (EN and JA), MOD-GUIDE chapter, `docs/mods.md` rewrite of the mob
