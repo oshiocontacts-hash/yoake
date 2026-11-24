@@ -1615,9 +1615,7 @@ impl<'a> Plan<'a> {
                                 ),
                                 other => (
                                     "named",
-                                    J::Arr(
-                                        other.values().into_iter().map(J::Str).collect(),
-                                    ),
+                                    J::Arr(other.values().into_iter().map(J::Str).collect()),
                                 ),
                             };
                             schema.set(property_name, J::Obj(vec![(kind.0.into(), kind.1)]));
@@ -1962,8 +1960,13 @@ pub use horizon_items::content_namespaces::{namespaces, tag_namespaces};
 /// it are refused, not wrapped onto other blocks.
 pub const MAX_STATES: u32 = 1 << 20;
 
-/// Bundles of block tag files (tag id → the tag file's text).
-const TAG_BUNDLES: [&str; 2] = ["block-tags.json", "worldgen/block_tags.json"];
+/// Bundles of block and damage-type tag files (tag id → the tag file's text).
+const TAG_BUNDLES: [&str; 3] = [
+    "block-tags.json",
+    "worldgen/block_tags.json",
+    "damage-tags.json",
+];
+const DAMAGE_TAGS: &str = "damage-tags.json";
 /// The worldgen loader's bundle of biome tags.
 const BIOME_TAGS: &str = "worldgen/biome_tags.json";
 /// Worldgen registries a content mod may add to, and the bundle the
@@ -2655,8 +2658,9 @@ pub fn build(base: &Path, mods: &[ContentMod], out: &Path) -> Result<Vec<String>
         merge.values.retain(|v| known.keeps(file, v));
     }
     let mut bundles: Vec<(&str, J)> = Vec::new();
+    let damage_tags = tags.keys().any(|file| file.contains("/tags/damage_type/"));
     for name in TAG_BUNDLES {
-        if base.join(name).exists() {
+        if (name != DAMAGE_TAGS || damage_tags) && base.join(name).exists() {
             bundles.push((name, read_json(&base.join(name))?));
         }
     }
@@ -2668,16 +2672,24 @@ pub fn build(base: &Path, mods: &[ContentMod], out: &Path) -> Result<Vec<String>
             file,
             merge_tag(vanilla.as_deref(), &merge.values, file)?.as_bytes(),
         )?;
-        // data/<ns>/tags/block/<path>.json is the block tag <ns>:<path>.
-        let Some((ns, path)) = file
-            .strip_prefix("data/")
-            .and_then(|r| r.split_once("/tags/block/"))
-            .and_then(|(ns, p)| Some((ns, p.strip_suffix(".json")?)))
-        else {
+        // data/<ns>/tags/<kind>/<path>.json is the tag <ns>:<path> of that registry.
+        let Some((ns, kind, path)) = file.strip_prefix("data/").and_then(|r| {
+            let (ns, rest) = r.split_once("/tags/")?;
+            let (kind, path) = rest.split_once('/')?;
+            Some((ns, kind, path.strip_suffix(".json")?))
+        }) else {
             continue;
         };
         let id = format!("{ns}:{path}");
         for (name, doc) in &mut bundles {
+            let applies = match kind {
+                "block" => *name != DAMAGE_TAGS,
+                "damage_type" => *name == DAMAGE_TAGS,
+                _ => false,
+            };
+            if !applies {
+                continue;
+            }
             let text = match doc.get(&id) {
                 Some(J::Str(t)) if !merge.replaced => Some(t.clone()),
                 _ => None,
@@ -2862,7 +2874,10 @@ pub fn build(base: &Path, mods: &[ContentMod], out: &Path) -> Result<Vec<String>
         .filter(|t| t.is_mob())
         .collect();
     if !mobs.is_empty() {
-        overlay.write(horizon_mods::content::MOBS_FILE, &serde_json::to_vec(&mobs)?)?;
+        overlay.write(
+            horizon_mods::content::MOBS_FILE,
+            &serde_json::to_vec(&mobs)?,
+        )?;
     }
     // the fully custom mobs, which the mob loader (`mobs::custom::build`) builds its types from.
     if !plan.custom_mobs.is_empty() {
@@ -2914,7 +2929,8 @@ pub fn build(base: &Path, mods: &[ContentMod], out: &Path) -> Result<Vec<String>
 /// The engine's own spawn egg textures (original art, 16 by 16): the egg, and its spots, both
 /// white-ish so that the egg's two colours tint them.
 const EGG_BASE_PNG: &[u8] = include_bytes!("../assets/horizon/textures/item/spawn_egg.png");
-const EGG_OVERLAY_PNG: &[u8] = include_bytes!("../assets/horizon/textures/item/spawn_egg_overlay.png");
+const EGG_OVERLAY_PNG: &[u8] =
+    include_bytes!("../assets/horizon/textures/item/spawn_egg_overlay.png");
 /// Where they go in a content root, and what the models call them.
 const EGG_BASE_FILE: &str = "assets/horizon/textures/item/spawn_egg.png";
 const EGG_OVERLAY_FILE: &str = "assets/horizon/textures/item/spawn_egg_overlay.png";
@@ -2934,7 +2950,13 @@ struct EggArt {
 /// the mod): nothing when it ships the item definition; its own model when it ships one; a model of
 /// its own texture when it ships `textures/item/<path>_spawn_egg.png`; else a model of the engine's
 /// two egg layers, with an item definition that tints them with `primary` and `secondary`.
-fn spawn_egg_files(ns: &str, path: &str, primary: u32, secondary: u32, has: &dyn Fn(&str) -> bool) -> EggArt {
+fn spawn_egg_files(
+    ns: &str,
+    path: &str,
+    primary: u32,
+    secondary: u32,
+    has: &dyn Fn(&str) -> bool,
+) -> EggArt {
     let item = format!("assets/{ns}/items/{path}_spawn_egg.json");
     let model_file = format!("assets/{ns}/models/item/{path}_spawn_egg.json");
     let texture_file = format!("assets/{ns}/textures/item/{path}_spawn_egg.png");
@@ -2951,7 +2973,9 @@ fn spawn_egg_files(ns: &str, path: &str, primary: u32, secondary: u32, has: &dyn
                 .map(|t| serde_json::json!({ "type": "minecraft:constant", "value": argb(*t) }))
                 .collect();
         }
-        serde_json::json!({ "model": inner }).to_string().into_bytes()
+        serde_json::json!({ "model": inner })
+            .to_string()
+            .into_bytes()
     };
     if has(&model_file) {
         art.files.push((item, definition(&[])));

@@ -1496,13 +1496,13 @@ fn content_root_registers_a_mod_mob_type() {
         ],
     );
     let root = resource_root(&base, std::slice::from_ref(&m), &scratch.join("cache")).unwrap();
-    let ids =
-        horizon_protocol::registry::Builtin::load(&root.join("registries.json")).unwrap();
-    assert!(ids
-        .get("minecraft:entity_type")
-        .unwrap()
-        .id("example:gem_cow")
-        .is_some());
+    let ids = horizon_protocol::registry::Builtin::load(&root.join("registries.json")).unwrap();
+    assert!(
+        ids.get("minecraft:entity_type")
+            .unwrap()
+            .id("example:gem_cow")
+            .is_some()
+    );
     let types: serde_json::Value =
         serde_json::from_slice(&fs::read(root.join("entity-types.json")).unwrap()).unwrap();
     assert_eq!(types["example:gem_cow"], types["minecraft:cow"]);
@@ -3527,8 +3527,8 @@ fn biome_modifiers_and_tags_accept_a_mods_new_biome() {
     let biome: serde_json::Value = serde_json::from_str(&bundle["zinc:luminous_caves"]).unwrap();
     assert_eq!(biome["effects"]["water_color"], 1193046);
     assert_eq!(
-        biome["attributes"]["minecraft:gameplay/natural_mob_spawns"]["argument"]
-            ["spawns_by_category"]["monster"],
+        biome["attributes"]["minecraft:gameplay/natural_mob_spawns"]["argument"]["spawns_by_category"]
+            ["monster"],
         serde_json::json!([{"type":"minecraft:zombie","weight":9,"count":2}])
     );
     let tags: BTreeMap<String, String> =
@@ -3536,7 +3536,10 @@ fn biome_modifiers_and_tags_accept_a_mods_new_biome() {
     let tag: serde_json::Value = serde_json::from_str(&tags["zinc:is_luminous"]).unwrap();
     assert_eq!(tag["values"], serde_json::json!(["zinc:luminous_caves"]));
     let file = out.join("data/zinc/worldgen/biome/luminous_caves.json");
-    assert_eq!(serde_json::from_slice::<serde_json::Value>(&fs::read(file).unwrap()).unwrap(), biome);
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&fs::read(file).unwrap()).unwrap(),
+        biome
+    );
     let _ = fs::remove_dir_all(&scratch);
 }
 
@@ -4363,7 +4366,12 @@ fn json_of(art: &super::EggArt, file: &str) -> serde_json::Value {
         .files
         .iter()
         .find(|(name, _)| name == file)
-        .unwrap_or_else(|| panic!("{file} is not written: {:?}", art.files.iter().map(|f| &f.0).collect::<Vec<_>>()));
+        .unwrap_or_else(|| {
+            panic!(
+                "{file} is not written: {:?}",
+                art.files.iter().map(|f| &f.0).collect::<Vec<_>>()
+            )
+        });
     serde_json::from_slice(bytes).unwrap()
 }
 
@@ -4375,48 +4383,91 @@ fn a_generated_egg_is_a_model_of_the_engines_two_layers_tinted_with_the_colours(
     let model = json_of(&art, "assets/demo/models/item/fox_spawn_egg.json");
     assert_eq!(model["parent"], "minecraft:item/generated");
     assert_eq!(model["textures"]["layer0"], "horizon:item/spawn_egg");
-    assert_eq!(model["textures"]["layer1"], "horizon:item/spawn_egg_overlay");
+    assert_eq!(
+        model["textures"]["layer1"],
+        "horizon:item/spawn_egg_overlay"
+    );
     let item = json_of(&art, "assets/demo/items/fox_spawn_egg.json");
     assert_eq!(item["model"]["type"], "minecraft:model");
     assert_eq!(item["model"]["model"], "demo:item/fox_spawn_egg");
-    assert_ne!(item["model"]["model"], "minecraft:item/template_spawn_egg", "26.3 has no such model");
+    assert_ne!(
+        item["model"]["model"], "minecraft:item/template_spawn_egg",
+        "26.3 has no such model"
+    );
     let tints = item["model"]["tints"].as_array().unwrap();
     assert_eq!(tints.len(), 2);
     // Opaque ARGB as a signed int: 0xFFD2691E and 0xFFFFF0A0.
     assert_eq!(tints[0]["type"], "minecraft:constant");
     assert_eq!(tints[0]["value"], i64::from(0xFFD2691E_u32 as i32));
     assert_eq!(tints[1]["value"], i64::from(0xFFFFF0A0_u32 as i32));
-    assert!(tints[0]["value"].as_i64().unwrap() < 0, "the alpha makes it negative as a signed int");
+    assert!(
+        tints[0]["value"].as_i64().unwrap() < 0,
+        "the alpha makes it negative as a signed int"
+    );
 }
 
 #[test]
 fn a_mods_own_egg_art_is_used_instead() {
     // Its own item definition: nothing is written.
-    let none = super::spawn_egg_files("demo", "fox", 1, 2, &ships(&["assets/demo/items/fox_spawn_egg.json"]));
+    let none = super::spawn_egg_files(
+        "demo",
+        "fox",
+        1,
+        2,
+        &ships(&["assets/demo/items/fox_spawn_egg.json"]),
+    );
     assert_eq!(none, super::EggArt::default());
     // Its own model: only the item definition, without tints.
-    let model = super::spawn_egg_files("demo", "fox", 1, 2, &ships(&["assets/demo/models/item/fox_spawn_egg.json"]));
+    let model = super::spawn_egg_files(
+        "demo",
+        "fox",
+        1,
+        2,
+        &ships(&["assets/demo/models/item/fox_spawn_egg.json"]),
+    );
     assert!(!model.uses_base && model.files.len() == 1);
     let item = json_of(&model, "assets/demo/items/fox_spawn_egg.json");
     assert_eq!(item["model"]["model"], "demo:item/fox_spawn_egg");
     assert!(item["model"].get("tints").is_none());
     // Its own texture: a one-layer model of it, untinted.
-    let texture = super::spawn_egg_files("demo", "fox", 1, 2, &ships(&["assets/demo/textures/item/fox_spawn_egg.png"]));
+    let texture = super::spawn_egg_files(
+        "demo",
+        "fox",
+        1,
+        2,
+        &ships(&["assets/demo/textures/item/fox_spawn_egg.png"]),
+    );
     assert!(!texture.uses_base && texture.files.len() == 2);
     let model = json_of(&texture, "assets/demo/models/item/fox_spawn_egg.json");
     assert_eq!(model["textures"]["layer0"], "demo:item/fox_spawn_egg");
-    assert!(json_of(&texture, "assets/demo/items/fox_spawn_egg.json")["model"].get("tints").is_none());
+    assert!(
+        json_of(&texture, "assets/demo/items/fox_spawn_egg.json")["model"]
+            .get("tints")
+            .is_none()
+    );
 }
 
 #[test]
 fn the_engines_egg_textures_are_16_by_16_pngs() {
     for png in [super::EGG_BASE_PNG, super::EGG_OVERLAY_PNG] {
         assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
-        assert_eq!(u32::from_be_bytes(png[16..20].try_into().unwrap()), 16, "width");
-        assert_eq!(u32::from_be_bytes(png[20..24].try_into().unwrap()), 16, "height");
+        assert_eq!(
+            u32::from_be_bytes(png[16..20].try_into().unwrap()),
+            16,
+            "width"
+        );
+        assert_eq!(
+            u32::from_be_bytes(png[20..24].try_into().unwrap()),
+            16,
+            "height"
+        );
     }
     assert_eq!(super::argb(0x123456), 0xFF123456_u32 as i32);
-    assert_eq!(super::argb(0xAA123456), 0xFF123456_u32 as i32, "alpha bits of the input are ignored");
+    assert_eq!(
+        super::argb(0xAA123456),
+        0xFF123456_u32 as i32,
+        "alpha bits of the input are ignored"
+    );
 }
 
 #[test]
@@ -4432,7 +4483,8 @@ fn a_custom_mobs_row_has_the_vanilla_default_attribute_set_then_its_own() {
             "attributes":{"minecraft:max_health":20.0,"minecraft:movement_speed":0.1,"minecraft:luck":0.0}},
         "minecraft:marker": {"width":0.0,"height":0.0,"eye_height":0.0,"category":"misc","fire_immune":false}
     }"#;
-    let rows: BTreeMap<String, Box<serde_json::value::RawValue>> = serde_json::from_slice(base).unwrap();
+    let rows: BTreeMap<String, Box<serde_json::value::RawValue>> =
+        serde_json::from_slice(base).unwrap();
     let registry: BTreeMap<String, f64> = [
         ("minecraft:max_health", 20.0),
         ("minecraft:movement_speed", 0.7),
@@ -4459,13 +4511,20 @@ fn a_custom_mobs_row_has_the_vanilla_default_attribute_set_then_its_own() {
         ]
     );
     assert_eq!(defaults["minecraft:max_health"].get(), "20.0");
-    assert_eq!(defaults["minecraft:movement_speed"].get(), "0.7", "the registry's, not the commonest row value 0.2");
+    assert_eq!(
+        defaults["minecraft:movement_speed"].get(),
+        "0.7",
+        "the registry's, not the commonest row value 0.2"
+    );
     assert_eq!(defaults["minecraft:attack_damage"].get(), "2.0");
     // A key the registry does not know takes the most common row value, as the base spells it.
     let none = super::vanilla_mob_attributes(&rows, &BTreeMap::new());
     assert_eq!(none["minecraft:max_health"].get(), "10.0");
     assert_eq!(none["minecraft:movement_speed"].get(), "0.2");
-    assert!(super::vanilla_mob_attributes(&BTreeMap::new(), &registry).is_empty(), "no base rows: no defaults");
+    assert!(
+        super::vanilla_mob_attributes(&BTreeMap::new(), &registry).is_empty(),
+        "no base rows: no defaults"
+    );
 
     let file = horizon_mods::custom_mob::CustomMobFile::parse(
         "demo:thing",
@@ -4474,17 +4533,24 @@ fn a_custom_mobs_row_has_the_vanilla_default_attribute_set_then_its_own() {
                           "demo:warmth":{"default":3}}}"#,
     )
     .unwrap();
-    let row: serde_json::Value = serde_json::from_slice(&super::custom_row(&file, &defaults).unwrap()).unwrap();
+    let row: serde_json::Value =
+        serde_json::from_slice(&super::custom_row(&file, &defaults).unwrap()).unwrap();
     assert_eq!(row["category"], "axolotls");
     let attrs = row["attributes"].as_object().unwrap();
     assert_eq!(attrs["minecraft:max_health"], 30.0, "its own value wins");
     assert_eq!(attrs["minecraft:movement_speed"], 0.5);
-    assert_eq!(attrs["minecraft:follow_range"], 32.0, "the rest is the default set");
+    assert_eq!(
+        attrs["minecraft:follow_range"], 32.0,
+        "the rest is the default set"
+    );
     assert_eq!(attrs["minecraft:armor"], 0.0);
     assert_eq!(attrs["yoake:water_slowdown"], 0.9);
     assert_eq!(attrs["demo:warmth"], 3.0);
     assert!(!attrs.contains_key("minecraft:luck"));
-    assert_eq!(attrs["minecraft:attack_damage"], 2.0, "a key only some rows have is in the set");
+    assert_eq!(
+        attrs["minecraft:attack_damage"], 2.0,
+        "a key only some rows have is in the set"
+    );
     // With no base to take defaults from, the row holds what the file sets, as before.
     let bare: serde_json::Value =
         serde_json::from_slice(&super::custom_row(&file, &BTreeMap::new()).unwrap()).unwrap();
@@ -4504,12 +4570,21 @@ fn enchantments_and_damage_types_join_the_content_root() {
             "facts.json",
             r#"{"states": [["minecraft:stone", 0, 0, 0, {"id": "minecraft:stone"}]], "defaults": {"minecraft:stone": 0}}"#,
         ),
-        ("gameplay-facts.json", r#"{"states": [{"item": "minecraft:stone"}]}"#),
+        (
+            "gameplay-facts.json",
+            r#"{"states": [{"item": "minecraft:stone"}]}"#,
+        ),
         ("items.json", "{}"),
         (
             "damage-catalog.json",
             r#"{"data_version": 5023, "types": [{"id": "minecraft:arrow", "message_id": "arrow", "exhaustion": "3dcccccd",
             "scaling": "when_caused_by_living_non_player", "effects": "hurt", "death_message_type": "default"}]}"#,
+        ),
+        (
+            "damage-tags.json",
+            r##"{
+  "minecraft:bypasses_armor": "{\"values\":[\"minecraft:arrow\"]}"
+}"##,
         ),
         (
             "command-registries.json",
@@ -4536,17 +4611,27 @@ fn enchantments_and_damage_types_join_the_content_root() {
                 "weight": 2, "max_level": 3, "min_cost": {"base": 1, "per_level_above_first": 1},
                 "max_cost": {"base": 5, "per_level_above_first": 1}, "anvil_cost": 1, "slots": ["mainhand"]}"##,
             ),
+            (
+                "data/minecraft/tags/damage_type/bypasses_armor.json",
+                r##"{"values": ["#ruby:shards", {"id": "ruby:absent", "required": false}]}"##,
+            ),
+            (
+                "data/ruby/tags/damage_type/shards.json",
+                r#"{"values": ["ruby:shatter", {"id": "ruby:also_absent", "required": false}]}"#,
+            ),
         ],
     );
     let out = scratch.join("out");
     build(&base, std::slice::from_ref(&m), &out).unwrap();
     // The files a data pack would hold, which the declarations themselves are not.
     let keen: serde_json::Value =
-        serde_json::from_slice(&fs::read(out.join("data/ruby/enchantment/keen.json")).unwrap()).unwrap();
+        serde_json::from_slice(&fs::read(out.join("data/ruby/enchantment/keen.json")).unwrap())
+            .unwrap();
     assert_eq!(keen["max_level"], 3);
     assert_eq!(keen["slots"], serde_json::json!(["mainhand"]));
     let shatter: serde_json::Value =
-        serde_json::from_slice(&fs::read(out.join("data/ruby/damage_type/shatter.json")).unwrap()).unwrap();
+        serde_json::from_slice(&fs::read(out.join("data/ruby/damage_type/shatter.json")).unwrap())
+            .unwrap();
     assert_eq!(shatter["scaling"], "never");
     assert!(!out.join("data/ruby/horizon").exists());
     // The damage catalog keeps vanilla's entry and adds the mod's, exhaustion as f32 bits.
@@ -4556,19 +4641,46 @@ fn enchantments_and_damage_types_join_the_content_root() {
     assert_eq!(catalog["types"][1]["id"], "ruby:shatter");
     assert_eq!(catalog["types"][1]["exhaustion"], "3dcccccd");
     assert_eq!(catalog["types"][1]["effects"], "freezing");
-    // `horizon_world::damage_source::Catalog` reads the result.
-    let tags = serde_json::json!({});
+    // The merged bundle resolves a mod's own nested tag and ignores its absent optional entries.
+    let tags: serde_json::Value =
+        serde_json::from_slice(&fs::read(out.join("damage-tags.json")).unwrap()).unwrap();
     let catalog = horizon_world::damage_source::Catalog::from_json(&catalog, &tags).unwrap();
-    assert!(catalog.id("ruby:shatter").is_some() && catalog.id("minecraft:arrow").is_some());
+    let shatter = catalog.id("ruby:shatter").unwrap();
+    let arrow = catalog.id("minecraft:arrow").unwrap();
+    assert!(catalog.in_tag(shatter, "minecraft:bypasses_armor"));
+    assert!(catalog.in_tag(shatter, "ruby:shards"));
+    assert!(catalog.in_tag(arrow, "minecraft:bypasses_armor"));
     // The commands suggest them.
     let commands: serde_json::Value =
         serde_json::from_slice(&fs::read(out.join("command-registries.json")).unwrap()).unwrap();
-    assert_eq!(commands["enchantments"], serde_json::json!(["minecraft:sharpness", "ruby:keen"]));
+    assert_eq!(
+        commands["enchantments"],
+        serde_json::json!(["minecraft:sharpness", "ruby:keen"])
+    );
     assert_eq!(
         commands["by_registry"]["minecraft:damage_type"]["ids"],
         serde_json::json!(["minecraft:arrow", "ruby:shatter"])
     );
-    // A mod with neither leaves the catalog, and the files' folders, alone.
+    // A later mod's replace drops the base and earlier additions from both the file and bundle.
+    let replace_toml = manifest("replace", "");
+    let replacer = folder_mod(
+        &scratch.join("replace"),
+        &[
+            ("horizon-mod.toml", &replace_toml),
+            (
+                "data/minecraft/tags/damage_type/bypasses_armor.json",
+                r#"{"replace": true, "values": ["ruby:shatter"]}"#,
+            ),
+        ],
+    );
+    let out3 = scratch.join("out3");
+    build(&base, &[m, replacer], &out3).unwrap();
+    let replaced: serde_json::Value =
+        serde_json::from_slice(&fs::read(out3.join("damage-tags.json")).unwrap()).unwrap();
+    let bypasses: serde_json::Value =
+        serde_json::from_str(replaced["minecraft:bypasses_armor"].as_str().unwrap()).unwrap();
+    assert_eq!(bypasses["values"], serde_json::json!(["ruby:shatter"]));
+    // A mod with neither leaves the catalog, tags and files' folders alone.
     let other_toml = manifest("plain", "");
     let plain = folder_mod(&scratch.join("plain"), &[("horizon-mod.toml", &other_toml)]);
     let out2 = scratch.join("out2");
@@ -4576,6 +4688,10 @@ fn enchantments_and_damage_types_join_the_content_root() {
     assert_eq!(
         fs::read(out2.join("damage-catalog.json")).unwrap(),
         fs::read(base.join("damage-catalog.json")).unwrap()
+    );
+    assert_eq!(
+        fs::read(out2.join("damage-tags.json")).unwrap(),
+        fs::read(base.join("damage-tags.json")).unwrap()
     );
     assert!(!out2.join("data").exists());
     crate::test_support::remove_dir_all(scratch);

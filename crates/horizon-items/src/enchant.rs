@@ -1,4 +1,4 @@
-//! Data-driven enchantments (`data/minecraft/enchantment/*.json`): the
+//! Data-driven enchantments (`data/<namespace>/enchantment/*.json`): the
 //! registry, ordered enchantment tags, `EnchantmentHelper` selection and cost
 //! rules used by the enchanting table, display names, and evaluation of the
 //! value/attribute effect components (`LevelBasedValue`, `EnchantmentValueEffect`
@@ -85,43 +85,6 @@ fn string_list(v: &Value) -> Vec<String> {
         _ => vec![],
     }
 }
-fn read_tag_dir(dir: &Path) -> HashMap<String, Vec<String>> {
-    let Ok(folder) = horizon_world::json_folder::read(dir) else {
-        return HashMap::new();
-    };
-    folder
-        .files
-        .iter()
-        .filter_map(|file| {
-            let v = serde_json::from_slice::<Value>(file.bytes().ok()?).ok()?;
-            let values = v["values"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .filter_map(|e| e.as_str().or_else(|| e["id"].as_str()).map(str::to_owned))
-                .collect();
-            Some((format!("minecraft:{}", file.name), values))
-        })
-        .collect()
-}
-/// Expand a tag keeping first-seen order (`TagLoader` builds a linked set).
-fn expand_ordered(
-    name: &str,
-    raw: &HashMap<String, Vec<String>>,
-    out: &mut Vec<String>,
-    depth: u32,
-) {
-    if depth > 16 {
-        return;
-    }
-    for v in raw.get(name).into_iter().flatten() {
-        match v.strip_prefix('#') {
-            Some(t) => expand_ordered(t, raw, out, depth + 1),
-            None if !out.contains(v) => out.push(v.clone()),
-            None => {}
-        }
-    }
-}
 /// Roman numerals as in `enchantment.level.N` (falls back to the number).
 pub fn level_name(level: u32) -> String {
     const NAMES: [&str; 10] = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
@@ -139,48 +102,22 @@ impl Enchantments {
     /// `replace` file dropping the lower sources' (`TagLoader.load`).
     pub fn load_with(root: &Path, overlay: &horizon_world::loot::PackOverlay) -> Self {
         let data = root.join("data/minecraft");
-        let mut raw_tags = read_tag_dir(&data.join("tags/enchantment"));
-        for (id, files) in overlay.tag_kind("enchantment") {
-            let slot = raw_tags.entry(id).or_default();
-            for bytes in files {
-                let Ok(v) = serde_json::from_slice::<Value>(bytes) else {
-                    continue;
-                };
-                if v["replace"].as_bool() == Some(true) {
-                    slot.clear();
-                }
-                if let Some(values) = v["values"].as_array() {
-                    slot.extend(
-                        values
-                            .iter()
-                            .filter_map(|e| e.as_str().or_else(|| e["id"].as_str()))
-                            .map(str::to_owned),
-                    );
-                }
-            }
-        }
-        let tags: HashMap<String, Vec<Arc<str>>> = raw_tags
-            .keys()
-            .map(|k| {
-                let mut v = Vec::new();
-                expand_ordered(k, &raw_tags, &mut v, 0);
-                (
-                    k.clone(),
-                    v.into_iter().map(|s| Arc::from(s.as_str())).collect(),
-                )
-            })
-            .collect();
-        let unordered = |raw: HashMap<String, Vec<String>>| -> HashMap<String, HashSet<String>> {
-            raw.keys()
-                .map(|k| {
-                    let mut v = Vec::new();
-                    expand_ordered(k, &raw, &mut v, 0);
-                    (k.clone(), v.into_iter().collect())
+        let tags: HashMap<String, Vec<Arc<str>>> =
+            crate::items::load_tag_lists(root, "enchantment", overlay)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(name, values)| {
+                    (
+                        name,
+                        values.into_iter().map(|s| Arc::from(s.as_str())).collect(),
+                    )
                 })
-                .collect()
-        };
-        let entity_tags = unordered(read_tag_dir(&data.join("tags/entity_type")));
-        let damage_tags = unordered(read_tag_dir(&data.join("tags/damage_type")));
+                .collect();
+        let no_packs = &horizon_world::loot::PackOverlay::NONE;
+        let entity_tags =
+            crate::items::load_tags(root, "entity_type", no_packs).unwrap_or_default();
+        let damage_tags =
+            crate::items::load_tags(root, "damage_type", no_packs).unwrap_or_default();
         // The registry lists entries sorted by id, like the data-pack loader.
         let mut files: BTreeMap<String, Value> = BTreeMap::new();
         // The folder's own files, not its subfolders'.
@@ -206,9 +143,10 @@ impl Enchantments {
             }
         }
         let mod_lang = mod_namespaces.iter().filter_map(|ns| {
-            let bytes =
-                horizon_core::prepared_files::read(&root.join(format!("assets/{ns}/lang/en_us.json")))
-                    .ok()?;
+            let bytes = horizon_core::prepared_files::read(
+                &root.join(format!("assets/{ns}/lang/en_us.json")),
+            )
+            .ok()?;
             serde_json::from_slice::<HashMap<String, String>>(&bytes).ok()
         });
         let lang: HashMap<String, String> =
@@ -1211,5 +1149,58 @@ pub mod tests {
             e.full_name_in(Some(&ru), "minecraft:mending", 1).0,
             "mending"
         );
+    }
+
+    #[test]
+    fn mod_tags_drive_exclusive_sets_and_enchanting_table_candidates() {
+        let root =
+            std::env::temp_dir().join(format!("horizon-enchant-tags-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let enchantment = |name: &str, exclusive: bool| {
+            format!(
+                r##"{{"description": {{"translate": "enchantment.ruby.{name}"}},
+                "supported_items": "minecraft:book", "weight": 1, "max_level": 1,
+                "min_cost": {{"base": 1, "per_level_above_first": 0}},
+                "max_cost": {{"base": 20, "per_level_above_first": 0}},
+                "anvil_cost": 1, "slots": ["any"]{}}}"##,
+                if exclusive {
+                    r##", "exclusive_set": "#ruby:gems""##
+                } else {
+                    ""
+                }
+            )
+        };
+        for (name, text) in [
+            ("data/ruby/enchantment/keen.json", enchantment("keen", true)),
+            (
+                "data/ruby/enchantment/wise.json",
+                enchantment("wise", false),
+            ),
+            (
+                "data/minecraft/tags/enchantment/in_enchanting_table.json",
+                r##"{"values": ["#ruby:gems", {"id": "ruby:absent", "required": false}]}"##.into(),
+            ),
+            (
+                "data/ruby/tags/enchantment/gems.json",
+                r#"{"values": ["ruby:keen", "ruby:wise"]}"#.into(),
+            ),
+        ] {
+            let path = root.join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        }
+        assert!(Enchantments::load(&root).list.is_empty());
+        std::fs::write(root.join(crate::content_namespaces::MARKER), r#"["ruby"]"#).unwrap();
+        let e = Enchantments::load(&root);
+        assert!(!e.compatible("ruby:keen", "ruby:wise"));
+        assert!(!e.compatible("ruby:wise", "ruby:keen"));
+        let pool = e.tag("minecraft:in_enchanting_table").to_vec();
+        let candidates: Vec<String> = e
+            .available_results(&sample_items(), 20, "minecraft:book", &pool)
+            .into_iter()
+            .map(|(id, _)| id.to_string())
+            .collect();
+        assert_eq!(candidates, ["ruby:keen", "ruby:wise"]);
+        let _ = std::fs::remove_dir_all(root);
     }
 }
