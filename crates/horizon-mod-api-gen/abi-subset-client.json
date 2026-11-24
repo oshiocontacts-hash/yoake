@@ -1,7 +1,7 @@
 {
   "abi_version": 2,
   "world": "client-full",
-  "interface_version": "1.8.0",
+  "interface_version": "1.9.0",
   "status": "active",
   "types": {
     "vec2": {"x":"f32","y":"f32"},
@@ -76,6 +76,7 @@
     {"id":283,"abi":true,"name":"mob_locator","arguments":{"entity":"u32","name":"string"},"result":"result<option<mob-transform>, string>","side":"client","capability":"service.mobs"},
     {"id":289,"abi":true,"name":"mob_texture_create","arguments":{"width":"u32","height":"u32"},"result":"result<u32, string>","side":"client","capability":"service.mobs"},
     {"id":290,"abi":true,"name":"mob_texture_write","arguments":{"id":"u32","origin":"tuple<u32, u32>","size":"tuple<u32, u32>","rgba":"list<u8>"},"result":"result<_, string>","side":"client","capability":"service.mobs"},
-    {"id":291,"abi":true,"name":"mob_texture_bind","arguments":{"entity":"u32","slot":"string","id":"option<u32>"},"result":"result<_, string>","side":"client","capability":"service.mobs"}
+    {"id":291,"abi":true,"name":"mob_texture_bind","arguments":{"entity":"u32","slot":"string","id":"option<u32>"},"result":"result<_, string>","side":"client","capability":"service.mobs"},
+    {"id":297,"abi":true,"name":"client_attachment_get","arguments":{"id":"string","kind":"string","holder":"string"},"result":"result<option<list<u8>>, string>","side":"client","capability":"world-storage"}
   ]
 }
