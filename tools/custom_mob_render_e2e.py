@@ -433,6 +433,9 @@ def run(ctl, out, shots, resources, wasm=None, client_wasm=None):
         # script goal needs the target 3 to 6 blocks away. Both players' health is recorded (the fox may pick the guest).
         host('command', command='gamemode survival')
         guest('command', command='gamemode survival')
+        # No regeneration: saturated food heals 5/6 of a point every 10 ticks, and the lowest health the loop samples
+        # (it can miss the trough on a loaded machine) would read as a smaller blow than the fox's fixed 3.0.
+        host('command', command='gamerule natural_health_regeneration false')
         host('command', command=f'tp @s {hx + 0.5} {hy} {hz + 0.5}')
         guest('command', command=f'tp @s {hx + 3.5} {hy} {hz + 3.5}')
         host.wait(20)
@@ -452,7 +455,9 @@ def run(ctl, out, shots, resources, wasm=None, client_wasm=None):
             host.wait(2)
             for name, game in (('host', host), ('guest', guest)):
                 health[name].append(game('state')['player']['health'])
-        after = {k: min(v) for k, v in health.items()}
+        # The first blow's trough: the first sample below the starting health (a later blow, with regeneration off,
+        # would lower it again).
+        after = {k: next((h for h in v if h < v[0]), v[0]) for k, v in health.items()}
         h_text, g_text = log_of(host)[mark_h:], log_of(guest)[mark_g:]
         server = list(SERVER_FRAME.finditer(h_text))
         st = int(server[0].group(3)) if server else None
@@ -468,6 +473,7 @@ def run(ctl, out, shots, resources, wasm=None, client_wasm=None):
                                         'strike_lines': STRIKE_LINE.findall(h_text)[:30]}}
         host('command', command='gamemode creative')
         guest('command', command='gamemode creative')
+        host('command', command='gamerule natural_health_regeneration true')
 
         clear_foxes(host)
         # runtime_texture (F4M-7, with client_wasm) + death: summon a fresh fox in daylight.

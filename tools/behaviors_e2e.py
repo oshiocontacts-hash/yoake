@@ -63,6 +63,32 @@ def lit_of(game, pos):
     return 'true' if 'lit=true' in state else 'false'
 
 
+def interact_when_ready(game, pos, tries=10):
+    """`interact`, again after a short wait while no face of the block is visible yet (the block just placed is not
+    in the view's picking until the client has it: the refusal says so, and the first click of a run can meet it)."""
+    for attempt in range(tries):
+        try:
+            return game.raw('interact', *pos)
+        except Failed as e:
+            if 'visible' not in str(e) or attempt == tries - 1:
+                raise
+        game.wait(10)
+
+
+def wait_chat(game, text, seconds=20):
+    """Whether a chat line containing `text` shows within the time. `messages` lists what the game already has: the
+    line a use puts in chat can come before the harness's `use-item` returns, so `wait-for chat` (which waits for
+    a line from now on) would miss it."""
+    import time
+    end = time.monotonic() + seconds
+    while True:
+        if any(text in line for line in game.raw('messages', 50).get('chat', [])):
+            return True
+        if time.monotonic() > end:
+            return False
+        game.wait(5)
+
+
 def wait_lit(game, pos, want, ticks=60):
     for _ in range(ticks // 5):
         if lit_of(game, pos) == want:
@@ -99,9 +125,9 @@ def run(ctl, out, resources, wasm):
         # harness can reach the block more than once (the button is held across a frame), so the check is what
         # the guest said and what the block is now, not a count: it said so at least once, each line the other
         # way from the line before, and the block is what the last line says.
-        game.raw('interact', *lamp)
+        interact_when_ready(game, lamp)
         game.wait(20)
-        game.raw('interact', *lamp)
+        interact_when_ready(game, lamp)
         game.wait(20)
         lines = [m for m in reversed(game.raw('messages', 50).get('chat', [])) if 'The ruby lamp' in m]
         alternates = all(a != b for a, b in zip(lines, lines[1:]))
@@ -113,11 +139,10 @@ def run(ctl, out, resources, wasm):
         ok, _ = accepted(game, 'give @s ruby:wand')
         game.raw('select', 'ruby:wand')
         game.wait(10)
-        before = len(game.raw('messages', 50).get('messages', []))
+        before = len(game.raw('messages', 50).get('chat', []))
         game.raw('use-item')
-        game.raw('wait-for', 'chat', 'The ruby wand hums.', '--timeout', 20)
-        messages = json.dumps(game.raw('messages', 50))
-        results['wand'] = {'pass': ok and 'The ruby wand hums.' in messages, 'detail': {'given': ok, 'messages_before': before}}
+        hummed = wait_chat(game, 'The ruby wand hums.')
+        results['wand'] = {'pass': ok and hummed, 'detail': {'given': ok, 'chat_before': before, 'hummed': hummed}}
         game.shot(out, 'end')
         # vanilla: a game without the package.
         plain.pid = plain.raw('launch', *args)['pid']
