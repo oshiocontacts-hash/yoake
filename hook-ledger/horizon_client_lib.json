@@ -32664,6 +32664,27 @@
       "sig": "09892594d5ddb272",
       "status": "live",
       "kind": "fn"
+    },
+    {
+      "id": 12361,
+      "key": "horizon_client_lib::mobs::DamageKind::bypasses_invulnerability",
+      "sig": "8bdc140fc1f7d46f",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12362,
+      "key": "horizon_client_lib::mobs::DamageKind::bypasses_effects",
+      "sig": "a101b0307f56803e",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12363,
+      "key": "horizon_client_lib::mobs::DamageKind::bypasses_resistance",
+      "sig": "2696591725bda0fd",
+      "status": "live",
+      "kind": "fn"
     }
   ],
   "excluded": [
@@ -42903,21 +42924,6 @@
     },
     {
       "key": "horizon_client_lib::merchant::walk",
-      "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::mobs::DamageKind::bypasses_effects",
-      "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::mobs::DamageKind::bypasses_invulnerability",
-      "reason": "small body",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_client_lib::mobs::DamageKind::bypasses_resistance",
       "reason": "small body",
       "kind": "fn"
     },

@@ -664,14 +664,17 @@ pub enum DamageKind {
 }
 impl DamageKind {
     /// DamageTypeTags.BYPASSES_INVULNERABILITY
+    #[yoake_hook_macro::yoake_hook(method, id = 12361, key = "horizon_client_lib::mobs::DamageKind::bypasses_invulnerability")]
     pub fn bypasses_invulnerability(self) -> bool {
         matches!(self, DamageKind::OutOfWorld | DamageKind::GenericKill)
     }
     /// DamageTypeTags.BYPASSES_EFFECTS
+    #[yoake_hook_macro::yoake_hook(method, id = 12362, key = "horizon_client_lib::mobs::DamageKind::bypasses_effects")]
     pub fn bypasses_effects(self) -> bool {
         matches!(self, DamageKind::Starve)
     }
     /// DamageTypeTags.BYPASSES_RESISTANCE
+    #[yoake_hook_macro::yoake_hook(method, id = 12363, key = "horizon_client_lib::mobs::DamageKind::bypasses_resistance")]
     pub fn bypasses_resistance(self) -> bool {
         matches!(self, DamageKind::OutOfWorld | DamageKind::GenericKill)
     }
