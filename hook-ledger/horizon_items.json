@@ -243,7 +243,7 @@
       "id": 10527,
       "key": "horizon_items::item_data::<BundleSelected as Default>::default",
       "sig": "e829b3691095158c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -299,7 +299,7 @@
       "id": 10535,
       "key": "horizon_items::item_data::decode_components",
       "sig": "09488a80b7f38624",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -313,14 +313,14 @@
       "id": 10537,
       "key": "horizon_items::item_nbt::item_from_nbt",
       "sig": "1cdafe79df257f55",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 10538,
       "key": "horizon_items::items::BlocksAttacks::parse",
       "sig": "d1da7ec3e7b7e098",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -397,7 +397,7 @@
       "id": 10549,
       "key": "horizon_items::random_sequences::<RandomSequences as Default>::default",
       "sig": "e829b3691095158c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1651,6 +1651,36 @@
       "key": "horizon_items::use_animation::consumable_animation",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_items::item_data::<BundleSelected as Default>::default",
+      "reason": "hot: 3387 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_items::item_data::decode_components",
+      "reason": "hot: 8528 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_items::item_nbt::item_from_nbt",
+      "reason": "hot: 8439 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_items::items::BlocksAttacks::parse",
+      "reason": "hot: 3316 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_items::random_sequences::<RandomSequences as Default>::default",
+      "reason": "hot: 13977 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
     }
   ]
 }

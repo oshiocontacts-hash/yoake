@@ -3244,7 +3244,7 @@
       "id": 5001,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::observe_block_changed",
       "sig": "d724c1e9ce4bd58d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3265,7 +3265,7 @@
       "id": 5004,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::allow_spread",
       "sig": "91fdffc9068b1668",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3377,7 +3377,7 @@
       "id": 5020,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::adjust_has_analog_output",
       "sig": "d2011d7c6f376f2d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3391,7 +3391,7 @@
       "id": 5022,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::before_random_tick",
       "sig": "6ba804f187aae822",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3419,14 +3419,14 @@
       "id": 5026,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::before_can_survive",
       "sig": "e4191911c054e372",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5027,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::before_may_place_on",
       "sig": "31fd5064ea0c0434",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3475,14 +3475,14 @@
       "id": 5034,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::world_surface",
       "sig": "b98bc40411c5e875",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5035,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::precipitation",
       "sig": "ae117744627319ed",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3552,7 +3552,7 @@
       "id": 5045,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::can_spread_fire_around",
       "sig": "514901d7ed25546d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3573,7 +3573,7 @@
       "id": 5048,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::set_raw",
       "sig": "c59d8f889e1fdf11",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3608,21 +3608,21 @@
       "id": 5053,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::block_light",
       "sig": "9167e51dc0563c32",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5054,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::sky_light",
       "sig": "ca65b15ff0c51e46",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5055,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::sky_darken",
       "sig": "1b804d9557b29126",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3636,7 +3636,7 @@
       "id": 5057,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::is_raining",
       "sig": "a55fff33437997b8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3664,7 +3664,7 @@
       "id": 5061,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::is_ticking_chunk",
       "sig": "021f695335cbdfef",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3685,7 +3685,7 @@
       "id": 5064,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::has_mod_block_entity",
       "sig": "457ce9450e9f606f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3741,7 +3741,7 @@
       "id": 5072,
       "key": "horizon_client::game::dim_interner::intern",
       "sig": "7c3a5c5c4a1c03b9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3776,14 +3776,14 @@
       "id": 5077,
       "key": "horizon_client::game::Game::pick",
       "sig": "7dfbb87246eef056",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5078,
       "key": "horizon_client::game::Game::clip_ray",
       "sig": "a2e498364fef667a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3811,7 +3811,7 @@
       "id": 5082,
       "key": "horizon_client::game::Game::block_face_sprite",
       "sig": "2c316cf93a709105",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3979,7 +3979,7 @@
       "id": 5106,
       "key": "horizon_client::game::Game::fall_step",
       "sig": "662258b81ae973df",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4098,7 +4098,7 @@
       "id": 5123,
       "key": "horizon_client::game::Game::spawn_player",
       "sig": "7369d38cbf8467d0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4126,7 +4126,7 @@
       "id": 5127,
       "key": "horizon_client::game::Game::heal_hold_latches",
       "sig": "e473a003662956cf",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4140,14 +4140,14 @@
       "id": 5129,
       "key": "horizon_client::game::Game::track_toggle_screens",
       "sig": "bfa4579b2f8f32b8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5130,
       "key": "horizon_client::game::Game::apply_mouse_look",
       "sig": "e974cfa2fb6ea8a4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4161,7 +4161,7 @@
       "id": 5132,
       "key": "horizon_client::game::Game::apply_cursor_icon",
       "sig": "6a93bfbddfd58fb9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4189,21 +4189,21 @@
       "id": 5136,
       "key": "horizon_client::game::Game::hud",
       "sig": "7efd5873d19e61bf",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5137,
       "key": "horizon_client::game::Game::hud_layers",
       "sig": "410ba5ce74fb591a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5138,
       "key": "horizon_client::game::Game::fire_screen_render_post",
       "sig": "7a0cda9016a3d3c0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4385,28 +4385,28 @@
       "id": 5164,
       "key": "horizon_client::game::Game::entity_geometry",
       "sig": "ded7ddfbe5ff8eee",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5165,
       "key": "horizon_client::game::Game::cracks",
       "sig": "aa795b22523068fc",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5166,
       "key": "horizon_client::game::Game::sky_darken",
       "sig": "1b804d9557b29126",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5167,
       "key": "horizon_client::game::Game::mob_hit_at",
       "sig": "62c1f123ebb668fe",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4469,7 +4469,7 @@
       "id": 5176,
       "key": "horizon_client::game::Game::celestial_geometry",
       "sig": "66d853d4d52f9fbc",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4686,21 +4686,21 @@
       "id": 5207,
       "key": "horizon_client::game::Game::first_person_arm",
       "sig": "e1475f46a0664508",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5208,
       "key": "horizon_client::game::Game::hand_geometry",
       "sig": "a39a0b5d1316da5f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5209,
       "key": "horizon_client::game::Game::recover_device",
       "sig": "a6d1048cc3a6988a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4714,7 +4714,7 @@
       "id": 5211,
       "key": "horizon_client::game::Game::weather_geometry",
       "sig": "f169bf4c7a75f1b8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4805,14 +4805,14 @@
       "id": 5224,
       "key": "horizon_client::game::Game::tick_world_icon",
       "sig": "0553c9acad9a12de",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5225,
       "key": "horizon_client::game::Game::render",
       "sig": "5b994ef91dbf1378",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4826,7 +4826,7 @@
       "id": 5227,
       "key": "horizon_client::game::Game::border_draw",
       "sig": "c584baae39741dbc",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4847,7 +4847,7 @@
       "id": 5230,
       "key": "horizon_client::game::Game::far_terrain_choice",
       "sig": "984196f3f1b7c887",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4861,14 +4861,14 @@
       "id": 5232,
       "key": "horizon_client::game::Game::prepare_lod",
       "sig": "5929fea8a428be2f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5233,
       "key": "horizon_client::game::Game::update_world",
       "sig": "4c76ea6809eaa77c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4896,7 +4896,7 @@
       "id": 5237,
       "key": "horizon_client::game::<Game as ApplicationHandler>::about_to_wait",
       "sig": "4633cbad2bcf0312",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4910,14 +4910,14 @@
       "id": 5239,
       "key": "horizon_client::game::Game::handle_window_event",
       "sig": "28bb50d9e5370fa1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5240,
       "key": "horizon_client::game::Game::handle_window_event_inner",
       "sig": "9bb46614b9701020",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4931,7 +4931,7 @@
       "id": 5242,
       "key": "horizon_client::game::Game::idle",
       "sig": "9961293c80a75d23",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4952,14 +4952,14 @@
       "id": 5245,
       "key": "horizon_client::game::Game::resume_world_entry",
       "sig": "e31f608f026c1726",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5246,
       "key": "horizon_client::game::Game::poll_world_creation",
       "sig": "0eb7e4e606306112",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5323,7 +5323,7 @@
       "id": 5298,
       "key": "horizon_client::game::advancements::Game::draw_toasts",
       "sig": "60e6108670193e02",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5470,7 +5470,7 @@
       "id": 5319,
       "key": "horizon_client::game::agent::Game::screen_label",
       "sig": "a715d5a77f727126",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5547,14 +5547,14 @@
       "id": 5330,
       "key": "horizon_client::game::agent::Game::advance_glide",
       "sig": "6a7da60723b56c6c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5331,
       "key": "horizon_client::game::agent::Game::advance_agent",
       "sig": "6505d0ee3c09e3b4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5659,7 +5659,7 @@
       "id": 5346,
       "key": "horizon_client::game::armor_stands::Game::prepare_trims",
       "sig": "ffa5bc12b72e8b3d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5680,7 +5680,7 @@
       "id": 5349,
       "key": "horizon_client::game::armor_stands::Game::armor_stand_hit_at",
       "sig": "0b38699687e66d96",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5876,7 +5876,7 @@
       "id": 5377,
       "key": "horizon_client::game::beacon::Game::beacon_geometry",
       "sig": "03f7cd5621336dec",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6492,7 +6492,7 @@
       "id": 5465,
       "key": "horizon_client::game::boats::Game::boat_hit_at",
       "sig": "c16519ae2e4d8e48",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6751,7 +6751,7 @@
       "id": 5502,
       "key": "horizon_client::game::books::Game::draw_book",
       "sig": "5caa9085fac62611",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -7213,14 +7213,14 @@
       "id": 5568,
       "key": "horizon_client::game::chat::Game::draw_link_prompt",
       "sig": "a83fbd7caf1fc76f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5569,
       "key": "horizon_client::game::chat::Game::draw_chat",
       "sig": "d1b363aa7698fafa",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -7409,7 +7409,7 @@
       "id": 5596,
       "key": "horizon_client::game::code_of_conduct::Game::draw_code_of_conduct",
       "sig": "e7f4d50ddace9d52",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -8564,7 +8564,7 @@
       "id": 5761,
       "key": "horizon_client::game::commands::pregen::Game::tick_pregen",
       "sig": "b01e1266a2f8f24b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9159,7 +9159,7 @@
       "id": 5846,
       "key": "horizon_client::game::control::Game::advance_flight",
       "sig": "9ea1f62193058aeb",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9173,7 +9173,7 @@
       "id": 5848,
       "key": "horizon_client::game::control::Game::poll_control",
       "sig": "7671a5a1f6fe066a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9292,7 +9292,7 @@
       "id": 5865,
       "key": "horizon_client::game::cosmetics::Game::cosmetics_frame",
       "sig": "ad12127d0fd0c62a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9467,7 +9467,7 @@
       "id": 5890,
       "key": "horizon_client::game::creatures::Game::player_view",
       "sig": "1e6f4678cc554af1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -9775,14 +9775,14 @@
       "id": 5934,
       "key": "horizon_client::game::creatures::Game::cull_skinned",
       "sig": "549d99700d9ab795",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5935,
       "key": "horizon_client::game::creatures::Game::mob_geometry",
       "sig": "f374db3f95fb6a46",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -10020,7 +10020,7 @@
       "id": 5969,
       "key": "horizon_client::game::debug_keys::Game::draw_debug_overlay_under",
       "sig": "90f204aaaac79559",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -10069,7 +10069,7 @@
       "id": 5976,
       "key": "horizon_client::game::debug_keys::Game::debug_gizmos",
       "sig": "3cb6ec9b20ddc52f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -10209,14 +10209,14 @@
       "id": 5996,
       "key": "horizon_client::game::debug_renderers::Game::debug_renderer_gizmos",
       "sig": "0cd7fc4862fc70b5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 5997,
       "key": "horizon_client::game::debug_renderers::Game::debug_renderer_geometry",
       "sig": "0fcbab27a2e5a6db",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -10524,7 +10524,7 @@
       "id": 6041,
       "key": "horizon_client::game::dialogs::Game::draw_dialog",
       "sig": "b879ae61dce37510",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -10566,7 +10566,7 @@
       "id": 6047,
       "key": "horizon_client::game::discord::Game::discord_status",
       "sig": "cd24d391a1146eb4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -10979,7 +10979,7 @@
       "id": 6106,
       "key": "horizon_client::game::dragon::Game::special_targets",
       "sig": "f833c6356fcda76e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11014,7 +11014,7 @@
       "id": 6111,
       "key": "horizon_client::game::dragon::Game::dragon_hit_at",
       "sig": "b2ad38269be33b57",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11154,7 +11154,7 @@
       "id": 6131,
       "key": "horizon_client::game::dragon::Game::dragon_geometry",
       "sig": "41ed67a3c276aae7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11168,7 +11168,7 @@
       "id": 6133,
       "key": "horizon_client::game::dragon::Game::dragon_fireball_geometry",
       "sig": "b2e24b29228c17cb",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11280,14 +11280,14 @@
       "id": 6149,
       "key": "horizon_client::game::dynamic_lights::Game::dynamic_light_sources",
       "sig": "04538c27d8cd91fe",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6150,
       "key": "horizon_client::game::dynamic_lights::Game::gather_dynamic_lights",
       "sig": "7d413aef64a3d365",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11504,7 +11504,7 @@
       "id": 6181,
       "key": "horizon_client::game::end::Game::end_crystal_geometry",
       "sig": "c88a4cbe285cf102",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11532,7 +11532,7 @@
       "id": 6185,
       "key": "horizon_client::game::end::Game::eye_geometry",
       "sig": "4d802b0fd43df921",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11567,7 +11567,7 @@
       "id": 6190,
       "key": "horizon_client::game::entity::tick_item",
       "sig": "46f6a0b41ae8996f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11686,14 +11686,14 @@
       "id": 6207,
       "key": "horizon_client::game::entity::<Minecart as Entity>::is_vehicle",
       "sig": "761157a34af07f52",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6208,
       "key": "horizon_client::game::entity::<Minecart as Entity>::portal_size",
       "sig": "68217caab471a0f1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11728,7 +11728,7 @@
       "id": 6213,
       "key": "horizon_client::game::entity::<Minecart as Entity>::bounds",
       "sig": "d5d4a18b3e019846",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -11868,7 +11868,7 @@
       "id": 6233,
       "key": "horizon_client::game::entity::<FallingBlock as Entity>::bounds",
       "sig": "d5d4a18b3e019846",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -12057,14 +12057,14 @@
       "id": 6260,
       "key": "horizon_client::game::entity::<FallingBlock as EntityRules>::is_no_gravity",
       "sig": "26e679431eef5c7c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6261,
       "key": "horizon_client::game::entity::<FallingBlock as EntityRules>::get_default_gravity",
       "sig": "2f316c4a95274de8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -12113,14 +12113,14 @@
       "id": 6268,
       "key": "horizon_client::game::entity_culling::Game::prepare_entity_culling",
       "sig": "abae0232c10346b1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6269,
       "key": "horizon_client::game::entity_culling::Game::cull_entity_vertices",
       "sig": "6994efdfc1388f44",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -12162,7 +12162,7 @@
       "id": 6275,
       "key": "horizon_client::game::events::Game::watch_events",
       "sig": "d38eee969adc8c73",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -12309,7 +12309,7 @@
       "id": 6296,
       "key": "horizon_client::game::extras::Game::extras_frame",
       "sig": "0c083a0d05db4cd1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -12323,28 +12323,28 @@
       "id": 6298,
       "key": "horizon_client::game::extras::Game::minimap_shown",
       "sig": "6b9cad685a6ff4ab",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6299,
       "key": "horizon_client::game::extras::Game::update_minimap",
       "sig": "35fb98e94c0e40a7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6300,
       "key": "horizon_client::game::extras::Game::draw_extras",
       "sig": "40f234623638ded9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6301,
       "key": "horizon_client::game::extras::Game::effect_rows_height",
       "sig": "81fe2203d5e8fabd",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -12379,7 +12379,7 @@
       "id": 6306,
       "key": "horizon_client::game::fangs::Game::fangs_geometry",
       "sig": "171ce441ff4de93a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -12533,21 +12533,21 @@
       "id": 6328,
       "key": "horizon_client::game::fishing::Game::fishing_geometry",
       "sig": "aeedd4f2fd38f9b6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6329,
       "key": "horizon_client::game::fishing::Game::fishing_line",
       "sig": "57c1337b9ee57448",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6330,
       "key": "horizon_client::game::fishing::Game::rod_hand_position",
       "sig": "b37e087684232c3d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -12596,7 +12596,7 @@
       "id": 6337,
       "key": "horizon_client::game::fov::Game::spinning_matrix",
       "sig": "3e073ae7029d923c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -12610,14 +12610,14 @@
       "id": 6339,
       "key": "horizon_client::game::fov::Game::fov_degrees",
       "sig": "8ad32200c657903a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6340,
       "key": "horizon_client::game::fov::Game::bob_matrix",
       "sig": "e1b8d5f2267fb775",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -12631,7 +12631,7 @@
       "id": 6342,
       "key": "horizon_client::game::fov::Game::draw_spyglass",
       "sig": "f462ad76994f5e82",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -12680,7 +12680,7 @@
       "id": 6349,
       "key": "horizon_client::game::frames::Game::frame_hit_at",
       "sig": "75fc36863a2becbf",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -12708,7 +12708,7 @@
       "id": 6353,
       "key": "horizon_client::game::frames::Game::frame_geometry",
       "sig": "1e1bff83413e26a3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -13205,7 +13205,7 @@
       "id": 6424,
       "key": "horizon_client::game::hand::Game::crosshair_living",
       "sig": "4bdc9bc854ec1376",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -13464,7 +13464,7 @@
       "id": 6461,
       "key": "horizon_client::game::ime::Game::text_field_focused",
       "sig": "6406e12b0656232d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -13485,7 +13485,7 @@
       "id": 6464,
       "key": "horizon_client::game::ime::Game::flush_ime",
       "sig": "e4a6c897ad56fcea",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -13667,7 +13667,7 @@
       "id": 6490,
       "key": "horizon_client::game::integrated::Game::poll_integrated_start",
       "sig": "98a7b1dd4dd0b0a5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -13954,7 +13954,7 @@
       "id": 6531,
       "key": "horizon_client::game::item_draw::Game::dropped_item_geometry",
       "sig": "a3a853ca027a25c6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -14647,7 +14647,7 @@
       "id": 6630,
       "key": "horizon_client::game::lan_attributes::Game::mob_knockback_resistance",
       "sig": "8705ea9fc65f3e8e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -14829,7 +14829,7 @@
       "id": 6656,
       "key": "horizon_client::game::lan_entities::Game::lan_assign_ids",
       "sig": "9c5da5d89f1686e6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -15382,7 +15382,7 @@
       "id": 6735,
       "key": "horizon_client::game::leads::Game::leash_geometry",
       "sig": "81588169169a87f7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -15760,7 +15760,7 @@
       "id": 6789,
       "key": "horizon_client::game::machines::Containers::view",
       "sig": "6205cc22317a8d87",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -15788,7 +15788,7 @@
       "id": 6793,
       "key": "horizon_client::game::machines::ItemColumns::may_reach",
       "sig": "e4a07001b751c7c6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -15830,14 +15830,14 @@
       "id": 6799,
       "key": "horizon_client::game::machines::Game::tick_hopper",
       "sig": "5b122359e27fbec6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6800,
       "key": "horizon_client::game::machines::Game::hopper_try_move_items",
       "sig": "3057ff3059fba415",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -15865,21 +15865,21 @@
       "id": 6804,
       "key": "horizon_client::game::machines::Game::hopper_suck",
       "sig": "c0e5624b6bf08fd7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6805,
       "key": "horizon_client::game::machines::Game::suck_from_container",
       "sig": "7f4dae80bc4c055e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6806,
       "key": "horizon_client::game::machines::Game::entity_container_at",
       "sig": "14400c3638ecde30",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -16285,14 +16285,14 @@
       "id": 6864,
       "key": "horizon_client::game::minecarts::Game::rail",
       "sig": "3142abef0b279a19",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6865,
       "key": "horizon_client::game::minecarts::Game::rail_pos",
       "sig": "e2683581979c871e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -16453,7 +16453,7 @@
       "id": 6888,
       "key": "horizon_client::game::minecarts::Game::cart_hit_at",
       "sig": "2bd3a40edf71fd44",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -16502,14 +16502,14 @@
       "id": 6895,
       "key": "horizon_client::game::minecarts::Game::block_model_vertices",
       "sig": "7d2da70ceb4124d9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6896,
       "key": "horizon_client::game::minecarts::Game::cart_geometry",
       "sig": "438b4caec65df624",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -16530,49 +16530,49 @@
       "id": 6899,
       "key": "horizon_client::game::mob_blocks::Game::elder_apparition_geometry",
       "sig": "8113814f1a481b35",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6900,
       "key": "horizon_client::game::mob_blocks::Game::captain_banner_geometry",
       "sig": "7c6442b8eea92d1b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6901,
       "key": "horizon_client::game::mob_blocks::Game::mob_block_geometry",
       "sig": "06b1ec2756cbb26d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6902,
       "key": "horizon_client::game::mob_blocks::Game::antenna_block_geometry",
       "sig": "9d72d3045c0643db",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6903,
       "key": "horizon_client::game::mob_blocks::Game::golem_flower_geometry",
       "sig": "6a3a5b89790549a0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6904,
       "key": "horizon_client::game::mob_blocks::Game::worn_block_geometry",
       "sig": "7fcce100e9dead12",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6905,
       "key": "horizon_client::game::mob_blocks::Game::head_item_geometry",
       "sig": "31638e0f630f8a9d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -16936,7 +16936,7 @@
       "id": 6957,
       "key": "horizon_client::game::mounts::Game::draw_mount_hud",
       "sig": "225fadbc43273ed9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -16985,7 +16985,7 @@
       "id": 6964,
       "key": "horizon_client::game::moving_pistons::Game::moving_piston_geometry",
       "sig": "4a34992762eb42f6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -16999,7 +16999,7 @@
       "id": 6966,
       "key": "horizon_client::game::moving_pistons::Game::moving_block_vertices",
       "sig": "e4ced6a58f537881",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17013,14 +17013,14 @@
       "id": 6968,
       "key": "horizon_client::game::music::Game::now_playing_song",
       "sig": "d41ba8a0bf5aea9e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6969,
       "key": "horizon_client::game::music::Game::draw_music_toast",
       "sig": "76cd5f53bfa34fbd",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17069,14 +17069,14 @@
       "id": 6976,
       "key": "horizon_client::game::names::Game::name_tags",
       "sig": "f155255e45867714",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6977,
       "key": "horizon_client::game::names::Game::name_tag_geometry",
       "sig": "50fcf6297cfa7d71",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17104,7 +17104,7 @@
       "id": 6981,
       "key": "horizon_client::game::narrator::draw_toast",
       "sig": "dffcf2bd8950d400",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17118,14 +17118,14 @@
       "id": 6983,
       "key": "horizon_client::game::narrator::Game::narrate_screen",
       "sig": "eaaaaeb50b1d51ce",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 6984,
       "key": "horizon_client::game::narrator::Game::draw_narrator_toast",
       "sig": "62ddc9ccc10a217f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17321,7 +17321,7 @@
       "id": 7012,
       "key": "horizon_client::game::native_capabilities::Game::native_query_capability",
       "sig": "e24d35c44dba6d06",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17636,7 +17636,7 @@
       "id": 7057,
       "key": "horizon_client::game::native_deferred::Game::native_drain_lan_requests",
       "sig": "bdf13315f8544f7d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17692,7 +17692,7 @@
       "id": 7065,
       "key": "horizon_client::game::native_entities::Game::native_joins_flush",
       "sig": "1d3425ab202bf584",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17853,7 +17853,7 @@
       "id": 7088,
       "key": "horizon_client::game::native_hooks::Game::observe_screen",
       "sig": "f2cdb49b9b6b2f03",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17867,7 +17867,7 @@
       "id": 7090,
       "key": "horizon_client::game::native_hooks::Game::native_frame",
       "sig": "c0b1a6ba03345d6d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -17895,7 +17895,7 @@
       "id": 7094,
       "key": "horizon_client::game::native_hooks::Game::screen_chars_typed",
       "sig": "642bb5bcff5d81f2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18098,7 +18098,7 @@
       "id": 7123,
       "key": "horizon_client::game::native_hooks::Game::native_chunks_changed",
       "sig": "312eb0d72a05def4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18126,7 +18126,7 @@
       "id": 7127,
       "key": "horizon_client::game::native_hooks::Game::native_slot_tick",
       "sig": "6da1a1eea71d80f5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18140,7 +18140,7 @@
       "id": 7129,
       "key": "horizon_client::game::native_hooks::Game::new_block_entity",
       "sig": "5a4085e609681458",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18273,14 +18273,14 @@
       "id": 7148,
       "key": "horizon_client::game::native_hooks::Game::native_zoom_now",
       "sig": "863e3c68fbbf1cac",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7149,
       "key": "horizon_client::game::native_hooks::Game::native_shake_matrix",
       "sig": "ed03e281a81c1134",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18483,7 +18483,7 @@
       "id": 7178,
       "key": "horizon_client::game::native_item_render::Game::refresh_native_item_render",
       "sig": "760479fd0f2860b9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -18686,7 +18686,7 @@
       "id": 7207,
       "key": "horizon_client::game::native_mob_player::Game::native_prepare_mob_players",
       "sig": "8b223596034ba02d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -19435,7 +19435,7 @@
       "id": 7314,
       "key": "horizon_client::game::native_session::Game::native_run_session_request",
       "sig": "44a621f8c44cb2fa",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -19610,14 +19610,14 @@
       "id": 7339,
       "key": "horizon_client::game::native_streams::Game::update_native_streams",
       "sig": "c11426e07ab73acf",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7340,
       "key": "horizon_client::game::native_streams::Game::maintain_native_streams",
       "sig": "d620f4dfae127d5f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -19673,7 +19673,7 @@
       "id": 7348,
       "key": "horizon_client::game::native_title_screen::Game::handle_title_mod_screen_event",
       "sig": "82e6661a183b2463",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -19687,7 +19687,7 @@
       "id": 7350,
       "key": "horizon_client::game::native_visuals::Game::native_frame_visuals",
       "sig": "982b6a7738132408",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -19897,21 +19897,21 @@
       "id": 7380,
       "key": "horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::block_tag",
       "sig": "c850baaf8ba35d8c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7381,
       "key": "horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::biome_tag",
       "sig": "c7e78328c8e35058",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7382,
       "key": "horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::sky_light",
       "sig": "1a834fcb821b8ce2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -19953,7 +19953,7 @@
       "id": 7388,
       "key": "horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::peaceful",
       "sig": "ef96695c2e4a2494",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20030,7 +20030,7 @@
       "id": 7399,
       "key": "horizon_client::game::natural_spawning::<GameLevel as NaturalLevel>::mob_type",
       "sig": "b5a752324b18ff44",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20058,7 +20058,7 @@
       "id": 7403,
       "key": "horizon_client::game::natural_spawning::<GameLevel as NaturalLevel>::can_spawn_in_chunk",
       "sig": "0919f05364d6a7d3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20107,7 +20107,7 @@
       "id": 7410,
       "key": "horizon_client::game::natural_spawning::<GameLevel as SpawnerLevel>::spawner_blocks_work",
       "sig": "8ea9857c6864b8e6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20282,7 +20282,7 @@
       "id": 7435,
       "key": "horizon_client::game::nether_portal::Game::falling_through_portal",
       "sig": "bad84f6e4785d32b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20436,7 +20436,7 @@
       "id": 7457,
       "key": "horizon_client::game::options::Game::observe_fullscreen",
       "sig": "bddcb6852372b7e6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20450,7 +20450,7 @@
       "id": 7459,
       "key": "horizon_client::game::options::Game::framerate_limit",
       "sig": "8d28ae62f74b86d6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20485,7 +20485,7 @@
       "id": 7464,
       "key": "horizon_client::game::packs::Game::drive_pack_browser",
       "sig": "c1b016f6490e4e49",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20506,7 +20506,7 @@
       "id": 7467,
       "key": "horizon_client::game::packs::Game::drive_pack_reload",
       "sig": "6837871a0ee636d8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20527,7 +20527,7 @@
       "id": 7470,
       "key": "horizon_client::game::pad::Game::poll_pads",
       "sig": "100ff02a76a0c533",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20548,7 +20548,7 @@
       "id": 7473,
       "key": "horizon_client::game::pad::Game::pad_look",
       "sig": "20b7bdbb19535e09",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20562,7 +20562,7 @@
       "id": 7475,
       "key": "horizon_client::game::pad::hardware::Pads::read[cfg(feature=\"controllers\")]",
       "sig": "f2c0526734e299b5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20590,14 +20590,14 @@
       "id": 7479,
       "key": "horizon_client::game::pad::hardware::Game::pad_output_frame[cfg(feature=\"controllers\")]",
       "sig": "d652c9ab41ef19e7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7480,
       "key": "horizon_client::game::pad::hardware::Game::pad_show[cfg(feature=\"controllers\")]",
       "sig": "8ef375617fbef4f5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20723,7 +20723,7 @@
       "id": 7498,
       "key": "horizon_client::game::pad_menu::Game::pad_menu_frame",
       "sig": "b6c20ebe2e39e77a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20737,7 +20737,7 @@
       "id": 7500,
       "key": "horizon_client::game::pad_menu::Game::pad_show_os_pointer",
       "sig": "56f033044deed051",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20793,7 +20793,7 @@
       "id": 7508,
       "key": "horizon_client::game::pad_menu::Game::draw_pad_cursor",
       "sig": "e6f60e30d74821f2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -20828,7 +20828,7 @@
       "id": 7513,
       "key": "horizon_client::game::paintings::Game::painting_hit_at",
       "sig": "1f841f11a989a596",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -21052,7 +21052,7 @@
       "id": 7545,
       "key": "horizon_client::game::persist::Game::unload_entities",
       "sig": "e9818d5a6562cd04",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -21157,14 +21157,14 @@
       "id": 7560,
       "key": "horizon_client::game::perspective::Game::camera_view",
       "sig": "495d58b93fcf0182",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7561,
       "key": "horizon_client::game::perspective::Game::player_camera_entity",
       "sig": "e044a45540299397",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -21185,7 +21185,7 @@
       "id": 7564,
       "key": "horizon_client::game::perspective::Game::player_model_geometry",
       "sig": "1848670e4a48d3c0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -21472,7 +21472,7 @@
       "id": 7605,
       "key": "horizon_client::game::potions::PotionState::swap_player",
       "sig": "d473de90a2fc7da2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -21591,7 +21591,7 @@
       "id": 7622,
       "key": "horizon_client::game::potions::Game::draw_effect_icons",
       "sig": "2300a61a4ddf8a42",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22417,14 +22417,14 @@
       "id": 7740,
       "key": "horizon_client::game::remote::Game::poll_remote",
       "sig": "4c2137f47dddaa95",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7741,
       "key": "horizon_client::game::remote::Game::send_suggestion_request",
       "sig": "ca7a276e07b0474d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22445,7 +22445,7 @@
       "id": 7744,
       "key": "horizon_client::game::remote::Game::forget_remote_columns",
       "sig": "3403c574ed2aaf40",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22466,7 +22466,7 @@
       "id": 7747,
       "key": "horizon_client::game::remote::Game::set_block",
       "sig": "24c24d8fced011b3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22480,7 +22480,7 @@
       "id": 7749,
       "key": "horizon_client::game::remote::Game::move_entity",
       "sig": "355f7466f5b43a69",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22522,21 +22522,21 @@
       "id": 7755,
       "key": "horizon_client::game::remote::Game::remote_tab_players",
       "sig": "aef0867d9871e8a1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7756,
       "key": "horizon_client::game::remote::Game::update_remote_skins",
       "sig": "330bc6e2f4fe8a0d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7757,
       "key": "horizon_client::game::remote::Game::update_mannequin_skins",
       "sig": "e7567ec88e6a3ea5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22634,7 +22634,7 @@
       "id": 7771,
       "key": "horizon_client::game::remote::Game::remote_minecart_lerp",
       "sig": "67ae6367e21f9af8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22935,7 +22935,7 @@
       "id": 7814,
       "key": "horizon_client::game::remote::Game::remote_overlay",
       "sig": "287fee29c8f7f519",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -22963,7 +22963,7 @@
       "id": 7818,
       "key": "horizon_client::game::remote::Game::remote_hud",
       "sig": "20afff138f854e01",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -23110,7 +23110,7 @@
       "id": 7839,
       "key": "horizon_client::game::remote::skin_entries",
       "sig": "55dde0a0c3bd1823",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -23201,7 +23201,7 @@
       "id": 7852,
       "key": "horizon_client::game::remote_chat::Game::draw_command_prompt",
       "sig": "55af152a0e1f5856",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -23439,7 +23439,7 @@
       "id": 7886,
       "key": "horizon_client::game::remote_vehicles::Game::remote_minecart_rider_position",
       "sig": "79bf0313b58f287f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -23474,21 +23474,21 @@
       "id": 7891,
       "key": "horizon_client::game::render_tick::Game::frame_fog",
       "sig": "7ee995dd8cceaa69",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7892,
       "key": "horizon_client::game::render_tick::Game::native_fog_now",
       "sig": "941dff28d9d3a5ad",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7893,
       "key": "horizon_client::game::render_tick::Game::screen_quads",
       "sig": "ecb34c1e39d9e61a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -23579,7 +23579,7 @@
       "id": 7906,
       "key": "horizon_client::game::repro::Game::poll_pending_replay",
       "sig": "93f9d51cc5f73691",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -23593,7 +23593,7 @@
       "id": 7908,
       "key": "horizon_client::game::repro::Game::advance_replay",
       "sig": "f99a1d5e55a9720d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -23894,21 +23894,21 @@
       "id": 7951,
       "key": "horizon_client::game::scoreboard::Game::draw_scoreboard",
       "sig": "f07cb4b2ebbfd254",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7952,
       "key": "horizon_client::game::scoreboard::Game::flush_skin_slots",
       "sig": "16198e58b36ccce2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7953,
       "key": "horizon_client::game::scoreboard::Game::draw_tab_list",
       "sig": "e10399b0252c16cc",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -24020,7 +24020,7 @@
       "id": 7969,
       "key": "horizon_client::game::sculk::SculkState::swap_player",
       "sig": "1fef920f7629cbdd",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -24181,14 +24181,14 @@
       "id": 7992,
       "key": "horizon_client::game::sculk::Game::darkness_lighting",
       "sig": "154b9b612674a0d8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 7993,
       "key": "horizon_client::game::sculk::Game::night_vision_intensity",
       "sig": "0a1813f67f40e5a1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -24237,7 +24237,7 @@
       "id": 8000,
       "key": "horizon_client::game::sculk::Game::step_on_redstone_ore",
       "sig": "ae5afc5ef4ba45d8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -24447,7 +24447,7 @@
       "id": 8030,
       "key": "horizon_client::game::server_packs::Game::tick_server_packs",
       "sig": "9ccbc55aa861d3a4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -24468,14 +24468,14 @@
       "id": 8033,
       "key": "horizon_client::game::server_packs::Game::draw_pack_prompt",
       "sig": "2e33a91f221e392e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8034,
       "key": "horizon_client::game::server_packs::Game::draw_pack_toasts",
       "sig": "d6f53056e0acaf6c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -24587,7 +24587,7 @@
       "id": 8050,
       "key": "horizon_client::game::shader_packs::Game::shader_pack_inputs",
       "sig": "2683bc7e7d531677",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -24860,7 +24860,7 @@
       "id": 8089,
       "key": "horizon_client::game::sign_edit::Game::draw_sign_editor",
       "sig": "540d633cbef011fb",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -24951,7 +24951,7 @@
       "id": 8102,
       "key": "horizon_client::game::social_relay::Game::social_relay_tick",
       "sig": "206046ef24e8e18b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -24965,14 +24965,14 @@
       "id": 8104,
       "key": "horizon_client::game::spawner::Game::tick_spawner",
       "sig": "5079c0802a189bb0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8105,
       "key": "horizon_client::game::spawner::Game::server_tick_spawner_of",
       "sig": "d62fbd16f5eca7cb",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -25147,7 +25147,7 @@
       "id": 8130,
       "key": "horizon_client::game::spill::Game::flush_spill",
       "sig": "814449eff21fa27f",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -25245,7 +25245,7 @@
       "id": 8144,
       "key": "horizon_client::game::split::<Split as ApplicationHandler>::about_to_wait",
       "sig": "4633cbad2bcf0312",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -25266,7 +25266,7 @@
       "id": 8147,
       "key": "horizon_client::game::split::hud::Game::draw_split_hud",
       "sig": "18b61875ad2aae68",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -25392,7 +25392,7 @@
       "id": 8165,
       "key": "horizon_client::game::split::setup::Split::sync_setup",
       "sig": "5a7492fc5b76dab6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26169,7 +26169,7 @@
       "id": 8276,
       "key": "horizon_client::game::subtitle_hud::Game::draw_subtitles",
       "sig": "87615e446e47dc59",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26358,7 +26358,7 @@
       "id": 8303,
       "key": "horizon_client::game::test_instances::Game::test_instance_marker_geometry",
       "sig": "0244fb13c9eb607a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26449,28 +26449,28 @@
       "id": 8316,
       "key": "horizon_client::game::text_displays::Game::block_item_display_geometry",
       "sig": "4212c485477ae94b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8317,
       "key": "horizon_client::game::text_displays::Game::text_display_geometry",
       "sig": "e528cb2e6a2de9c9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8318,
       "key": "horizon_client::game::titles::Game::draw_overlay_message",
       "sig": "c80c312011bfd1c1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8319,
       "key": "horizon_client::game::titles::Game::draw_title",
       "sig": "e406ae5d0ae2d0f8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26526,7 +26526,7 @@
       "id": 8327,
       "key": "horizon_client::game::tnt::Game::tnt_geometry",
       "sig": "b53d14cf83ff88a6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26540,7 +26540,7 @@
       "id": 8329,
       "key": "horizon_client::game::totem::Game::item_activation_geometry",
       "sig": "3e6f309c9c3744a2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26631,21 +26631,21 @@
       "id": 8342,
       "key": "horizon_client::game::transient_blocks::Game::transient_block_geometry",
       "sig": "3027eeb4dd824544",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8343,
       "key": "horizon_client::game::trial_spawner::<GameLevel as TrialSpawnerLevel>::game_time",
       "sig": "a0698b3a4ddd0e2e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8344,
       "key": "horizon_client::game::trial_spawner::<GameLevel as TrialSpawnerLevel>::mob_spawning",
       "sig": "c8bdaa9c78d38557",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26701,21 +26701,21 @@
       "id": 8352,
       "key": "horizon_client::game::trial_spawner::Game::tick_trial_spawner",
       "sig": "9918a82e60368ab1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8353,
       "key": "horizon_client::game::trial_spawner::Game::trial_spawner_block",
       "sig": "38c241c945a84638",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8354,
       "key": "horizon_client::game::trial_spawner::Game::server_tick_trial_spawner",
       "sig": "5542de65f18600f3",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26848,7 +26848,7 @@
       "id": 8373,
       "key": "horizon_client::game::trident::Game::trident_geometry",
       "sig": "cfac328eda68293c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -26883,7 +26883,7 @@
       "id": 8378,
       "key": "horizon_client::game::tutorial::Game::draw_tutorial_toasts",
       "sig": "314760e035b75215",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -27009,7 +27009,7 @@
       "id": 8396,
       "key": "horizon_client::game::vault::<Players as VaultLevel>::game_time",
       "sig": "a0698b3a4ddd0e2e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -27023,14 +27023,14 @@
       "id": 8398,
       "key": "horizon_client::game::vault::Game::take_vault",
       "sig": "c94de307582136f0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 8399,
       "key": "horizon_client::game::vault::Game::tick_vault",
       "sig": "e913183c437723ec",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -27044,7 +27044,7 @@
       "id": 8401,
       "key": "horizon_client::game::vault::Game::vault_events",
       "sig": "bf71fae9464b15e9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -28332,7 +28332,7 @@
       "id": 12151,
       "key": "horizon_client::game::<GameLevel as LevelAccess>::level_rules",
       "sig": "b493df9d175f75a2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -57375,6 +57375,1500 @@
     {
       "key": "horizon_client::game::shader_packs::Game::mark_entity_part",
       "reason": "hot: 142212 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::observe_block_changed",
+      "reason": "hot: 57835 calls in the REM-03 second hit-count flight (0.034%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::allow_spread",
+      "reason": "hot: 2717 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::adjust_has_analog_output",
+      "reason": "hot: 56369 calls in the REM-03 second hit-count flight (0.034%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::before_random_tick",
+      "reason": "hot: 9960 calls in the REM-03 second hit-count flight (0.006%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::before_can_survive",
+      "reason": "hot: 12954 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::before_may_place_on",
+      "reason": "hot: 5154 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::world_surface",
+      "reason": "hot: 5709 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::precipitation",
+      "reason": "hot: 5709 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::can_spread_fire_around",
+      "reason": "hot: 5756 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::set_raw",
+      "reason": "hot: 57835 calls in the REM-03 second hit-count flight (0.034%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::block_light",
+      "reason": "hot: 6639 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::sky_light",
+      "reason": "hot: 6639 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::sky_darken",
+      "reason": "hot: 6639 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::is_raining",
+      "reason": "hot: 5709 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::is_ticking_chunk",
+      "reason": "hot: 9107 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::has_mod_block_entity",
+      "reason": "hot: 4632 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::dim_interner::intern",
+      "reason": "hot: 2189 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::pick",
+      "reason": "hot: 15046 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::clip_ray",
+      "reason": "hot: 12751 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::block_face_sprite",
+      "reason": "hot: 95993 calls in the REM-03 second hit-count flight (0.057%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::fall_step",
+      "reason": "hot: 6889 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::spawn_player",
+      "reason": "hot: 14309 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::heal_hold_latches",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::track_toggle_screens",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::apply_mouse_look",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::apply_cursor_icon",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::hud",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::hud_layers",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::fire_screen_render_post",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::entity_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::cracks",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::sky_darken",
+      "reason": "hot: 26521 calls in the REM-03 second hit-count flight (0.016%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::mob_hit_at",
+      "reason": "hot: 25393 calls in the REM-03 second hit-count flight (0.015%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::celestial_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::first_person_arm",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::hand_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::recover_device",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::weather_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::tick_world_icon",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::render",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::border_draw",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::far_terrain_choice",
+      "reason": "hot: 33898 calls in the REM-03 second hit-count flight (0.020%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::prepare_lod",
+      "reason": "hot: 16930 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::update_world",
+      "reason": "hot: 16930 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<Game as ApplicationHandler>::about_to_wait",
+      "reason": "hot: 14084 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::handle_window_event",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::handle_window_event_inner",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::idle",
+      "reason": "hot: 14084 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::resume_world_entry",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::Game::poll_world_creation",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::advancements::Game::draw_toasts",
+      "reason": "hot: 12330 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::agent::Game::screen_label",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::agent::Game::advance_glide",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::agent::Game::advance_agent",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::armor_stands::Game::prepare_trims",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::armor_stands::Game::armor_stand_hit_at",
+      "reason": "hot: 13034 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::beacon::Game::beacon_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::boats::Game::boat_hit_at",
+      "reason": "hot: 13034 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::books::Game::draw_book",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::chat::Game::draw_link_prompt",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::chat::Game::draw_chat",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::code_of_conduct::Game::draw_code_of_conduct",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::commands::pregen::Game::tick_pregen",
+      "reason": "hot: 16930 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::control::Game::advance_flight",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::control::Game::poll_control",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::cosmetics::Game::cosmetics_frame",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::creatures::Game::player_view",
+      "reason": "hot: 32665 calls in the REM-03 second hit-count flight (0.019%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::creatures::Game::cull_skinned",
+      "reason": "hot: 19478 calls in the REM-03 second hit-count flight (0.012%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::creatures::Game::mob_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::debug_keys::Game::draw_debug_overlay_under",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::debug_keys::Game::debug_gizmos",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::debug_renderers::Game::debug_renderer_gizmos",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::debug_renderers::Game::debug_renderer_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::dialogs::Game::draw_dialog",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::discord::Game::discord_status",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::dragon::Game::special_targets",
+      "reason": "hot: 13034 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::dragon::Game::dragon_hit_at",
+      "reason": "hot: 13034 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::dragon::Game::dragon_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::dragon::Game::dragon_fireball_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::dynamic_lights::Game::dynamic_light_sources",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::dynamic_lights::Game::gather_dynamic_lights",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::end::Game::end_crystal_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::end::Game::eye_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::entity::tick_item",
+      "reason": "hot: 6191 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::entity::<Minecart as Entity>::is_vehicle",
+      "reason": "hot: 2552 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::entity::<Minecart as Entity>::portal_size",
+      "reason": "hot: 3832 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::entity::<Minecart as Entity>::bounds",
+      "reason": "hot: 5096 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::entity::<FallingBlock as Entity>::bounds",
+      "reason": "hot: 13143 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::entity::<FallingBlock as EntityRules>::is_no_gravity",
+      "reason": "hot: 6889 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::entity::<FallingBlock as EntityRules>::get_default_gravity",
+      "reason": "hot: 6889 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::entity_culling::Game::prepare_entity_culling",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::entity_culling::Game::cull_entity_vertices",
+      "reason": "hot: 20569 calls in the REM-03 second hit-count flight (0.012%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::events::Game::watch_events",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::extras::Game::extras_frame",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::extras::Game::minimap_shown",
+      "reason": "hot: 26268 calls in the REM-03 second hit-count flight (0.016%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::extras::Game::update_minimap",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::extras::Game::draw_extras",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::extras::Game::effect_rows_height",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::fangs::Game::fangs_geometry",
+      "reason": "hot: 12367 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::fishing::Game::fishing_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::fishing::Game::fishing_line",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::fishing::Game::rod_hand_position",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::fov::Game::spinning_matrix",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::fov::Game::fov_degrees",
+      "reason": "hot: 24658 calls in the REM-03 second hit-count flight (0.015%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::fov::Game::bob_matrix",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::fov::Game::draw_spyglass",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::frames::Game::frame_hit_at",
+      "reason": "hot: 25393 calls in the REM-03 second hit-count flight (0.015%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::frames::Game::frame_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::hand::Game::crosshair_living",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::ime::Game::text_field_focused",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::ime::Game::flush_ime",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::integrated::Game::poll_integrated_start",
+      "reason": "hot: 13982 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::item_draw::Game::dropped_item_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::lan_attributes::Game::mob_knockback_resistance",
+      "reason": "hot: 6240 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::lan_entities::Game::lan_assign_ids",
+      "reason": "hot: 2548 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::leads::Game::leash_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::machines::Containers::view",
+      "reason": "hot: 6250 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::machines::ItemColumns::may_reach",
+      "reason": "hot: 3125 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::machines::Game::tick_hopper",
+      "reason": "hot: 3125 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::machines::Game::hopper_try_move_items",
+      "reason": "hot: 3125 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::machines::Game::hopper_suck",
+      "reason": "hot: 3125 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::machines::Game::suck_from_container",
+      "reason": "hot: 3125 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::machines::Game::entity_container_at",
+      "reason": "hot: 3125 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::minecarts::Game::rail",
+      "reason": "hot: 7644 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::minecarts::Game::rail_pos",
+      "reason": "hot: 2548 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::minecarts::Game::cart_hit_at",
+      "reason": "hot: 13034 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::minecarts::Game::block_model_vertices",
+      "reason": "hot: 95993 calls in the REM-03 second hit-count flight (0.057%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::minecarts::Game::cart_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::mob_blocks::Game::elder_apparition_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::mob_blocks::Game::captain_banner_geometry",
+      "reason": "hot: 19478 calls in the REM-03 second hit-count flight (0.012%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::mob_blocks::Game::mob_block_geometry",
+      "reason": "hot: 19478 calls in the REM-03 second hit-count flight (0.012%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::mob_blocks::Game::antenna_block_geometry",
+      "reason": "hot: 19478 calls in the REM-03 second hit-count flight (0.012%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::mob_blocks::Game::golem_flower_geometry",
+      "reason": "hot: 19478 calls in the REM-03 second hit-count flight (0.012%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::mob_blocks::Game::worn_block_geometry",
+      "reason": "hot: 19478 calls in the REM-03 second hit-count flight (0.012%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::mob_blocks::Game::head_item_geometry",
+      "reason": "hot: 19478 calls in the REM-03 second hit-count flight (0.012%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::mounts::Game::draw_mount_hud",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::moving_pistons::Game::moving_piston_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::moving_pistons::Game::moving_block_vertices",
+      "reason": "hot: 4403 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::music::Game::now_playing_song",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::music::Game::draw_music_toast",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::names::Game::name_tags",
+      "reason": "hot: 12359 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::names::Game::name_tag_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::narrator::draw_toast",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::narrator::Game::narrate_screen",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::narrator::Game::draw_narrator_toast",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_capabilities::Game::native_query_capability",
+      "reason": "hot: 3125 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_deferred::Game::native_drain_lan_requests",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_entities::Game::native_joins_flush",
+      "reason": "hot: 2162 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::observe_screen",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_frame",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::screen_chars_typed",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_chunks_changed",
+      "reason": "hot: 16930 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_slot_tick",
+      "reason": "hot: 14268 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::new_block_entity",
+      "reason": "hot: 45167 calls in the REM-03 second hit-count flight (0.027%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_zoom_now",
+      "reason": "hot: 25044 calls in the REM-03 second hit-count flight (0.015%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_hooks::Game::native_shake_matrix",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_item_render::Game::refresh_native_item_render",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_mob_player::Game::native_prepare_mob_players",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_session::Game::native_run_session_request",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_streams::Game::update_native_streams",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_streams::Game::maintain_native_streams",
+      "reason": "hot: 14084 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_title_screen::Game::handle_title_mod_screen_event",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::native_visuals::Game::native_frame_visuals",
+      "reason": "hot: 13938 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::block_tag",
+      "reason": "hot: 11901 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::biome_tag",
+      "reason": "hot: 20359 calls in the REM-03 second hit-count flight (0.012%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::sky_light",
+      "reason": "hot: 2184 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::natural_spawning::<GameLevel as SpawnLevel>::peaceful",
+      "reason": "hot: 7316 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::natural_spawning::<GameLevel as NaturalLevel>::mob_type",
+      "reason": "hot: 15162 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::natural_spawning::<GameLevel as NaturalLevel>::can_spawn_in_chunk",
+      "reason": "hot: 31676 calls in the REM-03 second hit-count flight (0.019%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::natural_spawning::<GameLevel as SpawnerLevel>::spawner_blocks_work",
+      "reason": "hot: 5632 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::nether_portal::Game::falling_through_portal",
+      "reason": "hot: 6889 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::options::Game::observe_fullscreen",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::options::Game::framerate_limit",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::packs::Game::drive_pack_browser",
+      "reason": "hot: 13941 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::packs::Game::drive_pack_reload",
+      "reason": "hot: 13941 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::pad::Game::poll_pads",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::pad::Game::pad_look",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::pad::hardware::Pads::read[cfg(feature=\"controllers\")]",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::pad::hardware::Game::pad_output_frame[cfg(feature=\"controllers\")]",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::pad::hardware::Game::pad_show[cfg(feature=\"controllers\")]",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::pad_menu::Game::pad_menu_frame",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::pad_menu::Game::pad_show_os_pointer",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::pad_menu::Game::draw_pad_cursor",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::paintings::Game::painting_hit_at",
+      "reason": "hot: 13034 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::persist::Game::unload_entities",
+      "reason": "hot: 16930 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::perspective::Game::camera_view",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::perspective::Game::player_camera_entity",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::perspective::Game::player_model_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::potions::PotionState::swap_player",
+      "reason": "hot: 2984 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::potions::Game::draw_effect_icons",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote::Game::poll_remote",
+      "reason": "hot: 16930 calls in the REM-03 second hit-count flight (0.010%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote::Game::send_suggestion_request",
+      "reason": "hot: 13938 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote::Game::forget_remote_columns",
+      "reason": "hot: 36181 calls in the REM-03 second hit-count flight (0.022%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote::Game::set_block",
+      "reason": "hot: 44776 calls in the REM-03 second hit-count flight (0.027%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote::Game::move_entity",
+      "reason": "hot: 7570 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote::Game::remote_tab_players",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote::Game::update_remote_skins",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote::Game::update_mannequin_skins",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote::Game::remote_minecart_lerp",
+      "reason": "hot: 31457 calls in the REM-03 second hit-count flight (0.019%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote::Game::remote_overlay",
+      "reason": "hot: 13938 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote::Game::remote_hud",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote::skin_entries",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote_chat::Game::draw_command_prompt",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::remote_vehicles::Game::remote_minecart_rider_position",
+      "reason": "hot: 12380 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::render_tick::Game::frame_fog",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::render_tick::Game::native_fog_now",
+      "reason": "hot: 13938 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::render_tick::Game::screen_quads",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::repro::Game::poll_pending_replay",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::repro::Game::advance_replay",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::scoreboard::Game::draw_scoreboard",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::scoreboard::Game::flush_skin_slots",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::scoreboard::Game::draw_tab_list",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::sculk::SculkState::swap_player",
+      "reason": "hot: 2984 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::sculk::Game::darkness_lighting",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::sculk::Game::night_vision_intensity",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::sculk::Game::step_on_redstone_ore",
+      "reason": "hot: 45032 calls in the REM-03 second hit-count flight (0.027%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::server_packs::Game::tick_server_packs",
+      "reason": "hot: 13941 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::server_packs::Game::draw_pack_prompt",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::server_packs::Game::draw_pack_toasts",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::shader_packs::Game::shader_pack_inputs",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::sign_edit::Game::draw_sign_editor",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::social_relay::Game::social_relay_tick",
+      "reason": "hot: 13940 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::spawner::Game::tick_spawner",
+      "reason": "hot: 5886 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::spawner::Game::server_tick_spawner_of",
+      "reason": "hot: 5886 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::spill::Game::flush_spill",
+      "reason": "hot: 4242 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::split::<Split as ApplicationHandler>::about_to_wait",
+      "reason": "hot: 14084 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::split::hud::Game::draw_split_hud",
+      "reason": "hot: 13939 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::split::setup::Split::sync_setup",
+      "reason": "hot: 14084 calls in the REM-03 second hit-count flight (0.008%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::subtitle_hud::Game::draw_subtitles",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::test_instances::Game::test_instance_marker_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::text_displays::Game::block_item_display_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::text_displays::Game::text_display_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::titles::Game::draw_overlay_message",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::titles::Game::draw_title",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::tnt::Game::tnt_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::totem::Game::item_activation_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::transient_blocks::Game::transient_block_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::trial_spawner::<GameLevel as TrialSpawnerLevel>::game_time",
+      "reason": "hot: 11264 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::trial_spawner::<GameLevel as TrialSpawnerLevel>::mob_spawning",
+      "reason": "hot: 5632 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::trial_spawner::Game::tick_trial_spawner",
+      "reason": "hot: 5632 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::trial_spawner::Game::trial_spawner_block",
+      "reason": "hot: 5653 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::trial_spawner::Game::server_tick_trial_spawner",
+      "reason": "hot: 5632 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::trident::Game::trident_geometry",
+      "reason": "hot: 12329 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::tutorial::Game::draw_tutorial_toasts",
+      "reason": "hot: 12330 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::vault::<Players as VaultLevel>::game_time",
+      "reason": "hot: 8778 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::vault::Game::take_vault",
+      "reason": "hot: 8342 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::vault::Game::tick_vault",
+      "reason": "hot: 8342 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::vault::Game::vault_events",
+      "reason": "hot: 8342 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_client::game::<GameLevel as LevelAccess>::level_rules",
+      "reason": "hot: 16901 calls in the REM-03 second hit-count flight (0.010%)",
       "kind": "fn",
       "manual": true
     }

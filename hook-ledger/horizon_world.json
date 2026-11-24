@@ -145,7 +145,7 @@
       "id": 730,
       "key": "horizon_world::attributes::live::<Key as PartialEq>::eq",
       "sig": "80b1e3a9ef698711",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -222,7 +222,7 @@
       "id": 741,
       "key": "horizon_world::block_collision::ScaffoldingCollision::from_state",
       "sig": "6625c84f20eafa34",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -292,21 +292,21 @@
       "id": 751,
       "key": "horizon_world::block_state_properties::SharedStrings::get",
       "sig": "a4772bdf4e4d9f03",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 752,
       "key": "horizon_world::block_state_properties::BlockProperties::from_shared",
       "sig": "b83cf06773e37b0d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 753,
       "key": "horizon_world::block_state_properties::<Iter as Iterator>::size_hint",
       "sig": "4da1290d615ab7ae",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -334,14 +334,14 @@
       "id": 757,
       "key": "horizon_world::block_state_properties::<BlockProperties as PartialEq>::eq",
       "sig": "80b1e3a9ef698711",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 758,
       "key": "horizon_world::block_state_properties::<BlockProperties as PartialEq<BTreeMap<String,String>>>::eq",
       "sig": "5ab54cdac84c76ff",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -418,14 +418,14 @@
       "id": 769,
       "key": "horizon_world::chunk::BlockState::to_nbt",
       "sig": "11adb6e78f86eed1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 770,
       "key": "horizon_world::chunk::BlockState::from_nbt",
       "sig": "c0811065ddfd3919",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1678,7 +1678,7 @@
       "id": 949,
       "key": "horizon_world::fluid::FluidKind::from_wire_id",
       "sig": "6b0dab44fa5f029d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1692,14 +1692,14 @@
       "id": 951,
       "key": "horizon_world::fluid::FluidState::from_block",
       "sig": "1d2a25bc3c7b8207",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 952,
       "key": "horizon_world::fluid::FluidBlockBindings::block",
       "sig": "cd8b139489d09d83",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -1916,7 +1916,7 @@
       "id": 983,
       "key": "horizon_world::level::data::analyse_shape",
       "sig": "8f872e9c2ddcc026",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2077,7 +2077,7 @@
       "id": 1006,
       "key": "horizon_world::level::states::StateTable::key_or_insert",
       "sig": "d7506fdb839a4294",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2315,7 +2315,7 @@
       "id": 1040,
       "key": "horizon_world::nbt::Reader::count",
       "sig": "7fa96502f7ff99b5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2336,14 +2336,14 @@
       "id": 1043,
       "key": "horizon_world::nbt::ListElements::next_element",
       "sig": "2bc1c6250bb89b1b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1044,
       "key": "horizon_world::nbt::modified_utf8",
       "sig": "648c759c38813698",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2413,7 +2413,7 @@
       "id": 1054,
       "key": "horizon_world::nbt::Snbt::compound",
       "sig": "816002f8a379d95a",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2427,7 +2427,7 @@
       "id": 1056,
       "key": "horizon_world::nbt::Snbt::scalar",
       "sig": "032f88cb05b3e3ba",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2539,7 +2539,7 @@
       "id": 1072,
       "key": "horizon_world::registry::state_key",
       "sig": "16e17e72236ed534",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2560,7 +2560,7 @@
       "id": 1075,
       "key": "horizon_world::registry::BlockRegistry::resolve",
       "sig": "57d70fbf1b06b210",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2574,14 +2574,14 @@
       "id": 1077,
       "key": "horizon_world::registry::json::BlockStateJsonCodec::decode",
       "sig": "6c4103a9d8e6bbb7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1078,
       "key": "horizon_world::registry::snapshot::Strings::get",
       "sig": "15ecce84e45f5f21",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2693,7 +2693,7 @@
       "id": 1094,
       "key": "horizon_world::worldgen::integer",
       "sig": "794f9dd065929e81",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -2735,14 +2735,14 @@
       "id": 1100,
       "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::lava",
       "sig": "d03b2e1ea71184d0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1101,
       "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::is_air",
       "sig": "7e02619be8846572",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3155,7 +3155,7 @@
       "id": 1160,
       "key": "horizon_world::worldgen::climate::ClimateSampler::sample",
       "sig": "46e4f06590adeed0",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3232,7 +3232,7 @@
       "id": 1171,
       "key": "horizon_world::worldgen::density::identifier",
       "sig": "fcf29d1f50d511d4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3491,7 +3491,7 @@
       "id": 1208,
       "key": "horizon_world::worldgen::generator::ChunkWork::at",
       "sig": "b078a31e00ca08c2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3512,7 +3512,7 @@
       "id": 1211,
       "key": "horizon_world::worldgen::generator::lap",
       "sig": "9a6213680322beef",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3694,14 +3694,14 @@
       "id": 1237,
       "key": "horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::chunk_biomes",
       "sig": "829f3978d74721c2",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1238,
       "key": "horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::set_currently_generating",
       "sig": "e28f9e11eed9c829",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3743,7 +3743,7 @@
       "id": 1244,
       "key": "horizon_world::worldgen::generator_decoration::<World as SurvivalWorld>::fluid_state",
       "sig": "801b9de84868c9e9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3757,7 +3757,7 @@
       "id": 1246,
       "key": "horizon_world::worldgen::generator_decoration::<World as SurvivalWorld>::block_state",
       "sig": "50c9f313e19df7fa",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3785,7 +3785,7 @@
       "id": 1250,
       "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::attachment_at",
       "sig": "68f4fde10c1ae651",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3813,21 +3813,21 @@
       "id": 1254,
       "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_survives",
       "sig": "264d652e60687dc1",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1255,
       "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::face_sturdy",
       "sig": "c155f8cdb67ca37b",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1256,
       "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::state_face_sturdy",
       "sig": "8460054464fb3505",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3960,7 +3960,7 @@
       "id": 1275,
       "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::fluid_state",
       "sig": "801b9de84868c9e9",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -3981,7 +3981,7 @@
       "id": 1278,
       "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::mark_postprocessing",
       "sig": "fec644aa738d71ee",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4023,7 +4023,7 @@
       "id": 1284,
       "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_matches_tag",
       "sig": "18dd5379e2fa23a5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4079,7 +4079,7 @@
       "id": 1292,
       "key": "horizon_world::worldgen::generator_structures::StartCache::insert_first",
       "sig": "afccf25238204c52",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4576,7 +4576,7 @@
       "id": 1363,
       "key": "horizon_world::worldgen::state_provider::properties::StateProperties::set_integer",
       "sig": "32dae37ce08942b5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4835,7 +4835,7 @@
       "id": 1400,
       "key": "horizon_world::worldgen::structure::jigsaw::Pools::get",
       "sig": "09bd1f911541f67c",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -4884,14 +4884,14 @@
       "id": 1407,
       "key": "horizon_world::worldgen::structure::legacy::state",
       "sig": "af0092c7f1a3253e",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1408,
       "key": "horizon_world::worldgen::structure::legacy::PieceFrame::place",
       "sig": "e864a75a89763af7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5031,7 +5031,7 @@
       "id": 1428,
       "key": "horizon_world::worldgen::structure::mineshaft::<MineshaftPiece as LegacyPiece>::bounding_box",
       "sig": "6761e146840e5c30",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5444,7 +5444,7 @@
       "id": 1487,
       "key": "horizon_world::worldgen::structure::start::StructureRegistry::structure_chunk",
       "sig": "fe3be5439f783ce6",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5591,7 +5591,7 @@
       "id": 1508,
       "key": "horizon_world::worldgen::structure::template::read_state",
       "sig": "6b54338549911663",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5724,7 +5724,7 @@
       "id": 1527,
       "key": "horizon_world::worldgen::tags::TagEntry::from_json",
       "sig": "812807af149f6622",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5738,7 +5738,7 @@
       "id": 1529,
       "key": "horizon_world::worldgen::tags::identifier",
       "sig": "fcf29d1f50d511d4",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5766,7 +5766,7 @@
       "id": 1533,
       "key": "horizon_world::worldgen::tags::visit",
       "sig": "b81ab24f3c33e4c8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5871,7 +5871,7 @@
       "id": 1548,
       "key": "horizon_world::worldgen::tree::trunk::log_axis",
       "sig": "e6f940a3c3143e46",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -5969,28 +5969,28 @@
       "id": 1562,
       "key": "horizon_world::stepped_interpolation::wrap_degrees",
       "sig": "b56b0345789868f8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1563,
       "key": "horizon_world::stepped_interpolation::SteppedInterpolation::interpolate_to",
       "sig": "ab0711c3fa637fe5",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1564,
       "key": "horizon_world::stepped_interpolation::SteppedInterpolation::interpolate",
       "sig": "805d9c51b33799d8",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
       "id": 1565,
       "key": "horizon_world::stepped_interpolation::SteppedInterpolation::advance",
       "sig": "9ed5729d37023cbf",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -6095,7 +6095,7 @@
       "id": 10694,
       "key": "horizon_world::level::tick::RandomTickMask::of",
       "sig": "0e742f0a58f8ce33",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
@@ -29397,6 +29397,354 @@
     {
       "key": "horizon_world::worldgen::tree_blocks::PosSet::pop_first",
       "reason": "hot: 67328 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::attributes::live::<Key as PartialEq>::eq",
+      "reason": "hot: 31230 calls in the REM-03 second hit-count flight (0.019%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::block_collision::ScaffoldingCollision::from_state",
+      "reason": "hot: 71446 calls in the REM-03 second hit-count flight (0.043%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::block_state_properties::SharedStrings::get",
+      "reason": "hot: 316818 calls in the REM-03 second hit-count flight (0.189%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::block_state_properties::BlockProperties::from_shared",
+      "reason": "hot: 35321 calls in the REM-03 second hit-count flight (0.021%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::block_state_properties::<Iter as Iterator>::size_hint",
+      "reason": "hot: 118060 calls in the REM-03 second hit-count flight (0.070%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::block_state_properties::<BlockProperties as PartialEq>::eq",
+      "reason": "hot: 414923 calls in the REM-03 second hit-count flight (0.247%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::block_state_properties::<BlockProperties as PartialEq<BTreeMap<String,String>>>::eq",
+      "reason": "hot: 35723 calls in the REM-03 second hit-count flight (0.021%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::chunk::BlockState::to_nbt",
+      "reason": "hot: 12081 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::chunk::BlockState::from_nbt",
+      "reason": "hot: 321507 calls in the REM-03 second hit-count flight (0.192%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::fluid::FluidKind::from_wire_id",
+      "reason": "hot: 2402 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::fluid::FluidState::from_block",
+      "reason": "hot: 393017 calls in the REM-03 second hit-count flight (0.234%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::fluid::FluidBlockBindings::block",
+      "reason": "hot: 2960 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::level::data::analyse_shape",
+      "reason": "hot: 6093 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::level::states::StateTable::key_or_insert",
+      "reason": "hot: 4800 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::nbt::Reader::count",
+      "reason": "hot: 704734 calls in the REM-03 second hit-count flight (0.420%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::nbt::ListElements::next_element",
+      "reason": "hot: 321525 calls in the REM-03 second hit-count flight (0.192%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::nbt::modified_utf8",
+      "reason": "hot: 5177545 calls in the REM-03 second hit-count flight (3.088%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::nbt::Snbt::compound",
+      "reason": "hot: 11106 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::nbt::Snbt::scalar",
+      "reason": "hot: 8820 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::registry::state_key",
+      "reason": "hot: 164862 calls in the REM-03 second hit-count flight (0.098%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::registry::BlockRegistry::resolve",
+      "reason": "hot: 8010 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::registry::json::BlockStateJsonCodec::decode",
+      "reason": "hot: 2058 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::registry::snapshot::Strings::get",
+      "reason": "hot: 353827 calls in the REM-03 second hit-count flight (0.211%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::integer",
+      "reason": "hot: 4220 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::lava",
+      "reason": "hot: 18816 calls in the REM-03 second hit-count flight (0.011%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::is_air",
+      "reason": "hot: 58771 calls in the REM-03 second hit-count flight (0.035%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::climate::ClimateSampler::sample",
+      "reason": "hot: 421203 calls in the REM-03 second hit-count flight (0.251%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::density::identifier",
+      "reason": "hot: 71417 calls in the REM-03 second hit-count flight (0.043%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator::ChunkWork::at",
+      "reason": "hot: 3751 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator::lap",
+      "reason": "hot: 7032 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::chunk_biomes",
+      "reason": "hot: 6561 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::set_currently_generating",
+      "reason": "hot: 36884 calls in the REM-03 second hit-count flight (0.022%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as SurvivalWorld>::fluid_state",
+      "reason": "hot: 6019 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as SurvivalWorld>::block_state",
+      "reason": "hot: 51811 calls in the REM-03 second hit-count flight (0.031%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::attachment_at",
+      "reason": "hot: 3442 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_survives",
+      "reason": "hot: 47151 calls in the REM-03 second hit-count flight (0.028%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::face_sturdy",
+      "reason": "hot: 14405 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::state_face_sturdy",
+      "reason": "hot: 14511 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::fluid_state",
+      "reason": "hot: 66810 calls in the REM-03 second hit-count flight (0.040%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::mark_postprocessing",
+      "reason": "hot: 39946 calls in the REM-03 second hit-count flight (0.024%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_matches_tag",
+      "reason": "hot: 69519 calls in the REM-03 second hit-count flight (0.041%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_structures::StartCache::insert_first",
+      "reason": "hot: 2071 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::state_provider::properties::StateProperties::set_integer",
+      "reason": "hot: 4300 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::structure::jigsaw::Pools::get",
+      "reason": "hot: 3686 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::structure::legacy::state",
+      "reason": "hot: 7372 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::structure::legacy::PieceFrame::place",
+      "reason": "hot: 61269 calls in the REM-03 second hit-count flight (0.037%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::structure::mineshaft::<MineshaftPiece as LegacyPiece>::bounding_box",
+      "reason": "hot: 50028 calls in the REM-03 second hit-count flight (0.030%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::structure::start::StructureRegistry::structure_chunk",
+      "reason": "hot: 37719 calls in the REM-03 second hit-count flight (0.022%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::structure::template::read_state",
+      "reason": "hot: 6813 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::tags::TagEntry::from_json",
+      "reason": "hot: 14743 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::tags::identifier",
+      "reason": "hot: 44071 calls in the REM-03 second hit-count flight (0.026%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::tags::visit",
+      "reason": "hot: 3091 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::tree::trunk::log_axis",
+      "reason": "hot: 2191 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::stepped_interpolation::wrap_degrees",
+      "reason": "hot: 15159 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::stepped_interpolation::SteppedInterpolation::interpolate_to",
+      "reason": "hot: 7263 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::stepped_interpolation::SteppedInterpolation::interpolate",
+      "reason": "hot: 49397 calls in the REM-03 second hit-count flight (0.029%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::stepped_interpolation::SteppedInterpolation::advance",
+      "reason": "hot: 20340 calls in the REM-03 second hit-count flight (0.012%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::level::tick::RandomTickMask::of",
+      "reason": "hot: 2132 calls in the REM-03 second hit-count flight (0.001%)",
       "kind": "fn",
       "manual": true
     }
