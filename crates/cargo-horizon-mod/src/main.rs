@@ -5,6 +5,9 @@
 //!   `--template native [--horizon <commit>]`, a native trait mod's bundle.
 //! - `build`: the `.hmod` in `target/horizon-mod/`, with the mod's `assets/`
 //!   and `data/`.
+//! - `datagen [--check]`: runs the mod's `datagen/` crate (`yoake-datagen`) to write
+//!   its generated `assets/` and `data/`, then builds and checks the `.hmod`; with
+//!   `--check`, fails when the generated files differ from the folder.
 //! - `run [--game <horizon-client>] [-- <game args>]`: build, then play with
 //!   the mod.
 //! - `check <file> [--json]`: what the registry checks of a submission
@@ -18,6 +21,7 @@ use horizon_mods::{Capability, Content, Manifest, Package, manifest::MANIFEST};
 #[path = "../../../tests/support/temp_dir.rs"]
 mod test_support;
 mod check;
+mod datagen;
 mod registry;
 mod yak;
 
@@ -38,6 +42,7 @@ fn main() -> ExitCode {
             println!("Built {}", p.display());
         }),
         Some("run") => run(&args[1..]),
+        Some("datagen") => datagen::main(&args[1..]),
         Some("check") => check(&args[1..]),
         Some("registry") => registry::main(&args[1..]),
         Some("pack") => yak::pack(&args[1..]),
@@ -62,7 +67,7 @@ fn main() -> ExitCode {
             );
             Ok(())
         }
-        _ => Err("usage: cargo horizon-mod new <path> [--name \"Name\"] [--template content|native [--horizon <commit>]] | build | run [--game <horizon-client>] [-- <game args>] | check <file> [--kind <kind>] [--key <public key> --signature <file.minisig>] [--json] | registry build|review|check|list | pack [folder] [--bin <target>=<path>] | yak verify <file> [--key <public key>] | identity".into()),
+        _ => Err("usage: cargo horizon-mod new <path> [--name \"Name\"] [--template content|native [--horizon <commit>]] | build | datagen [--check] | run [--game <horizon-client>] [-- <game args>] | check <file> [--kind <kind>] [--key <public key> --signature <file.minisig>] [--json] | registry build|review|check|list | pack [folder] [--bin <target>=<path>] | yak verify <file> [--key <public key>] | identity".into()),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
