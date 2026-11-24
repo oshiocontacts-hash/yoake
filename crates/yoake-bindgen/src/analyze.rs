@@ -97,6 +97,9 @@ pub struct FieldReport {
     pub writable: bool,
     /// The field's type as written in the source (stable text for the lock).
     pub ty_text: String,
+    /// The field has a `#[cfg(..)]` (rustdoc keeps it as `CfgTrace`): it exists only in some builds, so the field tables
+    /// (which are generated once, from one configuration) leave it out.
+    pub cfg_gated: bool,
 }
 
 pub struct ModuleScan {
@@ -277,6 +280,7 @@ fn scan_fields(an: &mut Analyzer<'_>, doc: usize, id: u64, label: &str, out: &mu
             owner_ref: ItemRef { doc, id },
             writable: false,
             ty_text: String::new(),
+            cfg_gated: false,
         };
         report.writable = an.target.writable.get(&name).is_some_and(|list| list.contains(&report.field));
         if is_frozen(an, doc, id, &name) {
@@ -285,6 +289,7 @@ fn scan_fields(an: &mut Analyzer<'_>, doc: usize, id: u64, label: &str, out: &mu
             let lifetime = params.iter().any(|p| p.pointer("/kind/lifetime").is_some());
             report.reason = Some(if lifetime { format!("`{name}` carries a lifetime (cannot be a handle type)") } else { format!("`{name}` is generic") });
         } else if let Some(field) = field_id.and_then(|f| d.item(f)) {
+            report.cfg_gated = field.get("attrs").is_some_and(|a| a.to_string().contains("CfgTrace"));
             match field.pointer("/inner/struct_field") {
                 Some(ty) => match {
                     report.ty_text = crate::display::type_display(ty);

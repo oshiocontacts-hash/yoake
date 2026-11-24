@@ -427,6 +427,11 @@ pub fn tables(uni: &Universe, crate_name: &str, frozen_files: &[String], table_r
         // REM-11: setters for every scalar field the policy allows (the lock ids of `--config` targets are separate)
         for field in &mut scan.fields {
             field.writable = table_setter_allowed(&field.owner_path, &field.field, table_readonly);
+            if field.cfg_gated {
+                // `#[cfg(debug_assertions)] gpu_checks: u32`: a release build has no such field
+                field.shape = None;
+                field.reason = Some("field has a cfg attribute".into());
+            }
         }
         let file = uni.docs[doc].item(module).and_then(|m| m.pointer("/span/filename")).and_then(serde_json::Value::as_str).unwrap_or("").to_string();
         if let Some(text) = render::render_tables_only(&an, &label, crate_name, &scan) {

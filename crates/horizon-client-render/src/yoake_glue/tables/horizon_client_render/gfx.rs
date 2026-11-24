@@ -159,7 +159,6 @@ pub mod yoake_glue_tables {
             31 => Some(i64::from(t.sides_on)),
             33 => Some(i64::from(t.gpu_culling_supported)),
             34 => Some(i64::from(t.gpu_frame)),
-            35 => Some(i64::from(t.gpu_checks)),
             47 => Some(t.debug_line_capacity as i64),
             59 => Some(t.static_entity_catalog_revision as i64),
             73 => Some(t.cloud_capacity as i64),
@@ -231,10 +230,6 @@ pub mod yoake_glue_tables {
             }
             34 => {
                 t.gpu_frame = v != 0;
-                true
-            }
-            35 => {
-                t.gpu_checks = v as u32;
                 true
             }
             59 => {
@@ -387,7 +382,6 @@ pub mod yoake_glue_tables {
             31 => Some(i64::from(t.sides_on)),
             33 => Some(i64::from(t.gpu_culling_supported)),
             34 => Some(i64::from(t.gpu_frame)),
-            35 => Some(i64::from(t.gpu_checks)),
             47 => Some(t.debug_line_capacity as i64),
             59 => Some(t.static_entity_catalog_revision as i64),
             73 => Some(t.cloud_capacity as i64),

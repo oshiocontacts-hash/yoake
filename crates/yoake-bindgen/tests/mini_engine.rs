@@ -398,6 +398,8 @@ fn field_table_setters_follow_the_policy() {
     pub checksum: u64,
     pub pinned: i32,
     pub name: String,
+    #[cfg(debug_assertions)]
+    pub debug_only: u32,
 }
 
 pub struct Pair(pub i32, pub i32);
@@ -434,4 +436,5 @@ pub struct Pair(pub i32, pub i32);
     // tuple fields: `.0` is refused like a newtype's inner value (`forbidden_writable`), `.1` is plain data
     assert!(text.contains("t.1 = v as i32;") && !text.contains("t.0 = v as i32;"), "{text}");
     assert!(!text.contains("t.name"), "non-scalar fields have no accessors: {text}");
+    assert!(!text.contains("t.debug_only"), "a field with a cfg attribute exists only in some builds: {text}");
 }
