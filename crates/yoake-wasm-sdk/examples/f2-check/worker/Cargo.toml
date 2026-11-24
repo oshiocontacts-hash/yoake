@@ -1,0 +1,20 @@
+[package]
+name = "yoake-wasm-f2-check-worker"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+description = "FR-REM05: the worker of the F2 check mod (HTTP POST, TCP) driven by /data/jobs.txt"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = { version = "=0.57.1", default-features = false, features = ["realloc", "macros"] }
+wasip2 = "1.0.4"
+
+[profile.release]
+opt-level = "s"
+panic = "abort"
+
+[workspace]

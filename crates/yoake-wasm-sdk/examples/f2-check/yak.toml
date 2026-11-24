@@ -1,0 +1,19 @@
+format = 1
+id = "f2-check"
+version = "0.1.0"
+name = "F2 Check"
+authors = ["Yoake"]
+description = "FR-REM05: files, HTTP POST, TCP and a non-blocking worker, checked in a real game by tools/f2_e2e.py."
+
+[yoake]
+version = "*"
+
+[side]
+client = false
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.0"
+server = "bin/wasm/f2-check-server.wasm"
+worker = "bin/wasm/f2-check-worker.wasm"
