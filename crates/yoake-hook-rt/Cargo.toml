@@ -5,6 +5,12 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[features]
+default = []
+# Counts the calls to each hook slot (`Slot::load`) and dumps them with `dump_hit_counts_from_env`.
+# Off by default: without it the crate has no counters at all.
+hit-count = []
+
 [dev-dependencies]
 yoake-hook-macro = { path = "../yoake-hook-macro" }
 

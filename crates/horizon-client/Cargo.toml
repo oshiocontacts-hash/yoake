@@ -129,6 +129,8 @@ yoake-hook-baseline = ["horizon-client-lib/yoake-hook-baseline"]
 yoake-callsite-baseline = ["horizon-client-lib/yoake-callsite-baseline"]
 # MX3G1: compiles the generated binding glue (src/yoake_glue) into the game and entities modules. Off by default.
 yoake2-slice = ["dep:yoake-slice", "dep:yoake-mod-io", "horizon-client-lib/yoake2-slice"]
+# Counts the calls to each hook slot during a run; the game writes them to $YOAKE_HOOK_HITS at exit.
+yoake-hook-hit-count = ["yoake-hook-rt/hit-count"]
 # Test-only: typed hook registration and bench constructors (`entities::hook_bench`, `StandStep::for_hook_bench`).
 yoake-hook-bench = ["horizon-client-lib/yoake-hook-bench"]
 default = ["audio", "controllers"]
