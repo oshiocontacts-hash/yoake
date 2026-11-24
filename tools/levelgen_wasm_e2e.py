@@ -142,8 +142,12 @@ def cooking_duel(host, guest, out):
     leave_duel(guest)
     host.wait(60)
 
+    # An ephemeral level (create_level(.., persistent = false)) saves under yoake_temp/<ns>/<path>, but only when its
+    # chunks are saved: regeneration removed the region files and nothing has been saved since. Unloading saves it
+    # (as levels_e2e does before its folder check).
     folder = host.work / 'saves/Lan/yoake_temp/levelgen/cooking_duel'
-    assert folder.exists(), f'the generated level has no folder: {folder}'
+    host.raw('level', 'unload', DUEL)
+    assert folder.exists(), f'the generated level has no folder after unloading (a save): {folder}'
     host('command', command='cookingduel delete')
     assert not folder.exists(), f'the deleted level folder remains: {folder}'
     assert DUEL not in [l['id'] for l in host.raw('level', 'list')['levels']]
