@@ -117,6 +117,7 @@ impl CommandTree {
         let minecart_improvements = features
             .iter()
             .any(|f| f == crate::gamerules::MINECART_IMPROVEMENTS);
+        let root = with_mod_rules(&self.root);
         let mut nodes = vec![Node {
             name: String::new(),
             kind: 0,
@@ -130,7 +131,7 @@ impl CommandTree {
         let suggestions: HashMap<&str, &'static str> = SUGGESTIONS.iter().copied().collect();
         let mut paths: HashMap<Vec<String>, usize> = HashMap::new();
         paths.insert(Vec::new(), 0);
-        for root in [&self.root, extra] {
+        for root in [&root, extra] {
             fill(
                 root,
                 0,
@@ -188,6 +189,71 @@ impl CommandTree {
             root: 0,
         }
     }
+}
+
+/// Adds data mods' rules to the report's `/gamerule` node. The vanilla report is untouched
+/// when no mod rules are registered.
+fn with_mod_rules(root: &Value) -> Value {
+    use crate::gamerules::Value as RuleValue;
+
+    let rules = registered_mod_rules();
+    if rules.is_empty() {
+        return root.clone();
+    }
+    let mut root = root.clone();
+    let Some(gamerule) = root
+        .get_mut("children")
+        .and_then(Value::as_object_mut)
+        .and_then(|children| children.get_mut("gamerule"))
+    else {
+        return root;
+    };
+    let permission = gamerule["children"]
+        .as_object()
+        .and_then(|children| children.values().find_map(|rule| rule.get("permissions")))
+        .cloned()
+        .or_else(|| gamerule.get("permissions").cloned());
+    let Some(children) = gamerule.get_mut("children").and_then(Value::as_object_mut) else {
+        return root;
+    };
+    for rule in rules {
+        let (parser, properties) = match rule.default {
+            RuleValue::Bool(_) => ("brigadier:bool", serde_json::json!({})),
+            RuleValue::Int(_) => (
+                "brigadier:integer",
+                serde_json::json!({"min": rule.min, "max": rule.max}),
+            ),
+        };
+        let mut value = serde_json::json!({
+            "type": "argument",
+            "parser": parser,
+            "properties": properties,
+            "executable": true
+        });
+        let mut literal = serde_json::json!({"type": "literal", "executable": true});
+        if let Some(permission) = &permission {
+            value["permissions"] = permission.clone();
+            literal["permissions"] = permission.clone();
+        }
+        literal["children"] = serde_json::json!({"value": value});
+        children.insert(rule.name.to_owned(), literal);
+    }
+    root
+}
+
+#[cfg(test)]
+thread_local! {
+    /// A test's own mod rules: the registry is process-wide and other tests read it in parallel.
+    static TEST_MOD_RULES: std::cell::RefCell<Option<Vec<&'static crate::gamerules::Rule>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+fn registered_mod_rules() -> Vec<&'static crate::gamerules::Rule> {
+    #[cfg(test)]
+    if let Some(rules) = TEST_MOD_RULES.with(|r| r.borrow().clone()) {
+        return rules;
+    }
+    crate::gamerules::mod_rules()
 }
 
 /// Commands.fillUsableCommands over the report: the children the source may use.
@@ -401,6 +467,65 @@ mod tests {
             ["", "me", "tell", "say", "stop", "action", "message"]
         );
         assert!(op.nodes[3].restricted);
+    }
+
+    #[test]
+    fn dedicated_tree_adds_mod_game_rules() {
+        use crate::gamerules::{Rule, Value as RuleValue};
+        let set = |rules: Vec<Rule>| {
+            let leaked = rules.into_iter().map(|r| &*Box::leak(Box::new(r))).collect();
+            TEST_MOD_RULES.with(|t| *t.borrow_mut() = Some(leaked));
+        };
+
+        let report: Value = serde_json::from_str(
+            r#"{"type":"root","children":{"gamerule":{
+                "type":"literal",
+                "permissions":{"type":"minecraft:require","permission":{"type":"minecraft:command_level","level":"gamemasters"}},
+                "children":{"keep_inventory":{"type":"literal","executable":true,
+                    "permissions":{"type":"minecraft:require","permission":{"type":"minecraft:command_level","level":"gamemasters"}},
+                    "children":{"value":{"type":"argument","parser":"brigadier:bool","executable":true}}}}}}}"#,
+        )
+        .unwrap();
+        let tree = CommandTree { root: report };
+        let plain = tree.packet(2, true, &Builtin::default());
+        set(Vec::new());
+        assert_eq!(tree.packet(2, true, &Builtin::default()), plain);
+
+        set(vec![
+            Rule {
+                name: "ruby:fast_mining",
+                default: RuleValue::Bool(false),
+                min: 0,
+                max: 0,
+                category: "player",
+            },
+            Rule {
+                name: "ruby:gem_rate",
+                default: RuleValue::Int(3),
+                min: 2,
+                max: 9,
+                category: "misc",
+            },
+        ]);
+        let packet = tree.packet(2, true, &Builtin::default());
+        let literal = |name| {
+            packet
+                .nodes
+                .iter()
+                .find(|node| node.name == name)
+                .unwrap_or_else(|| panic!("missing {name}"))
+        };
+        let boolean = literal("ruby:fast_mining");
+        assert!(boolean.kind == 1 && boolean.executable && boolean.restricted);
+        let boolean_value = &packet.nodes[boolean.children[0] as usize];
+        assert_eq!(boolean_value.parser.as_ref().unwrap().1, Vec::<u8>::new());
+        let integer = literal("ruby:gem_rate");
+        let integer_value = &packet.nodes[integer.children[0] as usize];
+        assert_eq!(
+            integer_value.parser.as_ref().unwrap().1,
+            vec![3, 0, 0, 0, 2, 0, 0, 0, 9]
+        );
+        assert!(tree.packet(0, true, &Builtin::default()).nodes.iter().all(|n| !n.name.starts_with("ruby:")));
     }
 
     #[test]

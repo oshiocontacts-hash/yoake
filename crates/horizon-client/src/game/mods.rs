@@ -103,9 +103,9 @@ pub(super) fn register_standalone_models() {
 }
 
 /// `root` with the content mods that are on layered over it
-/// (docs/modpacks.md): their blocks, items, data and assets. Read once at
-/// start, before the resources load; a mod whose content is refused is left
-/// out here and its row on the Mods page says why.
+/// (docs/modpacks.md): their blocks, items, data and assets. Read at start and
+/// on content reloads; a mod whose content is refused is left out here and its
+/// row on the Mods page says why.
 pub(super) fn content_root(
     root: &std::path::Path,
     enabled: &std::collections::BTreeSet<String>,
@@ -239,6 +239,24 @@ pub(super) fn content_root(
     }
 }
 
+/// Rebuild the mod overlay for `/reload`, then let the normal world-table reload use it.
+pub(super) fn reload_content_root(game: &mut Game<'_>) {
+    let root = match super::packs::startup_root(
+        &game.vanilla_root(),
+        &game.settings.resource_packs,
+        &game.server_packs.active,
+    ) {
+        Ok(root) => root,
+        Err(e) => {
+            log::warn!("Horizon: mod game rules not reloaded: {e}");
+            return;
+        }
+    };
+    let content = content_root(&root, &game.settings.mods.enabled, &game.options.dev_mods);
+    game.options.resources = content.path;
+    game.pack.mod_owners = content.owners;
+}
+
 /// A loaded mod as a server tells joining clients (`horizon_protocol::mod_list`): its manifest's
 /// id, version and side, and the SHA-256 of its `.hmod` (none for a folder).
 fn announced_entry(
@@ -358,16 +376,10 @@ fn register_menu_types(mods: &[horizon_client::mod_content::ContentMod]) {
 }
 
 /// The mods' game rules (`data/<id>/horizon/game_rule/`) join vanilla's under their
-/// `<mod id>:<path>` names, once, from the startup root, as the mob effects do.
+/// `<mod id>:<path>` names whenever the content root is built or rebuilt.
 fn register_game_rules(mods: &[horizon_client::mod_content::ContentMod]) {
     use horizon_client::{gamerules, mod_content};
-    let rules = mod_content::rule_declarations(mods);
-    let names: Vec<String> = rules.iter().map(|r| r.name.clone()).collect();
-    if !gamerules::register_mod_rules(rules)
-        && gamerules::mod_rule_names() != names.iter().map(String::as_str).collect::<Vec<_>>()
-    {
-        log::warn!("Horizon: the mods' game rules changed; restart the game to use them");
-    }
+    gamerules::register_mod_rules(mod_content::rule_declarations(mods));
 }
 
 /// The mods' fluid families (`data/<id>/horizon/fluid/`) join the world's fluid registry beside
