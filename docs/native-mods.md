@@ -2086,6 +2086,16 @@ Install and prepare the base release in that scratch launcher home first, then t
 3. Join with the same mod's client half where the hook needs one; test lifecycle, tick, command and net hooks.
 4. Headless compatibility: the mod's server code must not require an audio device; run the server audio-free (`HORIZON_NO_AUDIO=1`).
 
+## Client hooks added in FR-REM17c
+
+Additive hooks (the 1.0 baseline keeps the old ones unchanged). Each is one line: name, when it is called, arguments, return.
+
+- `draw_model(draw, model, tint) -> bool`: a standalone model command (`ModelCommand::Model`) asks it first, before `draw_block` and `draw_item`; `model` is `ns:block/name` of a model named in `standalone-models`, `tint` 0xRRGGBB (use 0xFFFFFF for none, since 0 is black); true when it drew the model.
+- `item_model_select_v2(property, stack, components, context, value) -> option<json>`: an item's `select` model asks it after v1 for each case, so a WebAssembly mod can answer with a JSON string such as `"worn"`; `value` holds v1's answer (None keeps it), and the return is the new value.
+- `input_key_v2(key, text, pressed, repeat, modifiers)`: every real window key event, down, up and repeat, after the window handled it; `key` is the vanilla name of the physical key (empty when it has none), `text` what it typed, `modifiers` GLFW bits (shift 1, control 2, alt 4, super 8). Not cancellable.
+- `input_pad_button(button, pressed)`: a controller button edge (`south`, `lb`, `dpad_up`... as in `horizon-controller.txt`; triggers count past their threshold). Not cancellable.
+- `input_pad_axes(left_x, left_y, right_x, right_y, left_trigger, right_trigger)`: the merged controller's sticks and triggers, when any of them moved more than 0.01 since the last call or came back to rest. Not cancellable.
+
 ## Left to do
 
 - A list of every native build, to delete the ones no instance needs.
