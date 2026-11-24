@@ -89,7 +89,7 @@ impl Game<'_> {
 pub(crate) fn yoake2_dispatch(handle: u64, id: u32, args: &[u8], out: &mut Vec<u8>) -> Result<(), yoake_slice::codec::CallError> {
     use yoake_slice::codec::CallError;
     type Call = fn(u64, u32, &[u8], &mut Vec<u8>) -> Result<(), CallError>;
-    let modules: [Call; 8] = [
+    let modules: [Call; 9] = [
         yoake_glue::call,
         horizon_client_lib::entities::yoake_glue::call,
         horizon_client_lib::mobs::yoake_glue::call,
@@ -98,6 +98,7 @@ pub(crate) fn yoake2_dispatch(handle: u64, id: u32, args: &[u8], out: &mut Vec<u
         horizon_client_render::settings::yoake_glue::call,
         super::launch_options::yoake_glue::call,
         horizon_client_lib::mod_generator::yoake_glue::call,
+        super::yoake2_f_services::yoake_glue::call,
     ];
     for call in modules {
         match call(handle, id, args, out) {

@@ -11,6 +11,10 @@ use horizon_client::{
 impl Game<'_> {
     /// Whether a text box has focus right now (the fields `ime_commit` can fill).
     pub(super) fn text_field_focused(&mut self) -> bool {
+        // REM-12: a full-access module took the input method (`ime_set_allowed(true)`)
+        if super::yoake2_f_state::ime_claimed() {
+            return true;
+        }
         if self.native_mod_screen().is_some()
             && let Some(allowed) =
                 mod_text_field_decision(self.mod_ime_allowed, self.title_mod_screen_open())
@@ -68,6 +72,10 @@ impl Game<'_> {
     /// `WindowEvent::Ime(Preedit)`: `KeyboardHandler.textEditing`. The text
     /// still being composed is shown under the focused field's caret.
     pub(super) fn ime_preedit(&mut self, text: &str, cursor: Option<(usize, usize)>) {
+        if self.yoake2_ime_preedit_hook(text, cursor) {
+            preedit::set_preedit(None);
+            return;
+        }
         if self.native_mod_screen().is_some() {
             self.native_ime_preedit(text, mod_ime_cursor(cursor));
         }
@@ -79,6 +87,7 @@ impl Game<'_> {
     }
 
     pub(super) fn ime_disabled(&mut self) {
+        self.yoake2_ime_preedit_hook("", None);
         preedit::set_preedit(None);
         if self.native_mod_screen().is_some() {
             self.native_ime_preedit("", None);
@@ -116,6 +125,18 @@ impl Game<'_> {
     /// input method's candidate window to the caret
     /// (`TextInputManager.setTextInputArea`, in window pixels).
     pub(super) fn flush_ime(&mut self, hud: &mut HudBatch) {
+        // REM-12: a full-access module owns the input method: no engine overlay, the module's candidate area
+        if super::yoake2_f_state::ime_claimed() {
+            let vertex_start = hud.vertices.len();
+            preedit::draw_overlay(hud, &self.gui.atlas);
+            hud.vertices.truncate(vertex_start);
+            let _ = preedit::take_text_input_area();
+            match super::yoake2_f_state::ime_area() {
+                Some(area) => self.update_ime_area(physical_mod_ime_area(area, hud.scale)),
+                None => self.ime_area = None,
+            }
+            return;
+        }
         let mode = flush_mode(
             self.native_mod_screen().is_some(),
             self.title_mod_screen_open(),
@@ -165,6 +186,10 @@ impl Game<'_> {
 
     /// Text the input method committed (`WindowEvent::Ime(Commit)`).
     pub(super) fn ime_commit(&mut self, text: &str) {
+        if self.yoake2_ime_commit_hook(text) {
+            preedit::set_preedit(None);
+            return;
+        }
         if self.native_mod_screen().is_some() {
             self.native_ime_commit(text);
         }

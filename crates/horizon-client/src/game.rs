@@ -230,6 +230,11 @@ mod native_chat;
 mod native_claimed_items;
 mod native_client_items;
 mod yoake2_client;
+/// REM-12: the client services of full-access (F) modules (HUD, audio, IME, GPU); `yoake-bindgen` target `f_services`.
+#[cfg_attr(not(feature = "yoake2-slice"), allow(dead_code))]
+pub(crate) mod yoake2_f_services;
+#[cfg_attr(not(feature = "yoake2-slice"), allow(dead_code))]
+mod yoake2_f_state;
 pub mod native_client_map;
 mod native_client_state;
 mod native_components;
@@ -8437,7 +8442,7 @@ impl Game<'_> {
             .draw(self.settings.horizon.overlay, &mut batch, &self.gui.atlas);
         self.draw_pad_cursor(&mut batch);
         // MX3CL1: after the whole vanilla HUD; a no-op unless a client-side full-access mod registered for it
-        self.yoake2_hud_render_hook();
+        self.yoake2_hud_render_hook(&mut batch);
         self.resolve_inline_profiles(&batch.inline_profiles);
         batch
     }

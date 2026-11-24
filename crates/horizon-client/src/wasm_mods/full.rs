@@ -985,6 +985,96 @@ pub(super) fn apply_hud(
     }
 }
 
+/// REM-12: the HUD commands of a full-access (F) module as the S route's wire commands.
+pub(super) fn f_hud_commands(commands: &[crate::game::yoake2_f_services::FHud]) -> Vec<et::HudCommand> {
+    use crate::game::yoake2_f_services::{FBlend, FHud};
+    commands
+        .iter()
+        .map(|command| match command {
+            FHud::Text { text, x, y, color, shadow } => et::HudCommand::Text(et::HudText {
+                text: text_json(&Text::literal(text.clone())),
+                x: *x,
+                y: *y,
+                color: *color,
+                shadow: *shadow,
+            }),
+            FHud::Rect { x, y, width, height, color } => et::HudCommand::Rect(et::HudRect { x: *x, y: *y, width: *width, height: *height, color: *color }),
+            FHud::Gradient { x, y, width, height, top, bottom } => et::HudCommand::Gradient(et::HudGradient {
+                x: *x,
+                y: *y,
+                width: *width,
+                height: *height,
+                top: *top,
+                bottom: *bottom,
+            }),
+            FHud::Quad { corners, sprite, uv, color } => et::HudCommand::Quad(et::HudQuad {
+                corners: corners.clone(),
+                sprite: sprite.clone(),
+                uv: uv.clone(),
+                color: *color,
+            }),
+            FHud::Sprite { name, x, y, size, color, fraction, region } => et::HudCommand::Sprite(et::HudSprite {
+                name: name.clone(),
+                x: *x,
+                y: *y,
+                size: *size,
+                color: *color,
+                fraction: *fraction,
+                region: region.as_ref().map(|r| et::HudRegion {
+                    x: r.x,
+                    y: r.y,
+                    width: r.width,
+                    height: r.height,
+                    texture_width: r.texture_width,
+                    texture_height: r.texture_height,
+                }),
+            }),
+            FHud::Item { item, count, x, y, decorations } => et::HudCommand::Item(et::HudItem {
+                stack: et::ItemStack { id: item.clone(), count: *count, components: Vec::new() },
+                x: *x,
+                y: *y,
+                decorations: *decorations,
+            }),
+            FHud::Texture { id, x, y, width, height, color } => et::HudCommand::Texture(et::HudTexture {
+                id: id.clone(),
+                x: *x,
+                y: *y,
+                width: *width,
+                height: *height,
+                color: *color,
+            }),
+            FHud::Highlight { x, y, width, height, invert_text } => et::HudCommand::Highlight(et::HudHighlight {
+                x: *x,
+                y: *y,
+                width: *width,
+                height: *height,
+                invert_text: *invert_text,
+            }),
+            FHud::BeginClip { x0, y0, x1, y1 } => et::HudCommand::BeginClip(et::HudBounds { x0: *x0, y0: *y0, x1: *x1, y1: *y1 }),
+            FHud::EndClip => et::HudCommand::EndClip,
+            FHud::BeginScale { center_x, center_y, scale_x, scale_y } => et::HudCommand::BeginScale(et::HudScale {
+                center_x: *center_x,
+                center_y: *center_y,
+                scale_x: *scale_x,
+                scale_y: *scale_y,
+            }),
+            FHud::EndScale => et::HudCommand::EndScale,
+            FHud::BeginBlend(blend) => et::HudCommand::BeginBlend(match blend {
+                FBlend::Alpha => et::HudBlend::Alpha,
+                FBlend::Invert => et::HudBlend::Invert,
+                FBlend::Additive => et::HudBlend::Additive,
+                FBlend::Vignette => et::HudBlend::Vignette,
+            }),
+            FHud::EndBlend => et::HudCommand::EndBlend,
+        })
+        .collect()
+}
+
+/// REM-12: draws a full-access module's HUD commands with the S route's code ([`apply_hud`]).
+pub(crate) fn apply_f_hud(host: Option<&dyn Host>, batch: &mut HudBatch, commands: &[crate::game::yoake2_f_services::FHud]) {
+    apply_hud(host, batch, &f_hud_commands(commands));
+}
+
 /// Logs the first time each kind of model command (cube, item, model) is drawn, once per process.
 fn note_applied(slot: usize, kind: &str) {
     static SEEN: [std::sync::atomic::AtomicBool; 3] = [const { std::sync::atomic::AtomicBool::new(false) }; 3];
@@ -2085,6 +2175,42 @@ mod tests {
         assert_eq!(*host.texts.borrow(), ["hi"]);
         apply_hud(None, &mut batch, &commands);
         assert_eq!(*host.fills.borrow(), 1);
+    }
+
+    /// REM-12: the HUD commands of a full-access module are drawn by the S route's code: the same wire commands,
+    /// so what the S tests above pin (rects, text, strips of a gradient, the highlight outline, clips) holds.
+    #[test]
+    fn f_hud_commands_become_the_same_wire_commands_and_are_drawn_through_the_host_services() {
+        use crate::game::yoake2_f_services::{FBlend, FHud};
+        let commands = vec![
+            FHud::Rect { x: 0.0, y: 0.0, width: 10.0, height: 10.0, color: 0xff00_0000 },
+            FHud::Text { text: "hi".into(), x: 1.0, y: 1.0, color: 0xff_ffff, shadow: true },
+            FHud::Gradient { x: 0.0, y: 0.0, width: 4.0, height: 8.0, top: 0xff00_0000, bottom: 0xffff_ffff },
+            FHud::Highlight { x: 0.0, y: 0.0, width: 6.0, height: 6.0, invert_text: false },
+            FHud::BeginClip { x0: 0.0, y0: 0.0, x1: 5.0, y1: 5.0 },
+            FHud::EndClip,
+            FHud::BeginScale { center_x: 0.0, center_y: 0.0, scale_x: 2.0, scale_y: 2.0 },
+            FHud::EndScale,
+            FHud::BeginBlend(FBlend::Additive),
+            FHud::EndBlend,
+        ];
+        let wire = f_hud_commands(&commands);
+        assert_eq!(wire.len(), commands.len());
+        assert!(matches!(&wire[0], et::HudCommand::Rect(r) if r.width == 10.0 && r.color == 0xff00_0000));
+        assert!(matches!(&wire[1], et::HudCommand::Text(t) if text_from(&t.text).map(|t| t.plain()).as_deref() == Some("hi") && t.shadow));
+        assert!(matches!(&wire[8], et::HudCommand::BeginBlend(et::HudBlend::Additive)));
+        let host = FakeHost::default();
+        let mut batch = HudBatch::new([854, 480]);
+        apply_f_hud(Some(&host), &mut batch, &commands);
+        assert_eq!(*host.texts.borrow(), ["hi"]);
+        // one rect, the gradient's strips (4 of 2 px) and the highlight's tint and four edges
+        assert_eq!(*host.fills.borrow(), 1 + 4 + 1 + 4);
+        apply_f_hud(None, &mut batch, &commands);
+        assert_eq!(*host.fills.borrow(), 10, "no host draws nothing");
+        // a text longer than the S route's limit draws nothing, as for an S module
+        let long = [FHud::Text { text: "x".repeat(abi::MAX_TEXT_BYTES + 1), x: 0.0, y: 0.0, color: 0, shadow: false }];
+        apply_f_hud(Some(&host), &mut batch, &long);
+        assert_eq!(host.texts.borrow().len(), 1);
     }
 
     fn plain_draw() -> BlockEntityDraw {

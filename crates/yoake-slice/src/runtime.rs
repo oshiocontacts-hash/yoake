@@ -413,6 +413,12 @@ pub const HOOK_SERVER_TICK: u32 = SYNTHETIC_HOOK_BASE + 1;
 pub const HOOK_CLIENT_TICK: u32 = SYNTHETIC_HOOK_BASE + 2;
 /// MX3CL1: once per frame on the window's thread, after the vanilla HUD was built. Observe-only; no handle yet.
 pub const HOOK_HUD_RENDER: u32 = SYNTHETIC_HOOK_BASE + 3;
+/// REM-12: once per frame from the renderer's GPU pass (the F route's GPU identity), on the window's thread. Observe-only; no handle.
+pub const HOOK_GPU_FRAME: u32 = SYNTHETIC_HOOK_BASE + 4;
+/// REM-12: the input method's composition changed. Observe-only; the event is read with the `ime_event` service.
+pub const HOOK_IME_PREEDIT: u32 = SYNTHETIC_HOOK_BASE + 5;
+/// REM-12: the input method committed text. Observe-only; the event is read with the `ime_event` service.
+pub const HOOK_IME_COMMIT: u32 = SYNTHETIC_HOOK_BASE + 6;
 
 /// The unmetered store's starting fuel; every top-level activation must leave it unchanged.
 pub const INITIAL_FUEL: u64 = u64::MAX / 4;

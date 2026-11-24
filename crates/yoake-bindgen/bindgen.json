@@ -285,6 +285,14 @@
       "glue": "crates/horizon-client/src/yoake_glue/launch_options.rs",
       "writable": {},
       "guest_stubs": "crates/yoake-guest-sdk/src/stubs/launch_options.rs"
+    },
+    {
+      "name": "f_services",
+      "crate_name": "horizon_client",
+      "source": "horizon-client/src/game/yoake2_f_services.rs",
+      "glue": "crates/horizon-client/src/yoake_glue/f_services.rs",
+      "writable": {},
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/f_services.rs"
     }
   ],
   "frozen_files": [
