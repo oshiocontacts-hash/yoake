@@ -2873,6 +2873,43 @@ mod tests {
     }
 
     #[test]
+    fn a_guest_hears_keys_with_state_and_modifiers_and_pad_buttons_and_axes() {
+        let _serial = super::super::GUEST_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+        let Some(bytes) = module("client-peer") else { return };
+        let module = load_client(&ModuleSource { id: "w3-input", bytes: &bytes, commands: false, gpu: false }).expect("client peer loads");
+        let mod_ = FullMod::new("w3-input".into(), Some(module), None);
+        let mut host = FakeHost::default();
+        // Down, repeat and up of one key with shift + control, and a key with no vanilla name that typed text.
+        for (key, text, pressed, repeat, modifiers) in [
+            ("key.keyboard.z", "Z", true, false, 3),
+            ("key.keyboard.z", "Z", true, true, 3),
+            ("key.keyboard.z", "", false, false, 0),
+            ("", "q", true, false, 0),
+        ] {
+            mod_.input_key_v2(&mut host, &mut InputKeyV2Event { key, text, pressed, repeat, modifiers });
+        }
+        mod_.input_pad_button(&mut host, &mut InputPadButtonEvent { button: "south", pressed: true });
+        mod_.input_pad_button(&mut host, &mut InputPadButtonEvent { button: "lb", pressed: false });
+        mod_.input_pad_axes(
+            &mut host,
+            &mut InputPadAxesEvent { left_x: 0.5, left_y: -1.0, right_x: 0.0, right_y: 0.25, left_trigger: 0.0, right_trigger: 1.0 },
+        );
+        let heard: Vec<String> = host.sounds.borrow().iter().map(|(id, ..)| id.clone()).collect();
+        assert_eq!(
+            heard,
+            [
+                "in:key=key.keyboard.z;text=Z;down=true;repeat=false;mods=3",
+                "in:key=key.keyboard.z;text=Z;down=true;repeat=true;mods=3",
+                "in:key=key.keyboard.z;text=;down=false;repeat=false;mods=0",
+                "in:key=;text=q;down=true;repeat=false;mods=0",
+                "in:pad=south;down=true",
+                "in:pad=lb;down=false",
+                "in:axes=0.5,-1,0,0.25,0,1",
+            ]
+        );
+    }
+
+    #[test]
     fn guest_commands_are_gated_by_permission_and_a_denylist() {
         assert!(
             command_gate("say hi", false)

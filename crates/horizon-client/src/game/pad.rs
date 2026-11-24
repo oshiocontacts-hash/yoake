@@ -43,6 +43,8 @@ pub(super) struct Pads {
     /// shorter than that (a quick stick click for sprint) would be lost.
     pressed_at: [Option<u64>; 16],
     late_releases: Vec<Button>,
+    /// The sticks and triggers `native_input_pad_axes` last heard.
+    sent_axes: [f32; 6],
     /// The merged state of the last poll.
     pub(super) state: PadState,
     /// The hardware's buttons at the last poll, for `input-log`'s `pad`
@@ -125,6 +127,11 @@ mod hardware {
             json!({ "backend": false, "controllers": [] })
         }
     }
+}
+
+/// Whether a stick or trigger moved past hardware noise (0.01) since `sent`, or came back to rest.
+fn axes_moved(sent: &[f32; 6], now: &[f32; 6]) -> bool {
+    sent.iter().zip(now).any(|(old, new)| (old - new).abs() > 0.01 || (*new == 0.0 && *old != 0.0))
 }
 
 impl Pads {
@@ -230,7 +237,20 @@ impl Game<'_> {
             }
         }
         for (button, down) in edges {
+            self.native_input_pad_button(button.name(), down);
             self.pad_edge(event_loop, button, down);
+        }
+        let axes = [
+            state.left[0],
+            state.left[1],
+            state.right[0],
+            state.right[1],
+            state.triggers[0],
+            state.triggers[1],
+        ];
+        if axes_moved(&self.pad.sent_axes, &axes) {
+            self.pad.sent_axes = axes;
+            self.native_input_pad_axes(axes[0], axes[1], axes[2], axes[3], axes[4], axes[5]);
         }
         self.pad_menu_frame(event_loop);
     }
@@ -487,5 +507,21 @@ impl Game<'_> {
                 Ok(json!({ "ok": true }))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod axes_tests {
+    use super::axes_moved;
+
+    #[test]
+    fn axes_are_sent_when_they_move_past_noise_or_return_to_rest() {
+        let rest = [0.0; 6];
+        assert!(!axes_moved(&rest, &rest));
+        assert!(!axes_moved(&rest, &[0.005, 0.0, 0.0, 0.0, 0.0, 0.0]));
+        assert!(axes_moved(&rest, &[0.0, 0.0, 0.0, 0.0, 0.0, 0.5]));
+        // Back to exact rest from a tiny deflection is still told, so a mod never keeps a ghost value.
+        assert!(axes_moved(&[0.005, 0.0, 0.0, 0.0, 0.0, 0.0], &rest));
+        assert!(!axes_moved(&[0.5; 6], &[0.505; 6]));
     }
 }

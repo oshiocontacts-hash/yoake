@@ -4093,6 +4093,17 @@ interface client-hooks {
     ///
     /// Also returns the changed values of `accept`.
     ingredient-test: func(kind: string, data: json, stack: item-stack, accept: bool) -> ingredient-test-outcome;
+    /// Every real window key event after handling, down, up and repeat, in values a mod can
+    /// hold: `key` is the vanilla name of the physical key (`key.keyboard.z`, empty for one with no
+    /// name), `text` what it typed (empty for none), `modifiers` GLFW's bits (shift 1, control 2,
+    /// alt 4, super 8). Not cancellable. API @API:input_v2@.
+    input-key-v2: func(key: string, text: string, pressed: bool, repeat: bool, modifiers: u32);
+    /// A controller button (`south`, `lb`, `dpad_up`...: `horizon-controller.txt`'s names) went
+    /// down or up; a trigger counts as a button past its threshold. Not cancellable. API @API:input_v2@.
+    input-pad-button: func(button: string, pressed: bool);
+    /// The merged controller's sticks (right and up positive) and triggers (0 to 1), when any of
+    /// them moved since the last call. Not cancellable. API @API:input_v2@.
+    input-pad-axes: func(left-x: f32, left-y: f32, right-x: f32, right-y: f32, left-trigger: f32, right-trigger: f32);
     /// Whether a native mod replaces the inventory background. API @API:inventory_background_pre@.
     ///
     /// Collect: `listened` is the current value; return Some to change it (None keeps it).

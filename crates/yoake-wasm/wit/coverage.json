@@ -1,10 +1,10 @@
 {
   "generated_by": "horizon-mod-api-gen",
-  "hook_count": 497,
-  "fully_typed": 469,
+  "hook_count": 500,
+  "fully_typed": 472,
   "partial": 13,
   "with_handles": 15,
-  "client_hooks": 215,
+  "client_hooks": 218,
   "server_hooks": 395,
   "named_types": 228,
   "handle_types": [
@@ -4464,6 +4464,36 @@
       "name": "ingredient_test",
       "side": "client",
       "side_source": "path",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "input_key_v2",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "input_pad_button",
+      "side": "client",
+      "side_source": "explicit",
+      "contract": "listen",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
+    },
+    {
+      "name": "input_pad_axes",
+      "side": "client",
+      "side_source": "explicit",
       "contract": "listen",
       "fully_typed": true,
       "partial": false,

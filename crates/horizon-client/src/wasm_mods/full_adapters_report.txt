@@ -1,4 +1,4 @@
-unsupported input_key: the event is a winit KeyEvent that the WIT generator mapped to the ABI key-event record; needs a mapping fix
+unsupported input_key: the event is a winit KeyEvent with no stable guest form (the generator mapped it to a record of two opaque views); superseded by input_key_v2, input_pad_button and input_pad_axes, which carry plain values
 unsupported item_model_select: an opaque handle cannot be answered
 partial blocks: the guest's list for `blocks` is not applied: it holds live engine objects; the guest's list for `blocks` is not applied: it holds live engine objects
 partial items: the guest's list for `items` is not applied: it holds live engine objects; the guest's list for `items` is not applied: it holds live engine objects

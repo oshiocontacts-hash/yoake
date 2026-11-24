@@ -298,6 +298,19 @@ mod peer {
     }
 
     impl ServerMod for Peer {
+        // The input hooks echo what they heard as local sound ids, which the host test reads back.
+        fn input_key_v2(&mut self, key: String, text: String, pressed: bool, repeat: bool, modifiers: u32) {
+            let _ = yoake_wasm_sdk::full::client::play_local_sound(&format!("in:key={key};text={text};down={pressed};repeat={repeat};mods={modifiers}"), 1.0, 1.0);
+        }
+
+        fn input_pad_button(&mut self, button: String, pressed: bool) {
+            let _ = yoake_wasm_sdk::full::client::play_local_sound(&format!("in:pad={button};down={pressed}"), 1.0, 1.0);
+        }
+
+        fn input_pad_axes(&mut self, left_x: f32, left_y: f32, right_x: f32, right_y: f32, left_trigger: f32, right_trigger: f32) {
+            let _ = yoake_wasm_sdk::full::client::play_local_sound(&format!("in:axes={left_x},{left_y},{right_x},{right_y},{left_trigger},{right_trigger}"), 1.0, 1.0);
+        }
+
         fn handle_call(&mut self, caller: String, method: String, payload: Vec<u8>) -> Result<Vec<u8>, String> {
             self.calls += 1;
             match method.as_str() {
@@ -330,7 +343,7 @@ mod client_peer {
 
     impl ClientMod for ClientPeer {
         fn subscriptions() -> &'static [&'static str] {
-            &[hook::ITEM_MODEL_SELECT_V2]
+            &[hook::ITEM_MODEL_SELECT_V2, hook::INPUT_KEY_V2, hook::INPUT_PAD_BUTTON, hook::INPUT_PAD_AXES]
         }
 
         /// The `full-demo-peer:wear` select property: a sword is `worn`, anything else keeps what is asked so far.
@@ -346,6 +359,19 @@ mod client_peer {
                 return None;
             }
             stack.item.ends_with("_sword").then(|| Some("\"worn\"".to_owned()))
+        }
+
+        // The input hooks echo what they heard as local sound ids, which the host test reads back.
+        fn input_key_v2(&mut self, key: String, text: String, pressed: bool, repeat: bool, modifiers: u32) {
+            let _ = yoake_wasm_sdk::full::client::play_local_sound(&format!("in:key={key};text={text};down={pressed};repeat={repeat};mods={modifiers}"), 1.0, 1.0);
+        }
+
+        fn input_pad_button(&mut self, button: String, pressed: bool) {
+            let _ = yoake_wasm_sdk::full::client::play_local_sound(&format!("in:pad={button};down={pressed}"), 1.0, 1.0);
+        }
+
+        fn input_pad_axes(&mut self, left_x: f32, left_y: f32, right_x: f32, right_y: f32, left_trigger: f32, right_trigger: f32) {
+            let _ = yoake_wasm_sdk::full::client::play_local_sound(&format!("in:axes={left_x},{left_y},{right_x},{right_y},{left_trigger},{right_trigger}"), 1.0, 1.0);
         }
 
         fn handle_call(&mut self, caller: String, method: String, payload: Vec<u8>) -> Result<Vec<u8>, String> {

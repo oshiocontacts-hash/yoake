@@ -2865,6 +2865,55 @@ impl Game<'_> {
     pub(super) fn native_input_key(&mut self, event: &winit::event::KeyEvent, modifiers: u32) {
         mod_api::dispatch_input_key(self, mod_api::mods(), event, modifiers);
     }
+    /// Every real window key event after handling, down, up and repeat, in values a mod can
+    /// hold: `key` is the vanilla name of the physical key (`key.keyboard.z`, empty for one with no
+    /// name), `text` what it typed (empty for none), `modifiers` GLFW's bits (shift 1, control 2,
+    /// alt 4, super 8). Not cancellable. API @API:input_v2@.
+    pub(super) fn native_input_key_v2(
+        &mut self,
+        key: &str,
+        text: &str,
+        pressed: bool,
+        repeat: bool,
+        modifiers: u32,
+    ) {
+        mod_api::dispatch_input_key_v2(
+            self,
+            mod_api::mods(),
+            key,
+            text,
+            pressed,
+            repeat,
+            modifiers,
+        );
+    }
+    /// A controller button (`south`, `lb`, `dpad_up`...: `horizon-controller.txt`'s names) went
+    /// down or up; a trigger counts as a button past its threshold. Not cancellable. API @API:input_v2@.
+    pub(super) fn native_input_pad_button(&mut self, button: &str, pressed: bool) {
+        mod_api::dispatch_input_pad_button(self, mod_api::mods(), button, pressed);
+    }
+    /// The merged controller's sticks (right and up positive) and triggers (0 to 1), when any of
+    /// them moved since the last call. Not cancellable. API @API:input_v2@.
+    pub(super) fn native_input_pad_axes(
+        &mut self,
+        left_x: f32,
+        left_y: f32,
+        right_x: f32,
+        right_y: f32,
+        left_trigger: f32,
+        right_trigger: f32,
+    ) {
+        mod_api::dispatch_input_pad_axes(
+            self,
+            mod_api::mods(),
+            left_x,
+            left_y,
+            right_x,
+            right_y,
+            left_trigger,
+            right_trigger,
+        );
+    }
     /// Raw mouse button input on any screen, before dispatch; cancel skips dispatch and Post.
     /// Button/modifiers use the same GLFW encoding as screen hooks. Synthetic clicks skip it.
     pub(super) fn native_mouse_button_pre(

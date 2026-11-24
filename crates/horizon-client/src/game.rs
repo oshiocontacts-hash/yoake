@@ -17484,6 +17484,17 @@ impl ApplicationHandler for Game<'_> {
         self.handle_window_event(event_loop, id, event, input_trace::InputOrigin::User);
         if let Some((event, modifiers)) = key {
             self.native_input_key(&event, modifiers);
+            let name = match event.physical_key {
+                PhysicalKey::Code(code) => horizon_client::keybinds::key_name(code).unwrap_or(""),
+                _ => "",
+            };
+            self.native_input_key_v2(
+                name,
+                event.text.as_deref().unwrap_or(""),
+                event.state == ElementState::Pressed,
+                event.repeat,
+                modifiers,
+            );
         }
     }
     fn device_event(&mut self, _: &ActiveEventLoop, _: DeviceId, event: DeviceEvent) {
