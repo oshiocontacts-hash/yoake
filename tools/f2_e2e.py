@@ -10,11 +10,14 @@ as the game reads installed packages (`yoake-mods.txt`, `yoake-mods/<id>/<versio
 runs with YOAKE_WASM_UNSIGNED=1 (developer mode). One game, `--offscreen --no-focus --no-pause`: nothing takes the mouse or
 the focus. Every server the checks talk to is started by this script on 127.0.0.1, and nothing else is reached.
 
-The main instance writes `/data/x.txt` and reads it back, and writes `/game/f2-check-game.txt`. The worker polls
-`/data/jobs.txt` (this script appends the jobs) and answers each on the game log as `f2-check job <id> ...`:
+The main instance writes `/data/x.txt` and reads it back, and writes `/game/f2-check-game.txt`. It sends its three
+jobs to its worker itself (`worker::send`), and the worker's answers come back to the mod and are logged as
+`f2-check job <id> ...`:
 - post:   an HTTP POST (wasi:http) to this script's HTTP server; the server must get the body and the mod the reply;
 - tcp:    a TCP connection to this script's echo server; the echo must come back;
-- slow:   the same POST, to a path that waits 2 s before it answers: the game's tick must keep advancing meanwhile.
+- slow:   the same POST, to a path the server holds until this script releases it, then waits 2 s before it answers:
+          the game's tick must keep advancing meanwhile.
+The endpoints are fixed ports on 127.0.0.1 (the mod's constants): HTTP_PORT and TCP_PORT below.
 
 Checks (each one entry in the JSON result):
 - files:        the main instance reads back what it wrote in /data, and the file is in the game folder.
@@ -48,6 +51,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SAMPLE = ROOT / 'crates/yoake-wasm-sdk/examples/f2-check'
 MOD = 'f2-check'
 SLOW_SECONDS = 2.0
+# the endpoints the mod uses (crates/yoake-wasm-sdk/examples/f2-check/server/src/lib.rs)
+HTTP_PORT = 17631
+TCP_PORT = 17632
 
 
 def read_chunked(stream):
@@ -71,8 +77,10 @@ class HttpHandler(BaseHTTPRequestHandler):
         else:
             body = self.rfile.read(int(self.headers.get('Content-Length', 0))).decode()
         self.server.posts.append((self.path, body))
-        if self.path.startswith('/slow'):
+        slow = self.path.startswith('/slow')
+        if slow:
             self.server.arrived.set()
+            self.server.open.wait(60)
             time.sleep(SLOW_SECONDS)
         reply = f'got:{body}'.encode()
         self.send_response(200)
@@ -80,8 +88,9 @@ class HttpHandler(BaseHTTPRequestHandler):
         self.send_header('Content-Length', str(len(reply)))
         self.end_headers()
         self.wfile.write(reply)
-        if self.path.startswith('/slow'):
-            self.server.finished.set()
+        if slow:
+            with self.server.lock:
+                self.server.slow_done += 1
 
     def log_message(self, *args):
         pass
@@ -105,14 +114,21 @@ def echo_loop(listener):
 
 
 def start_servers():
-    http = ThreadingHTTPServer(('127.0.0.1', 0), HttpHandler)
+    try:
+        http = ThreadingHTTPServer(('127.0.0.1', HTTP_PORT), HttpHandler)
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind(('127.0.0.1', TCP_PORT))
+    except OSError as error:
+        sys.exit(f'port {HTTP_PORT} or {TCP_PORT} on 127.0.0.1 is in use ({error}): the mod expects them')
     http.posts = []
+    # a /slow request waits in the server until `open` is set, then 2 s, then answers. The mod sends its job at each
+    # instance's init, so a first instance's request may be the one that arrives first: the check counts completions.
     http.arrived = threading.Event()
-    http.finished = threading.Event()
+    http.open = threading.Event()
+    http.lock = threading.Lock()
+    http.slow_done = 0
     threading.Thread(target=http.serve_forever, daemon=True).start()
-    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    listener.bind(('127.0.0.1', 0))
     listener.listen(8)
     threading.Thread(target=echo_loop, args=(listener,), daemon=True).start()
     return http, listener
@@ -126,12 +142,6 @@ def install_mod(work, server, worker):
     shutil.copyfile(server, root / 'bin/wasm/f2-check-server.wasm')
     shutil.copyfile(worker, root / 'bin/wasm/f2-check-worker.wasm')
     (work / 'yoake-mods.txt').write_text(f'{MOD} 0.1.0\n')
-    (work / 'mod-data' / MOD).mkdir(parents=True, exist_ok=True)
-
-
-def add_job(work, line):
-    with open(work / 'mod-data' / MOD / 'jobs.txt', 'a', encoding='utf-8') as jobs:
-        jobs.write(line + '\n')
 
 
 def wait_log(game, needle, seconds):
@@ -161,8 +171,6 @@ def run(ctl, out, resources, server, worker, force):
     os.environ['YOAKE_WASM_UNSIGNED'] = '1'
     game = Game('f2', ctl, resources)
     http, listener = start_servers()
-    http_url = f'http://127.0.0.1:{http.server_address[1]}'
-    echo = f'127.0.0.1:{listener.getsockname()[1]}'
     results = {}
     try:
         install_mod(game.work, server, worker)
@@ -170,9 +178,9 @@ def run(ctl, out, resources, server, worker, force):
         game.raw('open', 'F2', 5, 'creative')
         game('wait_ready', seconds=400)
         check('files', results, lambda: files(game))
-        check('http_post', results, lambda: http_post(game, http, http_url))
-        check('tcp_echo', results, lambda: tcp_echo(game, echo))
-        check('nonblocking', results, lambda: nonblocking(game, http, http_url))
+        check('http_post', results, lambda: http_post(game, http))
+        check('tcp_echo', results, lambda: tcp_echo(game))
+        check('nonblocking', results, lambda: nonblocking(game, http))
         results['https'] = {'pass': True, 'skipped': True,
                             'detail': 'not tested (needs external network: a local self-signed certificate cannot be trusted)'}
         out.mkdir(parents=True, exist_ok=True)
@@ -195,33 +203,32 @@ def files(game):
     return {'log': line, 'game_folder_file': str(game_file)}
 
 
-def http_post(game, http, url):
-    add_job(game.work, f'1 post {url}/echo hello-f2')
+def http_post(game, http):
     line = wait_log(game, 'f2-check job 1 post ', 60)
     assert line.endswith('status=200 reply=got:hello-f2'), line
     assert ('/echo', 'hello-f2') in http.posts, http.posts
     return {'log': line, 'server_got': http.posts[-1]}
 
 
-def tcp_echo(game, echo):
-    add_job(game.work, f'2 tcp {echo} hello-tcp')
+def tcp_echo(game):
     line = wait_log(game, 'f2-check job 2 tcp ', 60)
     assert line.endswith('echo=hello-tcp'), line
-    return {'log': line, 'address': echo}
+    return {'log': line, 'address': f'127.0.0.1:{TCP_PORT}'}
 
 
-def nonblocking(game, http, url):
-    http.arrived.clear()
-    http.finished.clear()
+def nonblocking(game, http):
+    # the mod's third job is a slow POST the server holds until this check opens it
+    assert http.arrived.wait(60), 'the slow request never reached the server'
+    with http.lock:
+        base = http.slow_done
     before = game('state')['ticks']
     started = time.time()
-    add_job(game.work, f'3 post {url}/slow hello-slow')
-    assert http.arrived.wait(60), 'the slow request never reached the server'
     samples = [(time.time() - started, game('state')['ticks'])]
-    while not http.finished.is_set() and time.time() - started < 30:
+    http.open.set()
+    while http.slow_done == base and time.time() - started < 30:
         game.wait(2)
         samples.append((time.time() - started, game('state')['ticks']))
-    assert http.finished.is_set(), 'the slow request was never answered'
+    assert http.slow_done > base, 'the slow request was never answered'
     elapsed = time.time() - started
     line = wait_log(game, 'f2-check job 3 post ', 60)
     ticks = [t for _, t in samples]
