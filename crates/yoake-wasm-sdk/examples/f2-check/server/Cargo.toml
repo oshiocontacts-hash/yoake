@@ -1,0 +1,21 @@
+[package]
+name = "yoake-wasm-f2-check-server"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+description = "FR-REM05: the main instance of the F2 check mod (files in /data and /game)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+yoake-wasm-sdk = { path = "../../..", features = ["full"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+panic = "abort"
+
+[workspace]
