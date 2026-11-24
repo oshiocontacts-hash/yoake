@@ -1431,7 +1431,7 @@ fn attachment_scope(kind: &str) -> Result<horizon_world::attachments::Attachment
     })
 }
 
-fn attachment_holder(kind: &str, holder: &str) -> Result<horizon_world::attachments::Holder, String> {
+pub(super) fn attachment_holder(kind: &str, holder: &str) -> Result<horizon_world::attachments::Holder, String> {
     use horizon_world::attachments::Holder;
     let numbers = |count: usize| -> Result<Vec<i32>, String> {
         let parts: Vec<i32> = holder.split(',').map(|p| p.trim().parse::<i32>()).collect::<Result<_, _>>().map_err(|_| "not a coordinate list".to_owned())?;
@@ -1520,7 +1520,7 @@ fn attachment_compound(data: &[u8]) -> Result<horizon_world::nbt::Compound, Stri
     Ok(compound)
 }
 
-fn attachment_bytes(compound: &horizon_world::nbt::Compound) -> Option<Vec<u8>> {
+pub(super) fn attachment_bytes(compound: &horizon_world::nbt::Compound) -> Option<Vec<u8>> {
     match compound.get(&"b".into()) {
         Some(horizon_world::nbt::Tag::ByteArray(bytes)) => Some(bytes.clone()),
         _ => None,

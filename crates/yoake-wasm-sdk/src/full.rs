@@ -113,6 +113,13 @@ pub mod client {
         services::mob_texture_bind(entity, id, slot)
     }
 
+    /// Read-only: the attachment `id` (`owner:name`) the server synced onto `holder` (`kind` is `player`,
+    /// `entity`, `block-entity`, `chunk` or `level`; the holder is a UUID, an entity id, `x,y,z`, `cx,cz`
+    /// or empty). `None` when the holder has no value. (Service 297.)
+    pub fn attachment_get(holder: &str, id: &str, kind: &str) -> Result<Option<Vec<u8>>, String> {
+        services::client_attachment_get(holder, id, kind)
+    }
+
     /// The stack on the cursor in the open screen, or `None` when it is empty. Needs
     /// `service.screen`. (Service 221.)
     pub fn screen_carried() -> Result<Option<types::ItemStack>, String> {

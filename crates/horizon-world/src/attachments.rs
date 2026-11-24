@@ -981,7 +981,16 @@ impl Attachments {
         &self,
         ty: &DynamicAttachmentType,
     ) -> Result<Option<Compound>, AttachmentError> {
-        let key = ty.key();
+        self.read_key(ty.key())
+    }
+
+    /// Client side: a dynamic value `namespace:name` read without its definition (the registry is
+    /// server-only), as the server synced it. Read-only; `None` when the holder has none.
+    pub fn read_named(&self, namespace: &str, name: &str) -> Result<Option<Compound>, AttachmentError> {
+        self.read_key((namespace.into(), name.into()))
+    }
+
+    fn read_key(&self, key: (JavaString, JavaString)) -> Result<Option<Compound>, AttachmentError> {
         if self
             .raw
             .get(&key.0)
@@ -1721,6 +1730,32 @@ mod tests {
         assert_eq!(definition.get(&mut client, holder), Ok(None));
         let mut saved_client = DynamicHost(Attachments::from_nbt(reloaded_client.0.to_nbt()));
         assert_eq!(definition.get(&mut saved_client, holder), Ok(None));
+    }
+
+    #[test]
+    fn client_reads_a_synced_value_by_its_id_without_the_definition() {
+        let mut registry = DynamicAttachmentRegistry::default();
+        let definition = registry
+            .define(
+                "test",
+                "test:entity_data",
+                DynamicAttachmentPolicy {
+                    scope: AttachmentScope::Entity,
+                    persistent: true,
+                    synced: true,
+                    copy_on_death: false,
+                },
+            )
+            .unwrap();
+        let holder = Holder::Entity(7);
+        let mut server = DynamicHost(Attachments::default());
+        definition.set(&mut server, holder, encode(&5).unwrap()).unwrap();
+        let mut client = Attachments::default();
+        for change in server.0.synced() {
+            client.apply_sync(change);
+        }
+        assert_eq!(client.read_named("test", "entity_data"), Ok(Some(encode(&5).unwrap())));
+        assert_eq!(client.read_named("test", "other"), Ok(None));
     }
 
     #[test]

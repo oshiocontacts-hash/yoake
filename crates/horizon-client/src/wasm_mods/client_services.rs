@@ -211,6 +211,23 @@ impl ClientServices for GameHost {
         }
         bound
     }
+
+    /// Read-only: the value the server synced for `id` (`owner:name`) on the holder. The client has no
+    /// attachment definitions, so the id is not checked against a package; server-only values never reach it.
+    fn client_attachment_get(&mut self, holder: String, id: String, kind: String) -> Result<Option<Vec<u8>>, String> {
+        let (namespace, name) = match id.split_once(':') {
+            Some((namespace, name)) if !namespace.is_empty() && !name.is_empty() && id.len() <= 128 => (namespace, name),
+            _ => return Err("an attachment id is owner:name, at most 128 bytes".into()),
+        };
+        let holder = super::server_services::attachment_holder(&kind, &holder)?;
+        self.client_call(|invocation| {
+            let host = write_host(invocation)?;
+            let attachments = Host::attachments(host, holder).map_err(|error| format!("attachment: {error:?}"))?;
+            let value = attachments.read_named(namespace, name).map_err(|error| format!("attachment: {error:?}"))?;
+            Ok(value.and_then(|compound| super::server_services::attachment_bytes(&compound)))
+        })
+    }
+
     fn register_key_binding(
         &mut self,
         category: String,
