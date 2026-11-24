@@ -18,8 +18,13 @@ pub(crate) mod behaviors;
 mod client_services;
 #[path = "wasm_mods/dev_shaders.rs"]
 mod dev_shaders;
+#[path = "wasm_mods/f_route.rs"]
+mod f_route;
 #[path = "wasm_mods/full.rs"]
 mod full;
+/// REM-12: the GPU and the HUD of full-access (F) client modules.
+pub(crate) use f_route::{FGpuHost, register_f_gpu, release_f_gpu, with_f_gpu};
+pub(crate) use full::apply_f_hud;
 #[path = "wasm_mods/gpu_services.rs"]
 mod gpu_services;
 #[path = "wasm_mods/mob_services.rs"]

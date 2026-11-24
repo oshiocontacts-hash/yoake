@@ -128,5 +128,18 @@
     "fields_total": 42,
     "fields_bound": 32,
     "handle_types": 1
+  },
+  {
+    "label": "f_services",
+    "total": 32,
+    "bound_a": 3,
+    "bound_mech": 29,
+    "handle_required": 0,
+    "excluded": 0,
+    "derived": 57,
+    "derived_bound": 38,
+    "fields_total": 63,
+    "fields_bound": 63,
+    "handle_types": 19
   }
 ]

@@ -11365,6 +11365,1182 @@
       "path": "render_settings::Settings::client_information",
       "sig": "fn client_information(&Self, i8) -> ClientInformation",
       "status": "bound"
+    },
+    {
+      "id": 2894,
+      "path": "f_services::<FAnchor as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2895,
+      "path": "f_services::<FAnchor as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2896,
+      "path": "f_services::<FAttribute as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2897,
+      "path": "f_services::<FAttribute as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2898,
+      "path": "f_services::<FBinding as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2899,
+      "path": "f_services::<FBinding as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2900,
+      "path": "f_services::<FBindingKind as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2901,
+      "path": "f_services::<FBindingKind as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2902,
+      "path": "f_services::<FBlend as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2903,
+      "path": "f_services::<FBlend as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2904,
+      "path": "f_services::<FBufferRange as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2905,
+      "path": "f_services::<FBufferRange as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2906,
+      "path": "f_services::<FDrawDesc as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2907,
+      "path": "f_services::<FDrawDesc as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2908,
+      "path": "f_services::<FDrawRegion as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2909,
+      "path": "f_services::<FDrawRegion as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2910,
+      "path": "f_services::<FDrawTarget as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2911,
+      "path": "f_services::<FDrawTarget as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2912,
+      "path": "f_services::<FFrameInfo as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2913,
+      "path": "f_services::<FFrameInfo as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2914,
+      "path": "f_services::<FGpuRect as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2915,
+      "path": "f_services::<FGpuRect as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2916,
+      "path": "f_services::<FHud as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2917,
+      "path": "f_services::<FHud as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2918,
+      "path": "f_services::<FImeEvent as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2919,
+      "path": "f_services::<FImeEvent as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2920,
+      "path": "f_services::<FPixelFormat as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2921,
+      "path": "f_services::<FPixelFormat as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2922,
+      "path": "f_services::<FRegion as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2923,
+      "path": "f_services::<FRegion as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2924,
+      "path": "f_services::<FRenderDesc as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2925,
+      "path": "f_services::<FRenderDesc as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2926,
+      "path": "f_services::<FShaderError as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2927,
+      "path": "f_services::<FShaderError as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2928,
+      "path": "f_services::<FStage as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2929,
+      "path": "f_services::<FStage as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2930,
+      "path": "f_services::<FTextureDesc as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 2931,
+      "path": "f_services::<FTextureDesc as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 2932,
+      "path": "f_services::FAttribute.components#get",
+      "sig": "get components: u8",
+      "status": "bound"
+    },
+    {
+      "id": 2933,
+      "path": "f_services::FAttribute.components#set",
+      "sig": "set components: u8",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2934,
+      "path": "f_services::FAttribute.location#get",
+      "sig": "get location: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2935,
+      "path": "f_services::FAttribute.location#set",
+      "sig": "set location: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2936,
+      "path": "f_services::FAttribute.offset#get",
+      "sig": "get offset: u64",
+      "status": "bound"
+    },
+    {
+      "id": 2937,
+      "path": "f_services::FAttribute.offset#set",
+      "sig": "set offset: u64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2938,
+      "path": "f_services::FBinding.binding#get",
+      "sig": "get binding: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2939,
+      "path": "f_services::FBinding.binding#set",
+      "sig": "set binding: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2940,
+      "path": "f_services::FBinding.handle#get",
+      "sig": "get handle: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2941,
+      "path": "f_services::FBinding.handle#set",
+      "sig": "set handle: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2942,
+      "path": "f_services::FBinding.kind#get",
+      "sig": "get kind: FBindingKind",
+      "status": "bound"
+    },
+    {
+      "id": 2943,
+      "path": "f_services::FBinding.kind#set",
+      "sig": "set kind: FBindingKind",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2944,
+      "path": "f_services::FBinding.offset#get",
+      "sig": "get offset: u64",
+      "status": "bound"
+    },
+    {
+      "id": 2945,
+      "path": "f_services::FBinding.offset#set",
+      "sig": "set offset: u64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2946,
+      "path": "f_services::FBinding.size#get",
+      "sig": "get size: u64",
+      "status": "bound"
+    },
+    {
+      "id": 2947,
+      "path": "f_services::FBinding.size#set",
+      "sig": "set size: u64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2948,
+      "path": "f_services::FBufferRange.handle#get",
+      "sig": "get handle: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2949,
+      "path": "f_services::FBufferRange.handle#set",
+      "sig": "set handle: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2950,
+      "path": "f_services::FBufferRange.offset#get",
+      "sig": "get offset: u64",
+      "status": "bound"
+    },
+    {
+      "id": 2951,
+      "path": "f_services::FBufferRange.offset#set",
+      "sig": "set offset: u64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2952,
+      "path": "f_services::FBufferRange.size#get",
+      "sig": "get size: u64",
+      "status": "bound"
+    },
+    {
+      "id": 2953,
+      "path": "f_services::FBufferRange.size#set",
+      "sig": "set size: u64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2954,
+      "path": "f_services::FDrawDesc.count#get",
+      "sig": "get count: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2955,
+      "path": "f_services::FDrawDesc.count#set",
+      "sig": "set count: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2956,
+      "path": "f_services::FDrawDesc.groups#get",
+      "sig": "get groups: Vec<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 2957,
+      "path": "f_services::FDrawDesc.groups#set",
+      "sig": "set groups: Vec<u32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2958,
+      "path": "f_services::FDrawDesc.index#get",
+      "sig": "get index: Option<FBufferRange>",
+      "status": "bound"
+    },
+    {
+      "id": 2959,
+      "path": "f_services::FDrawDesc.index#set",
+      "sig": "set index: Option<FBufferRange>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2960,
+      "path": "f_services::FDrawDesc.index32#get",
+      "sig": "get index32: bool",
+      "status": "bound"
+    },
+    {
+      "id": 2961,
+      "path": "f_services::FDrawDesc.index32#set",
+      "sig": "set index32: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2962,
+      "path": "f_services::FDrawDesc.instances#get",
+      "sig": "get instances: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2963,
+      "path": "f_services::FDrawDesc.instances#set",
+      "sig": "set instances: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2964,
+      "path": "f_services::FDrawDesc.pipeline#get",
+      "sig": "get pipeline: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2965,
+      "path": "f_services::FDrawDesc.pipeline#set",
+      "sig": "set pipeline: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2966,
+      "path": "f_services::FDrawDesc.vertex#get",
+      "sig": "get vertex: Option<FBufferRange>",
+      "status": "bound"
+    },
+    {
+      "id": 2967,
+      "path": "f_services::FDrawDesc.vertex#set",
+      "sig": "set vertex: Option<FBufferRange>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2968,
+      "path": "f_services::FDrawRegion.scissor#get",
+      "sig": "get scissor: Option<FGpuRect>",
+      "status": "bound"
+    },
+    {
+      "id": 2969,
+      "path": "f_services::FDrawRegion.scissor#set",
+      "sig": "set scissor: Option<FGpuRect>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2970,
+      "path": "f_services::FDrawRegion.viewport#get",
+      "sig": "get viewport: Option<FGpuRect>",
+      "status": "bound"
+    },
+    {
+      "id": 2971,
+      "path": "f_services::FDrawRegion.viewport#set",
+      "sig": "set viewport: Option<FGpuRect>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2972,
+      "path": "f_services::FDrawTarget.clear#get",
+      "sig": "get clear: Option<(f64, f64, f64, f64)>",
+      "status": "bound"
+    },
+    {
+      "id": 2973,
+      "path": "f_services::FDrawTarget.clear#set",
+      "sig": "set clear: Option<(f64, f64, f64, f64)>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2974,
+      "path": "f_services::FDrawTarget.color#get",
+      "sig": "get color: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 2975,
+      "path": "f_services::FDrawTarget.color#set",
+      "sig": "set color: Option<u32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2976,
+      "path": "f_services::FDrawTarget.depth#get",
+      "sig": "get depth: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 2977,
+      "path": "f_services::FDrawTarget.depth#set",
+      "sig": "set depth: Option<u32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2978,
+      "path": "f_services::FFrameInfo.camera#get",
+      "sig": "get camera: (f64, f64, f64)",
+      "status": "bound"
+    },
+    {
+      "id": 2979,
+      "path": "f_services::FFrameInfo.camera#set",
+      "sig": "set camera: (f64, f64, f64)",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2980,
+      "path": "f_services::FFrameInfo.delta_seconds#get",
+      "sig": "get delta_seconds: f32",
+      "status": "bound"
+    },
+    {
+      "id": 2981,
+      "path": "f_services::FFrameInfo.delta_seconds#set",
+      "sig": "set delta_seconds: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2982,
+      "path": "f_services::FFrameInfo.height#get",
+      "sig": "get height: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2983,
+      "path": "f_services::FFrameInfo.height#set",
+      "sig": "set height: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2984,
+      "path": "f_services::FFrameInfo.hud_format#get",
+      "sig": "get hud_format: Option<FPixelFormat>",
+      "status": "bound"
+    },
+    {
+      "id": 2985,
+      "path": "f_services::FFrameInfo.hud_format#set",
+      "sig": "set hud_format: Option<FPixelFormat>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2986,
+      "path": "f_services::FFrameInfo.index#get",
+      "sig": "get index: u64",
+      "status": "bound"
+    },
+    {
+      "id": 2987,
+      "path": "f_services::FFrameInfo.index#set",
+      "sig": "set index: u64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2988,
+      "path": "f_services::FFrameInfo.version#get",
+      "sig": "get version: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2989,
+      "path": "f_services::FFrameInfo.version#set",
+      "sig": "set version: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2990,
+      "path": "f_services::FFrameInfo.view_projection#get",
+      "sig": "get view_projection: Vec<f32>",
+      "status": "bound"
+    },
+    {
+      "id": 2991,
+      "path": "f_services::FFrameInfo.view_projection#set",
+      "sig": "set view_projection: Vec<f32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2992,
+      "path": "f_services::FFrameInfo.width#get",
+      "sig": "get width: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2993,
+      "path": "f_services::FFrameInfo.width#set",
+      "sig": "set width: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2994,
+      "path": "f_services::FFrameInfo.world_format#get",
+      "sig": "get world_format: Option<FPixelFormat>",
+      "status": "bound"
+    },
+    {
+      "id": 2995,
+      "path": "f_services::FFrameInfo.world_format#set",
+      "sig": "set world_format: Option<FPixelFormat>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2996,
+      "path": "f_services::FGpuRect.height#get",
+      "sig": "get height: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2997,
+      "path": "f_services::FGpuRect.height#set",
+      "sig": "set height: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 2998,
+      "path": "f_services::FGpuRect.width#get",
+      "sig": "get width: u32",
+      "status": "bound"
+    },
+    {
+      "id": 2999,
+      "path": "f_services::FGpuRect.width#set",
+      "sig": "set width: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3000,
+      "path": "f_services::FGpuRect.x#get",
+      "sig": "get x: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3001,
+      "path": "f_services::FGpuRect.x#set",
+      "sig": "set x: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3002,
+      "path": "f_services::FGpuRect.y#get",
+      "sig": "get y: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3003,
+      "path": "f_services::FGpuRect.y#set",
+      "sig": "set y: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3004,
+      "path": "f_services::FRegion.height#get",
+      "sig": "get height: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3005,
+      "path": "f_services::FRegion.height#set",
+      "sig": "set height: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3006,
+      "path": "f_services::FRegion.texture_height#get",
+      "sig": "get texture_height: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3007,
+      "path": "f_services::FRegion.texture_height#set",
+      "sig": "set texture_height: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3008,
+      "path": "f_services::FRegion.texture_width#get",
+      "sig": "get texture_width: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3009,
+      "path": "f_services::FRegion.texture_width#set",
+      "sig": "set texture_width: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3010,
+      "path": "f_services::FRegion.width#get",
+      "sig": "get width: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3011,
+      "path": "f_services::FRegion.width#set",
+      "sig": "set width: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3012,
+      "path": "f_services::FRegion.x#get",
+      "sig": "get x: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3013,
+      "path": "f_services::FRegion.x#set",
+      "sig": "set x: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3014,
+      "path": "f_services::FRegion.y#get",
+      "sig": "get y: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3015,
+      "path": "f_services::FRegion.y#set",
+      "sig": "set y: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3016,
+      "path": "f_services::FRenderDesc.attributes#get",
+      "sig": "get attributes: Vec<FAttribute>",
+      "status": "bound"
+    },
+    {
+      "id": 3017,
+      "path": "f_services::FRenderDesc.attributes#set",
+      "sig": "set attributes: Vec<FAttribute>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3018,
+      "path": "f_services::FRenderDesc.blend#get",
+      "sig": "get blend: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3019,
+      "path": "f_services::FRenderDesc.blend#set",
+      "sig": "set blend: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3020,
+      "path": "f_services::FRenderDesc.cull#get",
+      "sig": "get cull: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3021,
+      "path": "f_services::FRenderDesc.cull#set",
+      "sig": "set cull: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3022,
+      "path": "f_services::FRenderDesc.depth#get",
+      "sig": "get depth: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3023,
+      "path": "f_services::FRenderDesc.depth#set",
+      "sig": "set depth: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3024,
+      "path": "f_services::FRenderDesc.depth_write#get",
+      "sig": "get depth_write: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3025,
+      "path": "f_services::FRenderDesc.depth_write#set",
+      "sig": "set depth_write: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3026,
+      "path": "f_services::FRenderDesc.format#get",
+      "sig": "get format: FPixelFormat",
+      "status": "bound"
+    },
+    {
+      "id": 3027,
+      "path": "f_services::FRenderDesc.format#set",
+      "sig": "set format: FPixelFormat",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3028,
+      "path": "f_services::FRenderDesc.fragment_entry#get",
+      "sig": "get fragment_entry: String",
+      "status": "bound"
+    },
+    {
+      "id": 3029,
+      "path": "f_services::FRenderDesc.fragment_entry#set",
+      "sig": "set fragment_entry: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3030,
+      "path": "f_services::FRenderDesc.lines#get",
+      "sig": "get lines: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3031,
+      "path": "f_services::FRenderDesc.lines#set",
+      "sig": "set lines: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3032,
+      "path": "f_services::FRenderDesc.shader#get",
+      "sig": "get shader: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3033,
+      "path": "f_services::FRenderDesc.shader#set",
+      "sig": "set shader: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3034,
+      "path": "f_services::FRenderDesc.stride#get",
+      "sig": "get stride: u64",
+      "status": "bound"
+    },
+    {
+      "id": 3035,
+      "path": "f_services::FRenderDesc.stride#set",
+      "sig": "set stride: u64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3036,
+      "path": "f_services::FRenderDesc.vertex_entry#get",
+      "sig": "get vertex_entry: String",
+      "status": "bound"
+    },
+    {
+      "id": 3037,
+      "path": "f_services::FRenderDesc.vertex_entry#set",
+      "sig": "set vertex_entry: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3038,
+      "path": "f_services::FShaderError.column#get",
+      "sig": "get column: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3039,
+      "path": "f_services::FShaderError.column#set",
+      "sig": "set column: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3040,
+      "path": "f_services::FShaderError.line#get",
+      "sig": "get line: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3041,
+      "path": "f_services::FShaderError.line#set",
+      "sig": "set line: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3042,
+      "path": "f_services::FShaderError.message#get",
+      "sig": "get message: String",
+      "status": "bound"
+    },
+    {
+      "id": 3043,
+      "path": "f_services::FShaderError.message#set",
+      "sig": "set message: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3044,
+      "path": "f_services::FTextureDesc.depth#get",
+      "sig": "get depth: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3045,
+      "path": "f_services::FTextureDesc.depth#set",
+      "sig": "set depth: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3046,
+      "path": "f_services::FTextureDesc.format#get",
+      "sig": "get format: FPixelFormat",
+      "status": "bound"
+    },
+    {
+      "id": 3047,
+      "path": "f_services::FTextureDesc.format#set",
+      "sig": "set format: FPixelFormat",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3048,
+      "path": "f_services::FTextureDesc.height#get",
+      "sig": "get height: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3049,
+      "path": "f_services::FTextureDesc.height#set",
+      "sig": "set height: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3050,
+      "path": "f_services::FTextureDesc.mips#get",
+      "sig": "get mips: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3051,
+      "path": "f_services::FTextureDesc.mips#set",
+      "sig": "set mips: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3052,
+      "path": "f_services::FTextureDesc.usage#get",
+      "sig": "get usage: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3053,
+      "path": "f_services::FTextureDesc.usage#set",
+      "sig": "set usage: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3054,
+      "path": "f_services::FTextureDesc.volume#get",
+      "sig": "get volume: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3055,
+      "path": "f_services::FTextureDesc.volume#set",
+      "sig": "set volume: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3056,
+      "path": "f_services::FTextureDesc.width#get",
+      "sig": "get width: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3057,
+      "path": "f_services::FTextureDesc.width#set",
+      "sig": "set width: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3058,
+      "path": "f_services::audio_play_sound",
+      "sig": "fn audio_play_sound(String, f32, f32) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3059,
+      "path": "f_services::audio_play_sound_at",
+      "sig": "fn audio_play_sound_at(String, f64, f64, f64, f32, f32) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3060,
+      "path": "f_services::audio_stream_close",
+      "sig": "fn audio_stream_close(u32) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3061,
+      "path": "f_services::audio_stream_dropped",
+      "sig": "fn audio_stream_dropped(u32) -> Option<u64>",
+      "status": "bound"
+    },
+    {
+      "id": 3062,
+      "path": "f_services::audio_stream_move",
+      "sig": "fn audio_stream_move(u32, FAnchor) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3063,
+      "path": "f_services::audio_stream_open",
+      "sig": "fn audio_stream_open(FAnchor, String, u16, u32) -> Result<u32, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3064,
+      "path": "f_services::audio_stream_push",
+      "sig": "fn audio_stream_push(u32, Vec<f32>) -> Result<u32, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3065,
+      "path": "f_services::audio_stream_queued",
+      "sig": "fn audio_stream_queued(u32) -> Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 3066,
+      "path": "f_services::gpu_bind_group",
+      "sig": "fn gpu_bind_group(Vec<FBinding>, u32, u32) -> Result<u32, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3067,
+      "path": "f_services::gpu_buffer",
+      "sig": "fn gpu_buffer(u64, u32) -> Result<u32, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3068,
+      "path": "f_services::gpu_compute",
+      "sig": "fn gpu_compute(String, u32) -> Result<u32, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3069,
+      "path": "f_services::gpu_copy_buffer",
+      "sig": "fn gpu_copy_buffer(u32, u64, u64, u32, u64, FStage) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3070,
+      "path": "f_services::gpu_destroy",
+      "sig": "fn gpu_destroy(u32) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3071,
+      "path": "f_services::gpu_dispatch",
+      "sig": "fn gpu_dispatch(Vec<u32>, u32, FStage, (u32, u32, u32)) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3072,
+      "path": "f_services::gpu_draw",
+      "sig": "fn gpu_draw(FDrawDesc, FStage, FDrawTarget) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3073,
+      "path": "f_services::gpu_draw_region",
+      "sig": "fn gpu_draw_region(FDrawDesc, FDrawRegion, FStage, FDrawTarget) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3074,
+      "path": "f_services::gpu_frame",
+      "sig": "fn gpu_frame() -> Result<FFrameInfo, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3075,
+      "path": "f_services::gpu_poll",
+      "sig": "fn gpu_poll(u32) -> Result<Option<Vec<u8>>, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3076,
+      "path": "f_services::gpu_read",
+      "sig": "fn gpu_read(u32, u64, u64, FStage) -> Result<u32, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3077,
+      "path": "f_services::gpu_render",
+      "sig": "fn gpu_render(FRenderDesc) -> Result<u32, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3078,
+      "path": "f_services::gpu_sampler",
+      "sig": "fn gpu_sampler(bool, bool) -> Result<u32, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3079,
+      "path": "f_services::gpu_shader",
+      "sig": "fn gpu_shader(String) -> Result<u32, FShaderError>",
+      "status": "bound"
+    },
+    {
+      "id": 3080,
+      "path": "f_services::gpu_shader_file",
+      "sig": "fn gpu_shader_file(String, String) -> Result<u32, FShaderError>",
+      "status": "bound"
+    },
+    {
+      "id": 3081,
+      "path": "f_services::gpu_texture",
+      "sig": "fn gpu_texture(FTextureDesc) -> Result<u32, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3082,
+      "path": "f_services::gpu_write_buffer",
+      "sig": "fn gpu_write_buffer(Vec<u8>, u32, u64, FStage) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3083,
+      "path": "f_services::gpu_write_texture",
+      "sig": "fn gpu_write_texture(Vec<u8>, (u32, u32, u32), u32, u32, (u32, u32, u32), FStage) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3084,
+      "path": "f_services::hud_draw",
+      "sig": "fn hud_draw(Vec<FHud>) -> Result<u32, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3085,
+      "path": "f_services::hud_gui_scale",
+      "sig": "fn hud_gui_scale() -> f32",
+      "status": "bound"
+    },
+    {
+      "id": 3086,
+      "path": "f_services::hud_gui_size",
+      "sig": "fn hud_gui_size() -> (f32, f32)",
+      "status": "bound"
+    },
+    {
+      "id": 3087,
+      "path": "f_services::ime_event",
+      "sig": "fn ime_event() -> Option<FImeEvent>",
+      "status": "bound"
+    },
+    {
+      "id": 3088,
+      "path": "f_services::ime_set_allowed",
+      "sig": "fn ime_set_allowed(bool) -> ()",
+      "status": "bound"
+    },
+    {
+      "id": 3089,
+      "path": "f_services::ime_set_cursor_area",
+      "sig": "fn ime_set_cursor_area(f32, f32, f32, f32) -> Result<(), String>",
+      "status": "bound"
     }
   ],
   "reserved": [

@@ -215,19 +215,40 @@ two such threads, and **the modules a full-access package declares decide where 
   | `0x8000_0001` | `SERVER_TICK` | server | once per server tick | the server's `Game` root | Full |
   | `0x8000_0002` | `CLIENT_TICK` | client | once per client tick (`tick_remote`, after the client mods' own tick) | the client's `Game` root | Full |
   | `0x8000_0003` | `HUD_RENDER` | client | once per frame, after the vanilla HUD was built (`Game::hud`) | a **dead handle** | observe-only |
+  | `0x8000_0004` | `GPU_FRAME` | client | once per frame from the renderer's GPU pass (REM-12; only for a module that registered it) | a **dead handle** | observe-only |
+  | `0x8000_0005` | `IME_PREEDIT` | client | the input method's composition changed (REM-12) | a **dead handle** | observe-only |
+  | `0x8000_0006` | `IME_COMMIT` | client | the input method committed text (REM-12) | a **dead handle** | observe-only |
 
   A mod that registers a hook on a thread that never dispatches it (a server module registering `CLIENT_TICK`) is not
   an error and is never entered. `CLIENT_TICK` has path handles like `SERVER_TICK` (generated `Game.<name>#handle`
   bindings resolve against the client's `Game`; a client `Game` mirrors a server's world, it does not own it).
 - **`HUD_RENDER`'s argument 0 is a dead handle.** Its `get` and `set` return status 3 (`BadField`: nothing is behind the handle; it is
-  not `Stale`, the activation is live) and typed bindings on it fail as well; guests must not use it. The hook only gives the guest a point in the frame from which to call
-  engine functions; it cannot draw into the HUD yet.
+  not `Stale`, the activation is live) and typed bindings on it fail as well; guests must not use it. The hook is the point in the frame
+  from which a module draws: since REM-12 it calls the `hud_draw` client service (below), which needs no handle.
 - **`CLIENT_TICK` also runs while a level is loading, during reconfiguration and during replays.** It is dispatched
   from `tick_remote`, which the client runs in all of those states, and nothing suppresses it: a mod that needs a loaded
   level must check for one itself.
 - **Cost with no mod.** Each dispatch is one thread-local read (the chain lookup finds no mod loaded on the thread) and
   the engine's original behaviour; without the `yoake2-slice` feature the call sites are empty functions. The SDK
-  constants are `hooks::CLIENT_TICK` and `hooks::HUD_RENDER`.
+  constants are `hooks::CLIENT_TICK`, `hooks::HUD_RENDER`, `hooks::GPU_FRAME`, `hooks::IME_PREEDIT` and `hooks::IME_COMMIT`.
+
+### Client services of F modules (REM-12)
+
+What a sandboxed `client-full` module (route S) gets from `client_services` and `gpu_services`, an F module gets as
+engine-call bindings of the generated target `f_services` (`crates/horizon-client/src/game/yoake2_f_services.rs`,
+guest stubs `yoake_guest_sdk::stubs::f_services`). They are free functions: the handle is ignored, they work in every
+client hook (`CLIENT_TICK`, `HUD_RENDER`, `GPU_FRAME`, the IME hooks), and a server module that calls one gets the
+service's own error or an unmet precondition.
+
+| group | functions | applied |
+|---|---|---|
+| HUD | `hud_draw(commands)`, `hud_gui_size()`, `hud_gui_scale()` | `hud_draw` only inside `HUD_RENDER`: the commands (rect, gradient, text, quad, sprite, item, texture, highlight, clip/scale/blend runs, the S route's `hud-command` set) are queued and drawn on the frame's batch by the S route's code when the hook returned; at most 8192 per frame |
+| audio | `audio_play_sound(_at)`, `audio_stream_open/push/queued/dropped/move/close` | queued, applied when the hook returns (a sound plays at the next frame; a stream is opened by the game then: a refusal shows as an error of the next call naming the stream); 64 sounds waiting, 16 streams |
+| IME | `ime_set_allowed(bool)`, `ime_set_cursor_area(x, y, w, h)`, `ime_event()` | `ime_set_allowed(true)` takes the input method: the engine's text fields and composition overlay step aside, `IME_PREEDIT` / `IME_COMMIT` deliver the text (read with `ime_event()` inside the hook), the candidate window goes to the area |
+| GPU | `gpu_shader`, `gpu_buffer`, `gpu_texture`, `gpu_render`, `gpu_draw`, `gpu_frame` ... (the S route's `gpu-services`) | immediately; the renderer owns the resources of the identity `yoake-f-client`, one for all F client modules, dropped when the client mods unload; a module that wants per-frame GPU work registers `GPU_FRAME` |
+
+All F client modules of a session share this state (the services do not know which module calls). Everything is
+per client thread and empty until a module calls it.
 
 ## The Rust guest SDK
 

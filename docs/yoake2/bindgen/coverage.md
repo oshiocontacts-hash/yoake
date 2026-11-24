@@ -14,6 +14,7 @@ Functions counted: free functions, inherent methods, and non-derived trait-impl 
 | `render_settings` | 26 | 8 | 4 | **12 (46.2%)** | 14 (53.8%) | 0 (0.0%) | 2 / 5 | 71 / 78 | 2 |
 | `mod_generator` | 25 | 8 | 1 | **9 (36.0%)** | 6 (24.0%) | 10 (40.0%) | 0 / 3 | 11 / 21 | 4 |
 | `launch_options` | 3 | 1 | 0 | **1 (33.3%)** | 0 (0.0%) | 2 (66.7%) | 0 / 1 | 32 / 42 | 1 |
+| `f_services` | 32 | 3 | 29 | **32 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 38 / 57 | 63 / 63 | 19 |
 
 ## `items` (horizon-items/src/items.rs)
 
@@ -696,3 +697,52 @@ A guest in a hook whose argument 0 is the `Game` root gets the root handle, call
 
 851 bindings (methods plus getter/setter ids) are reachable this way across 12 types; before, they were reachable only inside a hook on the type itself.
 
+## `f_services` (horizon-client/src/game/yoake2_f_services.rs)
+
+- bound now: **32 of 32** (100.0%): 3 basic + 29 mechanical
+- handle-required, not yet bound: 0 (0.0%)
+- excluded: 0 (0.0%)
+- field accessors (get + set pairs): 63 of 63 fields
+- handle types (receivers of bound methods or owners of bound fields): 19
+
+### Handle types and how a guest reaches them
+
+A type is reachable as a hook argument (`Root::HookArg`) when one of its methods is hooked; every type below has bound methods or accessors. The last column is the shortest chain of `Game` fields that mentions the type (resolution from `Game` is not built; this is where it would start).
+
+| handle type | bound methods | bound field pairs | from `Game` by field path |
+|---|---:|---:|---|
+| `crate::game::yoake2_f_services::FAnchor` | 2 | 0 | - |
+| `crate::game::yoake2_f_services::FAttribute` | 2 | 3 | - |
+| `crate::game::yoake2_f_services::FBinding` | 2 | 5 | - |
+| `crate::game::yoake2_f_services::FBindingKind` | 2 | 0 | - |
+| `crate::game::yoake2_f_services::FBlend` | 2 | 0 | - |
+| `crate::game::yoake2_f_services::FBufferRange` | 2 | 3 | - |
+| `crate::game::yoake2_f_services::FDrawDesc` | 2 | 7 | - |
+| `crate::game::yoake2_f_services::FDrawRegion` | 2 | 2 | - |
+| `crate::game::yoake2_f_services::FDrawTarget` | 2 | 3 | - |
+| `crate::game::yoake2_f_services::FFrameInfo` | 2 | 9 | - |
+| `crate::game::yoake2_f_services::FGpuRect` | 2 | 4 | - |
+| `crate::game::yoake2_f_services::FHud` | 2 | 0 | - |
+| `crate::game::yoake2_f_services::FImeEvent` | 2 | 0 | - |
+| `crate::game::yoake2_f_services::FPixelFormat` | 2 | 0 | - |
+| `crate::game::yoake2_f_services::FRegion` | 2 | 6 | - |
+| `crate::game::yoake2_f_services::FRenderDesc` | 2 | 11 | - |
+| `crate::game::yoake2_f_services::FShaderError` | 2 | 3 | - |
+| `crate::game::yoake2_f_services::FStage` | 2 | 0 | - |
+| `crate::game::yoake2_f_services::FTextureDesc` | 2 | 7 | - |
+
+### Handle-required: reasons
+
+(none)
+
+### Excluded: reasons
+
+(none)
+
+### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
+
+(none writable; 63 read-only field accessors)
+
+### Fields without accessors
+
+(none)

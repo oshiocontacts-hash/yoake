@@ -694,6 +694,9 @@ pub const ENGINE_DISPATCHED: &[(u32, yoake_slice::bridge::Mode)] = &[
     (runtime::HOOK_SERVER_TICK, yoake_slice::bridge::Mode::Full),
     (runtime::HOOK_CLIENT_TICK, yoake_slice::bridge::Mode::Full),
     (runtime::HOOK_HUD_RENDER, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_GPU_FRAME, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_IME_PREEDIT, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_IME_COMMIT, yoake_slice::bridge::Mode::ObserveOnly),
 ];
 
 /// One generated hook bridge module (`hook_bridge`, yoake-hook-codemod bridge).
@@ -876,8 +879,33 @@ pub fn dispatch_client_tick<G: yoake_slice::activation::PathRoot>(root: &mut G) 
 /// Observe-only and without handle arguments (argument 0 is a handle to nothing: every field is `BadField`); the guest
 /// uses it as a point to call engine functions.
 pub fn dispatch_hud_render() {
+    dispatch_nothing(runtime::HOOK_HUD_RENDER);
+}
+
+/// REM-12: enters the client-side mods of this thread for [`runtime::HOOK_GPU_FRAME`], once per frame from the renderer's
+/// GPU pass (the callback of the F GPU package, `wasm_mods::register_f_gpu`). Observe-only, no handle arguments.
+pub fn dispatch_gpu_frame() {
+    dispatch_nothing(runtime::HOOK_GPU_FRAME);
+}
+
+/// REM-12: [`runtime::HOOK_IME_PREEDIT`] / [`runtime::HOOK_IME_COMMIT`]: the event is in `game::yoake2_f_services` (the
+/// guest reads it with `ime_event`). Observe-only, no handle arguments.
+pub fn dispatch_ime_preedit() {
+    dispatch_nothing(runtime::HOOK_IME_PREEDIT);
+}
+
+pub fn dispatch_ime_commit() {
+    dispatch_nothing(runtime::HOOK_IME_COMMIT);
+}
+
+/// Whether a mod loaded on this thread registered `hook` (so a flush point can skip its work otherwise).
+pub fn client_registered(hook: u32) -> bool {
+    runtime::all_stats().iter().any(|(_, _, stats)| stats.registered.iter().any(|(id, _)| *id == hook))
+}
+
+fn dispatch_nothing(hook: u32) {
     static NOTHING: yoake_slice::activation::FieldTable<()> = yoake_slice::activation::FieldTable { get: |_, _| None, set: |_, _, _| false };
-    runtime::dispatch_id(runtime::HOOK_HUD_RENDER, &mut (), &NOTHING, &mut |_| 0);
+    runtime::dispatch_id(hook, &mut (), &NOTHING, &mut |_| 0);
 }
 
 #[cfg(test)]

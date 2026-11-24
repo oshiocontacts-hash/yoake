@@ -53,6 +53,13 @@ pub mod hooks {
     pub const CLIENT_TICK: u32 = SYNTHETIC_BASE + 2;
     /// MX3CL1: once per frame after the vanilla HUD, on the client thread. Observe-only; no handle arguments yet.
     pub const HUD_RENDER: u32 = SYNTHETIC_BASE + 3;
+    /// REM-12: once per frame from the renderer's GPU pass, on the client thread. Observe-only; no handle arguments.
+    /// The F GPU services (`stubs::f_services::gpu_*`) work here as in every client hook.
+    pub const GPU_FRAME: u32 = SYNTHETIC_BASE + 4;
+    /// REM-12: the input method's composition changed; read it with `stubs::f_services::ime_event`. Observe-only.
+    pub const IME_PREEDIT: u32 = SYNTHETIC_BASE + 5;
+    /// REM-12: the input method committed text; read it with `stubs::f_services::ime_event`. Observe-only.
+    pub const IME_COMMIT: u32 = SYNTHETIC_BASE + 6;
 }
 
 /// A handle the engine gave this activation: a hook argument, the `Game` root, or a path handle.
