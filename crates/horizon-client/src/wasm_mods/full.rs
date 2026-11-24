@@ -940,7 +940,7 @@ pub(super) fn apply_hud(
                     );
                 }
             }
-            et::HudCommand::Highlight(_) => {}
+            et::HudCommand::Highlight(highlight) => draw_highlight(host, batch, highlight),
             et::HudCommand::BeginClip(bounds) => {
                 pending.push((
                     Pending::Clip([bounds.x0, bounds.y0, bounds.x1, bounds.y1]),
@@ -981,6 +981,105 @@ pub(super) fn apply_hud(
                 }
             }
         }
+    }
+}
+
+/// Logs the first time each kind of model command (cube, item, model) is drawn, once per process.
+fn note_applied(slot: usize, kind: &str) {
+    static SEEN: [std::sync::atomic::AtomicBool; 3] = [const { std::sync::atomic::AtomicBool::new(false) }; 3];
+    if !SEEN[slot].swap(true, Ordering::Relaxed) {
+        log::info!("wasm: model command {kind} applied");
+    }
+}
+
+/// Colour of a highlight's tint and of its outline (ARGB).
+const HIGHLIGHT_TINT: u32 = 0x6633_77ff;
+const HIGHLIGHT_OUTLINE: u32 = 0xff77_aaff;
+
+/// A `highlight` command: the rectangle is tinted and outlined one pixel wide; with `invert_text`
+/// the tint is the inverting blend instead (what is under the rectangle, text included, turns
+/// inverted, as a selection in a text field). An empty rectangle draws nothing.
+fn draw_highlight(host: &dyn Host, batch: &mut HudBatch, highlight: &et::HudHighlight) {
+    let (x, y, w, h) = (
+        gui_scalar(highlight.x),
+        gui_scalar(highlight.y),
+        gui_scalar(highlight.width),
+        gui_scalar(highlight.height),
+    );
+    if w <= 0.0 || h <= 0.0 {
+        return;
+    }
+    if highlight.invert_text {
+        let start = batch.vertices.len();
+        host.fill(batch, [x, y, w, h], 0xffff_ffff);
+        batch.blend_since(start, crate::hud::Blend::Invert);
+    } else {
+        host.fill(batch, [x, y, w, h], HIGHLIGHT_TINT);
+    }
+    let edge = 1.0f32.min(w).min(h);
+    let inner = (h - 2.0 * edge).max(0.0);
+    for rect in [
+        [x, y, w, edge],
+        [x, y + h - edge, w, edge],
+        [x, y + edge, edge, inner],
+        [x + w - edge, y + edge, edge, inner],
+    ] {
+        if rect[2] > 0.0 && rect[3] > 0.0 {
+            host.fill(batch, rect, HIGHLIGHT_OUTLINE);
+        }
+    }
+}
+
+/// A model id a guest may name: `namespace:path` (or a path), printable and bounded.
+fn valid_model_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 128
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, ':' | '_' | '-' | '/' | '.'))
+}
+
+/// The cube of a guest's command as the renderer takes it: box corners in texels and one optional
+/// face per direction (down, up, north, south, west, east). A non-finite corner, a UV list that is
+/// not four finite numbers or more than six faces make it draw nothing.
+type CubeParts<'a> = ([f32; 3], [f32; 3], [Option<CubeFace<'a>>; 6]);
+
+pub(super) fn cube_from(cube: &et::ModelCube) -> Option<CubeParts<'_>> {
+    let from = [cube.min.0, cube.min.1, cube.min.2];
+    let to = [cube.max.0, cube.max.1, cube.max.2];
+    if from.iter().chain(&to).any(|v| !v.is_finite()) || cube.faces.len() > 6 {
+        return None;
+    }
+    let mut faces: [Option<CubeFace<'_>>; 6] = Default::default();
+    for (slot, face) in faces.iter_mut().zip(&cube.faces) {
+        let Some(face) = face else { continue };
+        let uv = match face.uv.as_deref() {
+            None => None,
+            Some(&[a, b, c, d]) if [a, b, c, d].iter().all(|v| v.is_finite()) => {
+                Some([a, b, c, d])
+            }
+            Some(_) => return None,
+        };
+        *slot = Some(CubeFace {
+            sprite: &face.sprite,
+            uv,
+        });
+    }
+    Some((from, to, faces))
+}
+
+fn display_from(display: et::DisplayContext) -> DisplayContext {
+    match display {
+        et::DisplayContext::None => DisplayContext::None,
+        et::DisplayContext::ThirdPersonLeftHand => DisplayContext::ThirdPersonLeftHand,
+        et::DisplayContext::ThirdPersonRightHand => DisplayContext::ThirdPersonRightHand,
+        et::DisplayContext::FirstPersonLeftHand => DisplayContext::FirstPersonLeftHand,
+        et::DisplayContext::FirstPersonRightHand => DisplayContext::FirstPersonRightHand,
+        et::DisplayContext::Head => DisplayContext::Head,
+        et::DisplayContext::Gui => DisplayContext::Gui,
+        et::DisplayContext::Ground => DisplayContext::Ground,
+        et::DisplayContext::Fixed => DisplayContext::Fixed,
+        et::DisplayContext::OnShelf => DisplayContext::OnShelf,
     }
 }
 
@@ -1097,8 +1196,44 @@ pub(super) fn apply_model(
                     .collect();
                 host.draw_block(draw, &block.block, &properties);
             }
-            // Cubes, standalone models and items need engine objects the guest cannot name here.
-            et::ModelCommand::Cube(_) | et::ModelCommand::Model(_) | et::ModelCommand::Item(_) => {}
+            et::ModelCommand::Cube(cube) => {
+                let Some(host) = host else { continue };
+                if let Some((from, to, faces)) = cube_from(cube) {
+                    if host.draw_cube(draw, from, to, faces, cube.tint & 0x00ff_ffff) {
+                        note_applied(0, "cube");
+                    }
+                }
+            }
+            et::ModelCommand::Item(item) => {
+                let Some(host) = host else { continue };
+                let Some(stack) = item_from(&item.stack) else {
+                    continue;
+                };
+                let yaw = item.owner_yaw.filter(|yaw| yaw.is_finite());
+                if host.draw_item(draw, &stack, display_from(item.display), yaw, item.seed) {
+                    note_applied(1, "item");
+                }
+            }
+            // A model by id: the catalog has no helper for a standalone model yet (`native_draw_model`),
+            // so the id names a block (its baked model, default state) or else an item (drawn
+            // `Fixed`, as an item frame does).
+            et::ModelCommand::Model(model) => {
+                let Some(host) = host else { continue };
+                if !valid_model_id(&model.model) {
+                    continue;
+                }
+                if host.draw_block(draw, &model.model, &[])
+                    || host.draw_item(
+                        draw,
+                        &ItemStack::new(&model.model, 1),
+                        DisplayContext::Fixed,
+                        None,
+                        0,
+                    )
+                {
+                    note_applied(2, "model");
+                }
+            }
         }
     }
     while depth > 0 {
@@ -1744,9 +1879,56 @@ mod tests {
         carried: Option<ItemStack>,
         stacks: RefCell<Vec<ItemStack>>,
         sounds: RefCell<Vec<(String, Option<[f64; 3]>, f32, f32)>>,
+        cubes: RefCell<Vec<RecordedCube>>,
+        drawn_items: RefCell<Vec<(String, DisplayContext, Option<f32>, i32)>>,
+        drawn_blocks: RefCell<Vec<String>>,
+        fill_rects: RefCell<Vec<([f32; 4], u32)>>,
     }
 
+    /// A `draw_cube` call: corners, faces as (sprite, uv) and the tint.
+    type RecordedCube = ([f32; 3], [f32; 3], Vec<Option<(String, Option<[f32; 4]>)>>, u32);
+
     impl Host for FakeHost {
+        fn draw_cube(
+            &self,
+            _draw: &mut BlockEntityDraw,
+            from: [f32; 3],
+            to: [f32; 3],
+            faces: [Option<CubeFace<'_>>; 6],
+            tint: u32,
+        ) -> bool {
+            let faces = faces
+                .iter()
+                .map(|f| f.as_ref().map(|f| (f.sprite.to_owned(), f.uv)))
+                .collect();
+            self.cubes.borrow_mut().push((from, to, faces, tint));
+            true
+        }
+
+        fn draw_item(
+            &self,
+            _draw: &mut BlockEntityDraw,
+            stack: &ItemStack,
+            display: DisplayContext,
+            owner_yaw: Option<f32>,
+            seed: i32,
+        ) -> bool {
+            self.drawn_items
+                .borrow_mut()
+                .push((stack.item.to_string(), display, owner_yaw, seed));
+            true
+        }
+
+        fn draw_block(
+            &self,
+            _draw: &mut BlockEntityDraw,
+            block: &str,
+            _properties: &[(&str, &str)],
+        ) -> bool {
+            self.drawn_blocks.borrow_mut().push(block.to_owned());
+            block.starts_with("minecraft:stone")
+        }
+
         fn net_send_to_server(&mut self, channel: &str, data: &[u8]) -> Result<(), String> {
             self.sends.push((channel.to_owned(), data.to_vec()));
             Ok(())
@@ -1817,8 +1999,9 @@ mod tests {
         fn text(&self, _batch: &mut HudBatch, text: &str, _at: [f32; 2], _rgb: u32, _shadow: bool) {
             self.texts.borrow_mut().push(text.to_owned());
         }
-        fn fill(&self, _batch: &mut HudBatch, _rect: [f32; 4], _argb: u32) {
+        fn fill(&self, _batch: &mut HudBatch, rect: [f32; 4], argb: u32) {
             *self.fills.borrow_mut() += 1;
+            self.fill_rects.borrow_mut().push((rect, argb));
         }
         fn tell(&mut self, uuid: u128, line: Text) -> bool {
             self.told
@@ -1893,6 +2076,161 @@ mod tests {
         assert_eq!(*host.texts.borrow(), ["hi"]);
         apply_hud(None, &mut batch, &commands);
         assert_eq!(*host.fills.borrow(), 1);
+    }
+
+    fn plain_draw() -> BlockEntityDraw {
+        BlockEntityDraw::for_test(glam::Mat4::IDENTITY, 0xF0F0)
+    }
+
+    #[test]
+    fn cube_item_and_model_commands_reach_the_draw_services() {
+        let host = FakeHost::default();
+        let mut draw = plain_draw();
+        let face = |sprite: &str, uv: Option<Vec<f32>>| {
+            Some(et::ModelCubeFace {
+                sprite: sprite.into(),
+                uv,
+            })
+        };
+        let commands = vec![
+            et::ModelCommand::Translate((1.0, 2.0, 3.0)),
+            et::ModelCommand::Cube(et::ModelCube {
+                min: (0.0, 0.0, 0.0),
+                max: (8.0, 8.0, 8.0),
+                faces: vec![
+                    face("mymod:entity/a", None),
+                    None,
+                    face("mymod:entity/b", Some(vec![0.0, 0.0, 4.0, 4.0])),
+                ],
+                tint: 0xff12_3456,
+            }),
+            et::ModelCommand::Item(et::ModelItem {
+                stack: et::ItemStack {
+                    id: "minecraft:apple".into(),
+                    count: 1,
+                    components: Vec::new(),
+                },
+                display: et::DisplayContext::Ground,
+                owner_yaw: Some(90.0),
+                seed: 7,
+            }),
+            // A block, then an item that is no block.
+            et::ModelCommand::Model(et::ModelStandalone {
+                model: "minecraft:stone".into(),
+                tint: 0,
+            }),
+            et::ModelCommand::Model(et::ModelStandalone {
+                model: "minecraft:apple".into(),
+                tint: 0,
+            }),
+            et::ModelCommand::Model(et::ModelStandalone {
+                model: "bad id\n".into(),
+                tint: 0,
+            }),
+        ];
+        apply_model(Some(&host), &mut draw, &commands);
+        let cubes = host.cubes.borrow();
+        assert_eq!(cubes.len(), 1);
+        assert_eq!(cubes[0].0, [0.0; 3]);
+        assert_eq!(cubes[0].1, [8.0; 3]);
+        assert_eq!(cubes[0].3, 0x0012_3456);
+        assert_eq!(cubes[0].2.len(), 6);
+        assert_eq!(cubes[0].2[0], Some(("mymod:entity/a".to_owned(), None)));
+        assert_eq!(cubes[0].2[1], None);
+        assert_eq!(
+            cubes[0].2[2],
+            Some(("mymod:entity/b".to_owned(), Some([0.0, 0.0, 4.0, 4.0])))
+        );
+        assert!(cubes[0].2[3..].iter().all(Option::is_none));
+        let items = host.drawn_items.borrow();
+        assert_eq!(
+            *items,
+            [
+                ("minecraft:apple".to_owned(), DisplayContext::Ground, Some(90.0), 7),
+                ("minecraft:apple".to_owned(), DisplayContext::Fixed, None, 0),
+            ]
+        );
+        assert_eq!(*host.drawn_blocks.borrow(), ["minecraft:stone", "minecraft:apple"]);
+        // The translate moved the draw's pose for the commands after it.
+        assert_eq!(draw.pose_matrix().w_axis.truncate(), glam::Vec3::new(1.0, 2.0, 3.0));
+    }
+
+    #[test]
+    fn malformed_cubes_and_stacks_draw_nothing_and_no_host_is_a_no_op() {
+        let host = FakeHost::default();
+        let mut draw = plain_draw();
+        let cube = |min: f32, uv: Vec<f32>, faces: usize| {
+            et::ModelCommand::Cube(et::ModelCube {
+                min: (min, 0.0, 0.0),
+                max: (1.0, 1.0, 1.0),
+                faces: (0..faces)
+                    .map(|_| {
+                        Some(et::ModelCubeFace {
+                            sprite: "a:b".into(),
+                            uv: Some(uv.clone()),
+                        })
+                    })
+                    .collect(),
+                tint: 0,
+            })
+        };
+        let commands = vec![
+            cube(f32::NAN, vec![0.0; 4], 1),
+            cube(0.0, vec![0.0; 3], 1),
+            cube(0.0, vec![0.0; 4], 7),
+            et::ModelCommand::Item(et::ModelItem {
+                stack: et::ItemStack {
+                    id: "".into(),
+                    count: 1,
+                    components: Vec::new(),
+                },
+                display: et::DisplayContext::Fixed,
+                owner_yaw: None,
+                seed: 0,
+            }),
+        ];
+        apply_model(Some(&host), &mut draw, &commands);
+        assert!(host.cubes.borrow().is_empty());
+        assert!(host.drawn_items.borrow().is_empty());
+        let good = vec![cube(0.0, vec![0.0; 4], 1)];
+        apply_model(None, &mut draw, &good);
+        assert!(host.cubes.borrow().is_empty());
+        apply_model(Some(&host), &mut draw, &good);
+        assert_eq!(host.cubes.borrow().len(), 1);
+    }
+
+    #[test]
+    fn a_highlight_is_a_tint_with_a_one_pixel_outline() {
+        let host = FakeHost::default();
+        let mut batch = HudBatch::new([854, 480]);
+        let highlight = |w: f32, invert_text: bool| {
+            et::HudCommand::Highlight(et::HudHighlight {
+                x: 10.0,
+                y: 20.0,
+                width: w,
+                height: 8.0,
+                invert_text,
+            })
+        };
+        apply_hud(Some(&host), &mut batch, &[highlight(30.0, false)]);
+        {
+            let rects = host.fill_rects.borrow();
+            assert_eq!(rects.len(), 5);
+            assert_eq!(rects[0], ([10.0, 20.0, 30.0, 8.0], HIGHLIGHT_TINT));
+            assert!(rects[1..].iter().all(|(_, color)| *color == HIGHLIGHT_OUTLINE));
+            // Top, bottom, left, right edges stay inside the rectangle.
+            assert_eq!(rects[1].0, [10.0, 20.0, 30.0, 1.0]);
+            assert_eq!(rects[2].0, [10.0, 27.0, 30.0, 1.0]);
+            assert_eq!(rects[3].0, [10.0, 21.0, 1.0, 6.0]);
+            assert_eq!(rects[4].0, [39.0, 21.0, 1.0, 6.0]);
+        }
+        host.fill_rects.borrow_mut().clear();
+        apply_hud(Some(&host), &mut batch, &[highlight(0.0, false), highlight(-3.0, true)]);
+        assert!(host.fill_rects.borrow().is_empty());
+        apply_hud(Some(&host), &mut batch, &[highlight(30.0, true)]);
+        assert_eq!(host.fill_rects.borrow()[0].1, 0xffff_ffff);
+        apply_hud(None, &mut batch, &[highlight(30.0, true)]);
+        assert_eq!(host.fill_rects.borrow().len(), 5);
     }
 
     #[test]
