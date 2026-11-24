@@ -517,6 +517,22 @@ def run(ctl, out, shots, resources, wasm=None, client_wasm=None):
                     'png': [saved['tex-before'], saved['tex-after'], saved['tex-after2']],
                 },
             }
+        # model commands (REM-17): the client guest draws a gold cube and an apple over the fox in
+        # `mob-layer`; the game logs the first of each kind it applies (cube, item).
+        if client_wasm is not None:
+            applied = {}
+            for game in (host, guest):
+                for kind in ('cube', 'item'):
+                    if f'wasm: model command {kind} applied' in log_of(game):
+                        applied[kind] = applied.get(kind, 0) + 1
+            near = fox_list(host)[0]
+            look_at_fox(host, near, back=3.0, dy=1.2)
+            host.wait(6)
+            shot(host, 'model-commands')
+            results['model_commands'] = {
+                'pass': applied.get('cube', 0) >= 1 and applied.get('item', 0) >= 1,
+                'detail': {'applied_in_logs': applied, 'png': saved.get('model-commands')},
+            }
         # death: the death animation (0.6 s = 12 ticks) keeps the body, then it is removed.
         mark_death = len(log_of(host))
         host('command', command=f'damage @e[type=sample_mobs:cinder_fox,limit=1] 100 minecraft:generic')

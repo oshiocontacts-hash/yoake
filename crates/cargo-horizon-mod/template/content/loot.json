@@ -2,7 +2,7 @@
   "type": "minecraft:block",
   "pools": [
     {
-      "condition": { "type": "minecraft:survives_explosion" },
+      "conditions": [{ "condition": "minecraft:survives_explosion" }],
       "entries": [{ "type": "minecraft:item", "name": "{id}:glowing_amethyst" }],
       "rolls": 1
     }
