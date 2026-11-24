@@ -5,8 +5,8 @@
 //!   whose stem names that type and generator, with a `step` setting;
 //! * the engine calls `handle_call` with `generator::METHOD` for every chunk of the level and the mod
 //!   answers with a `Fill`: bedrock, stone, a grass top on terraces `step` blocks wide, one biome;
-//! * `/cookingduel create|regenerate [seed]|delete` drives a second generator through the level services. Its flat
-//!   arena uses v2 biome columns for a 4x4 grid of plains, desert, forest and taiga cells, 16 blocks wide.
+//! * `/cookingduel create`, `/cookingduel regenerate [seed]` and `/cookingduel delete` drive a second generator through
+//!   the level services. Its flat arena uses v2 biome columns for a 4x4 grid of plains, desert, forest and taiga cells, 16 blocks wide.
 //!
 //! The terrain is a pure function of the chunk, the seed and the settings, as a generator must be
 //! (the same chunk asked twice, or on another machine, gives the same blocks).
@@ -116,10 +116,11 @@ impl ServerMod for Guest {
     }
 
     fn register_commands(&mut self, mut commands: Vec<et::NativeCommand>) -> Vec<et::NativeCommand> {
-        commands.push(et::NativeCommand {
-            usage: "cookingduel create|regenerate [seed]|delete".to_owned(),
-            level: 0,
-        });
+        // One usage per alternative: the usage grammar has no `a|b` words; usages sharing a name merge.
+        // The seed is a word so it keeps the full i64 range (brigadier integers are i32).
+        for usage in ["cookingduel create", "cookingduel regenerate [seed:word]", "cookingduel delete"] {
+            commands.push(et::NativeCommand { usage: usage.to_owned(), level: 0 });
+        }
         commands
     }
 

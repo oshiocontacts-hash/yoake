@@ -1217,4 +1217,24 @@ mod tests {
         let (none, levels, _) = tree(&[]);
         assert!(none.is_null() && levels.is_empty());
     }
+
+    #[test]
+    fn the_cooking_duel_usages_register_and_alternatives_are_rejected() {
+        // The level-generator example's usages: one per alternative, no `a|b` words.
+        let (t, _, problems) = tree(&[
+            NativeCommand::new("cookingduel create"),
+            NativeCommand::new("cookingduel regenerate [seed:word]"),
+            NativeCommand::new("cookingduel delete"),
+        ]);
+        assert!(problems.is_empty(), "{problems:?}");
+        let duel = &t["children"]["cookingduel"]["children"];
+        assert_eq!(duel["create"]["executable"], true);
+        assert_eq!(duel["regenerate"]["executable"], true);
+        assert_eq!(duel["regenerate"]["children"]["seed"]["executable"], true);
+        assert_eq!(duel["delete"]["executable"], true);
+        let (_, _, problems) = tree(&[NativeCommand::new(
+            "cookingduel create|regenerate [seed]|delete",
+        )]);
+        assert_eq!(problems.len(), 1, "{problems:?}");
+    }
 }

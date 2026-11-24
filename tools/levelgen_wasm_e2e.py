@@ -180,6 +180,14 @@ def run(ctl, out, resources, wasm, force):
         if not results['level']['pass']:
             return results
 
+        def commands():
+            # A native mod command whose usage the host rejects is only logged: fail loudly here.
+            log = host.socket.with_suffix('.log')
+            text = log.read_text(errors='replace') if log.exists() else ''
+            left_out = [l for l in text.splitlines() if 'was left out' in l]
+            assert not left_out, left_out
+        lv.check('commands', results, commands)
+
         # A level key is sent at login: create before the guest joins, so both bots can enter it.
         host('command', command='cookingduel create')
         guest.pid = guest.raw(*launch)['pid']
