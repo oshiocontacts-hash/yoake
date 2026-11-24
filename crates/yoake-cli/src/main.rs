@@ -110,10 +110,13 @@ fn build(root: &Path, manifest: &Manifest) -> Result<()> {
     let package_name = cargo.get("package").and_then(|package| package.get("name")).and_then(toml::Value::as_str).ok_or("Cargo.toml needs package.name")?;
     let library_name = cargo.get("lib").and_then(|library| library.get("name")).and_then(toml::Value::as_str).unwrap_or(package_name).replace('-', "_");
     let target = target_directory(root, env::var_os("CARGO_TARGET_DIR").as_deref());
-    let multi_module = modules.len() > 1;
+    // The worker (`[wasm] worker`, world worker-mod) is built like a module, from its own feature.
+    let worker = wasm.worker.as_deref();
+    let multi_module = modules.len() + usize::from(worker.is_some()) > 1;
     if multi_module {
         let features = cargo.get("features").and_then(toml::Value::as_table);
-        if !modules.iter().all(|(side, _)| features.is_some_and(|features| features.contains_key(*side))) {
+        let sides = modules.iter().map(|(side, _)| *side).chain(worker.map(|_| "worker"));
+        if !sides.clone().all(|side| features.is_some_and(|features| features.contains_key(side))) {
             return Err("yoake build, dev, and pack require Cargo features named `client` and `server` for a multi-module package; independently built modules can still be validated with yoake check".into());
         }
     }
@@ -122,6 +125,11 @@ fn build(root: &Path, manifest: &Manifest) -> Result<()> {
         let destination = root.join(path);
         check_plain_path(&destination)?;
         cargo_wasm(root, &target, multi_module.then_some(side), side, &artifact, &destination)?;
+    }
+    if let Some(path) = worker {
+        let destination = root.join(path);
+        check_plain_path(&destination)?;
+        cargo_wasm(root, &target, multi_module.then_some("worker"), "worker", &artifact, &destination)?;
     }
     Ok(())
 }
@@ -195,7 +203,7 @@ fn ensure_module_is_fresh(root: &Path, module_path: &Path, module_metadata: &fs:
 fn check(root: &Path, manifest: &Manifest) -> Result<serde_json::Value> {
     let mut sandbox = Sandbox::new();
     let mut checked = Vec::new();
-    for (side, path) in manifest.wasm.as_ref().map_or_else(Vec::new, |wasm| wasm.modules()) {
+    for (side, path) in manifest.wasm.as_ref().map_or_else(Vec::new, |wasm| wasm.declared_files()) {
         let module_path = root.join(path);
         check_plain_path(&module_path)?;
         let file = File::open(&module_path).map_err(|error| format!("{}: {error}", module_path.display()))?;
@@ -204,6 +212,12 @@ fn check(root: &Path, manifest: &Manifest) -> Result<serde_json::Value> {
             return Err(format!("{} is not a regular Wasm file within the {MAX_WASM_SIZE}-byte size limit", module_path.display()));
         }
         ensure_module_is_fresh(root, &module_path, &metadata)?;
+        if side == "worker" {
+            // The worker runs on its own thread with WASI p2 (world worker-mod). Only the file is
+            // checked here: yoake-wasm has no host to instantiate it in this command.
+            checked.push(json!({"side": side, "path": path, "world": "worker-mod"}));
+            continue;
+        }
         let mut bytes = Vec::new();
         file.take(MAX_WASM_SIZE + 1).read_to_end(&mut bytes)
             .map_err(|error| format!("{}: {error}", module_path.display()))?;
