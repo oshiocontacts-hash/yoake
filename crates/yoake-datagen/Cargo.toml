@@ -1,0 +1,14 @@
+[package]
+name = "yoake-datagen"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version = "1.85"
+publish = false
+description = "Typed builders for a Yoake content mod's generated JSON (models, blockstates, recipes, loot, tags, lang, block/item/enchantment/damage_type/game_rule/fluid), written or checked against the mod folder (cargo horizon-mod datagen)"
+
+[dependencies]
+serde_json = "1.0.151"
+
+[lints]
+workspace = true
