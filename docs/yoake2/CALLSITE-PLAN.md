@@ -120,3 +120,29 @@ identity and types in the source.
    SLOT_CAPACITY 1,048,576 with a memory check. Report: MX3CS2.md.
 2. entities (316 method calls, 27 codemod trait delegations excluded).
 3. The CI job, the curated module list, and the store-hook design.
+
+## 8. Stamping across the stamped crates (REM-11)
+
+The in-place route above (`modules.txt`, `callsites=true`) keeps `entities` and `game::item_use`. For the other crates
+of `stamp-config.txt` the sources stay unstamped; the call-site shims are replayed from a committed line patch:
+
+1. `yoake-hook-codemod callsite-patch --workspace-root . --crate <name> --thir <calls.json>` copies the crate's source
+   closure to `target/yoake-callsite/<crate>`, runs the normal call-site `apply` there (THIR, matcher, shims, callee
+   policy, `callsite-hot-callers.txt`, `callsite-allow.txt`: sections 1 to 5) and writes the sites to the real ledger shard.
+   The tree is not touched. The difference between the copy and the original becomes
+   `hook-ledger/<crate>.callsites.patch` (LF-only line hunks with 3 lines of context).
+2. The stamping overlay (`overlay.rs`, `build_overlay`) applies that patch to its copy of the sources **before** the
+   function stamps (`callsite_patch::apply_for_crate`), so the fn stamper sees the same source as for the in-place
+   modules. A crate without a patch file is stamped as before. A hunk is searched near its recorded line; one whose
+   lines changed no longer fits and is skipped with a `yoake-stamp: ... call-site patch: ... no longer fits` line (that
+   site is simply not hooked in the build; its ledger entry stays). The overlay cache key already hashes every file of
+   `hook-ledger/`, so a changed patch rebuilds the overlay.
+3. THIR is needed only for step 1: `yoake-hook-thir dump --crate-pkg <pkg> --crate-name <name> --workspace . --out <file>
+   --file <module file>...` from the committed sources (about 4 to 7 GB of scratch per large crate; the tool refuses
+   below 10 GB free). Re-run steps 1 after a source change that breaks hunks (the weekly job of section 6 can do it).
+
+No-mod cost is kept in the noise the way FR-REM02 did it: a caller without a live fn id gets no call-site (the 951
+fns excluded as `hot:` in the REM-03 flights therefore have none), `callsite-hot-callers.txt` adds callers by hand, and
+the shim is `#[inline(always)]`, so an empty slot costs the 0.1 to 0.3 ns of MX3CS2. The crate needs the
+`yoake-callsite-baseline` feature (an empty feature, as in `horizon-client-lib`) because the shim attribute is
+`cfg_attr(not(feature = "yoake-callsite-baseline"), ...)`.
