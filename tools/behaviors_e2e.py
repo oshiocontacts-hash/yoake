@@ -63,15 +63,26 @@ def lit_of(game, pos):
     return 'true' if 'lit=true' in state else 'false'
 
 
+def aim_at(game, pos):
+    """Stands the guest two blocks in front of the block's north face and turns it to the block's centre, so the north
+    face is the one in view. `tp ... facing <x y z>` sets both the place and the look."""
+    x, y, z = pos
+    game('command', command=f'tp @s {x + 0.5} {y} {z - 1.5} facing {x + 0.5} {y + 0.5} {z + 0.5}')
+
+
 def interact_when_ready(game, pos, tries=10):
-    """`interact`, again after a short wait while no face of the block is visible yet (the block just placed is not
-    in the view's picking until the client has it: the refusal says so, and the first click of a run can meet it)."""
+    """`interact`, again after a short wait while no face of the block is visible yet. Each retry aims the guest at the
+    block again: the block just placed is not in the view's picking until the client has it, and a look that missed
+    leaves no face in view, so a refusal is met with a new aim, not only with a wait."""
+    aim_at(game, pos)
+    game.wait(10)
     for attempt in range(tries):
         try:
             return game.raw('interact', *pos)
         except Failed as e:
             if 'visible' not in str(e) or attempt == tries - 1:
                 raise
+        aim_at(game, pos)
         game.wait(10)
 
 
