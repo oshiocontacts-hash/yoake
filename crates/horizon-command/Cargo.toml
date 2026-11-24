@@ -21,6 +21,8 @@ yoake-hook-ledger = { path = "../yoake-hook-ledger" }
 [features]
 # W10: the generated hook bridges (the stamping overlay adds them) need the slice runtime
 yoake2-slice = ["dep:yoake-slice"]
+# REM-11: call-site hooks off (the shims are `cfg_attr(not(feature = ...))`), the bench gate baseline
+yoake-callsite-baseline = []
 
 [lints]
 workspace = true

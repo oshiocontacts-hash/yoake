@@ -2653,3 +2653,95 @@ fn __yoake_cs_10(recv: &crate::bag::Bag) -> bool {
         .unwrap();
     assert!(fmt_chk.status.success(), "{}", String::from_utf8_lossy(&fmt_chk.stdout));
 }
+
+/// REM-11 part 1: `callsite-patch` rewrites a scratch copy (ledger sites written, tree untouched), and the stamping
+/// overlay applies the stored patch before the function stamps. Fast: no compile.
+#[test]
+fn callsite_patch_replays_the_rewrite_in_the_overlay_without_touching_the_tree() {
+    let dir = TestDir::new("patch");
+    let ws = dir.path();
+    let bag_rs = "\
+pub struct Bag {
+    pub items: Vec<u32>,
+}
+
+impl Bag {
+    pub fn touch(&mut self, other: &Self, opaque: impl Fn()) -> Option<u32> {
+        assert!(self.ok());
+        self.ignore(opaque);
+        let _ = self.pick(other);
+        if self.ok() {
+            Some(1)
+        } else {
+            None
+        }
+    }
+
+    pub fn ok(&self) -> bool {
+        !self.items.is_empty()
+    }
+
+    pub fn ignore(&self, _f: impl Fn()) {}
+
+    pub fn pick(&self, _other: &Self) -> u32 {
+        self.items[0]
+    }
+}
+";
+    let crate_dir = ws.join("crates/demo");
+    fs::create_dir_all(crate_dir.join("src")).unwrap();
+    fs::create_dir_all(ws.join("hook-ledger")).unwrap();
+    fs::write(crate_dir.join("Cargo.toml"), "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n").unwrap();
+    fs::write(crate_dir.join("src/lib.rs"), "pub mod bag;\n").unwrap();
+    fs::write(crate_dir.join("src/bag.rs"), bag_rs).unwrap();
+    fs::write(ws.join("hook-ledger/meta.json"), "{\n  \"version\": 2,\n  \"next_id\": 1\n}\n").unwrap();
+    fs::write(ws.join("hook-ledger/demo.json"), "{\n  \"crate\": \"demo\",\n  \"entries\": [],\n  \"excluded\": []\n}\n").unwrap();
+    fs::write(ws.join("hook-ledger/stamp-config.txt"), "crates/demo demo *\n").unwrap();
+    let run = |args: &[&str]| {
+        let out = Command::new(codemod_bin()).args(args).arg("--workspace-root").arg(ws).output().unwrap();
+        let text = format!("{}\n{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert!(out.status.success(), "{args:?}:\n{text}");
+        text
+    };
+
+    // function ids first (the call-site pass needs the callers and the callee in the ledger)
+    run(&["sync-ledger"]);
+    let calls = thir_with_file(
+        bag_rs,
+        serde_json::json!([
+            { "file": "src/bag.rs", "span": span_of(bag_rs, "self.ignore(opaque)"), "ctxt": 0, "kind": "method",
+              "callee": "demo::bag::Bag::ignore", "callee_def": "bag::{impl#0}::ignore", "ret_ty": "()",
+              "args": [ { "ty": "&'_ crate::bag::Bag" }, { "ty": null } ],
+              "recv_adjust": { "borrow": "shared", "derefs": 1 }, "resolution": "concrete" },
+            { "file": "src/bag.rs", "span": span_of(bag_rs, "self.pick(other)"), "ctxt": 0, "kind": "method",
+              "callee": "demo::bag::Bag::pick", "callee_def": "bag::{impl#0}::pick", "ret_ty": "u32",
+              "args": [ { "ty": "&'_ crate::bag::Bag" }, { "ty": "&'_ crate::bag::Bag" } ],
+              "recv_adjust": { "borrow": "shared", "derefs": 1 }, "resolution": "concrete" }
+        ]),
+    );
+    let thir = ws.join("calls.json");
+    fs::write(&thir, serde_json::to_string(&calls).unwrap()).unwrap();
+    let text = run(&["callsite-patch", "--crate", "demo", "--thir", thir.to_str().unwrap()]);
+    assert!(text.contains("callsite-patch: 1 file(s)"), "{text}");
+    assert_eq!(fs::read_to_string(crate_dir.join("src/bag.rs")).unwrap(), bag_rs, "the tree is never rewritten");
+    let patch = fs::read_to_string(ws.join("hook-ledger/demo.callsites.patch")).unwrap();
+    assert!(patch.starts_with("--- a/crates/demo/src/bag.rs\n"), "{patch}");
+    assert!(patch.contains("+        let _ = __yoake_cs_") && patch.contains("-        let _ = self.pick(other);"), "{patch}");
+    assert!(!patch.contains("-        self.ignore"), "an impl Fn argument is not rewritten: {patch}");
+    let ledger = fs::read_to_string(ws.join("hook-ledger/demo.json")).unwrap();
+    assert!(ledger.contains("\"kind\": \"callsite\"") && ledger.contains("\"site\": {"), "{ledger}");
+
+    // the overlay applies it, then stamps the functions around it
+    let overlay = ws.join("ov");
+    run(&["sync-ledger", "--overlay-root", overlay.to_str().unwrap()]);
+    let stamped = fs::read_to_string(overlay.join("crates/demo/src/bag.rs")).unwrap();
+    assert!(stamped.contains("let _ = __yoake_cs_"), "{stamped}");
+    assert!(stamped.contains("fn __yoake_cs_") && stamped.contains("kind = callsite"), "{stamped}");
+    assert!(stamped.contains("yoake_hook"), "the functions are stamped too: {stamped}");
+    assert_eq!(fs::read_to_string(crate_dir.join("src/bag.rs")).unwrap(), bag_rs, "still untouched");
+
+    // a source change that breaks a hunk is reported and skipped, not fatal
+    fs::write(crate_dir.join("src/bag.rs"), bag_rs.replace("let _ = self.pick(other);", "let _ = self.pick(other); // moved")).unwrap();
+    let text = run(&["sync-ledger", "--overlay-root", ws.join("ov2").to_str().unwrap()]);
+    assert!(text.contains("no longer fits"), "{text}");
+}

@@ -6244,6 +6244,69 @@
       "sig": "7aa438a6341db884",
       "status": "live",
       "kind": "fn"
+    },
+    {
+      "id": 12351,
+      "key": "horizon_world::dimension::LevelStem::to_value",
+      "sig": "f5dc73afde042779",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12352,
+      "key": "horizon_world::fluid::custom::install",
+      "sig": "e4ea5011c37920b3",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12353,
+      "key": "horizon_world::level::portal::scan_shape",
+      "sig": "57fbb9eec2687295",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12354,
+      "key": "horizon_world::level::portal_type::<PortalSize as Default>::default",
+      "sig": "e829b3691095158c",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12355,
+      "key": "horizon_world::level::portal_type::PortalType::parse",
+      "sig": "1986a815a884ac11",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12356,
+      "key": "horizon_world::level::portal_type::parse_size",
+      "sig": "970b48761078a286",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12357,
+      "key": "horizon_world::level::portal_type::parse_ignite",
+      "sig": "fefec4ca36e4fede",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12358,
+      "key": "horizon_world::level::portal_type::parse_look",
+      "sig": "407797e343bab202",
+      "status": "live",
+      "kind": "fn"
+    },
+    {
+      "id": 12359,
+      "key": "horizon_world::worldgen::generator::OverworldGenerator::from_stem",
+      "sig": "2dfe6c001e01767a",
+      "status": "live",
+      "kind": "fn"
     }
   ],
   "excluded": [
@@ -6439,6 +6502,16 @@
     },
     {
       "key": "horizon_world::attachments::Attachments::mark_sync",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::attachments::Attachments::read_key",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::attachments::Attachments::read_named",
       "reason": "small body",
       "kind": "fn"
     },
@@ -7058,6 +7131,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::attributes::live::<Key as ObjectKey>::object_hash",
+      "reason": "hot: 30973 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::attributes::live::<Key as PartialEq>::eq",
+      "reason": "hot: 31230 calls in the REM-03 second hit-count flight (0.019%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::attributes::live::Data<G>::base",
       "reason": "generic impl",
       "kind": "fn"
@@ -7288,6 +7373,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::block_collision::ScaffoldingCollision::from_state",
+      "reason": "hot: 71446 calls in the REM-03 second hit-count flight (0.043%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::block_collision_scan::<BlockCollisionScan<W> as Iterator>::next",
       "reason": "generic impl",
       "kind": "fn"
@@ -7311,6 +7402,12 @@
       "key": "horizon_world::block_collision_scan::BlockCollisionScan<W>::skip",
       "reason": "generic impl",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::block_collision_scan::cells",
+      "reason": "hot: 72157 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::block_collision_scan::scan_cells",
@@ -7558,9 +7655,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::block_render::FaceVisibility::should_render_face",
+      "reason": "hot: 1300178 calls in the REM-03 hit-count flight (0.47%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::block_render::FaceVisibility::skip_rendering",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::block_render::FaceVisibility::skips",
+      "reason": "hot: 1300178 calls in the REM-03 hit-count flight (0.47%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::block_render::FaceVisibility::state",
@@ -7613,6 +7722,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::block_state_properties::<BlockProperties as PartialEq<BTreeMap<String,String>>>::eq",
+      "reason": "hot: 35723 calls in the REM-03 second hit-count flight (0.021%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::block_state_properties::<BlockProperties as PartialEq>::eq",
+      "reason": "hot: 414923 calls in the REM-03 second hit-count flight (0.247%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::block_state_properties::<BlockProperties as Serialize>::serialize",
       "reason": "generic type params",
       "kind": "fn"
@@ -7628,6 +7749,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::block_state_properties::<Iter as Iterator>::size_hint",
+      "reason": "hot: 118060 calls in the REM-03 second hit-count flight (0.070%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::block_state_properties::<Text as Deref>::deref",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -7636,6 +7763,12 @@
       "key": "horizon_world::block_state_properties::BlockProperties::contains_key",
       "reason": "generic type params",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::block_state_properties::BlockProperties::from_shared",
+      "reason": "hot: 35321 calls in the REM-03 second hit-count flight (0.021%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::block_state_properties::BlockProperties::get",
@@ -7696,6 +7829,12 @@
       "key": "horizon_world::block_state_properties::BlockProperties::values",
       "reason": "impl Trait return",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::block_state_properties::SharedStrings::get",
+      "reason": "hot: 316818 calls in the REM-03 second hit-count flight (0.189%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::block_state_properties::Text::into_string",
@@ -7948,6 +8087,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::chunk::BlockSection::fill_run",
+      "reason": "hot: 394547 calls in the REM-03 hit-count flight (0.14%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::chunk::BlockSection::fill_states",
       "reason": "small body",
       "kind": "fn"
@@ -7968,6 +8113,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::chunk::BlockSection::set",
+      "reason": "hot: 4826018 calls in the REM-03 hit-count flight (1.73%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::chunk::BlockSection::state",
       "reason": "small body",
       "kind": "fn"
@@ -7981,6 +8132,18 @@
       "key": "horizon_world::chunk::BlockSection::uniform",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::chunk::BlockState::from_nbt",
+      "reason": "hot: 321507 calls in the REM-03 second hit-count flight (0.192%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::chunk::BlockState::to_nbt",
+      "reason": "hot: 12081 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::chunk::ChunkData::into_nbt",
@@ -8026,6 +8189,12 @@
       "key": "horizon_world::chunk::bits_for_palette",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::chunk::id_in",
+      "reason": "hot: 5176662 calls in the REM-03 hit-count flight (1.86%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::chunk::key",
@@ -11478,11 +11647,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_world::dimension::LevelStem::to_value",
-      "reason": "small body",
-      "kind": "fn"
-    },
-    {
       "key": "horizon_world::dimension::SettingsRef::parse",
       "reason": "small body",
       "kind": "fn"
@@ -11495,6 +11659,11 @@
     {
       "key": "horizon_world::dimension::invalid",
       "reason": "impl Trait argument",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::dimension::parse_generator",
+      "reason": "small body",
       "kind": "fn"
     },
     {
@@ -11733,6 +11902,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::entity_fluid::<CurrentAccumulator as Default>::default",
+      "reason": "hot: 45166 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::entity_fluid::<FluidInteractionError<E> as Display>::fmt",
       "reason": "generic impl",
       "kind": "fn"
@@ -11868,6 +12043,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::fluid::FluidBlockBindings::block",
+      "reason": "hot: 2960 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::fluid::FluidBlockBindings::new",
       "reason": "small body",
       "kind": "fn"
@@ -11886,6 +12067,12 @@
       "key": "horizon_world::fluid::FluidKind::from_name",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::fluid::FluidKind::from_wire_id",
+      "reason": "hot: 2402 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::fluid::FluidKind::mask",
@@ -11931,6 +12118,12 @@
       "key": "horizon_world::fluid::FluidState::falling",
       "reason": "const fn",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::fluid::FluidState::from_block",
+      "reason": "hot: 393017 calls in the REM-03 second hit-count flight (0.234%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::fluid::FluidState::height_at",
@@ -11988,6 +12181,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::fluid::custom::current",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::fluid::custom::definition",
       "reason": "small body",
       "kind": "fn"
@@ -11998,12 +12196,12 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_world::fluid::custom::identifier",
+      "key": "horizon_world::fluid::custom::extended",
       "reason": "small body",
       "kind": "fn"
     },
     {
-      "key": "horizon_world::fluid::custom::install",
+      "key": "horizon_world::fluid::custom::identifier",
       "reason": "small body",
       "kind": "fn"
     },
@@ -13403,6 +13601,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::level::Behaviours::ignite_custom_portal",
+      "reason": "generic type params",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::level::Behaviours::is_air",
       "reason": "small body",
       "kind": "fn"
@@ -13948,6 +14151,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::level::data::BlockSet::first",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::level::data::BlockSet::insert",
       "reason": "small body",
       "kind": "fn"
@@ -13956,6 +14164,12 @@
       "key": "horizon_world::level::data::BlockSet::with_capacity",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::data::analyse_shape",
+      "reason": "hot: 6093 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::level::data::build_with_behaviour_json",
@@ -15248,6 +15462,26 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::level::portal::Sim<L>::custom_shape",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal::Sim<L>::fill_shape",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal::Sim<L>::find_custom_ignition_shape",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal::Sim<L>::find_custom_portal_shape",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::level::portal::Sim<L>::find_empty_portal_shape",
       "reason": "generic impl",
       "kind": "fn"
@@ -15263,7 +15497,7 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_world::level::portal::Sim<L>::portal_distance_until_edge_above_frame",
+      "key": "horizon_world::level::portal::Sim<L>::ignite_custom_portal",
       "reason": "generic impl",
       "kind": "fn"
     },
@@ -15278,8 +15512,18 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::level::portal::ignition_matches",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::level::portal::step",
       "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal_travel::Behaviours::create_custom_portal",
+      "reason": "generic type params",
       "kind": "fn"
     },
     {
@@ -15318,6 +15562,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::level::portal_travel::Sim<L>::create_custom_portal",
+      "reason": "generic impl",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::level::portal_travel::Sim<L>::create_portal",
       "reason": "generic impl",
       "kind": "fn"
@@ -15349,6 +15598,61 @@
     },
     {
       "key": "horizon_world::level::portal_travel::step",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal_type::PortalSize::valid",
+      "reason": "const fn",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal_type::PortalType::fill_state",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal_type::PortalType::frame_state",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal_type::PortalType::is_fill",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal_type::PortalType::is_frame",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal_type::PortalTypes::by_slot",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal_type::PortalTypes::for_fill",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal_type::PortalTypes::get",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal_type::PortalTypes::iter",
+      "reason": "impl Trait return",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal_type::optional_string",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::portal_type::required_string",
       "reason": "small body",
       "kind": "fn"
     },
@@ -16918,6 +17222,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::level::states::StateTable::key_or_insert",
+      "reason": "hot: 4800 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::level::states::StateTable::name",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -17181,6 +17491,12 @@
       "key": "horizon_world::level::tick::RandomTickMask::may_tick",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::level::tick::RandomTickMask::of",
+      "reason": "hot: 2132 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::level::tick::Sim<L>::bamboo_grow",
@@ -18658,6 +18974,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::nbt::<JavaString as From<&str>>::from",
+      "reason": "hot: 98560 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::nbt::JavaString::to_string",
       "reason": "small body",
       "kind": "fn"
@@ -18698,9 +19020,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::nbt::ListElements::next_element",
+      "reason": "hot: 321525 calls in the REM-03 second hit-count flight (0.192%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::nbt::Reader::byte",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::nbt::Reader::count",
+      "reason": "hot: 704734 calls in the REM-03 second hit-count flight (0.420%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::nbt::Reader::error",
@@ -18711,6 +19045,12 @@
       "key": "horizon_world::nbt::Reader::number",
       "reason": "const generics",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::nbt::Reader::payload",
+      "reason": "hot: 61196 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::nbt::Reader::root_name",
@@ -18738,6 +19078,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::nbt::Snbt::compound",
+      "reason": "hot: 11106 calls in the REM-03 second hit-count flight (0.007%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::nbt::Snbt::expect",
       "reason": "small body",
       "kind": "fn"
@@ -18746,6 +19092,12 @@
       "key": "horizon_world::nbt::Snbt::peek",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::nbt::Snbt::scalar",
+      "reason": "hot: 8820 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::nbt::Snbt::skip",
@@ -18796,6 +19148,30 @@
       "key": "horizon_world::nbt::Writer::error",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::nbt::Writer::payload",
+      "reason": "hot: 70081 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::nbt::Writer::put",
+      "reason": "hot: 1152942 calls in the REM-03 hit-count flight (0.41%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::nbt::Writer::string",
+      "reason": "hot: 62756 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::nbt::modified_utf8",
+      "reason": "hot: 5177545 calls in the REM-03 second hit-count flight (3.088%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::nbt::parse_snbt",
@@ -19663,6 +20039,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::registry::BlockRegistry::resolve",
+      "reason": "hot: 8010 calls in the REM-03 second hit-count flight (0.005%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::registry::BlockRegistry::state",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -19738,14 +20120,32 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::registry::json::BlockStateJsonCodec::decode",
+      "reason": "hot: 2058 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::registry::json::BlockStateJsonCodec::encode",
       "reason": "small body",
       "kind": "fn"
     },
     {
+      "key": "horizon_world::registry::snapshot::Strings::get",
+      "reason": "hot: 353827 calls in the REM-03 second hit-count flight (0.211%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::registry::snapshot::Strings::state",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::registry::state_key",
+      "reason": "hot: 164862 calls in the REM-03 second hit-count flight (0.098%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::registry_collision_scan::<RegistryCollisionWorld<W> as BlockCollisionWorld>::collision_block",
@@ -20728,6 +21128,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::stepped_interpolation::SteppedInterpolation::advance",
+      "reason": "hot: 20340 calls in the REM-03 second hit-count flight (0.012%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::stepped_interpolation::SteppedInterpolation::cancel",
       "reason": "small body",
       "kind": "fn"
@@ -20736,6 +21142,18 @@
       "key": "horizon_world::stepped_interpolation::SteppedInterpolation::heading",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::stepped_interpolation::SteppedInterpolation::interpolate",
+      "reason": "hot: 49397 calls in the REM-03 second hit-count flight (0.029%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::stepped_interpolation::SteppedInterpolation::interpolate_to",
+      "reason": "hot: 7263 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::stepped_interpolation::SteppedInterpolation::new",
@@ -20761,6 +21179,12 @@
       "key": "horizon_world::stepped_interpolation::same_position",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::stepped_interpolation::wrap_degrees",
+      "reason": "hot: 15159 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::stored_consume::<StoredConsume<H,W> as EffectWorld<H,S,Set>>::add_effect",
@@ -21068,6 +21492,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::aquifer::<GlobalFluidPicker as FluidPicker>::compute",
+      "reason": "hot: 1800653 calls in the REM-03 hit-count flight (0.65%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::aquifer::DisabledAquifer<P>::compute_substance",
       "reason": "generic impl",
       "kind": "fn"
@@ -21121,6 +21551,36 @@
       "key": "horizon_world::worldgen::aquifer::noise_based::<AquiferError as Display>::fmt",
       "reason": "calls trait method without trait in scope",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::air",
+      "reason": "hot: 5098745 calls in the REM-03 hit-count flight (1.83%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::is_air",
+      "reason": "hot: 58771 calls in the REM-03 second hit-count flight (0.035%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::is_lava",
+      "reason": "hot: 2623437 calls in the REM-03 hit-count flight (0.94%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::is_water",
+      "reason": "hot: 1341379 calls in the REM-03 hit-count flight (0.48%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::lava",
+      "reason": "hot: 18816 calls in the REM-03 second hit-count flight (0.011%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::aquifer::noise_based::NoiseBasedAquifer<P,F,B>::air_above_y",
@@ -21473,6 +21933,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::biome_temperature::BiomeTemperature::temperature",
+      "reason": "hot: 82432 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::biome_temperature::BiomeTemperature::warm_enough_to_rain",
       "reason": "small body",
       "kind": "fn"
@@ -21521,6 +21987,12 @@
       "key": "horizon_world::worldgen::blending::Blender::blending_value",
       "reason": "nested callable borrow",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::blending::Blender::carving_filter",
+      "reason": "hot: 141144 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::blending::Blender::empty",
@@ -22103,6 +22575,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::carver::generation::large_feature_random",
+      "reason": "hot: 151725 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::carving::CarvingBlocks::flags",
       "reason": "small body",
       "kind": "fn"
@@ -22211,6 +22689,12 @@
       "key": "horizon_world::worldgen::climate::ClimateSampler::new",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::climate::ClimateSampler::sample",
+      "reason": "hot: 421203 calls in the REM-03 second hit-count flight (0.251%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::climate::ClimateVolume::target",
@@ -22398,6 +22882,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::decoration_order::ticket_hash",
+      "reason": "hot: 35110 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::delta::<DeltaError<E> as Display>::fmt",
       "reason": "generic impl",
       "kind": "fn"
@@ -22471,6 +22961,12 @@
       "key": "horizon_world::worldgen::density::float",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::density::identifier",
+      "reason": "hot: 71417 calls in the REM-03 second hit-count flight (0.043%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::density::noise_value",
@@ -23278,6 +23774,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::generator::<GenBlockStates as TerrainBlockStates>::heightmap_state",
+      "reason": "hot: 24712689 calls in the REM-03 hit-count flight (8.87%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::generator::<GeneratorError as Display>::fmt",
       "reason": "calls trait method without trait in scope",
       "kind": "fn"
@@ -23538,6 +24040,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::generator::ChunkWork::at",
+      "reason": "hot: 3751 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::generator::ChunkWork::new",
       "reason": "small body",
       "kind": "fn"
@@ -23763,6 +24271,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::generator::OverworldGenerator::for_stem",
+      "reason": "small body",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::worldgen::generator::OverworldGenerator::for_world",
       "reason": "small body",
       "kind": "fn"
@@ -23933,6 +24446,11 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::generator::ProtoChunk::biomes_mut",
+      "reason": "borrowed return type",
+      "kind": "fn"
+    },
+    {
       "key": "horizon_world::worldgen::generator::ProtoChunk::block",
       "reason": "small body",
       "kind": "fn"
@@ -23988,6 +24506,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::generator::UniformSurfaceBiomes::cell",
+      "reason": "hot: 61023 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::generator::UniformSurfaceBiomes::get",
       "reason": "small body",
       "kind": "fn"
@@ -24006,6 +24530,12 @@
       "key": "horizon_world::worldgen::generator::joined",
       "reason": "generic type params",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::generator::lap",
+      "reason": "hot: 7032 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::generator::loading",
@@ -24058,14 +24588,194 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::generator_decoration::<ShapeLevel as LevelAccess>::block_state",
+      "reason": "hot: 51409 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<ShapeLevel as LevelAccess>::game_time",
+      "reason": "hot: 82878 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::generator_decoration::<ShapeLevel as LevelAccess>::random",
       "reason": "borrowed return type",
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::chunk_biomes",
+      "reason": "hot: 6561 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::set_currently_generating",
+      "reason": "hot: 36884 calls in the REM-03 second hit-count flight (0.022%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as FeatureWorld>::block",
+      "reason": "hot: 1044384 calls in the REM-03 hit-count flight (0.37%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as FeatureWorld>::set_block",
+      "reason": "hot: 138085 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::any_height_at_least",
+      "reason": "hot: 38825 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::attachment_at",
+      "reason": "hot: 3442 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::biome_allows_feature",
+      "reason": "hot: 63405 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::biome_identity",
+      "reason": "hot: 104637 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::biome_should_freeze",
+      "reason": "hot: 41216 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::biome_should_snow",
+      "reason": "hot: 41216 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_matches_tag",
+      "reason": "hot: 69519 calls in the REM-03 second hit-count flight (0.041%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_state",
+      "reason": "hot: 1260906 calls in the REM-03 hit-count flight (0.45%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_survives",
+      "reason": "hot: 47151 calls in the REM-03 second hit-count flight (0.028%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::ensure_can_write",
+      "reason": "hot: 1113462 calls in the REM-03 hit-count flight (0.40%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::face_sturdy",
+      "reason": "hot: 14405 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::fluid_state",
+      "reason": "hot: 66810 calls in the REM-03 second hit-count flight (0.040%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::generation",
+      "reason": "hot: 77078 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::height",
+      "reason": "hot: 91115 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::mark_postprocessing",
+      "reason": "hot: 39946 calls in the REM-03 second hit-count flight (0.024%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::max_y",
+      "reason": "hot: 5370624 calls in the REM-03 hit-count flight (1.93%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::min_y",
+      "reason": "hot: 5416806 calls in the REM-03 hit-count flight (1.94%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::schedule_block_tick",
+      "reason": "hot: 82359 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::sea_level",
+      "reason": "hot: 82432 calls in the REM-03 hit-count flight (0.03%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::set_block_entity_loot_table",
       "reason": "impl Trait argument",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::set_section_block",
+      "reason": "hot: 943635 calls in the REM-03 hit-count flight (0.34%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::state_face_sturdy",
+      "reason": "hot: 14511 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::update_shape_at_face",
+      "reason": "hot: 131906 calls in the REM-03 hit-count flight (0.05%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as SurvivalWorld>::block_state",
+      "reason": "hot: 51811 calls in the REM-03 second hit-count flight (0.031%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::<World as SurvivalWorld>::fluid_state",
+      "reason": "hot: 6019 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::generator_decoration::Decoration::named_feature",
@@ -24096,6 +24806,24 @@
       "key": "horizon_world::worldgen::generator_decoration::World::schedule_captured",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::World::shape_update",
+      "reason": "hot: 265600 calls in the REM-03 hit-count flight (0.10%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::World::uniform_biome",
+      "reason": "hot: 104637 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_decoration::World::uniform_section",
+      "reason": "hot: 257017 calls in the REM-03 hit-count flight (0.09%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::generator_decoration::block_of",
@@ -24146,6 +24874,18 @@
       "key": "horizon_world::worldgen::generator_structures::StartCache::clear",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::generator_structures::StartCache::get",
+      "reason": "hot: 56359 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
+      "key": "horizon_world::worldgen::generator_structures::StartCache::insert_first",
+      "reason": "hot: 2071 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::generator_structures::StartCache::new",
@@ -24326,6 +25066,12 @@
       "key": "horizon_world::worldgen::int_range",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::integer",
+      "reason": "hot: 4220 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::live::LiveFeatures::biome_id",
@@ -24683,6 +25429,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::material_condition::codec::identifier",
+      "reason": "hot: 33660 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::material_condition::density::<MaterialDensitySources<S> as MaterialSurfaceQueries>::band",
       "reason": "generic impl",
       "kind": "fn"
@@ -24766,6 +25518,12 @@
       "key": "horizon_world::worldgen::material_condition::density::MaterialDensitySources<S>::sampler_context_mut",
       "reason": "generic impl",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::material_condition::density::block_index",
+      "reason": "hot: 10884999 calls in the REM-03 hit-count flight (3.91%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::material_condition::library::MaterialRuleLibrary::compile_aquifer",
@@ -25145,11 +25903,6 @@
     {
       "key": "horizon_world::worldgen::overrides::WorldgenOverrides::entries",
       "reason": "impl Trait return",
-      "kind": "fn"
-    },
-    {
-      "key": "horizon_world::worldgen::overrides::WorldgenOverrides::finish",
-      "reason": "impl Trait argument",
       "kind": "fn"
     },
     {
@@ -25853,6 +26606,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::state_provider::properties::StateProperties::set_integer",
+      "reason": "hot: 4300 calls in the REM-03 second hit-count flight (0.003%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::state_provider::properties::StateProperties::value",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -25861,6 +26620,12 @@
       "key": "horizon_world::worldgen::state_provider::properties::StateProperties::values",
       "reason": "borrowed return type",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::state_provider::properties::StateProperties::with_value",
+      "reason": "hot: 100795 calls in the REM-03 hit-count flight (0.04%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::structure::BoundingBox::center",
@@ -26313,6 +27078,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::structure::jigsaw::Pools::get",
+      "reason": "hot: 3686 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::structure::jigsaw::Pools::new",
       "reason": "small body",
       "kind": "fn"
@@ -26588,6 +27359,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::structure::legacy::PieceFrame::place",
+      "reason": "hot: 61269 calls in the REM-03 second hit-count flight (0.037%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::structure::legacy::PieceFrame::world_pos",
       "reason": "small body",
       "kind": "fn"
@@ -26666,6 +27443,12 @@
       "key": "horizon_world::worldgen::structure::legacy::solid_render",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::structure::legacy::state",
+      "reason": "hot: 7372 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::structure::mansion::Grid::edges_to",
@@ -26821,6 +27604,12 @@
       "key": "horizon_world::worldgen::structure::mansion::up",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::structure::mineshaft::<MineshaftPiece as LegacyPiece>::bounding_box",
+      "reason": "hot: 50028 calls in the REM-03 second hit-count flight (0.030%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::structure::mineshaft::Builder::add",
@@ -27653,6 +28442,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::structure::start::StructureRegistry::structure_chunk",
+      "reason": "hot: 37719 calls in the REM-03 second hit-count flight (0.022%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::structure::start::StructureRegistry::zone_reach",
       "reason": "small body",
       "kind": "fn"
@@ -27893,6 +28688,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::structure::template::StructureTemplate::bounding_box",
+      "reason": "hot: 30057 calls in the REM-03 hit-count flight (0.01%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::structure::template::StructureTemplate::empty",
       "reason": "small body",
       "kind": "fn"
@@ -27918,6 +28719,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::structure::template::StructureTemplate::transform",
+      "reason": "hot: 595508 calls in the REM-03 hit-count flight (0.21%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::structure::template::get",
       "reason": "borrowed return type",
       "kind": "fn"
@@ -27926,6 +28733,12 @@
       "key": "horizon_world::worldgen::structure::template::int_list",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::structure::template::read_state",
+      "reason": "hot: 6813 calls in the REM-03 second hit-count flight (0.004%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::structure::template::string",
@@ -27968,9 +28781,21 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::tags::TagEntry::from_json",
+      "reason": "hot: 14743 calls in the REM-03 second hit-count flight (0.009%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::tags::hash",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::tags::identifier",
+      "reason": "hot: 44071 calls in the REM-03 second hit-count flight (0.026%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::tags::java_bucket_order",
@@ -27981,6 +28806,12 @@
       "key": "horizon_world::worldgen::tags::reaches",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::tags::visit",
+      "reason": "hot: 3091 calls in the REM-03 second hit-count flight (0.002%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::terrain::<DisabledAquifer<P> as TerrainAquifer>::compute_substance",
@@ -28673,6 +29504,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::tree::trunk::log_axis",
+      "reason": "hot: 2191 calls in the REM-03 second hit-count flight (0.001%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::tree::trunk::random_horizontal",
       "reason": "impl Trait argument",
       "kind": "fn"
@@ -28708,6 +29545,12 @@
       "kind": "fn"
     },
     {
+      "key": "horizon_world::worldgen::tree_blocks::<JavaPos as JavaKey>::java_hash",
+      "reason": "hot: 273155 calls in the REM-03 hit-count flight (0.10%)",
+      "kind": "fn",
+      "manual": true
+    },
+    {
       "key": "horizon_world::worldgen::tree_blocks::Axis::name",
       "reason": "small body",
       "kind": "fn"
@@ -28731,6 +29574,12 @@
       "key": "horizon_world::worldgen::tree_blocks::PosSet::is_empty",
       "reason": "small body",
       "kind": "fn"
+    },
+    {
+      "key": "horizon_world::worldgen::tree_blocks::PosSet::pop_first",
+      "reason": "hot: 67328 calls in the REM-03 hit-count flight (0.02%)",
+      "kind": "fn",
+      "manual": true
     },
     {
       "key": "horizon_world::worldgen::tree_blocks::PosSet::to_vec",
@@ -29081,672 +29930,6 @@
       "key": "horizon_world::yoake_state_catalog::types",
       "reason": "small body",
       "kind": "fn"
-    },
-    {
-      "key": "horizon_world::attributes::live::<Key as ObjectKey>::object_hash",
-      "reason": "hot: 30973 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::block_collision_scan::cells",
-      "reason": "hot: 72157 calls in the REM-03 hit-count flight (0.03%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::block_render::FaceVisibility::skips",
-      "reason": "hot: 1300178 calls in the REM-03 hit-count flight (0.47%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::block_render::FaceVisibility::should_render_face",
-      "reason": "hot: 1300178 calls in the REM-03 hit-count flight (0.47%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::chunk::id_in",
-      "reason": "hot: 5176662 calls in the REM-03 hit-count flight (1.86%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::chunk::BlockSection::set",
-      "reason": "hot: 4826018 calls in the REM-03 hit-count flight (1.73%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::chunk::BlockSection::fill_run",
-      "reason": "hot: 394547 calls in the REM-03 hit-count flight (0.14%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::entity_fluid::<CurrentAccumulator as Default>::default",
-      "reason": "hot: 45166 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::nbt::<JavaString as From<&str>>::from",
-      "reason": "hot: 98560 calls in the REM-03 hit-count flight (0.04%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::nbt::Reader::payload",
-      "reason": "hot: 61196 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::nbt::Writer::put",
-      "reason": "hot: 1152942 calls in the REM-03 hit-count flight (0.41%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::nbt::Writer::string",
-      "reason": "hot: 62756 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::nbt::Writer::payload",
-      "reason": "hot: 70081 calls in the REM-03 hit-count flight (0.03%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::aquifer::<GlobalFluidPicker as FluidPicker>::compute",
-      "reason": "hot: 1800653 calls in the REM-03 hit-count flight (0.65%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::air",
-      "reason": "hot: 5098745 calls in the REM-03 hit-count flight (1.83%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::is_lava",
-      "reason": "hot: 2623437 calls in the REM-03 hit-count flight (0.94%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::is_water",
-      "reason": "hot: 1341379 calls in the REM-03 hit-count flight (0.48%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::biome_temperature::BiomeTemperature::temperature",
-      "reason": "hot: 82432 calls in the REM-03 hit-count flight (0.03%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::blending::Blender::carving_filter",
-      "reason": "hot: 141144 calls in the REM-03 hit-count flight (0.05%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::carver::generation::large_feature_random",
-      "reason": "hot: 151725 calls in the REM-03 hit-count flight (0.05%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::decoration_order::ticket_hash",
-      "reason": "hot: 35110 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator::<GenBlockStates as TerrainBlockStates>::heightmap_state",
-      "reason": "hot: 24712689 calls in the REM-03 hit-count flight (8.87%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator::UniformSurfaceBiomes::cell",
-      "reason": "hot: 61023 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::World::uniform_section",
-      "reason": "hot: 257017 calls in the REM-03 hit-count flight (0.09%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::World::uniform_biome",
-      "reason": "hot: 104637 calls in the REM-03 hit-count flight (0.04%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<ShapeLevel as LevelAccess>::block_state",
-      "reason": "hot: 51409 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<ShapeLevel as LevelAccess>::game_time",
-      "reason": "hot: 82878 calls in the REM-03 hit-count flight (0.03%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::World::shape_update",
-      "reason": "hot: 265600 calls in the REM-03 hit-count flight (0.10%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as FeatureWorld>::block",
-      "reason": "hot: 1044384 calls in the REM-03 hit-count flight (0.37%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as FeatureWorld>::set_block",
-      "reason": "hot: 138085 calls in the REM-03 hit-count flight (0.05%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::update_shape_at_face",
-      "reason": "hot: 131906 calls in the REM-03 hit-count flight (0.05%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::ensure_can_write",
-      "reason": "hot: 1113462 calls in the REM-03 hit-count flight (0.40%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::set_section_block",
-      "reason": "hot: 943635 calls in the REM-03 hit-count flight (0.34%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::biome_should_freeze",
-      "reason": "hot: 41216 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::biome_should_snow",
-      "reason": "hot: 41216 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::sea_level",
-      "reason": "hot: 82432 calls in the REM-03 hit-count flight (0.03%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::schedule_block_tick",
-      "reason": "hot: 82359 calls in the REM-03 hit-count flight (0.03%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::biome_identity",
-      "reason": "hot: 104637 calls in the REM-03 hit-count flight (0.04%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::biome_allows_feature",
-      "reason": "hot: 63405 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_state",
-      "reason": "hot: 1260906 calls in the REM-03 hit-count flight (0.45%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::max_y",
-      "reason": "hot: 5370624 calls in the REM-03 hit-count flight (1.93%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::generation",
-      "reason": "hot: 77078 calls in the REM-03 hit-count flight (0.03%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::min_y",
-      "reason": "hot: 5416806 calls in the REM-03 hit-count flight (1.94%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::height",
-      "reason": "hot: 91115 calls in the REM-03 hit-count flight (0.03%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::any_height_at_least",
-      "reason": "hot: 38825 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_structures::StartCache::get",
-      "reason": "hot: 56359 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::material_condition::codec::identifier",
-      "reason": "hot: 33660 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::material_condition::density::block_index",
-      "reason": "hot: 10884999 calls in the REM-03 hit-count flight (3.91%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::state_provider::properties::StateProperties::with_value",
-      "reason": "hot: 100795 calls in the REM-03 hit-count flight (0.04%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::structure::template::StructureTemplate::transform",
-      "reason": "hot: 595508 calls in the REM-03 hit-count flight (0.21%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::structure::template::StructureTemplate::bounding_box",
-      "reason": "hot: 30057 calls in the REM-03 hit-count flight (0.01%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::tree_blocks::<JavaPos as JavaKey>::java_hash",
-      "reason": "hot: 273155 calls in the REM-03 hit-count flight (0.10%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::tree_blocks::PosSet::pop_first",
-      "reason": "hot: 67328 calls in the REM-03 hit-count flight (0.02%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::attributes::live::<Key as PartialEq>::eq",
-      "reason": "hot: 31230 calls in the REM-03 second hit-count flight (0.019%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::block_collision::ScaffoldingCollision::from_state",
-      "reason": "hot: 71446 calls in the REM-03 second hit-count flight (0.043%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::block_state_properties::SharedStrings::get",
-      "reason": "hot: 316818 calls in the REM-03 second hit-count flight (0.189%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::block_state_properties::BlockProperties::from_shared",
-      "reason": "hot: 35321 calls in the REM-03 second hit-count flight (0.021%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::block_state_properties::<Iter as Iterator>::size_hint",
-      "reason": "hot: 118060 calls in the REM-03 second hit-count flight (0.070%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::block_state_properties::<BlockProperties as PartialEq>::eq",
-      "reason": "hot: 414923 calls in the REM-03 second hit-count flight (0.247%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::block_state_properties::<BlockProperties as PartialEq<BTreeMap<String,String>>>::eq",
-      "reason": "hot: 35723 calls in the REM-03 second hit-count flight (0.021%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::chunk::BlockState::to_nbt",
-      "reason": "hot: 12081 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::chunk::BlockState::from_nbt",
-      "reason": "hot: 321507 calls in the REM-03 second hit-count flight (0.192%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::fluid::FluidKind::from_wire_id",
-      "reason": "hot: 2402 calls in the REM-03 second hit-count flight (0.001%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::fluid::FluidState::from_block",
-      "reason": "hot: 393017 calls in the REM-03 second hit-count flight (0.234%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::fluid::FluidBlockBindings::block",
-      "reason": "hot: 2960 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::level::data::analyse_shape",
-      "reason": "hot: 6093 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::level::states::StateTable::key_or_insert",
-      "reason": "hot: 4800 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::nbt::Reader::count",
-      "reason": "hot: 704734 calls in the REM-03 second hit-count flight (0.420%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::nbt::ListElements::next_element",
-      "reason": "hot: 321525 calls in the REM-03 second hit-count flight (0.192%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::nbt::modified_utf8",
-      "reason": "hot: 5177545 calls in the REM-03 second hit-count flight (3.088%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::nbt::Snbt::compound",
-      "reason": "hot: 11106 calls in the REM-03 second hit-count flight (0.007%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::nbt::Snbt::scalar",
-      "reason": "hot: 8820 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::registry::state_key",
-      "reason": "hot: 164862 calls in the REM-03 second hit-count flight (0.098%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::registry::BlockRegistry::resolve",
-      "reason": "hot: 8010 calls in the REM-03 second hit-count flight (0.005%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::registry::json::BlockStateJsonCodec::decode",
-      "reason": "hot: 2058 calls in the REM-03 second hit-count flight (0.001%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::registry::snapshot::Strings::get",
-      "reason": "hot: 353827 calls in the REM-03 second hit-count flight (0.211%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::integer",
-      "reason": "hot: 4220 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::lava",
-      "reason": "hot: 18816 calls in the REM-03 second hit-count flight (0.011%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::aquifer::noise_based::<RegistryAquiferBlockStates as AquiferBlockStates>::is_air",
-      "reason": "hot: 58771 calls in the REM-03 second hit-count flight (0.035%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::climate::ClimateSampler::sample",
-      "reason": "hot: 421203 calls in the REM-03 second hit-count flight (0.251%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::density::identifier",
-      "reason": "hot: 71417 calls in the REM-03 second hit-count flight (0.043%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator::ChunkWork::at",
-      "reason": "hot: 3751 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator::lap",
-      "reason": "hot: 7032 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::chunk_biomes",
-      "reason": "hot: 6561 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as DecorationWorld>::set_currently_generating",
-      "reason": "hot: 36884 calls in the REM-03 second hit-count flight (0.022%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as SurvivalWorld>::fluid_state",
-      "reason": "hot: 6019 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as SurvivalWorld>::block_state",
-      "reason": "hot: 51811 calls in the REM-03 second hit-count flight (0.031%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::attachment_at",
-      "reason": "hot: 3442 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_survives",
-      "reason": "hot: 47151 calls in the REM-03 second hit-count flight (0.028%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::face_sturdy",
-      "reason": "hot: 14405 calls in the REM-03 second hit-count flight (0.009%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::state_face_sturdy",
-      "reason": "hot: 14511 calls in the REM-03 second hit-count flight (0.009%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::fluid_state",
-      "reason": "hot: 66810 calls in the REM-03 second hit-count flight (0.040%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::mark_postprocessing",
-      "reason": "hot: 39946 calls in the REM-03 second hit-count flight (0.024%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_decoration::<World as PlacementContext>::block_matches_tag",
-      "reason": "hot: 69519 calls in the REM-03 second hit-count flight (0.041%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::generator_structures::StartCache::insert_first",
-      "reason": "hot: 2071 calls in the REM-03 second hit-count flight (0.001%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::state_provider::properties::StateProperties::set_integer",
-      "reason": "hot: 4300 calls in the REM-03 second hit-count flight (0.003%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::structure::jigsaw::Pools::get",
-      "reason": "hot: 3686 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::structure::legacy::state",
-      "reason": "hot: 7372 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::structure::legacy::PieceFrame::place",
-      "reason": "hot: 61269 calls in the REM-03 second hit-count flight (0.037%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::structure::mineshaft::<MineshaftPiece as LegacyPiece>::bounding_box",
-      "reason": "hot: 50028 calls in the REM-03 second hit-count flight (0.030%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::structure::start::StructureRegistry::structure_chunk",
-      "reason": "hot: 37719 calls in the REM-03 second hit-count flight (0.022%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::structure::template::read_state",
-      "reason": "hot: 6813 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::tags::TagEntry::from_json",
-      "reason": "hot: 14743 calls in the REM-03 second hit-count flight (0.009%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::tags::identifier",
-      "reason": "hot: 44071 calls in the REM-03 second hit-count flight (0.026%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::tags::visit",
-      "reason": "hot: 3091 calls in the REM-03 second hit-count flight (0.002%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::worldgen::tree::trunk::log_axis",
-      "reason": "hot: 2191 calls in the REM-03 second hit-count flight (0.001%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::stepped_interpolation::wrap_degrees",
-      "reason": "hot: 15159 calls in the REM-03 second hit-count flight (0.009%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::stepped_interpolation::SteppedInterpolation::interpolate_to",
-      "reason": "hot: 7263 calls in the REM-03 second hit-count flight (0.004%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::stepped_interpolation::SteppedInterpolation::interpolate",
-      "reason": "hot: 49397 calls in the REM-03 second hit-count flight (0.029%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::stepped_interpolation::SteppedInterpolation::advance",
-      "reason": "hot: 20340 calls in the REM-03 second hit-count flight (0.012%)",
-      "kind": "fn",
-      "manual": true
-    },
-    {
-      "key": "horizon_world::level::tick::RandomTickMask::of",
-      "reason": "hot: 2132 calls in the REM-03 second hit-count flight (0.001%)",
-      "kind": "fn",
-      "manual": true
     }
   ]
 }

@@ -10770,7 +10770,7 @@
       "id": 2794,
       "path": "mod_generator::<ModTerrain as ChunkGenerator>::worker",
       "sig": "fn worker(&Self) -> ()",
-      "status": "bound"
+      "status": "unbound"
     },
     {
       "id": 2795,
@@ -10824,25 +10824,25 @@
       "id": 2803,
       "path": "mod_generator::ModTerrain.level#get",
       "sig": "get level: String",
-      "status": "bound"
+      "status": "unbound"
     },
     {
       "id": 2804,
       "path": "mod_generator::ModTerrain.level#set",
       "sig": "set level: String",
-      "status": "ReadOnly"
+      "status": "unbound"
     },
     {
       "id": 2805,
       "path": "mod_generator::ModTerrain.plains#get",
       "sig": "get plains: u16",
-      "status": "bound"
+      "status": "unbound"
     },
     {
       "id": 2806,
       "path": "mod_generator::ModTerrain.plains#set",
       "sig": "set plains: u16",
-      "status": "ReadOnly"
+      "status": "unbound"
     },
     {
       "id": 2807,
@@ -10944,13 +10944,13 @@
       "id": 2823,
       "path": "mod_generator::ModTerrain.shape#get",
       "sig": "get shape: crate::LevelShape",
-      "status": "bound"
+      "status": "unbound"
     },
     {
       "id": 2824,
       "path": "mod_generator::ModTerrain.shape#set",
       "sig": "set shape: crate::LevelShape",
-      "status": "ReadOnly"
+      "status": "unbound"
     },
     {
       "id": 2825,
@@ -12541,6 +12541,24 @@
       "path": "f_services::ime_set_cursor_area",
       "sig": "fn ime_set_cursor_area(f32, f32, f32, f32) -> Result<(), String>",
       "status": "bound"
+    },
+    {
+      "id": 3090,
+      "path": "mod_generator::ModChunk::set_biome_at",
+      "sig": "fn set_biome_at(&mut Self, i32, i32, i32, &str) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3091,
+      "path": "mod_generator::ModProto.failed#get",
+      "sig": "get failed: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3092,
+      "path": "mod_generator::ModProto.failed#set",
+      "sig": "set failed: bool",
+      "status": "ReadOnly"
     }
   ],
   "reserved": [

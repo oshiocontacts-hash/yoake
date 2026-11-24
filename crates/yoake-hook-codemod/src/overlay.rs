@@ -29,6 +29,10 @@ pub struct OverlayArgs {
     pub stamp_config: PathBuf,
     /// `false`: assign ids and record exclusions in the real ledger (`ledger sync`, `--verify`); `true`: read-only.
     pub frozen: bool,
+    /// `sync-ledger --rename OLD=NEW`: keys whose source moved (ids kept). Only applied to keys of this crate.
+    pub renames: Vec<(String, String)>,
+    /// `sync-ledger --tombstone KEY`: keys whose function is gone (id retired). Only applied to keys of this crate.
+    pub tombstones: Vec<String>,
 }
 
 pub struct OverlayResult {
@@ -198,6 +202,10 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
         std::fs::copy(src, &dest).map_err(|e| format!("cannot copy {} to {}: {e}", src.display(), dest.display()))?;
     }
 
+    // REM-11: call-site hooks of the crate (`hook-ledger/<crate>.callsites.patch`, made by `callsite-patch`) go in
+    // before the function stamps, like the in-place shims of `entities`; no patch file: nothing happens
+    crate::callsite_patch::apply_for_crate(&args.ledger, &ident, &args.overlay_root)?;
+
     let mut modules = Vec::new();
     let mut exclude = Vec::new();
     let mut min_stmts = 0usize;
@@ -211,8 +219,8 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
         ledger: args.ledger.clone(),
         modules,
         shallow: false,
-        renames: vec![],
-        tombstones: vec![],
+        renames: args.renames.iter().filter(|(old, _)| old.starts_with(&format!("{ident}::"))).cloned().collect(),
+        tombstones: args.tombstones.iter().filter(|k| k.starts_with(&format!("{ident}::"))).cloned().collect(),
         callsites: false,
         thir: None,
         accept_sites: vec![],
@@ -404,6 +412,8 @@ pub fn run_wrapper(args: Vec<String>) -> ExitCode {
         ledger: workspace.join("hook-ledger"),
         stamp_config: config_path.clone(),
         frozen: true,
+        renames: vec![],
+        tombstones: vec![],
     };
     let result = match build_overlay(&overlay_args) {
         Ok(r) => r,

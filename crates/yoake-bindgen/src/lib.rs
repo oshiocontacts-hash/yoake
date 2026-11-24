@@ -46,6 +46,11 @@ pub struct Config {
     /// Source files that contain `unsafe`: every type defined in one is frozen (no accessors, no methods).
     #[serde(default)]
     pub frozen_files: Vec<String>,
+    /// REM-11: field-table setters (`--tables`) exist for every scalar field except the ones the policy refuses
+    /// ([`table_setter_allowed`]). This list adds refusals: `Type.field` or `Type.*` (`Type` is the struct name or a
+    /// suffix of its path); a guest then gets `BadField` on a write. Use it for a field that carries an invariant.
+    #[serde(default)]
+    pub table_readonly: Vec<String>,
     pub targets: Vec<TargetCfg>,
 }
 
@@ -108,6 +113,54 @@ pub fn forbidden_writable(name: &str) -> bool {
     const SEGMENTS: &[&str] = &["id", "uuid", "len", "length", "index", "idx", "seq", "sequence"];
     let n = name.to_ascii_lowercase();
     n == "join" || n == "0" || n.split('_').any(|segment| SEGMENTS.contains(&segment))
+}
+
+/// Extra whole snake_case segments (beside [`forbidden_writable`]'s) that make a field read-only in the field
+/// tables: derived or cached values and secrets. Setting them would break an invariant the engine keeps, or hand a
+/// guest a credential. Plain data (positions, flags, counters, timers, settings) stays writable.
+const TABLE_INVARIANT_SEGMENTS: &[&str] = &["hash", "checksum", "crc", "generation", "capacity", "version", "nonce", "secret", "password", "token", "salt", "cipher", "handle"];
+
+/// Whether the field-table setter of `Owner.field` is generated (REM-11, Forge access-transformer parity). `owner`
+/// is the struct's rust path, `readonly` the `table_readonly` entries of the config.
+pub fn table_setter_allowed(owner: &str, field: &str, readonly: &[String]) -> bool {
+    if forbidden_writable(field) {
+        return false;
+    }
+    let lower = field.to_ascii_lowercase();
+    if lower.split('_').any(|segment| TABLE_INVARIANT_SEGMENTS.contains(&segment)) {
+        return false;
+    }
+    !readonly.iter().any(|entry| {
+        let Some((ty, f)) = entry.rsplit_once('.') else { return false };
+        let owner_matches = owner == ty || owner.ends_with(&format!("::{ty}"));
+        owner_matches && (f == "*" || f == field)
+    })
+}
+
+#[cfg(test)]
+mod table_setter_tests {
+    use super::table_setter_allowed;
+
+    #[test]
+    fn plain_data_is_writable_and_invariant_fields_are_not() {
+        let none: Vec<String> = Vec::new();
+        for ok in ["health", "position", "fov", "silent", "valid", "width", "ticks", "on_ground"] {
+            assert!(table_setter_allowed("crate::mobs::Mob", ok, &none), "{ok}");
+        }
+        for refused in ["id", "entity_id", "len", "index", "seq_no", "uuid", "hash", "chunk_hash", "capacity", "version", "access_token", "nonce", "salt", "0"] {
+            assert!(!table_setter_allowed("crate::mobs::Mob", refused, &none), "{refused}");
+        }
+    }
+
+    #[test]
+    fn config_entries_refuse_by_type_and_field_or_whole_type() {
+        let cfg = vec!["Mob.health".to_string(), "world::Chunk.*".to_string()];
+        assert!(!table_setter_allowed("crate::mobs::Mob", "health", &cfg));
+        assert!(table_setter_allowed("crate::mobs::Mob", "air", &cfg));
+        assert!(table_setter_allowed("crate::mobs::Zombie", "health", &cfg), "a different type");
+        assert!(!table_setter_allowed("crate::world::Chunk", "anything", &cfg));
+        assert!(table_setter_allowed("crate::other::Chunk", "anything", &cfg), "the path suffix must match whole segments");
+    }
 }
 
 #[cfg(test)]
@@ -346,7 +399,7 @@ pub fn survey(uni: &Universe, crate_name: &str, roots: &[String]) -> R<Vec<(Stri
 
 /// W9b: the field tables of every file module of `crate_name` (see [`render::render_tables_only`]). Returns
 /// `(module label, source file as rustdoc reports it, glue text)` for each module that has any.
-pub fn tables(uni: &Universe, crate_name: &str, frozen_files: &[String]) -> R<Vec<(String, String, String)>> {
+pub fn tables(uni: &Universe, crate_name: &str, frozen_files: &[String], table_readonly: &[String]) -> R<Vec<(String, String, String)>> {
     let doc = uni.doc_index(crate_name).ok_or_else(|| format!("no rustdoc JSON loaded for crate `{crate_name}`"))?;
     let index = uni.docs[doc].v.get("index").and_then(serde_json::Value::as_object).ok_or("no index")?;
     let mut modules: Vec<u64> = Vec::new();
@@ -370,7 +423,16 @@ pub fn tables(uni: &Universe, crate_name: &str, frozen_files: &[String]) -> R<Ve
         let mut info = TargetInfo::plain(crate_name, path, Vec::new());
         info.frozen_files = frozen_files.to_vec();
         let mut an = Analyzer::new(uni, info);
-        let scan = scan_module(&mut an, doc, module, &label);
+        let mut scan = scan_module(&mut an, doc, module, &label);
+        // REM-11: setters for every scalar field the policy allows (the lock ids of `--config` targets are separate)
+        for field in &mut scan.fields {
+            field.writable = table_setter_allowed(&field.owner_path, &field.field, table_readonly);
+            if field.cfg_gated {
+                // `#[cfg(debug_assertions)] gpu_checks: u32`: a release build has no such field
+                field.shape = None;
+                field.reason = Some("field has a cfg attribute".into());
+            }
+        }
         let file = uni.docs[doc].item(module).and_then(|m| m.pointer("/span/filename")).and_then(serde_json::Value::as_str).unwrap_or("").to_string();
         if let Some(text) = render::render_tables_only(&an, &label, crate_name, &scan) {
             out.push((label, file, text));

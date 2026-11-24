@@ -2903,8 +2903,8 @@ impl MovementEmissionWorld for MotionWorld<'_, '_, '_> {
     fn walking_step_sound(&mut self, position: BlockPos, state: BlockStateId) -> Result<()> {
         self.__yoake_trait_movement_emission_world_walking_step_sound(position, state)
     }
-    fn step_event(&mut self, _: BlockStateId) -> Result<()> {
-        Ok(())
+    fn step_event(&mut self, __yoake_a0: BlockStateId) -> Result<()> {
+        self.__yoake_trait_movement_emission_world_step_event(__yoake_a0)
     }
     fn next_step(&mut self) -> Result<f32> {
         self.__yoake_trait_movement_emission_world_next_step()
@@ -2914,8 +2914,8 @@ impl MovementEmissionWorld for MotionWorld<'_, '_, '_> {
     fn water_swim_sound(&mut self) -> Result<()> {
         self.__yoake_trait_movement_emission_world_water_swim_sound()
     }
-    fn entity_event(&mut self, _: MovementEvent) -> Result<()> {
-        Ok(())
+    fn entity_event(&mut self, __yoake_a0: MovementEvent) -> Result<()> {
+        self.__yoake_trait_movement_emission_world_entity_event(__yoake_a0)
     }
     fn flapping(&mut self) -> Result<bool> {
         self.__yoake_trait_movement_emission_world_flapping()
@@ -3131,6 +3131,16 @@ impl MotionWorld<'_, '_, '_> {
         } else {
             MovementEmission::All
         })
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 4219, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::step_event")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_step_event(&mut self, _: BlockStateId) -> Result<()> {
+        Ok(())
+    }
+    #[yoake_hook_macro::yoake_hook(method, self_ty = MotionWorld<'_, '_, '_>, id = 4220, key = "horizon_client_lib::motion::<MotionWorld as MovementEmissionWorld>::entity_event")]
+    #[inline(always)]
+    fn __yoake_trait_movement_emission_world_entity_event(&mut self, _: MovementEvent) -> Result<()> {
+        Ok(())
     }
 }
 impl RestitutionWorld for MotionWorld<'_, '_, '_> {

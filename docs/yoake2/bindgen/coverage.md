@@ -12,7 +12,7 @@ Functions counted: free functions, inherent methods, and non-derived trait-impl 
 | `entity_query` | 20 | 1 | 6 | **7 (35.0%)** | 4 (20.0%) | 9 (45.0%) | 6 / 10 | 14 / 43 | 4 |
 | `render_world` | 33 | 10 | 10 | **20 (60.6%)** | 5 (15.2%) | 8 (24.2%) | 3 / 8 | 37 / 46 | 4 |
 | `render_settings` | 26 | 8 | 4 | **12 (46.2%)** | 14 (53.8%) | 0 (0.0%) | 2 / 5 | 71 / 78 | 2 |
-| `mod_generator` | 25 | 8 | 1 | **9 (36.0%)** | 6 (24.0%) | 10 (40.0%) | 0 / 3 | 11 / 21 | 4 |
+| `mod_generator` | 46 | 8 | 1 | **9 (19.6%)** | 7 (15.2%) | 30 (65.2%) | 0 / 3 | 9 / 28 | 4 |
 | `launch_options` | 3 | 1 | 0 | **1 (33.3%)** | 0 (0.0%) | 2 (66.7%) | 0 / 1 | 32 / 42 | 1 |
 | `f_services` | 32 | 3 | 29 | **32 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 38 / 57 | 63 / 63 | 19 |
 
@@ -567,10 +567,10 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 ## `mod_generator` (horizon-client/src/mod_generator.rs)
 
-- bound now: **9 of 25** (36.0%): 8 basic + 1 mechanical
-- handle-required, not yet bound: 6 (24.0%)
-- excluded: 10 (40.0%)
-- field accessors (get + set pairs): 11 of 21 fields
+- bound now: **9 of 46** (19.6%): 8 basic + 1 mechanical
+- handle-required, not yet bound: 7 (15.2%)
+- excluded: 30 (65.2%)
+- field accessors (get + set pairs): 9 of 28 fields
 - handle types (receivers of bound methods or owners of bound fields): 4
 
 ### Handle types and how a guest reaches them
@@ -579,10 +579,10 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 | handle type | bound methods | bound field pairs | from `Game` by field path |
 |---|---:|---:|---|
-| `crate::mod_generator::ModChunk` | 5 | 4 | - |
+| `crate::mod_generator::ModChunk` | 6 | 4 | - |
 | `crate::mod_generator::ModGeneratorContext` | 1 | 4 | - |
 | `crate::mod_generator::ModGenerators` | 1 | 0 | `Game.mod_generators` |
-| `crate::mod_generator::ModTerrain` | 1 | 3 | - |
+| `crate::mod_generator::ModProto` | 0 | 1 | - |
 
 ### Handle-required: reasons
 
@@ -590,32 +590,44 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 |---|---:|
 | external type `serde_json::value::Value` (crate not loaded) | 3 |
 | external type `serde_json::value::Value` (crate not loaded) [return value] | 2 |
+| field `min_y` of `Chunk` is private to another module [&argument] | 1 |
 | field `min_y` of `Chunk` is private to another module [&mut argument] | 1 |
+| field `min_y` of `Chunk` is private to another module [return value] | 1 |
 
 ### Excluded: reasons
 
 | reason | occurrences |
 |---|---:|
-| `dyn Trait` values cannot cross the data ABI | 8 |
+| impl-level type parameter `G` requires a listed instantiation | 21 |
+| receiver type is generic: bind a concrete instantiation first | 20 |
+| `dyn Trait` values cannot cross the data ABI | 19 |
+| associated-type projection requires a listed instantiation | 6 |
+| field `min_y` of `Chunk` is private to another module [return value] | 4 |
+| field `min_y` of `Chunk` is private to another module [&argument] | 3 |
 | `impl Trait` requires a listed instantiation | 1 |
 | a reference nested inside another type needs a handle | 1 |
+| a reference nested inside another type needs a handle [return value] | 1 |
 | external type `serde_json::value::Value` (crate not loaded) | 1 |
+| field `0` of `SectionMask` is private to another module [return value] | 1 |
+| field `0` of `Wire` is private to another module [return value] | 1 |
+| field `generator` of `VanillaTerrain` is private to another module | 1 |
 | field `info_noise` of `Biomes` is private to another module | 1 |
-| field `min_y` of `Chunk` is private to another module [return value] | 1 |
+| field `min_y` of `Chunk` is private to another module | 1 |
+| generic type `ModTerrain` requires a listed instantiation | 1 |
 | lifetime-carrying type `std::sync::MutexGuard` | 1 |
 
 ### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
 
-(none writable; 11 read-only field accessors)
+(none writable; 9 read-only field accessors)
 
 ### Fields without accessors
 
 | reason | fields |
 |---|---:|
-| `dyn Trait` values cannot cross the data ABI | 4 |
+| `ModTerrain` is generic | 9 |
+| `dyn Trait` values cannot cross the data ABI | 5 |
 | a reference nested inside another type needs a handle | 1 |
 | external type `serde_json::value::Value` (crate not loaded) | 3 |
-| field `info_noise` of `Biomes` is private to another module | 1 |
 | field `min_y` of `Chunk` is private to another module | 1 |
 
 ## `launch_options` (horizon-client/src/game/launch_options.rs)
@@ -658,44 +670,6 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | std type `core::time::Duration` has no codec yet | 1 |
 | std type `std::path::PathBuf` has no codec yet | 7 |
 | std type `std::sync::poison::mutex::Mutex` has no codec yet | 1 |
-
-## External types whose crate JSON was not loaded
-
-- `glam::f32::mat3::Mat3`
-- `glam::f32::sse2::mat4::Mat4`
-- `glam::f64::dvec3::DVec3`
-- `horizon_client_input::gamepad::PadSettings`
-- `horizon_client_input::keybinds::KeyBinds`
-- `horizon_client_input::window::VideoMode`
-- `horizon_cosmetics::prefs::Others`
-- `horizon_mods::custom_mob::CustomMobFile`
-- `horizon_narrator::Status`
-- `horizon_shader_api::manifest::PackOption`
-- `horizon_shaders::options::PackOption`
-- `serde_json::value::Value`
-- `yoake_state::Field`
-- `yoake_state::Value`
-- `yoake_test_runner::plan::WorkerArgs`
-- `yoake_value::Value`
-
-## Reachable from a Game-root hook (MX3R1)
-
-A guest in a hook whose argument 0 is the `Game` root gets the root handle, calls a generated `Game.<name>#handle` binding and receives a path handle; every bound method and field accessor of the type then works on it.
-
-- `Game.dropped` by `id` -> `horizon_client_lib::entities::ItemEntity`: 6 methods + 36 field accessors
-- `Game.armor_stands` by `id` -> `horizon_client_lib::entities::ArmorStand`: 11 methods + 46 field accessors
-- `Game.orbs` by `id` -> `horizon_client_lib::entities::ExperienceOrb`: 5 methods + 22 field accessors
-- `Game.paintings` by `id` -> `horizon_client_lib::entities::Painting`: 4 methods + 14 field accessors
-- `Game.item_frames` by `id` -> `horizon_client_lib::entities::ItemFrame`: 3 methods + 18 field accessors
-- `Game.cushions` by `id` -> `horizon_client_lib::entities::Cushion`: 6 methods + 12 field accessors
-- `Game.experience` -> `horizon_client_lib::entities::Experience`: 7 methods + 6 field accessors
-- `Game.mobs` by `id` -> `horizon_client_lib::mobs::Mob`: 55 methods + 132 field accessors
-- `Game.player` -> `horizon_client_lib::motion::PlayerMotion`: 38 methods + 158 field accessors
-- `Game.world` -> `horizon_client_render::world::World`: 9 methods + 48 field accessors
-- `Game.settings` -> `horizon_client_render::settings::Settings`: 8 methods + 142 field accessors
-- `Game.options` -> `horizon_client::game::launch_options::Options`: 1 methods + 64 field accessors
-
-851 bindings (methods plus getter/setter ids) are reachable this way across 12 types; before, they were reachable only inside a hook on the type itself.
 
 ## `f_services` (horizon-client/src/game/yoake2_f_services.rs)
 
@@ -746,3 +720,42 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 ### Fields without accessors
 
 (none)
+
+## External types whose crate JSON was not loaded
+
+- `glam::f32::mat3::Mat3`
+- `glam::f32::sse2::mat4::Mat4`
+- `glam::f64::dvec3::DVec3`
+- `horizon_client_input::gamepad::PadSettings`
+- `horizon_client_input::keybinds::KeyBinds`
+- `horizon_client_input::window::VideoMode`
+- `horizon_cosmetics::prefs::Others`
+- `horizon_mods::custom_mob::CustomMobFile`
+- `horizon_narrator::Status`
+- `horizon_shader_api::manifest::PackOption`
+- `horizon_shaders::options::PackOption`
+- `serde_json::value::Value`
+- `yoake_state::Field`
+- `yoake_state::Value`
+- `yoake_test_runner::plan::WorkerArgs`
+- `yoake_value::Value`
+
+## Reachable from a Game-root hook (MX3R1)
+
+A guest in a hook whose argument 0 is the `Game` root gets the root handle, calls a generated `Game.<name>#handle` binding and receives a path handle; every bound method and field accessor of the type then works on it.
+
+- `Game.dropped` by `id` -> `horizon_client_lib::entities::ItemEntity`: 6 methods + 36 field accessors
+- `Game.armor_stands` by `id` -> `horizon_client_lib::entities::ArmorStand`: 11 methods + 46 field accessors
+- `Game.orbs` by `id` -> `horizon_client_lib::entities::ExperienceOrb`: 5 methods + 22 field accessors
+- `Game.paintings` by `id` -> `horizon_client_lib::entities::Painting`: 4 methods + 14 field accessors
+- `Game.item_frames` by `id` -> `horizon_client_lib::entities::ItemFrame`: 3 methods + 18 field accessors
+- `Game.cushions` by `id` -> `horizon_client_lib::entities::Cushion`: 6 methods + 12 field accessors
+- `Game.experience` -> `horizon_client_lib::entities::Experience`: 7 methods + 6 field accessors
+- `Game.mobs` by `id` -> `horizon_client_lib::mobs::Mob`: 55 methods + 132 field accessors
+- `Game.player` -> `horizon_client_lib::motion::PlayerMotion`: 38 methods + 158 field accessors
+- `Game.world` -> `horizon_client_render::world::World`: 9 methods + 48 field accessors
+- `Game.settings` -> `horizon_client_render::settings::Settings`: 8 methods + 142 field accessors
+- `Game.options` -> `horizon_client::game::launch_options::Options`: 1 methods + 64 field accessors
+
+851 bindings (methods plus getter/setter ids) are reachable this way across 12 types; before, they were reachable only inside a hook on the type itself.
+

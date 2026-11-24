@@ -1,6 +1,7 @@
 mod attr;
 mod bridge;
 mod callsite;
+mod callsite_patch;
 mod edit;
 mod eligible;
 mod key;
@@ -87,6 +88,7 @@ enum Command {
     TrackCallerScan(TrackCallerScanConfig),
     VerifyCallsites(VerifyCallsitesConfig),
     SyncLedger(SyncLedgerConfig),
+    CallsitePatch(callsite_patch::GenerateArgs),
 }
 
 /// W7: `sync-ledger --workspace-root W [--stamp-config F] [--ledger D] [--overlay-root O] [--crate NAME]...`:
@@ -100,6 +102,9 @@ pub struct SyncLedgerConfig {
     pub only: Vec<String>,
     /// `--frozen`: build the overlays exactly as the compiler wrapper does (read-only ledger), without a build.
     pub frozen: bool,
+    /// `--rename OLD=NEW` / `--tombstone KEY`: drift fixes applied while the overlay is stamped (sources untouched).
+    pub renames: Vec<(String, String)>,
+    pub tombstones: Vec<String>,
 }
 
 fn usage() -> &'static str {
@@ -111,6 +116,8 @@ fn usage() -> &'static str {
      [--exclude-module NAME]... [--min-stmts N] [--stamp-config FILE] (--module '*' = every top-level module)\n  \
      yoake-hook-codemod bridge --crate-root <dir> --crate-name <name> \
      --ledger <dir> --module <mod> [--module <mod>...] [--shallow] [--glue <file>...] [--exclude-file <file>] [--check]\n  \
+     yoake-hook-codemod sync-ledger --workspace-root <dir> [--crate NAME]... [--rename OLD=NEW]... [--tombstone KEY]... [--frozen]\n  \
+     yoake-hook-codemod callsite-patch --workspace-root <dir> --crate NAME --thir <calls.json> [--stamp-config F] [--ledger D] [--scratch DIR]\n  \
      yoake-hook-codemod check-history --base <dir> --current <dir>\n  \
      yoake-hook-codemod track-caller-scan --workspace <dir> --out <file>\n  \
      yoake-hook-codemod verify-callsites --crate-name <name> --ledger <dir> --thir <calls.json>\n  \
@@ -156,6 +163,9 @@ fn parse_args() -> Result<Option<Command>, String> {
     }
     if first == "sync-ledger" {
         return parse_sync_ledger_args(&mut args);
+    }
+    if first == "callsite-patch" {
+        return parse_callsite_patch_args(&mut args);
     }
     if first == "check-history" {
         return parse_check_history_args(&mut args);
@@ -411,6 +421,40 @@ pub(crate) fn apply_stamp_config(
     Err(format!("no line for crate '{crate_name}' in {}", path.display()))
 }
 
+/// REM-11: `callsite-patch --workspace-root W --crate NAME --thir calls.json [--stamp-config F] [--ledger D] [--scratch DIR]`.
+fn parse_callsite_patch_args(args: &mut std::env::Args) -> Result<Option<Command>, String> {
+    let mut workspace_root = PathBuf::from(".");
+    let (mut stamp_config, mut ledger, mut scratch, mut crate_name, mut thir) = (None, None, None, None, None);
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "-h" | "--help" => {
+                println!("{}", usage());
+                return Ok(None);
+            }
+            "--workspace-root" => workspace_root = PathBuf::from(next_arg(args, "--workspace-root")?),
+            "--stamp-config" => stamp_config = Some(PathBuf::from(next_arg(args, "--stamp-config")?)),
+            "--ledger" => ledger = Some(PathBuf::from(next_arg(args, "--ledger")?)),
+            "--scratch" => scratch = Some(PathBuf::from(next_arg(args, "--scratch")?)),
+            "--crate" => crate_name = Some(next_arg(args, "--crate")?),
+            "--thir" => thir = Some(PathBuf::from(next_arg(args, "--thir")?)),
+            other => return Err(format!("unknown argument '{other}'
+{}", usage())),
+        }
+    }
+    let crate_name = crate_name.ok_or_else(|| format!("missing --crate
+{}", usage()))?;
+    let thir = thir.ok_or_else(|| format!("missing --thir
+{}", usage()))?;
+    Ok(Some(Command::CallsitePatch(callsite_patch::GenerateArgs {
+        stamp_config: stamp_config.unwrap_or_else(|| workspace_root.join("hook-ledger").join("stamp-config.txt")),
+        ledger: ledger.unwrap_or_else(|| workspace_root.join("hook-ledger")),
+        scratch: scratch.unwrap_or_else(|| workspace_root.join("target").join("yoake-callsite").join(key::normalize_crate_name(&crate_name))),
+        workspace_root,
+        crate_name,
+        thir,
+    })))
+}
+
 fn parse_sync_ledger_args(args: &mut std::env::Args) -> Result<Option<Command>, String> {
     let mut workspace_root = PathBuf::from(".");
     let mut stamp_config = None;
@@ -418,12 +462,22 @@ fn parse_sync_ledger_args(args: &mut std::env::Args) -> Result<Option<Command>, 
     let mut overlay_root = None;
     let mut only = Vec::new();
     let mut frozen = false;
+    let mut renames = Vec::new();
+    let mut tombstones = Vec::new();
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-h" | "--help" => {
                 println!("{}", usage());
                 return Ok(None);
             }
+            "--rename" => {
+                let raw = next_arg(args, "--rename")?;
+                match raw.split_once('=') {
+                    Some((o, n)) if !o.is_empty() && !n.is_empty() => renames.push((o.to_string(), n.to_string())),
+                    _ => return Err(format!("--rename expects OLD_KEY=NEW_KEY, got '{raw}'")),
+                }
+            }
+            "--tombstone" => tombstones.push(next_arg(args, "--tombstone")?),
             "--workspace-root" => workspace_root = PathBuf::from(next_arg(args, "--workspace-root")?),
             "--stamp-config" => stamp_config = Some(PathBuf::from(next_arg(args, "--stamp-config")?)),
             "--ledger" => ledger = Some(PathBuf::from(next_arg(args, "--ledger")?)),
@@ -441,6 +495,8 @@ fn parse_sync_ledger_args(args: &mut std::env::Args) -> Result<Option<Command>, 
         workspace_root,
         only,
         frozen,
+        renames,
+        tombstones,
     })))
 }
 
@@ -465,6 +521,8 @@ fn sync_ledger(config: &SyncLedgerConfig) -> Result<bool, String> {
             ledger: config.ledger.clone(),
             stamp_config: config.stamp_config.clone(),
             frozen: config.frozen,
+            renames: config.renames.clone(),
+            tombstones: config.tombstones.clone(),
         })?;
     }
     Ok(true)
@@ -653,6 +711,10 @@ fn main() -> ExitCode {
             verify::run(&config, &options)
         }
         Command::SyncLedger(config) => sync_ledger(&config),
+        Command::CallsitePatch(args) => callsite_patch::generate(&args).map(|(files, hunks)| {
+            println!("callsite-patch: {files} file(s), {hunks} hunk(s) in {}", callsite_patch::patch_path(&args.ledger, &key::normalize_crate_name(&args.crate_name)).display());
+            true
+        }),
         Command::Run(config) => run::execute(&config),
         Command::Bridge(config) => bridge::execute(&config),
         Command::CheckHistory(history) => ledger_io::run_check_history(&history.base, &history.current),

@@ -2,95 +2,95 @@
 
 | function | line | receiver | category | reasons |
 |---|---:|---|---|---|
-| `f_services::<FAnchor as Clone>::clone` | 76 | &self | derived (not counted) | - |
-| `f_services::<FAnchor as Debug>::fmt` | 76 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FAnchor as PartialEq>::eq` | 76 | &self | derived (not counted) | - |
-| `f_services::<FAttribute as Clone>::clone` | 224 | &self | derived (not counted) | - |
-| `f_services::<FAttribute as Debug>::fmt` | 224 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FAttribute as PartialEq>::eq` | 224 | &self | derived (not counted) | - |
-| `f_services::<FBinding as Clone>::clone` | 246 | &self | derived (not counted) | - |
-| `f_services::<FBinding as Debug>::fmt` | 246 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FBinding as PartialEq>::eq` | 246 | &self | derived (not counted) | - |
-| `f_services::<FBindingKind as Clone>::clone` | 206 | &self | derived (not counted) | - |
-| `f_services::<FBindingKind as Debug>::fmt` | 206 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FBindingKind as PartialEq>::eq` | 206 | &self | derived (not counted) | - |
-| `f_services::<FBlend as Clone>::clone` | 67 | &self | derived (not counted) | - |
-| `f_services::<FBlend as Debug>::fmt` | 67 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FBlend as PartialEq>::eq` | 67 | &self | derived (not counted) | - |
-| `f_services::<FBufferRange as Clone>::clone` | 255 | &self | derived (not counted) | - |
-| `f_services::<FBufferRange as Debug>::fmt` | 255 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FBufferRange as PartialEq>::eq` | 255 | &self | derived (not counted) | - |
-| `f_services::<FDrawDesc as Clone>::clone` | 262 | &self | derived (not counted) | - |
-| `f_services::<FDrawDesc as Debug>::fmt` | 262 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FDrawDesc as PartialEq>::eq` | 262 | &self | derived (not counted) | - |
-| `f_services::<FDrawRegion as Clone>::clone` | 281 | &self | derived (not counted) | - |
-| `f_services::<FDrawRegion as Debug>::fmt` | 281 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FDrawRegion as PartialEq>::eq` | 281 | &self | derived (not counted) | - |
-| `f_services::<FDrawTarget as Clone>::clone` | 287 | &self | derived (not counted) | - |
-| `f_services::<FDrawTarget as Debug>::fmt` | 287 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FDrawTarget as PartialEq>::eq` | 287 | &self | derived (not counted) | - |
-| `f_services::<FFrameInfo as Clone>::clone` | 294 | &self | derived (not counted) | - |
-| `f_services::<FFrameInfo as Debug>::fmt` | 294 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FFrameInfo as PartialEq>::eq` | 294 | &self | derived (not counted) | - |
-| `f_services::<FGpuRect as Clone>::clone` | 273 | &self | derived (not counted) | - |
-| `f_services::<FGpuRect as Debug>::fmt` | 273 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FGpuRect as PartialEq>::eq` | 273 | &self | derived (not counted) | - |
-| `f_services::<FHud as Clone>::clone` | 27 | &self | derived (not counted) | - |
-| `f_services::<FHud as Debug>::fmt` | 27 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FHud as PartialEq>::eq` | 27 | &self | derived (not counted) | - |
-| `f_services::<FImeEvent as Clone>::clone` | 87 | &self | derived (not counted) | - |
-| `f_services::<FImeEvent as Debug>::fmt` | 87 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FImeEvent as PartialEq>::eq` | 87 | &self | derived (not counted) | - |
-| `f_services::<FPixelFormat as Clone>::clone` | 184 | &self | derived (not counted) | - |
-| `f_services::<FPixelFormat as Debug>::fmt` | 184 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FPixelFormat as PartialEq>::eq` | 184 | &self | derived (not counted) | - |
-| `f_services::<FRegion as Clone>::clone` | 57 | &self | derived (not counted) | - |
-| `f_services::<FRegion as Debug>::fmt` | 57 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FRegion as PartialEq>::eq` | 57 | &self | derived (not counted) | - |
-| `f_services::<FRenderDesc as Clone>::clone` | 231 | &self | derived (not counted) | - |
-| `f_services::<FRenderDesc as Debug>::fmt` | 231 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FRenderDesc as PartialEq>::eq` | 231 | &self | derived (not counted) | - |
-| `f_services::<FShaderError as Clone>::clone` | 308 | &self | derived (not counted) | - |
-| `f_services::<FShaderError as Debug>::fmt` | 308 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FShaderError as PartialEq>::eq` | 308 | &self | derived (not counted) | - |
-| `f_services::<FStage as Clone>::clone` | 198 | &self | derived (not counted) | - |
-| `f_services::<FStage as Debug>::fmt` | 198 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FStage as PartialEq>::eq` | 198 | &self | derived (not counted) | - |
-| `f_services::<FTextureDesc as Clone>::clone` | 213 | &self | derived (not counted) | - |
-| `f_services::<FTextureDesc as Debug>::fmt` | 213 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `f_services::<FTextureDesc as PartialEq>::eq` | 213 | &self | derived (not counted) | - |
-| `f_services::audio_play_sound` | 119 | - | bound (b, mechanical) | - |
-| `f_services::audio_play_sound_at` | 124 | - | bound (b, mechanical) | - |
-| `f_services::audio_stream_close` | 158 | - | bound (a) | - |
-| `f_services::audio_stream_dropped` | 148 | - | bound (b, mechanical) | - |
-| `f_services::audio_stream_move` | 153 | - | bound (b, mechanical) | - |
-| `f_services::audio_stream_open` | 132 | - | bound (b, mechanical) | - |
-| `f_services::audio_stream_push` | 138 | - | bound (b, mechanical) | - |
-| `f_services::audio_stream_queued` | 143 | - | bound (b, mechanical) | - |
-| `f_services::gpu_bind_group` | 347 | - | bound (b, mechanical) | - |
-| `f_services::gpu_buffer` | 327 | - | bound (b, mechanical) | - |
-| `f_services::gpu_compute` | 339 | - | bound (b, mechanical) | - |
-| `f_services::gpu_copy_buffer` | 359 | - | bound (b, mechanical) | - |
-| `f_services::gpu_destroy` | 351 | - | bound (b, mechanical) | - |
-| `f_services::gpu_dispatch` | 367 | - | bound (b, mechanical) | - |
-| `f_services::gpu_draw` | 371 | - | bound (b, mechanical) | - |
-| `f_services::gpu_draw_region` | 375 | - | bound (b, mechanical) | - |
-| `f_services::gpu_frame` | 387 | - | bound (b, mechanical) | - |
-| `f_services::gpu_poll` | 383 | - | bound (b, mechanical) | - |
-| `f_services::gpu_read` | 379 | - | bound (b, mechanical) | - |
-| `f_services::gpu_render` | 343 | - | bound (b, mechanical) | - |
-| `f_services::gpu_sampler` | 335 | - | bound (b, mechanical) | - |
-| `f_services::gpu_shader` | 319 | - | bound (b, mechanical) | - |
-| `f_services::gpu_shader_file` | 323 | - | bound (b, mechanical) | - |
-| `f_services::gpu_texture` | 331 | - | bound (b, mechanical) | - |
-| `f_services::gpu_write_buffer` | 355 | - | bound (b, mechanical) | - |
-| `f_services::gpu_write_texture` | 363 | - | bound (b, mechanical) | - |
-| `f_services::hud_draw` | 103 | - | bound (b, mechanical) | - |
-| `f_services::hud_gui_scale` | 113 | - | bound (a) | - |
-| `f_services::hud_gui_size` | 108 | - | bound (b, mechanical) | - |
-| `f_services::ime_event` | 175 | - | bound (b, mechanical) | - |
-| `f_services::ime_set_allowed` | 165 | - | bound (a) | - |
-| `f_services::ime_set_cursor_area` | 170 | - | bound (b, mechanical) | - |
+| `f_services::<FAnchor as Clone>::clone` | 74 | &self | derived (not counted) | - |
+| `f_services::<FAnchor as Debug>::fmt` | 74 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FAnchor as PartialEq>::eq` | 74 | &self | derived (not counted) | - |
+| `f_services::<FAttribute as Clone>::clone` | 222 | &self | derived (not counted) | - |
+| `f_services::<FAttribute as Debug>::fmt` | 222 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FAttribute as PartialEq>::eq` | 222 | &self | derived (not counted) | - |
+| `f_services::<FBinding as Clone>::clone` | 244 | &self | derived (not counted) | - |
+| `f_services::<FBinding as Debug>::fmt` | 244 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FBinding as PartialEq>::eq` | 244 | &self | derived (not counted) | - |
+| `f_services::<FBindingKind as Clone>::clone` | 204 | &self | derived (not counted) | - |
+| `f_services::<FBindingKind as Debug>::fmt` | 204 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FBindingKind as PartialEq>::eq` | 204 | &self | derived (not counted) | - |
+| `f_services::<FBlend as Clone>::clone` | 65 | &self | derived (not counted) | - |
+| `f_services::<FBlend as Debug>::fmt` | 65 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FBlend as PartialEq>::eq` | 65 | &self | derived (not counted) | - |
+| `f_services::<FBufferRange as Clone>::clone` | 253 | &self | derived (not counted) | - |
+| `f_services::<FBufferRange as Debug>::fmt` | 253 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FBufferRange as PartialEq>::eq` | 253 | &self | derived (not counted) | - |
+| `f_services::<FDrawDesc as Clone>::clone` | 260 | &self | derived (not counted) | - |
+| `f_services::<FDrawDesc as Debug>::fmt` | 260 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FDrawDesc as PartialEq>::eq` | 260 | &self | derived (not counted) | - |
+| `f_services::<FDrawRegion as Clone>::clone` | 279 | &self | derived (not counted) | - |
+| `f_services::<FDrawRegion as Debug>::fmt` | 279 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FDrawRegion as PartialEq>::eq` | 279 | &self | derived (not counted) | - |
+| `f_services::<FDrawTarget as Clone>::clone` | 285 | &self | derived (not counted) | - |
+| `f_services::<FDrawTarget as Debug>::fmt` | 285 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FDrawTarget as PartialEq>::eq` | 285 | &self | derived (not counted) | - |
+| `f_services::<FFrameInfo as Clone>::clone` | 292 | &self | derived (not counted) | - |
+| `f_services::<FFrameInfo as Debug>::fmt` | 292 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FFrameInfo as PartialEq>::eq` | 292 | &self | derived (not counted) | - |
+| `f_services::<FGpuRect as Clone>::clone` | 271 | &self | derived (not counted) | - |
+| `f_services::<FGpuRect as Debug>::fmt` | 271 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FGpuRect as PartialEq>::eq` | 271 | &self | derived (not counted) | - |
+| `f_services::<FHud as Clone>::clone` | 25 | &self | derived (not counted) | - |
+| `f_services::<FHud as Debug>::fmt` | 25 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FHud as PartialEq>::eq` | 25 | &self | derived (not counted) | - |
+| `f_services::<FImeEvent as Clone>::clone` | 85 | &self | derived (not counted) | - |
+| `f_services::<FImeEvent as Debug>::fmt` | 85 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FImeEvent as PartialEq>::eq` | 85 | &self | derived (not counted) | - |
+| `f_services::<FPixelFormat as Clone>::clone` | 182 | &self | derived (not counted) | - |
+| `f_services::<FPixelFormat as Debug>::fmt` | 182 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FPixelFormat as PartialEq>::eq` | 182 | &self | derived (not counted) | - |
+| `f_services::<FRegion as Clone>::clone` | 55 | &self | derived (not counted) | - |
+| `f_services::<FRegion as Debug>::fmt` | 55 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FRegion as PartialEq>::eq` | 55 | &self | derived (not counted) | - |
+| `f_services::<FRenderDesc as Clone>::clone` | 229 | &self | derived (not counted) | - |
+| `f_services::<FRenderDesc as Debug>::fmt` | 229 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FRenderDesc as PartialEq>::eq` | 229 | &self | derived (not counted) | - |
+| `f_services::<FShaderError as Clone>::clone` | 306 | &self | derived (not counted) | - |
+| `f_services::<FShaderError as Debug>::fmt` | 306 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FShaderError as PartialEq>::eq` | 306 | &self | derived (not counted) | - |
+| `f_services::<FStage as Clone>::clone` | 196 | &self | derived (not counted) | - |
+| `f_services::<FStage as Debug>::fmt` | 196 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FStage as PartialEq>::eq` | 196 | &self | derived (not counted) | - |
+| `f_services::<FTextureDesc as Clone>::clone` | 211 | &self | derived (not counted) | - |
+| `f_services::<FTextureDesc as Debug>::fmt` | 211 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `f_services::<FTextureDesc as PartialEq>::eq` | 211 | &self | derived (not counted) | - |
+| `f_services::audio_play_sound` | 117 | - | bound (b, mechanical) | - |
+| `f_services::audio_play_sound_at` | 122 | - | bound (b, mechanical) | - |
+| `f_services::audio_stream_close` | 156 | - | bound (a) | - |
+| `f_services::audio_stream_dropped` | 146 | - | bound (b, mechanical) | - |
+| `f_services::audio_stream_move` | 151 | - | bound (b, mechanical) | - |
+| `f_services::audio_stream_open` | 130 | - | bound (b, mechanical) | - |
+| `f_services::audio_stream_push` | 136 | - | bound (b, mechanical) | - |
+| `f_services::audio_stream_queued` | 141 | - | bound (b, mechanical) | - |
+| `f_services::gpu_bind_group` | 345 | - | bound (b, mechanical) | - |
+| `f_services::gpu_buffer` | 325 | - | bound (b, mechanical) | - |
+| `f_services::gpu_compute` | 337 | - | bound (b, mechanical) | - |
+| `f_services::gpu_copy_buffer` | 357 | - | bound (b, mechanical) | - |
+| `f_services::gpu_destroy` | 349 | - | bound (b, mechanical) | - |
+| `f_services::gpu_dispatch` | 365 | - | bound (b, mechanical) | - |
+| `f_services::gpu_draw` | 369 | - | bound (b, mechanical) | - |
+| `f_services::gpu_draw_region` | 373 | - | bound (b, mechanical) | - |
+| `f_services::gpu_frame` | 385 | - | bound (b, mechanical) | - |
+| `f_services::gpu_poll` | 381 | - | bound (b, mechanical) | - |
+| `f_services::gpu_read` | 377 | - | bound (b, mechanical) | - |
+| `f_services::gpu_render` | 341 | - | bound (b, mechanical) | - |
+| `f_services::gpu_sampler` | 333 | - | bound (b, mechanical) | - |
+| `f_services::gpu_shader` | 317 | - | bound (b, mechanical) | - |
+| `f_services::gpu_shader_file` | 321 | - | bound (b, mechanical) | - |
+| `f_services::gpu_texture` | 329 | - | bound (b, mechanical) | - |
+| `f_services::gpu_write_buffer` | 353 | - | bound (b, mechanical) | - |
+| `f_services::gpu_write_texture` | 361 | - | bound (b, mechanical) | - |
+| `f_services::hud_draw` | 101 | - | bound (b, mechanical) | - |
+| `f_services::hud_gui_scale` | 111 | - | bound (a) | - |
+| `f_services::hud_gui_size` | 106 | - | bound (b, mechanical) | - |
+| `f_services::ime_event` | 173 | - | bound (b, mechanical) | - |
+| `f_services::ime_set_allowed` | 163 | - | bound (a) | - |
+| `f_services::ime_set_cursor_area` | 168 | - | bound (b, mechanical) | - |
 
 ## Fields
 
