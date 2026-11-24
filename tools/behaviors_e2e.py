@@ -178,7 +178,7 @@ def run(ctl, out, resources, wasm):
         none_ok, _ = accepted(plain, 'setblock ~ ~2 ~ ruby:lamp')
         px, py, pz = (int(v // 1) for v in pos_of(plain))
         accepted(plain, f'setblock {px + 2} {py} {pz} minecraft:lever')
-        interact_when_ready(plain, (px + 2, py, pz))
+        plain.raw('interact', px + 2, py, pz)
         lever = json.dumps(plain('block', x=px + 2, y=py, z=pz)).lower()
         results['vanilla'] = {'pass': not none_ok and 'lever' in lever, 'detail': {'lamp_refused': not none_ok, 'lever': lever[:200]}}
     except (Failed, AssertionError, KeyError, StopIteration, IndexError, TypeError) as e:
