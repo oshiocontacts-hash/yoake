@@ -23,6 +23,8 @@ pub use worker::{RecvOutcome, WorkerHandle, WorkerOptions};
 
 /// The interface a mod's main instance imports to talk to its worker.
 pub const WORKER_INTERFACE: &str = "yoake:mods/worker@1.6.0";
+/// The same two calls for the full worlds (FR-REM05), in the 1.0 package of `yoake-full.wit`.
+pub const WORKER_FULL_INTERFACE: &str = "yoake:mods/worker@1.0.0";
 /// The interface the worker component imports.
 pub const WORKER_HOST_INTERFACE: &str = "yoake:mods/worker-host@1.6.0";
 /// The interface the worker component exports (`run: func()`).

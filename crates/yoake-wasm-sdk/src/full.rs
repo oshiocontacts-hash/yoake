@@ -215,6 +215,23 @@ pub mod server {
     pub use bindings::yoake::mods::server_services as services;
     pub use bindings::yoake::mods::server_types as types;
 
+    /// FR-REM05: the mod's worker (`[wasm] worker`), for blocking network or file work off the game thread.
+    /// `send` queues a message for the worker and never blocks: the error is `queue-full`, `too-large`, `closed` or
+    /// `no-worker`. `recv` takes the worker's next reply, or `None` at once: poll it from a tick hook.
+    pub mod worker {
+        use super::bindings::yoake::mods::worker as raw;
+
+        /// Queues `message` for the worker.
+        pub fn send(message: Vec<u8>) -> Result<(), String> {
+            raw::worker_send(&message)
+        }
+
+        /// The worker's next reply, or `None`.
+        pub fn recv() -> Option<Vec<u8>> {
+            raw::worker_recv()
+        }
+    }
+
     #[allow(unused_imports)]
     use crate::prelude::*;
 

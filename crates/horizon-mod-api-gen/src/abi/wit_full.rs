@@ -50,6 +50,10 @@ const CLIENT_IMPORTS: &[&str] = &[
 /// Existing service interfaces the server world imports.
 const SERVER_IMPORTS: &[&str] = &["types", "logging"];
 
+/// The mod's worker for the full worlds (FR-REM05): the same two calls as `yoake:mods/worker@1.6.0`
+/// (`wit-worker/`). The host links them under both names (`yoake_mod_io::WORKER_FULL_INTERFACE`).
+const WORKER_INTERFACE: &str = "/// Queues a message for this mod's worker. Never blocks. The error is \"queue-full\", \"too-large\",\n/// \"closed\" (the worker stopped) or \"no-worker\" (the mod declares none).\ninterface worker {\n    worker-send: func(message: list<u8>) -> result<_, string>;\n    /// The next message the worker sent, or none. Never blocks.\n    worker-recv: func() -> option<list<u8>>;\n}\n\n";
+
 const KEYWORDS: &[&str] = &[
     "as",
     "async",
@@ -2286,6 +2290,7 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
     }
     wit.push_str("}\n\n");
 
+    wit.push_str(WORKER_INTERFACE);
     wit.push_str(&draft_services(SERVER_DRAFT, "server")?);
     wit.push_str(&draft_services(CLIENT_DRAFT, "client")?);
     wit.push_str(&draft_services(GPU_DRAFT, "gpu")?);
@@ -2330,6 +2335,8 @@ pub fn generate_full_wit(root: &Path) -> Result<FullWit, String> {
         for import in imports.iter().chain(extra) {
             wit.push_str(&format!("    import {import};\n"));
         }
+        // FR-REM05: a full world talks to its mod's worker (the host links it for every component).
+        wit.push_str("    import worker;\n");
         wit.push_str(&format!("    export {side}-hooks;\n"));
         wit.push_str("    /// Returns catalog hook names with underscores, such as `net_frames_listened`.\n    export init: func() -> list<string>;\n");
         if side == "client" {

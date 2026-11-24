@@ -21,6 +21,7 @@ pub mod client {
             "yoake:mods/instance": crate::bindings::yoake::mods::instance,
             "yoake:mods/accounts": crate::bindings::yoake::mods::accounts,
             "yoake:mods/screen": crate::bindings::yoake::mods::screen,
+            "yoake:mods/worker@1.0.0": crate::worker_link,
         },
     });
 }
@@ -35,6 +36,7 @@ pub mod server {
             "yoake:mods/logging": crate::bindings::yoake::mods::logging,
             "yoake:mods/engine-types": super::client::yoake::mods::engine_types,
             "yoake:mods/server-types": super::client::yoake::mods::server_types,
+            "yoake:mods/worker@1.0.0": crate::worker_link,
         },
     });
 }

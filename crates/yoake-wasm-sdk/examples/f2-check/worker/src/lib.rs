@@ -1,13 +1,12 @@
 //! FR-REM05, worker: the network part of the F2 check. It runs on its own thread, so the blocking calls here
 //! (a 2 s HTTP answer, a TCP echo) never stop the game's tick.
 //!
-//! The job list is `/data/jobs.txt` (the mod's data folder). The worker reads the lines it has not done yet and
-//! answers each with a line on the game log (`f2-check job <id> ...`):
+//! The main instance sends the jobs (`worker::send`) and the worker answers each one with `host-send`; the mod
+//! logs the answers from its tick hook. A job is a line `<id> <op> <args>`:
 //! - `<id> post <url> <body>`: an HTTP POST of `<body>` (wasi:http), the status and the reply body;
 //! - `<id> tcp <host:port> <text>`: a TCP connection, `<text>` sent, the echo read back until the peer closes;
-//! - `<id> quit`: the worker returns.
+//! - `quit`: the worker returns.
 use std::io::{Read, Write};
-use std::time::Duration;
 
 wit_bindgen::generate!({
     path: "../../../../yoake-wasm/wit-worker",
@@ -91,11 +90,11 @@ fn tcp(address: &str, text: &str) -> String {
     }
 }
 
-/// Does one job line; `false` when it is the quit line.
-fn job(line: &str) -> bool {
+/// Does one job line: the answer, or `None` for the quit line.
+fn job(line: &str) -> Option<String> {
     let mut words = line.splitn(4, ' ');
     let (Some(id), Some(op)) = (words.next(), words.next()) else {
-        return true;
+        return Some("error:usage".to_owned());
     };
     let answer = match op {
         "post" => match (words.next(), words.next()) {
@@ -107,29 +106,26 @@ fn job(line: &str) -> bool {
             (Some(address), Some(text)) => tcp(address, text),
             _ => "error:usage".to_owned(),
         },
-        "quit" => return false,
+        "quit" => return None,
         other => format!("error:unknown:{other}"),
     };
-    println!("f2-check job {id} {op} {answer}");
-    true
+    Some(format!("{id} {op} {answer}"))
 }
 
 impl exports::yoake::mods::worker_run::Guest for Worker {
     fn run() {
         println!("f2-check worker started");
-        let mut done = 0usize;
-        loop {
-            let text = std::fs::read_to_string("/data/jobs.txt").unwrap_or_default();
-            let lines: Vec<&str> = text.lines().collect();
-            for line in lines.iter().skip(done) {
-                if !job(line) {
-                    println!("f2-check worker quit");
-                    return;
-                }
+        // blocks until a job comes; `None` when the worker is being stopped
+        while let Some(message) = yoake::mods::worker_host::host_recv() {
+            let line = String::from_utf8_lossy(&message).into_owned();
+            let Some(reply) = job(&line) else {
+                break;
+            };
+            if yoake::mods::worker_host::host_send(reply.as_bytes()).is_err() {
+                println!("f2-check worker: the mod does not take replies");
             }
-            done = lines.len();
-            std::thread::sleep(Duration::from_millis(50));
         }
+        println!("f2-check worker quit");
     }
 }
 
