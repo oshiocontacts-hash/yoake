@@ -1742,6 +1742,14 @@ interface engine-types {
     }
 }
 
+/// Queues a message for this mod's worker. Never blocks. The error is "queue-full", "too-large",
+/// "closed" (the worker stopped) or "no-worker" (the mod declares none).
+interface worker {
+    worker-send: func(message: list<u8>) -> result<_, string>;
+    /// The next message the worker sent, or none. Never blocks.
+    worker-recv: func() -> option<list<u8>>;
+}
+
 interface server-types {
     enum attribute-operation {
         add-value,
@@ -7337,6 +7345,7 @@ world client-full {
     import gpu-services;
     import media-types;
     import media-services;
+    import worker;
     export client-hooks;
     /// Returns catalog hook names with underscores, such as `net_frames_listened`.
     export init: func() -> list<string>;
@@ -7349,6 +7358,7 @@ world server-full {
     import logging;
     import server-types;
     import server-services;
+    import worker;
     export server-hooks;
     /// Returns catalog hook names with underscores, such as `net_frames_listened`.
     export init: func() -> list<string>;

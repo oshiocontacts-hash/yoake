@@ -354,7 +354,7 @@ impl Sandbox {
 const TEST_INTERFACE: &str = "test-driver";
 
 fn check_import(name: &str, test_module: bool, supports_config: bool) -> Result<(), String> {
-    if name == yoake_mod_io::WORKER_INTERFACE {
+    if name == yoake_mod_io::WORKER_INTERFACE || name == yoake_mod_io::WORKER_FULL_INTERFACE {
         return Ok(());
     }
     if let Some(wasi) = name.strip_prefix("wasi:") {
@@ -481,20 +481,40 @@ impl<T: Send> WasiHttpView for HostState<T> {
     }
 }
 
-/// `yoake:mods/worker@1.6.0`: the main instance's two calls to its worker. Neither blocks.
+/// The `worker` interface of the full worlds' bindings (`with` in `full_bindings`): linked by hand in
+/// [`link_worker_interface`], so bindgen generates no host trait or linker entry for it.
+pub mod worker_link {
+    use wasmtime::component::{HasData, Linker};
+
+    /// The names the bindgen code of the full worlds refers to for a mapped interface.
+    pub trait Host {}
+    impl<T: ?Sized> Host for T {}
+    pub trait HostWithStore<T: ?Sized>: HasData {}
+    impl<S: ?Sized + HasData, T: ?Sized> HostWithStore<T> for S {}
+
+    /// Links nothing: [`super::link_worker_interface`] defines the functions.
+    pub fn add_to_linker<T, D: HasData>(_linker: &mut Linker<T>, _get: impl Fn(&mut T) -> D::Data<'_>) -> wasmtime::Result<()> {
+        Ok(())
+    }
+}
+
+/// `yoake:mods/worker@1.6.0` (and the full worlds' `worker@1.0.0`): the main instance's two calls to its worker.
+/// Neither blocks.
 fn link_worker_interface<T: Send + 'static>(linker: &mut Linker<HostState<T>>) -> wasmtime::Result<()> {
     use wasmtime::StoreContextMut;
-    let mut instance = linker.instance(yoake_mod_io::WORKER_INTERFACE)?;
-    instance.func_wrap("worker-send", |cx: StoreContextMut<'_, HostState<T>>, (message,): (Vec<u8>,)| {
-        let result = match &cx.data().worker {
-            Some(worker) => worker.send(message).map_err(|error| error.to_string()),
-            None => Err("no-worker".to_owned()),
-        };
-        Ok((result,))
-    })?;
-    instance.func_wrap("worker-recv", |cx: StoreContextMut<'_, HostState<T>>, (): ()| {
-        Ok((cx.data().worker.as_ref().and_then(WorkerHandle::recv),))
-    })?;
+    for name in [yoake_mod_io::WORKER_INTERFACE, yoake_mod_io::WORKER_FULL_INTERFACE] {
+        let mut instance = linker.instance(name)?;
+        instance.func_wrap("worker-send", |cx: StoreContextMut<'_, HostState<T>>, (message,): (Vec<u8>,)| {
+            let result = match &cx.data().worker {
+                Some(worker) => worker.send(message).map_err(|error| error.to_string()),
+                None => Err("no-worker".to_owned()),
+            };
+            Ok((result,))
+        })?;
+        instance.func_wrap("worker-recv", |cx: StoreContextMut<'_, HostState<T>>, (): ()| {
+            Ok((cx.data().worker.as_ref().and_then(WorkerHandle::recv),))
+        })?;
+    }
     Ok(())
 }
 
@@ -1105,5 +1125,22 @@ mod budget_tests {
         assert_eq!(instance.call("tick", |_, _| Ok(())), None);
         assert_eq!(instance.skipped, 1);
         assert!(!instance.is_disabled());
+    }
+}
+
+/// FR-REM05: the worker's two calls are linked under the mod's 1.6.0 name and the full worlds' 1.0.0 name, and both
+/// names pass the component import check.
+#[cfg(test)]
+mod worker_link_tests {
+    use super::*;
+
+    #[test]
+    fn the_worker_interface_links_under_both_names() {
+        let engine = wasmtime::Engine::default();
+        let mut linker = wasmtime::component::Linker::<HostState<()>>::new(&engine);
+        link_worker_interface(&mut linker).expect("the worker calls link");
+        assert!(check_import(yoake_mod_io::WORKER_INTERFACE, false, false).is_ok());
+        assert!(check_import(yoake_mod_io::WORKER_FULL_INTERFACE, false, false).is_ok());
+        assert_eq!(yoake_mod_io::WORKER_FULL_INTERFACE, "yoake:mods/worker@1.0.0");
     }
 }

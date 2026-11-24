@@ -1,7 +1,7 @@
 {
   "abi_version": 2,
   "world": "server-mod",
-  "interface_version": "1.7.0",
+  "interface_version": "1.8.0",
   "status": "design-only",
   "id_policy": "Proposed IDs extend the client catalog; allocation and package versioning require review.",
   "type_syntax": "WIT value types; null means no result. Types below are records and enums are named WIT enums.",
