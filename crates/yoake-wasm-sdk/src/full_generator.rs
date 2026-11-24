@@ -121,11 +121,14 @@ enum Blocks {
     Palette(Vec<String>, Vec<u16>),
 }
 
-/// The answer: blocks by section (16 high, from the bottom of the level) and, if wanted, one biome for
-/// the whole chunk. A section not given is left unchanged (air without a base, the base's blocks with one).
+/// The answer: blocks and optional biomes by section (16 blocks high, from the bottom of the level).
+/// A block section not given is left unchanged (air without a base, the base's blocks with one).
 #[derive(Default)]
 pub struct Fill {
     biome: Option<String>,
+    biome_palette: Vec<String>,
+    biome_columns: Option<Vec<u16>>,
+    biome_sections: Vec<(u16, Vec<u16>)>,
     sections: Vec<(u16, Blocks)>,
 }
 
@@ -134,9 +137,44 @@ impl Fill {
         Self::default()
     }
 
-    /// The biome of the whole chunk (`namespace:path`).
+    /// The biome of the whole chunk (`namespace:path`), applied before any v2 column or quart
+    /// tables. Without those tables the answer keeps the exact v1 bytes.
     pub fn biome(&mut self, biome: &str) -> &mut Self {
         self.biome = Some(biome.to_owned());
+        self
+    }
+
+    fn biome_index(&mut self, biome: &str) -> u16 {
+        if let Some(index) = self.biome_palette.iter().position(|name| name == biome) {
+            return index as u16;
+        }
+        assert!(self.biome_palette.len() < u16::MAX as usize, "too many biomes in one chunk");
+        self.biome_palette.push(biome.to_owned());
+        (self.biome_palette.len() - 1) as u16
+    }
+
+    /// The biome of one 4x4x4 quart cell. `qx` and `qz` are 0..4 within the chunk; `qy` counts
+    /// quart cells from the level's bottom. The answer uses format v2. Explicit cells override
+    /// `biome_column`, regardless of call order.
+    pub fn biome_at(&mut self, qx: u16, qy: u16, qz: u16, biome: &str) -> &mut Self {
+        assert!(qx < 4 && qz < 4, "quart x and z are 0..4");
+        let palette = self.biome_index(biome);
+        let section = qy / 4;
+        if !self.biome_sections.iter().any(|(index, _)| *index == section) {
+            self.biome_sections.push((section, vec![0; 64]));
+        }
+        let (_, indices) = self.biome_sections.iter_mut().find(|(index, _)| *index == section).unwrap();
+        indices[((qy % 4) * 16 + qz * 4 + qx) as usize] = palette;
+        self
+    }
+
+    /// The biome of a 4-block-wide column at every height. `qx` and `qz` are 0..4 within the
+    /// chunk. The answer uses v2's compact 16-index, all-height form.
+    pub fn biome_column(&mut self, qx: u16, qz: u16, biome: &str) -> &mut Self {
+        assert!(qx < 4 && qz < 4, "quart x and z are 0..4");
+        let palette = self.biome_index(biome);
+        let indices = self.biome_columns.get_or_insert_with(|| vec![0; 16]);
+        indices[(qz * 4 + qx) as usize] = palette;
         self
     }
 
@@ -161,9 +199,28 @@ impl Fill {
             out.extend((s.len() as u16).to_le_bytes());
             out.extend(s.as_bytes());
         }
-        let mut out = vec![1, u8::from(self.biome.is_some())];
+        let version = if self.biome_columns.is_some() || !self.biome_sections.is_empty() { 2 } else { 1 };
+        let mut out = vec![version, u8::from(self.biome.is_some()) | u8::from(self.biome_columns.is_some()) << 1];
         if let Some(biome) = &self.biome {
             string(&mut out, biome);
+        }
+        if version == 2 {
+            out.extend((self.biome_palette.len() as u16).to_le_bytes());
+            for biome in &self.biome_palette {
+                string(&mut out, biome);
+            }
+            if let Some(columns) = &self.biome_columns {
+                for index in columns {
+                    out.extend(index.to_le_bytes());
+                }
+            }
+            out.extend((self.biome_sections.len() as u16).to_le_bytes());
+            for (index, indices) in &self.biome_sections {
+                out.extend(index.to_le_bytes());
+                for index in indices {
+                    out.extend(index.to_le_bytes());
+                }
+            }
         }
         out.extend((self.sections.len() as u16).to_le_bytes());
         for (index, blocks) in &self.sections {
@@ -186,5 +243,69 @@ impl Fill {
             }
         }
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn string(out: &mut Vec<u8>, value: &str) {
+        out.extend((value.len() as u16).to_le_bytes());
+        out.extend(value.as_bytes());
+    }
+    fn u16_at(bytes: &[u8], at: usize) -> u16 {
+        u16::from_le_bytes([bytes[at], bytes[at + 1]])
+    }
+
+    #[test]
+    fn fills_without_quart_biomes_keep_the_v1_bytes() {
+        let mut fill = Fill::new();
+        fill.biome("minecraft:plains").uniform(0, "minecraft:stone");
+        let mut expected = vec![1, 1];
+        string(&mut expected, "minecraft:plains");
+        expected.extend(1u16.to_le_bytes());
+        expected.extend(0u16.to_le_bytes());
+        expected.push(0);
+        string(&mut expected, "minecraft:stone");
+        assert_eq!(fill.to_bytes(), expected);
+    }
+
+    #[test]
+    fn v2_encodes_columns_and_explicit_quart_overrides() {
+        let mut fill = Fill::new();
+        fill.biome_at(2, 5, 1, "minecraft:plains");
+        fill.biome_column(0, 0, "minecraft:desert");
+        fill.biome_at(3, 5, 1, "minecraft:desert");
+        let bytes = fill.to_bytes();
+        assert_eq!(&bytes[..4], &[2, 2, 2, 0]);
+        let columns_at = 2 + 2 + 2 * (2 + "minecraft:plains".len());
+        assert_eq!(u16_at(&bytes, columns_at), 1, "the first column is desert");
+        let sections_at = columns_at + 32;
+        assert_eq!(u16_at(&bytes, sections_at), 1);
+        assert_eq!(u16_at(&bytes, sections_at + 2), 1, "quart y 5 is in section 1");
+        let indices_at = sections_at + 4;
+        assert_eq!(u16_at(&bytes, indices_at + 22 * 2), 0);
+        assert_eq!(u16_at(&bytes, indices_at + 23 * 2), 1);
+        assert_eq!(u16_at(&bytes, indices_at + 128), 0, "no block sections");
+    }
+
+    #[test]
+    fn a_column_only_fill_uses_the_sixteen_index_shortcut() {
+        let mut fill = Fill::new();
+        for qz in 0..4 {
+            for qx in 0..4 {
+                fill.biome_column(qx, qz, if (qx + qz) % 2 == 0 { "minecraft:plains" } else { "minecraft:desert" });
+            }
+        }
+        let bytes = fill.to_bytes();
+        assert_eq!(bytes[0..2], [2, 2]);
+        let columns_at = 2 + 2 + 2 * (2 + "minecraft:plains".len());
+        for i in 0..16 {
+            assert_eq!(u16_at(&bytes, columns_at + i * 2), ((i % 4 + i / 4) % 2) as u16, "a checkerboard of (qx + qz) % 2");
+        }
+        assert_eq!(u16_at(&bytes, columns_at + 32), 0, "no quart sections");
+        assert_eq!(u16_at(&bytes, columns_at + 34), 0, "no block sections");
+        assert_eq!(bytes.len(), columns_at + 36);
     }
 }

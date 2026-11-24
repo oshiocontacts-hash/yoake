@@ -66,6 +66,42 @@ impl ModChunk {
         }
         true
     }
+    /// One 4x4x4 biome cell. `qx` and `qz` are 0..4 within the chunk and `qy` counts from the
+    /// level's bottom, not from the bottom of the widened storage column. Out-of-range cells and
+    /// unknown biome names are refused without changing the chunk.
+    pub fn set_biome_at(&mut self, qx: i32, qy: i32, qz: i32, name: &str) -> bool {
+        let Some(id) = (self.biome_of)(name) else {
+            return false;
+        };
+        self.set_biome_id_at(qx, qy, qz, id)
+    }
+    #[doc(hidden)]
+    pub fn set_biome_id_at(&mut self, qx: i32, qy: i32, qz: i32, id: u16) -> bool {
+        if !(0..4).contains(&qx)
+            || !(0..4).contains(&qz)
+            || !(0..self.shape.height / 4).contains(&qy)
+        {
+            return false;
+        }
+        let column_qy = qy + (self.shape.min_y - self.chunk.min_y()) / 4;
+        self.chunk.set_biome_cell(qx, column_qy, qz, id);
+        true
+    }
+    #[doc(hidden)]
+    pub fn for_test(shape: LevelShape, biome_of: Arc<dyn Fn(&str) -> Option<u16> + Send + Sync>) -> Self {
+        Self {
+            chunk: Chunk::with_layout(0, 0, shape.column()),
+            chunk_x: 0,
+            chunk_z: 0,
+            shape,
+            biome_of,
+            failed: false,
+        }
+    }
+    #[doc(hidden)]
+    pub fn biome_at_block(&self, x: i32, y: i32, z: i32) -> u16 {
+        self.chunk.biome(x, y, z)
+    }
 }
 
 /// A generator of chunks: given the position of a chunk, fills it.
@@ -85,6 +121,7 @@ pub struct ModGeneratorContext {
     /// The stem's `generator.settings` object.
     pub settings: Value,
     assets: Option<Arc<Assets>>,
+    biome_of: Arc<dyn Fn(&str) -> Option<u16> + Send + Sync>,
 }
 impl ModGeneratorContext {
     /// The default state id of a block (`minecraft:stone`).
@@ -105,6 +142,10 @@ impl ModGeneratorContext {
                 .default_state(name)
                 .map(|s| s.0)
         })
+    }
+    /// A biome's table id, to keep and call from the generating threads.
+    pub fn biome_lookup(&self) -> Arc<dyn Fn(&str) -> Option<u16> + Send + Sync> {
+        self.biome_of.clone()
     }
 }
 
@@ -164,6 +205,8 @@ impl ModGenerators {
                 self.factories.keys().cloned().collect::<Vec<_>>().join(", ")
             )
         })?;
+        let plains = biomes.id("minecraft:plains");
+        let biome_of = Arc::new(move |name: &str| biomes.contains(name).then(|| biomes.id(name)));
         let context = ModGeneratorContext {
             generator: id.to_owned(),
             level: level.to_owned(),
@@ -171,12 +214,11 @@ impl ModGenerators {
             shape,
             settings,
             assets: Some(assets),
+            biome_of: biome_of.clone(),
         };
         let source = factory
             .create(&context)
             .map_err(|e| format!("generator `{id}` for level {level}: {e}"))?;
-        let plains = biomes.id("minecraft:plains");
-        let biome_of = Arc::new(move |name: &str| biomes.contains(name).then(|| biomes.id(name)));
         Ok(ModTerrain {
             level: level.to_owned(),
             source,
@@ -193,7 +235,7 @@ impl ModGenerators {
 
 /// A chunk of a level made by a mod's generator is about to be filled (F3-8b). A mod's hook here sees
 /// the base column first (air without a base) and may write into it through the `ModChunk` bindings
-/// (`set_block`, `fill_layer`, `block`, `set_biome`); the level's generator then edits it. Only levels
+/// (`set_block`, `fill_layer`, `block`, `set_biome`, `set_biome_at`); the level's generator then edits it. Only levels
 /// of mod generators, so vanilla terrain is untouched. About one call per chunk.
 #[yoake_inject_macro::yoake_inject(id = "worldgen::generate_chunk", side = "server")]
 fn generate_chunk(level: &str, cx: i32, cz: i32, chunk: &mut ModChunk) {
@@ -644,6 +686,11 @@ mod tests {
             generator: "test:generator".into(),
             settings: serde_json::json!({}),
             assets: None,
+            biome_of: Arc::new(|name| match name {
+                "minecraft:plains" => Some(0),
+                "minecraft:desert" => Some(1),
+                _ => None,
+            }),
         };
         (factory.create(&context).unwrap(), seen)
     }
@@ -680,6 +727,35 @@ mod tests {
         assert_eq!(chunk.get(1, Y, 0), 11, "unmodified base blocks remain");
         assert_eq!(chunk.biome(0, Y, 0), 1);
         assert!(!chunk.not_generated);
+    }
+
+    #[test]
+    fn native_biome_cells_form_a_four_by_four_grid() {
+        struct Grid;
+        impl ModColumnSource for Grid {
+            fn generate(&self, chunk: &mut ModChunk) {
+                assert!(chunk.set_biome("minecraft:desert"));
+                for qz in 0..4 {
+                    for qx in 0..4 {
+                        let name = if (qx + qz) % 2 == 0 { "minecraft:plains" } else { "minecraft:desert" };
+                        assert!(chunk.set_biome_at(qx, 0, qz, name));
+                    }
+                }
+                assert!(!chunk.set_biome_at(4, 0, 0, "minecraft:plains"));
+                assert!(!chunk.set_biome_at(0, chunk.shape.height / 4, 0, "minecraft:plains"));
+                assert!(!chunk.set_biome_at(0, 0, 0, "minecraft:forest"));
+            }
+        }
+        let terrain = terrain(Arc::new(Grid), false, false);
+        let mut worker = terrain.worker();
+        let chunk = terrain.finish(terrain.proto(&mut worker, 0, 0));
+        for qz in 0..4i32 {
+            for qx in 0..4i32 {
+                let block = (qx * 4 + 1, qz * 4 + 1);
+                assert_eq!(chunk.biome(block.0, Y, block.1), ((qx + qz) % 2) as u16, "quart {qx} {qz}");
+            }
+        }
+        assert_eq!(chunk.biome(0, Y + 4, 0), 1, "the next quart keeps the whole-chunk biome");
     }
 
     #[test]

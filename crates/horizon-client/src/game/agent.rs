@@ -412,11 +412,14 @@ impl Game<'_> {
     }
     fn block_json(&self, pos: [i32; 3]) -> Value {
         let state = self.world.block(pos[0], pos[1], pos[2]);
+        let chunk = self.world.chunks.get(&(pos[0] >> 4, pos[2] >> 4));
+        let biome = chunk.map(|chunk| world_biomes!(self).get(chunk.biome(pos[0], pos[1], pos[2])).name.clone());
         let mut v = json!({
             "pos": pos,
             "block": &*self.res.facts().get(state).name,
             "state": self.state_string(state),
-            "loaded": self.world.chunks.contains_key(&(pos[0] >> 4, pos[2] >> 4)),
+            "biome": biome,
+            "loaded": chunk.is_some(),
         });
         // How far a chest's or a shulker box's lid is open, 0..1, as drawn.
         match self.be_anims.ticker(state.0) {

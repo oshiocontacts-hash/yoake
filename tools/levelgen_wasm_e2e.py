@@ -17,7 +17,11 @@ Checks, in order:
            the blocks it sees are the terraces the guest generated: bedrock at y 0, stone above it, and in every column
            sampled a grass block whose top is 8 + 4 * ((x div 8 + z div 8) mod 4) + b, with b (0 or 1, from the level's
            seed) the same everywhere; air above it. Neighbouring terraces differ by 4, so it is not a flat floor.
+- based:   the based level keeps its vanilla base, the WASM edit and the custom biome's decoration.
 - back:    the guest goes back to the Overworld and has the vanilla facts.
+- cooking_duel: the WASM command creates a flat arena; host and guest enter it, the guest reads all 16 cells of its
+           4x4 biome grid through horizon-ctl, both leave, the mod regenerates it (an edit is gone), and after the
+           guest leaves again the mod deletes it (both players are safe in the Overworld and its folder is gone).
 """
 import argparse
 import json
@@ -37,6 +41,8 @@ import levels_e2e as lv  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 LEVEL = 'levelgen:terraces'
 BASED = 'levelgen:based'
+DUEL = 'levelgen:cooking_duel'
+DUEL_BIOMES = ['minecraft:plains', 'minecraft:desert', 'minecraft:forest', 'minecraft:taiga']
 SAMPLE = ROOT / 'crates/yoake-wasm-sdk/examples/level-generator'
 
 
@@ -89,6 +95,62 @@ def top_of(game, x, z):
     raise AssertionError(f'no grass in the column {x} {z}')
 
 
+def duel_biome(x, z):
+    cell_x, cell_z = x // 16, z // 16
+    if 0 <= cell_x < 4 and 0 <= cell_z < 4:
+        return DUEL_BIOMES[(cell_x + cell_z) % 4]
+    return 'minecraft:plains'
+
+
+def leave_duel(game):
+    game('command', command=f'execute in {lv.OVERWORLD} run tp @s 0.5 100 0.5')
+    lan.wait_dimension(game, lv.OVERWORLD, 600)
+    game.wait(30)
+
+
+def cooking_duel(host, guest, out):
+    """The sample's own command drives all three WASM level-lifecycle services."""
+    assert DUEL in [l['id'] for l in host.raw('level', 'list')['levels']]
+    lv.stand_in(host, DUEL, 8, 8, 4)
+    lv.stand_in(guest, DUEL, 24, 24, 4)
+    for game in (host, guest):
+        facts = lv.level(game)
+        assert (facts['id'], facts['min_y'], facts['height']) == (DUEL, 0, 64), facts
+
+    grid = {}
+    for cell_z in range(4):
+        for cell_x in range(4):
+            x, z = cell_x * 16 + 8, cell_z * 16 + 8
+            found = guest.raw('block', x, 4, z)
+            assert found.get('block') == 'minecraft:grass_block', found
+            assert found.get('biome') == duel_biome(x, z), (x, z, found)
+            grid[f'{cell_x},{cell_z}'] = found['biome']
+    assert len(set(grid.values())) == 4, grid
+    assert host.raw('block', 8, 4, 8).get('biome') == duel_biome(8, 8), 'the host reads the server grid'
+    guest('command', command='setblock 4 20 4 minecraft:gold_block')
+    guest.wait(20)
+    assert guest.raw('block', 4, 20, 4).get('block') == 'minecraft:gold_block'
+    guest.shot(out, 'cooking-duel')
+
+    leave_duel(host)
+    leave_duel(guest)
+    host.wait(60)
+    host('command', command='cookingduel regenerate 77')
+    lv.stand_in(guest, DUEL, 4, 4, 4)
+    assert guest.raw('block', 4, 20, 4).get('block') == 'minecraft:air', 'regeneration removed the edit'
+    assert guest.raw('block', 4, 4, 4).get('biome') == duel_biome(4, 4), 'the grid survived regeneration'
+    leave_duel(guest)
+    host.wait(60)
+
+    folder = host.work / 'saves/Lan/yoake_temp/levelgen/cooking_duel'
+    assert folder.exists(), f'the generated level has no folder: {folder}'
+    host('command', command='cookingduel delete')
+    assert not folder.exists(), f'the deleted level folder remains: {folder}'
+    assert DUEL not in [l['id'] for l in host.raw('level', 'list')['levels']]
+    assert lv.level(host)['id'] == lv.OVERWORLD and lv.level(guest)['id'] == lv.OVERWORLD
+    return {'grid': grid, 'regenerated': True, 'deleted': True, 'players': lv.OVERWORLD}
+
+
 def run(ctl, out, resources, wasm, force):
     if not force and (running := lv.other_games_running()):
         sys.exit(f'another horizon-client is running ({running[0][:120]}): wait for it, or use --force')
@@ -118,6 +180,8 @@ def run(ctl, out, resources, wasm, force):
         if not results['level']['pass']:
             return results
 
+        # A level key is sent at login: create before the guest joins, so both bots can enter it.
+        host('command', command='cookingduel create')
         guest.pid = guest.raw(*launch)['pid']
         guest.raw('connect', address, lan.GUEST_NAME)
         guest.raw('wait-for', 'loaded', '--timeout', 300)
@@ -172,6 +236,7 @@ def run(ctl, out, resources, wasm, force):
             assert (facts['id'], facts['min_y'], facts['height']) == (lv.OVERWORLD, -64, 384), facts
             return facts
         lv.check('back', results, back)
+        lv.check('cooking_duel', results, lambda: cooking_duel(host, guest, out))
     finally:
         logs = {g.name: g.close() for g in (guest, host)}
         for name, text in logs.items():

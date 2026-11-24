@@ -60,7 +60,57 @@ Not run here (need the game's resources): `tools/levelgen_wasm_e2e.py`, `tools/l
   edits. Callbacks cannot query climate or density functions yet.
 * `hook_bridge_mod_generator.rs` stays overlay-only (as agreed).
 
-## Part B (next)
+## Part B: per-quart biomes and the cooking-duel lifecycle
 
-Per-quart biome fill from a WASM `Fill` (today one biome per WASM chunk) and the F3-8d all-in-one cooking-duel WASM
-e2e in `tools/levelgen_wasm_e2e.py`.
+### Fill format and native API
+
+A `Fill` that uses only `biome`, `uniform` and `palette` still emits the exact v1 bytes. `biome_at(qx, qy, qz, id)`
+and `biome_column(qx, qz, id)` select v2. Quart x/z are 0..4 inside the chunk; quart y and section indices count from
+the level's bottom. V2 is little-endian, with `str` as a u16 length plus UTF-8:
+
+```text
+u8 version = 2
+u8 flags: bit 0 = whole-chunk biome follows, bit 1 = all-height columns follow the palette
+[str whole-chunk biome]
+u16 palette_count, then palette_count * str biome
+[16 * u16 column palette indices, qz * 4 + qx]
+u16 quart_section_count
+per section: u16 section_index, then 64 * u16 palette indices, (qy * 4 + qz) * 4 + qx
+u16 block_section_count, then the unchanged v1 block sections
+```
+
+The whole-chunk biome is applied first, then columns at every height, then explicit quart sections. The host resolves
+all v2 biome names and checks flags, palette indices, section ranges/duplicates/counts and trailing bytes before any
+writes; failures use the existing failed-chunk/log-once path. V1 decoding and its apply-time unknown-biome warning are
+unchanged. `ModChunk::set_biome_at` provides the same checked per-quart operation to native generators, and the
+factory context now supplies the biome lookup needed for host-side validation.
+
+### Cooking-duel sample and e2e
+
+The existing `level-generator` example was extended rather than adding a second package: it already had the manifest,
+generator registration, build output and LAN harness this scenario needs. Its new `levelgen:cooking_duel` generator
+writes a flat bedrock/stone/grass arena and 16-block cells in a 4x4 plains/desert/forest/taiga grid using v2 columns.
+`/cookingduel create`, `/cookingduel regenerate [seed]` and `/cookingduel delete` call the existing WASM level
+services; there is no WIT or catalog change.
+
+`tools/levelgen_wasm_e2e.py` now creates the ephemeral level before the guest logs in (level keys are login data),
+enters both host and guest, reads every grid cell through `horizon-ctl block` (whose response now includes `biome`),
+and edits the arena. Both players leave before regeneration, as the level manager requires; the guest returns to check
+the edit is gone and the grid remains. Both are safely in the Overworld for deletion, and the harness checks that the
+`yoake_temp/levelgen/cooking_duel` folder and registry entry are gone.
+
+### Files and tests
+
+* `crates/yoake-wasm-sdk/src/full_generator.rs`: v2 encoder, SDK APIs and exact-byte/layout tests.
+* `crates/horizon-client/src/wasm_mods/level_services.rs`: versioned decoder, validation, application and fuzz/unit
+  tests, including v2 data applied to real `ModChunk` quart storage.
+* `crates/horizon-client/src/mod_generator.rs`: native per-quart API, biome lookup and a 4x4 grid/bounds test.
+* `crates/horizon-client/src/game/agent.rs`: biome names in block observations.
+* `crates/yoake-wasm-sdk/examples/level-generator/`: the duel generator and lifecycle command.
+* `tools/levelgen_wasm_e2e.py`: the default run's two-player create/grid/regenerate/delete check.
+
+Run by Claude on LENOVO: horizon-client-lib --lib 1967 passed, horizon-client --lib (incl. the level_services v2 tests) and its integration tests, horizon-ctl 18, yoake-wasm-sdk (full) 13, the `level-generator` example builds for wasm32-wasip2. Claude's fixes after Kimi's two rounds: two test expectations (the SDK's checkerboard column test compared against `i % 2` instead of `(qx + qz) % 2`; the host's apply test expected `(qx + qz) % 2` / `(qx + qy + qz) % 2` for fixtures laid out as `i % 2`, i.e. `qx % 2`); the encoder and decoder agree on `qz * 4 + qx` (and `qy * 16 + qz * 4 + qx`). Not run here: `tools/levelgen_wasm_e2e.py` (the cooking-duel run needs the game).
+Round 1 verified 1967 horizon-client-lib tests, the wasm32-wasip2 example build and Python syntax. Its review fixes
+made the cross-crate biome-ID/test helpers `#[doc(hidden)] pub` (the WASM host and native library are different crates)
+and added the omitted `palette_count` field to the SDK and host test offsets. Full horizon-client tests and the
+resource-backed e2e remain for Round 2; there is no known implementation gap.
