@@ -105,15 +105,15 @@
   },
   {
     "label": "mod_generator",
-    "total": 25,
+    "total": 46,
     "bound_a": 8,
     "bound_mech": 1,
-    "handle_required": 6,
-    "excluded": 10,
+    "handle_required": 7,
+    "excluded": 30,
     "derived": 3,
     "derived_bound": 0,
-    "fields_total": 21,
-    "fields_bound": 11,
+    "fields_total": 28,
+    "fields_bound": 9,
     "handle_types": 4
   },
   {

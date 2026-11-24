@@ -101,8 +101,13 @@ fn a_rust_guest_compiles_to_a_core_module_and_registers_its_hooks() {
 #[test]
 fn rustc_and_wasm_ld_retain_the_sdk_abi_section() {
     let wasm = build_guest("reentry");
-    assert_eq!(runtime::ABI_VERSION, runtime::AbiVersion { major: 1, minor: 0 });
-    assert_eq!(runtime::module_abi_version(&wasm).unwrap(), Some(runtime::ABI_VERSION));
+    // ENGINE_CALL_ABI.md: the engine implements 1.1 (n-ary hook arguments, W8) and the Rust SDK still declares 1.0,
+    // which loads (an older minor is fine). The section the SDK macro emits must survive rustc and wasm-ld as 1.0.
+    assert_eq!(runtime::ABI_VERSION, runtime::AbiVersion { major: 1, minor: 1 });
+    let declared = runtime::AbiVersion { major: yoake_guest_sdk::ABI_MAJOR, minor: yoake_guest_sdk::ABI_MINOR };
+    assert_eq!(declared, runtime::AbiVersion { major: 1, minor: 0 });
+    assert_eq!(runtime::module_abi_version(&wasm).unwrap(), Some(declared));
+    assert!(matches!(runtime::check_abi(declared), runtime::AbiCheck::OkOlderMinor), "an older minor than the engine's loads");
 }
 
 #[test]

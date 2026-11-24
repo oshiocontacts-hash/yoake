@@ -46,23 +46,6 @@ pub mod types {
         })
     }
 
-/// `mod_generator::<ModTerrain as ChunkGenerator>::worker`
-pub fn mod_generator_modterrain_as_chunkgenerator_worker(h: Handle) -> Result<(), Error> {
-    let mut args: Vec<u8> = Vec::new();
-    {
-        let out = &mut args;
-    }
-    let result = call(h, 2794, &args)?;
-    let mut dec = Decoder::new(&result);
-    let value = (|| -> Result<(), CallError> {
-        let d = &mut dec;
-        let value = ();
-        d.finish()?;
-        Ok(value)
-    })()?;
-    Ok(value)
-}
-
 /// `mod_generator::ModGeneratorContext.generator#get`
 pub fn mod_generator_modgeneratorcontext_generator_get(h: Handle) -> Result<String, Error> {
     let result = call(h, 2795, &[])?;
@@ -136,32 +119,6 @@ pub fn mod_generator_modgenerators_contains(h: Handle, a0: &str) -> Result<bool,
     let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
         let value = <bool as Decode>::decode(d)?;
-        d.finish()?;
-        Ok(value)
-    })()?;
-    Ok(value)
-}
-
-/// `mod_generator::ModTerrain.level#get`
-pub fn mod_generator_modterrain_level_get(h: Handle) -> Result<String, Error> {
-    let result = call(h, 2803, &[])?;
-    let mut dec = Decoder::new(&result);
-    let value = (|| -> Result<String, CallError> {
-        let d = &mut dec;
-        let value = <String as Decode>::decode(d)?;
-        d.finish()?;
-        Ok(value)
-    })()?;
-    Ok(value)
-}
-
-/// `mod_generator::ModTerrain.plains#get`
-pub fn mod_generator_modterrain_plains_get(h: Handle) -> Result<u16, Error> {
-    let result = call(h, 2805, &[])?;
-    let mut dec = Decoder::new(&result);
-    let value = (|| -> Result<u16, CallError> {
-        let d = &mut dec;
-        let value = <u16 as Decode>::decode(d)?;
         d.finish()?;
         Ok(value)
     })()?;
@@ -345,13 +302,34 @@ pub fn mod_generator_modgeneratorcontext_shape_get(h: Handle) -> Result<types::L
     Ok(value)
 }
 
-/// `mod_generator::ModTerrain.shape#get`
-pub fn mod_generator_modterrain_shape_get(h: Handle) -> Result<types::LevelShape, Error> {
-    let result = call(h, 2823, &[])?;
+/// `mod_generator::ModChunk::set_biome_at`
+pub fn mod_generator_modchunk_set_biome_at(h: Handle, a0: i32, a1: i32, a2: i32, a3: &str) -> Result<bool, Error> {
+    let mut args: Vec<u8> = Vec::new();
+    {
+        let out = &mut args;
+        Encode::encode(&a0, out);
+        Encode::encode(&a1, out);
+        Encode::encode(&a2, out);
+        Encode::encode(a3, out);
+    }
+    let result = call(h, 3090, &args)?;
     let mut dec = Decoder::new(&result);
-    let value = (|| -> Result<types::LevelShape, CallError> {
+    let value = (|| -> Result<bool, CallError> {
         let d = &mut dec;
-        let value = dec_horizon_client_render__chunk__LevelShape(d)?;
+        let value = <bool as Decode>::decode(d)?;
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mod_generator::ModProto.failed#get`
+pub fn mod_generator_modproto_failed_get(h: Handle) -> Result<bool, Error> {
+    let result = call(h, 3091, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<bool, CallError> {
+        let d = &mut dec;
+        let value = <bool as Decode>::decode(d)?;
         d.finish()?;
         Ok(value)
     })()?;

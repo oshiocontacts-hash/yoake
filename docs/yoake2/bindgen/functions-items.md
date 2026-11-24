@@ -57,21 +57,21 @@
 | `items::Items::resists_cactus` | 693 | &self | bound (b, mechanical) | - |
 | `items::Items::resists_fire` | 670 | &self | bound (b, mechanical) | - |
 | `items::Items::tags_only` | 1003 | - | excluded | generic type alias `Result`; lifetime-carrying type `PackOverlay`; std type `std::path::Path` has no codec yet [&argument] |
-| `items::LootContext::choose` | 1765 | &self | excluded | external type `serde_json::value::Value` (crate not loaded); function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation; receiver type carries a lifetime: it cannot be a hook-argument handle |
+| `items::LootContext::choose` | 1772 | &self | excluded | external type `serde_json::value::Value` (crate not loaded); function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation; receiver type carries a lifetime: it cannot be a hook-argument handle |
 | `items::LootContext::condition` | 1527 | &self | excluded | external type `serde_json::value::Value` (crate not loaded) [&argument]; function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation; receiver type carries a lifetime: it cannot be a hook-argument handle |
-| `items::LootContext::conditions` | 1661 | &self | excluded | external type `serde_json::value::Value` (crate not loaded) [&argument]; function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation; receiver type carries a lifetime: it cannot be a hook-argument handle |
-| `items::LootContext::enchant_pool` | 1836 | - | handle-required | external type `serde_json::value::Value` (crate not loaded) [&argument] |
+| `items::LootContext::conditions` | 1668 | &self | excluded | external type `serde_json::value::Value` (crate not loaded) [&argument]; function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation; receiver type carries a lifetime: it cannot be a hook-argument handle |
+| `items::LootContext::enchant_pool` | 1843 | - | handle-required | external type `serde_json::value::Value` (crate not loaded) [&argument] |
 | `items::LootContext::enchantment_level` | 1448 | &self | excluded | receiver type carries a lifetime: it cannot be a hook-argument handle |
 | `items::LootContext::evaluate` | 1407 | &self | excluded | external type `serde_json::value::Value` (crate not loaded) [&argument]; function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation; receiver type carries a lifetime: it cannot be a hook-argument handle |
-| `items::LootContext::expand` | 1674 | &self | excluded | external type `serde_json::value::Value` (crate not loaded) [&argument]; external type `serde_json::value::Value` (crate not loaded) [&mut argument]; function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation; receiver type carries a lifetime: it cannot be a hook-argument handle |
+| `items::LootContext::expand` | 1681 | &self | excluded | external type `serde_json::value::Value` (crate not loaded) [&argument]; external type `serde_json::value::Value` (crate not loaded) [&mut argument]; function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation; receiver type carries a lifetime: it cannot be a hook-argument handle |
 | `items::LootContext::int_number` | 1510 | - | excluded | external type `serde_json::value::Value` (crate not loaded) [&argument]; function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation |
-| `items::LootContext::modifiers` | 1844 | &self | excluded | external type `serde_json::value::Value` (crate not loaded) [&argument]; function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation; receiver type carries a lifetime: it cannot be a hook-argument handle |
+| `items::LootContext::modifiers` | 1851 | &self | excluded | external type `serde_json::value::Value` (crate not loaded) [&argument]; function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation; receiver type carries a lifetime: it cannot be a hook-argument handle |
 | `items::LootContext::native_loot_context` | 1455 | &self | excluded | function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation; lifetime-carrying type `horizon_world::loot::NativeLootContext`; receiver type carries a lifetime: it cannot be a hook-argument handle |
-| `items::LootContext::nested` | 1804 | &self | excluded | external type `serde_json::value::Value` (crate not loaded) [&argument]; function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation; receiver type carries a lifetime: it cannot be a hook-argument handle |
+| `items::LootContext::nested` | 1811 | &self | excluded | external type `serde_json::value::Value` (crate not loaded) [&argument]; function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation; receiver type carries a lifetime: it cannot be a hook-argument handle |
 | `items::LootContext::number` | 1478 | - | excluded | external type `serde_json::value::Value` (crate not loaded) [&argument]; function-level type parameter `R` requires a listed instantiation; generic type `R` requires a listed instantiation |
 | `items::Song::finished` | 448 | &self | bound (a) | - |
-| `items::apply_loot` | 2105 | - | handle-required | external type `serde_json::value::Value` (crate not loaded) [&argument] |
-| `items::bucket_contents` | 2184 | - | handle-required | a reference nested inside another type needs a handle [return value] |
+| `items::apply_loot` | 2112 | - | handle-required | external type `serde_json::value::Value` (crate not loaded) [&argument] |
+| `items::bucket_contents` | 2191 | - | handle-required | a reference nested inside another type needs a handle [return value] |
 | `items::entity_spec` | 638 | - | bound (b, mechanical) | - |
 | `items::fire_starter_pitch` | 59 | - | excluded | `impl Trait` argument requires a listed instantiation; `impl Trait` requires a listed instantiation |
 | `items::fire_starter_sound` | 48 | - | bound (b, mechanical) | - |
@@ -81,8 +81,8 @@
 | `items::load_songs` | 522 | - | handle-required | external type `serde_json::value::Value` (crate not loaded) [return value]; std type `std::path::Path` has no codec yet [&argument] |
 | `items::load_tag_lists` | 565 | - | excluded | generic type alias `crate::Result`; lifetime-carrying type `horizon_world::loot::PackOverlay`; std type `std::path::Path` has no codec yet [&argument] |
 | `items::load_tags` | 553 | - | excluded | generic type alias `crate::Result`; lifetime-carrying type `horizon_world::loot::PackOverlay`; std type `std::path::Path` has no codec yet [&argument] |
-| `items::loot_of` | 2050 | - | handle-required | external type `serde_json::value::Value` (crate not loaded) [return value] |
-| `items::mod_function` | 2165 | - | excluded | `impl Trait` requires a listed instantiation; closure argument (`impl Fn*`): guest callback handles are not built; external type `serde_json::value::Value` (crate not loaded) [&argument]; lifetime-carrying type `horizon_world::loot::NativeLootContext` |
+| `items::loot_of` | 2057 | - | handle-required | external type `serde_json::value::Value` (crate not loaded) [return value] |
+| `items::mod_function` | 2172 | - | excluded | `impl Trait` requires a listed instantiation; closure argument (`impl Fn*`): guest callback handles are not built; external type `serde_json::value::Value` (crate not loaded) [&argument]; lifetime-carrying type `horizon_world::loot::NativeLootContext` |
 | `items::parse_consume_effect` | 105 | - | handle-required | external type `serde_json::value::Value` (crate not loaded) [&argument]; external type `serde_json::value::Value` (crate not loaded) [return value] |
 | `items::parse_instrument` | 493 | - | handle-required | external type `serde_json::value::Value` (crate not loaded) [&argument] |
 | `items::publish_registry` | 28 | - | excluded | generic type `horizon_world::consumable::Consumable` requires a listed instantiation |
@@ -90,7 +90,7 @@
 | `items::published_stack_limit` | 41 | - | bound (b, mechanical) | - |
 | `items::registry_order` | 390 | - | handle-required | std type `std::path::Path` has no codec yet [&argument] |
 | `items::set_villager_food` | 649 | - | excluded | generic type `horizon_world::consumable::Consumable` requires a listed instantiation |
-| `items::take_held_drop` | 2824 | - | bound (b, mechanical) | - |
+| `items::take_held_drop` | 2853 | - | bound (b, mechanical) | - |
 | `items::villager_food` | 662 | - | bound (b, mechanical) | - |
 
 ## Fields

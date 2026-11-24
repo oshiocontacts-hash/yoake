@@ -19,3 +19,21 @@ Ids are global, append-only and never reused (`yoake-hook-ledger`, `check_append
   when a range is empty or outside `1..TEST_ID_BASE`, or when two ranges overlap. The test
   `horizon-mods: the_reserved_id_ranges_are_in_the_locks` pins the custom mob range.
 * To reserve a range: add it to `meta.json` (or `LedgerSet::reserve`), never one that already holds an entry.
+
+## When the source moved (renames and tombstones)
+
+A live key whose function moved or went away stops `sync-ledger` (and the stamped build, which would build that
+crate unstamped) with `missing live ledger keys`. Fix it through the overlay route, never by hand-editing the JSON
+and never by rewriting sources in place:
+
+```
+yoake-hook-codemod sync-ledger --workspace-root . \
+  --rename OLD_KEY=NEW_KEY     # the function moved or was renamed: the id stays on the new key
+  --tombstone KEY              # the function is gone, or is no longer hookable: the id is retired for good
+```
+
+Both flags can be repeated and may name keys of any crate (each crate only applies its own). A rename whose new
+key is not hookable (a generic impl whose parameters are not `'static`, say) is refused with a hint to tombstone.
+New functions get their ids in the same run. Afterwards `check-history --base <old ledger dir> --current hook-ledger`
+must still say `ok` (ids are never reused or moved to another key without a rename).
+The flags are also read by `apply --verify --overlay` (`--rename`, `--tombstone`).

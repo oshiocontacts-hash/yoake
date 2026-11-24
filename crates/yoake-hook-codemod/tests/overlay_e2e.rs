@@ -239,3 +239,55 @@ fn verify_through_the_overlay_withdraws_a_rejected_stamp_and_leaves_the_tree_alo
     assert!(overlay.contains("Counter::bump") && !overlay.contains("Counter::foo\""), "{overlay}");
     let _ = std::fs::remove_dir_all(&tmp);
 }
+
+fn sync(ws: &Path, extra: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_yoake-hook-codemod"))
+        .args(["sync-ledger", "--workspace-root"])
+        .arg(ws)
+        .args(extra)
+        .output()
+        .expect("run sync-ledger")
+}
+
+fn entry_status(ws: &Path, key: &str) -> Option<(u64, String)> {
+    let ledger: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(ws.join("hook-ledger/demo.json")).unwrap()).unwrap();
+    ledger["entries"].as_array().unwrap().iter().find(|e| e["key"] == key).map(|e| (e["id"].as_u64().unwrap(), e["status"].as_str().unwrap().to_string()))
+}
+
+/// REM-11 part 0: a key whose source moved is renamed (id kept) or tombstoned through `sync-ledger`, in the overlay,
+/// with the tree untouched (no source rewrite). Fast: no compile.
+#[test]
+fn sync_ledger_renames_and_tombstones_moved_keys_without_touching_the_tree() {
+    let tmp = std::env::temp_dir().join(format!("yoake-sync-rename-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    fixture(&tmp, false);
+    ok(&sync(&tmp, &[]));
+    let (id, status) = entry_status(&tmp, "demo::a::where_am_i").expect("assigned");
+    assert_eq!(status, "live");
+    let (boom, _) = entry_status(&tmp, "demo::a::boom_line").expect("assigned");
+
+    // the source moves: `where_am_i` becomes `where_now`, `boom_line` is gone
+    let src_path = tmp.join("crates/demo/src/a.rs");
+    let moved = std::fs::read_to_string(&src_path).unwrap().replace("where_am_i", "where_now");
+    let (head, rest) = moved.split_once("pub fn boom_line").unwrap();
+    let (_, tail) = rest.split_once("pub struct Counter").unwrap();
+    let moved = format!("{head}pub struct Counter{tail}");
+    write(&src_path, &moved);
+
+    let refused = sync(&tmp, &[]);
+    assert!(!refused.status.success(), "a moved live key must stop the sync");
+    let text = String::from_utf8_lossy(&refused.stderr);
+    assert!(text.contains("missing live ledger keys") && text.contains("--rename") && text.contains("--tombstone"), "{text}");
+
+    // a rename for a key of another crate is ignored; the right ones apply
+    ok(&sync(
+        &tmp,
+        &["--rename", "demo::a::where_am_i=demo::a::where_now", "--tombstone", "demo::a::boom_line", "--tombstone", "other::x::y"],
+    ));
+    assert_eq!(entry_status(&tmp, "demo::a::where_now"), Some((id, "live".to_string())), "the id moved with the key");
+    assert_eq!(entry_status(&tmp, "demo::a::boom_line"), Some((boom, "tombstone".to_string())));
+    assert_eq!(std::fs::read_to_string(&src_path).unwrap(), moved, "the source is untouched");
+    // without the flags it is a no-op now
+    ok(&sync(&tmp, &[]));
+    let _ = std::fs::remove_dir_all(&tmp);
+}
