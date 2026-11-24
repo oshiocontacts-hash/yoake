@@ -45,6 +45,7 @@ fn config(dir: &Path, json: &Path) -> Config {
     let writable = |list: &[&str]| list.iter().map(|s| (*s).to_string()).collect::<Vec<_>>();
     Config {
         frozen_files: Vec::new(),
+        table_readonly: Vec::new(),
         docs: vec![json.to_string_lossy().into_owned()],
         lock: dir.join("ids.lock.json").to_string_lossy().into_owned(),
         report_dir: dir.join("reports").to_string_lossy().into_owned(),
@@ -379,4 +380,58 @@ fn ids_are_stable_when_the_module_changes() {
     assert_eq!(old.id, before["mini::takes_char"]);
     let renamed = lock.bindings.iter().find(|e| e.path == "mini::takes_char_renamed").unwrap();
     assert!(renamed.id > before.values().copied().max().unwrap(), "a renamed function is a new binding with a new id");
+}
+
+/// REM-11 part 2: the field tables (`--tables`) carry setters for every scalar field the policy allows.
+#[test]
+fn field_table_setters_follow_the_policy() {
+    let dir = tmp("table_setters");
+    std::fs::write(dir.join("tables_engine.rs"), "pub mod stuff;\n").unwrap();
+    std::fs::write(
+        dir.join("stuff.rs"),
+        r#"pub struct Mover {
+    pub health: f32,
+    pub on_ground: bool,
+    pub ticks: u32,
+    pub entity_id: u32,
+    pub item_len: usize,
+    pub checksum: u64,
+    pub pinned: i32,
+    pub name: String,
+}
+
+pub struct Pair(pub i32, pub i32);
+"#,
+    )
+    .unwrap();
+    let out = dir.join("doc");
+    let status = Command::new("rustdoc")
+        .env("RUSTC_BOOTSTRAP", "1")
+        .args(["--edition", "2021", "--crate-name", "tables_engine", "--crate-type", "lib"])
+        .args(["-Z", "unstable-options", "--output-format", "json", "--document-private-items"])
+        .arg("-o")
+        .arg(&out)
+        .arg(dir.join("tables_engine.rs"))
+        .output()
+        .expect("run rustdoc");
+    assert!(status.status.success(), "rustdoc failed:\n{}", String::from_utf8_lossy(&status.stderr));
+    let mut config = config(&dir, &out.join("tables_engine.json"));
+    config.targets.clear();
+    let uni = load_universe(&config, Path::new(".")).unwrap();
+    let all = yoake_bindgen::tables(&uni, "tables_engine", &[], &["Mover.pinned".to_string()]).unwrap();
+    let (_, _, text) = all.iter().find(|(label, ..)| label == "stuff").expect("a table file for module stuff");
+    let set = text.split("set: |t, f, v| match f {").nth(1).expect("the FieldTable setter").split("_ => false").next().unwrap();
+    // declaration indices: health 0, on_ground 1, ticks 2, entity_id 3, item_len 4, checksum 5, pinned 6
+    assert!(set.contains("t.health = f32::from_bits(v as u32);"), "{text}");
+    assert!(set.contains("t.on_ground = v != 0;"), "{text}");
+    assert!(set.contains("t.ticks = v as u32;"), "{text}");
+    for refused in ["entity_id", "item_len", "checksum", "pinned"] {
+        assert!(!set.contains(&format!("t.{refused} =")), "{refused} must stay read-only: {text}");
+    }
+    // the getters still cover them (read access is not policy-limited), and the shared table has no setter
+    assert!(text.contains("t.entity_id"), "{text}");
+    assert_eq!(text.matches("set: |t, f, v|").count(), 2, "one setter per owner type: {text}");
+    // tuple fields: `.0` is refused like a newtype's inner value (`forbidden_writable`), `.1` is plain data
+    assert!(text.contains("t.1 = v as i32;") && !text.contains("t.0 = v as i32;"), "{text}");
+    assert!(!text.contains("t.name"), "non-scalar fields have no accessors: {text}");
 }

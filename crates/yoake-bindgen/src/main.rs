@@ -51,7 +51,7 @@ fn run() -> Result<ExitCode, Box<dyn std::error::Error>> {
         // W9b: one small glue file per module with scalar fields, in `<tables-dir>/<module path with __>.rs`
         let dir = root.join(tables_dir.ok_or("--tables needs --tables-dir")?);
         std::fs::create_dir_all(&dir)?;
-        let all = yoake_bindgen::tables(&uni, &krate, &config.frozen_files)?;
+        let all = yoake_bindgen::tables(&uni, &krate, &config.frozen_files, &config.table_readonly)?;
         let mut bytes = 0usize;
         for (label, _file, text) in &all {
             bytes += text.len();
