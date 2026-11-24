@@ -774,6 +774,9 @@ enum NaryKind {
     Held,
     /// A shared reference without a table (or to an unsized type): the reference is copied, the guest holds a handle.
     HeldRef,
+    /// REM-11: a by-value `Copy` argument (also a by-value `self` of a `Copy` type) whose type has a read-only field
+    /// table: the guest reads its fields through a shared view of the engine's copy; `original` gets a copy back.
+    CopyShared(String),
     /// `&Game`: registered as a shared path root, so the guest can open read-only path handles to what `Game` reaches.
     RootShared,
 }
@@ -1098,6 +1101,7 @@ fn nary_fallback(reason: &str) -> bool {
         || reason.starts_with("no FieldTable")
         || reason == "no parameters"
         || reason.contains("no RefFieldTable")
+        || reason == "by-value self"
 }
 
 fn classify_hook(
@@ -1162,11 +1166,13 @@ fn classify_nary(
     for arg in &hook.sig.inputs {
         let ty = match arg {
             FnArg::Receiver(r) => {
-                if r.reference.is_none() {
-                    return Err("by-value self".to_string());
-                }
-                if effective_self_ty.is_none() {
+                let Some(self_ty) = effective_self_ty else {
                     return Err("missing impl self type".to_string());
+                };
+                // REM-11: a by-value `self` of a type the module derives `Copy` for is an ordinary by-value argument
+                // (the macro side already hooks it, `FnContext::self_copy`); any other by-value self stays unbridged
+                if r.reference.is_none() && (r.colon_token.is_some() || !is_known_copy(self_ty)) {
+                    return Err("by-value self".to_string());
                 }
                 replace_self(&r.ty)
             }
@@ -1199,7 +1205,14 @@ fn classify_nary(
             other => match scalar_name(other) {
                 Some(name) => NaryKind::Scalar(name),
                 // a `Copy` value goes to every `original` call (the copy is held for the guest's handle)
-                None if is_known_copy(other) => NaryKind::HeldRef,
+                None if is_known_copy(other) => {
+                    let canon = crate_index.resolve_bridge_type_canon(&hook.mod_path, other);
+                    let named = !eligible::type_has_non_static_lifetime(other);
+                    match (named, canon.as_deref().and_then(|c| lookup_field_table(c, &field_tables.ref_tables))) {
+                        (true, Some(path)) => NaryKind::CopyShared(path),
+                        _ => NaryKind::HeldRef,
+                    }
+                }
                 None => NaryKind::Held,
             },
         };
@@ -1725,6 +1738,11 @@ fn render_bridged_fn(bh: &BridgedHook) -> String {
                     // the guest cannot replace a root: `original` gets the real reference (naming `Game<'_>` again
                     // through the view would not tie its lifetime to the parameter's)
                     call_args.push(format!("p{i}"));
+                    fallback_args.push(format!("p{i}"));
+                }
+                NaryKind::CopyShared(table) => {
+                    nary_set.push_str(&format!(".shared(&p{i}, &{table})"));
+                    call_args.push(format!("*view.shared::<{ty}>({i}).expect(\"yoake: bridged argument {i} of hook {}\")", bh.id));
                     fallback_args.push(format!("p{i}"));
                 }
                 NaryKind::HeldRef => {

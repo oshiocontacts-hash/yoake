@@ -990,3 +990,119 @@ pub fn by_value(first: Vec<u32>, scale: i64) -> u64 {
     assert!(game.contains("dispatch_n_id(16, "), "&Game (peek) is bridged: {game}");
     assert!(game.contains(".root_shared(p0)"), "as a shared path root: {game}");
 }
+
+#[test]
+fn bridge_nary_takes_a_by_value_copy_self_and_copy_arguments() {
+    // REM-11 part 3 (FR-F1-W10 note): `self` by value of a `Copy` type is bridged like any by-value `Copy` argument;
+    // a table of the type makes its fields readable, otherwise the guest holds an opaque handle.
+    let dir = TestDir::new("copy_self");
+    setup_bridge_fixture(dir.path());
+    let root = dir.path();
+    fs::write(root.join("src/lib.rs"), "pub mod entities;\npub mod game;\npub mod extra;\n").unwrap();
+    fs::write(
+        root.join("src/yoake_glue/extra.rs"),
+        r#"pub mod yoake_glue {
+    use yoake_slice::activation::{FieldTable, RefFieldTable};
+    pub static FIELDS_crate__extra__Pt: FieldTable<crate::extra::Pt> = FieldTable {
+        get: |_, _| None,
+        set: |_, _, _| false,
+    };
+    pub static REF_FIELDS_crate__extra__Pt: RefFieldTable<crate::extra::Pt> = RefFieldTable {
+        get: |_, _| None,
+    };
+}
+"#,
+    )
+    .unwrap();
+    fs::write(
+        root.join("src/extra.rs"),
+        r#"#[derive(Clone, Copy)]
+pub struct Pt {
+    pub x: i32,
+}
+
+#[derive(Clone, Copy)]
+pub struct Tag(pub u8);
+
+pub struct Owned(pub Vec<u8>);
+
+include!("yoake_glue/extra.rs");
+
+impl Pt {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Pt, id = 20, key = "demo::extra::Pt::dist")]
+    pub fn dist(self, other: i32) -> i32 {
+        self.x - other
+    }
+
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Pt, id = 21, key = "demo::extra::Pt::bump")]
+    pub fn bump(mut self, by: i32) -> i32 {
+        self.x += by;
+        self.x
+    }
+}
+
+impl Tag {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Tag, id = 22, key = "demo::extra::Tag::value")]
+    pub fn value(self) -> u8 {
+        self.0
+    }
+}
+
+impl Owned {
+    #[yoake_hook_macro::yoake_hook(method, self_ty = Owned, id = 23, key = "demo::extra::Owned::len_of")]
+    pub fn len_of(self) -> usize {
+        self.0.len()
+    }
+}
+
+#[yoake_hook_macro::yoake_hook(id = 24, key = "demo::extra::measure")]
+pub fn measure(p: Pt, t: Tag) -> i32 {
+    p.x + i32::from(t.0)
+}
+"#,
+    )
+    .unwrap();
+    let meta = fs::read_to_string(root.join("ledger/demo.json")).unwrap();
+    let mut extra_entries = String::new();
+    for (id, key) in [
+        (20, "demo::extra::Pt::dist"),
+        (21, "demo::extra::Pt::bump"),
+        (22, "demo::extra::Tag::value"),
+        (23, "demo::extra::Owned::len_of"),
+        (24, "demo::extra::measure"),
+    ] {
+        extra_entries.push_str(&format!(
+            "    ,{{ \"id\": {id}, \"key\": \"{key}\", \"sig\": \"00000000000000{id}\", \"status\": \"live\", \"kind\": \"fn\" }}\n"
+        ));
+    }
+    let meta = meta.replace("  ],\n  \"excluded\"", &format!("{extra_entries}  ],\n  \"excluded\""));
+    fs::write(root.join("ledger/demo.json"), meta).unwrap();
+    fs::write(root.join("ledger/meta.json"), "{\n  \"version\": 2,\n  \"next_id\": 30\n}\n").unwrap();
+    let out = Command::new(codemod_bin())
+        .args(["bridge", "--crate-root"])
+        .arg(root)
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(root.join("ledger"))
+        .args(["--module", "extra", "--glue"])
+        .arg(root.join("src/yoake_glue/extra.rs"))
+        .arg("--nary")
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let extra = fs::read_to_string(root.join("src/yoake_glue/hook_bridge_extra.rs")).unwrap();
+    // a Copy self with a table: its fields are readable through a shared view, `original` gets the copy back
+    for id in [20, 21] {
+        assert!(extra.contains(&format!("fn __bridge_{id}(")), "{extra}");
+    }
+    assert!(extra.contains(".shared(&p0, &crate::extra::yoake_glue::REF_FIELDS_crate__extra__Pt)"), "{extra}");
+    assert!(extra.contains("*view.shared::<Pt>(0)"), "{extra}");
+    // a Copy self without a table: an opaque handle to the copy
+    assert!(extra.contains("fn __bridge_22("), "{extra}");
+    assert!(extra.contains(".opaque_shared(&p0_h)"), "{extra}");
+    // `measure(p: Pt, t: Tag)`: by-value Copy arguments, one with a table and one without
+    assert!(extra.contains("fn __bridge_24("), "{extra}");
+    assert!(extra.contains(".shared(&p0, &crate::extra::yoake_glue::REF_FIELDS_crate__extra__Pt).opaque_shared(&p1_h)"), "{extra}");
+    // a by-value self of a type that is not Copy stays unbridged, with its reason
+    assert!(extra.contains("(23, \"by-value self\")"), "{extra}");
+    assert!(!extra.contains("fn __bridge_23("), "{extra}");
+}
