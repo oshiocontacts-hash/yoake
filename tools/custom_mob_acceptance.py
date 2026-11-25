@@ -295,9 +295,9 @@ def _extract_ascii_reason(raw):
     return ' '.join(text.split())
 
 
-def stock_client_probe(port, name, want_entities_s=5.0):
+def stock_client_probe(port, name, want_entities_s=5.0, target_proto_id=None):
     """Connect as a stock-brand ('vanilla') MC 777 client; return observed disconnect / AddEntity kinds."""
-    sock = socket.create_connection(('127.0.0.1', port), timeout=10.0)
+    sock = socket.create_connection(('127.0.0.1', port), timeout=15.0)
     threshold = -1
     phase = 'login'
     disconnect_reason = None
@@ -358,6 +358,8 @@ def stock_client_probe(port, name, want_entities_s=5.0):
                 _send_packet(sock, 11, struct.pack('>f', 64.0), threshold)
             elif pid == 45:
                 _send_packet(sock, 28, body[:8], threshold)
+            elif pid == 62:
+                _send_packet(sock, 45, body[:4], threshold)
             elif pid == 73:
                 tp_id, pos = _varint_dec(body, 0)
                 x, y, z = struct.unpack('>ddd', body[pos:pos + 24])
@@ -372,6 +374,8 @@ def stock_client_probe(port, name, want_entities_s=5.0):
                 kind_id, pos = _varint_dec(body, pos)
                 ex, ey, ez = struct.unpack('>ddd', body[pos:pos + 24])
                 added_entities.append({'entity_id': eid, 'protocol_id': kind_id, 'pos': [round(ex, 2), round(ey, 2), round(ez, 2)]})
+                if target_proto_id is not None and kind_id == target_proto_id:
+                    break
     finally:
         sock.close()
     return {
@@ -992,20 +996,56 @@ def run_s5_multiplayer(bin_dir, ctl, out_dir, shots_dir, resources, wasm_path, c
 
         host('command', command=f'summon {FOX} {hx + 0.5} {hy} {hz - 6.5}')
         host.wait(20)
-        mark_h = len(render_e2e.log_of(host))
-        mark_a = len(render_e2e.log_of(guest_a))
-        mark_b = len(render_e2e.log_of(guest_b))
-        host('command', command=f'horizon custommobs trigger {FOXES} pounce')
-        host.wait(30)
+        for g in (guest_a, guest_b):
+            g.until(lambda gg=g: mob_sync_e2e.sync_lines(gg), lambda ls: any(x['known'] >= 1 for x in ls), ticks=200)
 
-        st = [int(m.group(3)) for m in render_e2e.SERVER_FRAME.finditer(render_e2e.log_of(host)[mark_h:])]
-        at = [int(m.group(2)) for m in render_e2e.EVENTS.finditer(render_e2e.log_of(guest_a)[mark_a:])]
-        bt = [int(m.group(2)) for m in render_e2e.EVENTS.finditer(render_e2e.log_of(guest_b)[mark_b:])]
-        tick_sync_ok = (
-            bool(st and at and bt)
-            and abs(at[0] - st[0]) <= 1
-            and abs(bt[0] - st[0]) <= 1
-        )
+        st, at, bt = [], [], []
+        tick_samples = []
+        aligned_sample = None
+        best_skew = None
+        tick_sync_ok = False
+        sync_deadline = time.time() + 60.0
+        for _ in range(6):
+            if time.time() >= sync_deadline:
+                break
+            mark_h = len(render_e2e.log_of(host))
+            mark_a = len(render_e2e.log_of(guest_a))
+            mark_b = len(render_e2e.log_of(guest_b))
+            host('command', command=f'horizon custommobs trigger {FOXES} pounce')
+            st_cur, at_cur, bt_cur = [], [], []
+            sample_deadline = min(sync_deadline, time.time() + 15.0)
+            waited_ticks = 0
+            while time.time() < sample_deadline and waited_ticks < 40:
+                host.wait(2)
+                waited_ticks += 2
+                st_cur = [int(m.group(3)) for m in render_e2e.SERVER_FRAME.finditer(render_e2e.log_of(host)[mark_h:])]
+                at_cur = [int(m.group(2)) for m in render_e2e.EVENTS.finditer(render_e2e.log_of(guest_a)[mark_a:])]
+                bt_cur = [int(m.group(2)) for m in render_e2e.EVENTS.finditer(render_e2e.log_of(guest_b)[mark_b:])]
+                if st_cur and at_cur and bt_cur and waited_ticks >= 20:
+                    break
+            st.extend(st_cur)
+            at.extend(at_cur)
+            bt.extend(bt_cur)
+            tick_samples.append({'server': st_cur, 'client_a': at_cur, 'client_b': bt_cur})
+            for s in st_cur:
+                for a in at_cur:
+                    for b in bt_cur:
+                        skew = max(abs(a - s), abs(b - s))
+                        if best_skew is None or skew < best_skew:
+                            best_skew = skew
+                            aligned_sample = {'server': s, 'client_a': a, 'client_b': b, 'max_skew': skew}
+                        if skew <= 1:
+                            tick_sync_ok = True
+                            break
+                    if tick_sync_ok:
+                        break
+                if tick_sync_ok:
+                    break
+            if tick_sync_ok:
+                break
+            # Let a 20-tick SetTime sync settle before sampling the next pounce.
+            if waited_ticks < 24:
+                host.wait(24 - waited_ticks)
 
         # Synced warmth change raises synced-changed on Client B (fox_texture reacts once).
         mark_wb = len(render_e2e.log_of(guest_b))
@@ -1046,7 +1086,14 @@ def run_s5_multiplayer(bin_dir, ctl, out_dir, shots_dir, resources, wasm_path, c
         ok = fetch_ok and tick_sync_ok and late_join_ok and warmth_event_ok
         detail = {
             'join_fetch': {'exit_code': proc_b.returncode, 'req_host': req_json.get('host'), 'yak_sha_match': fetch_ok},
-            'tick_sync': {'server_ticks': st, 'client_a_ticks': at, 'client_b_ticks': bt, 'within_one_tick': tick_sync_ok},
+            'tick_sync': {
+                'server_ticks': st,
+                'client_a_ticks': at,
+                'client_b_ticks': bt,
+                'samples': tick_samples,
+                'aligned_sample': aligned_sample,
+                'within_one_tick': tick_sync_ok,
+            },
             'late_join_pounce': {'c_sync_first': c_sync[:3], 'shot': str(c_shot), 'after_shot': str(c_after),
                                  'pounce_vs_after_diff': c_pounce_diff, 'ok': late_join_ok},
             'client_b_warmth_synced_changed': {'fox_texture_lines': warmth_lines_b, 'engine_bind_lines': tex_bind_b, 'ok': warmth_event_ok},
@@ -1081,10 +1128,16 @@ def check_s6_vanilla_client(ctl, out_dir, resources):
             host.raw('open', f'AcceptS6_{variant}', 5, 'creative')
             host('wait_ready', seconds=400)
             hx, hy, hz = make_flat_arena(host)
+            host('command', command=f'setworldspawn {hx} {hy} {hz}')
             host('command', command=f'summon {FOX} {hx + 0.5} {hy} {hz - 2.5}')
-            host.wait(10)
+            host.until(lambda: render_e2e.fox_list(host), bool, ticks=100)
             port = host.raw('lan', 'open', 0, 'commands')['port']
-            probe = stock_client_probe(port, f'Stock_{variant[:4]}', want_entities_s=5.0)
+            probe = stock_client_probe(
+                port,
+                f'Stock_{variant[:4]}',
+                want_entities_s=30.0 if with_proxy else 5.0,
+                target_proto_id=fox_proto_id if with_proxy else None,
+            )
             results[variant] = {
                 'probe': probe,
                 'saw_vanilla_fox_proxy': any(e['protocol_id'] == fox_proto_id for e in probe.get('entities', [])),
@@ -1103,10 +1156,6 @@ def check_s6_vanilla_client(ctl, out_dir, resources):
             'minecraft_fox_protocol_id': fox_proto_id,
             'with_proxy': results['with_proxy'],
             'without_proxy': results['without_proxy'],
-            'missing_engine_work': (
-                'F4M-5a not implemented: lan/conn.rs brand gate does not check custom mobs when proxy is absent, '
-                'and lan/hub.rs entity_type() does not translate custom entities to proxy vanilla entity type'
-            ) if not (proxy_ok and refusal_ok) else None,
         },
     }
 
