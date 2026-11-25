@@ -1,0 +1,19 @@
+{
+  "hooks": [
+    {
+      "name": "villager_trades",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_villager_trades",
+      "side": "server",
+      "mod_api": {
+        "contract": "collect",
+        "out": "offers"
+      }
+    }
+  ],
+  "rust_summary": "REM-17d: mutable server event when villager or wandering trader offers are generated.",
+  "doc_summary": "REM-17d server hook (`native_villager_trades`) fired when the engine generates offers for a villager (first offers, profession change, or level-up) or a wandering trader.",
+  "comments": [
+    "crates/horizon-client/src/game/native_hooks.rs",
+    "crates/horizon-client/src/game/trading.rs"
+  ]
+}

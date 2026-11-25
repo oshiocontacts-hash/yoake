@@ -5513,6 +5513,29 @@ impl Game<'_> {
     ) {
         mod_api::dispatch_trade_with_villager(self, mod_api::mods(), merchant, kind, offer);
     }
+    /// The server generated initial or leveled-up trade `offers` for trader
+    /// `entity` of `kind` (`minecraft:villager` or `minecraft:wandering_trader`),
+    /// `profession` and `level`. Mods may add, remove, reorder or edit `offers`;
+    /// invalid offers are rejected by the host, keeping the original list.
+    /// Server-side.
+    pub(super) fn native_villager_trades(
+        &mut self,
+        entity: u32,
+        kind: &str,
+        profession: &str,
+        level: i32,
+        offers: &mut Vec<MerchantOffer>,
+    ) {
+        mod_api::dispatch_villager_trades(
+            self,
+            mod_api::mods(),
+            entity,
+            kind,
+            profession,
+            level,
+            offers,
+        );
+    }
     /// A server player's shield was disabled by a blocked melee hit. The
     /// shield cooldown is set immediately after this call. Helpers looking up
     /// the guest through `self.lan` may find nothing during packet handling.

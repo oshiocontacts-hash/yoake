@@ -76,7 +76,7 @@ pub use crate::hud::native_textures::{
 };
 pub use crate::hud_layout::{GuiDraw, HealthInputs};
 pub use crate::items::ItemStack;
-pub use crate::merchant::MerchantOffer;
+pub use crate::merchant::{ItemCost, MerchantOffer};
 pub use crate::mesher::TintSource;
 pub use crate::mobs::native_control::{
     NativeMobControlMode, NativeMobNavigation, NativeMobNavigationState, NativeMobPath,
@@ -1143,5 +1143,232 @@ mod tests {
         };
         let mut claimed = false;
         dispatch_use_item_on(&mut host, &mods, &stick(), [0; 3], [0, 1, 0], &mut claimed);
+    }
+
+    fn dispatch_validated_trades(
+        host: &mut dyn Host,
+        mods: &[Box<dyn Hooks>],
+        entity: u32,
+        kind: &str,
+        profession: &str,
+        level: i32,
+        offers: &mut Vec<MerchantOffer>,
+        lookup: impl Fn(&str) -> Option<Option<u32>>,
+    ) -> bool {
+        if mods.is_empty() {
+            return true;
+        }
+        let original = offers.clone();
+        dispatch_villager_trades(host, mods, entity, kind, profession, level, offers);
+        if crate::merchant::validate_offers_with(offers, lookup) {
+            true
+        } else {
+            *offers = original;
+            false
+        }
+    }
+
+    fn sample_offer(cost: u32, result: &str, max_uses: i32) -> MerchantOffer {
+        MerchantOffer {
+            base_cost_a: ItemCost {
+                stack: ItemStack::new("minecraft:emerald", cost),
+            },
+            cost_b: None,
+            result: ItemStack::new(result, 1),
+            uses: 0,
+            max_uses,
+            reward_exp: true,
+            special_price_diff: 0,
+            demand: 0,
+            price_multiplier: 0.2,
+            xp: 5,
+        }
+    }
+
+    fn known_trade_items(id: &str) -> Option<Option<u32>> {
+        if !crate::merchant::valid_offer_item_id(id) {
+            return Some(None);
+        }
+        Some(match id {
+            "minecraft:emerald" | "minecraft:book" | "minecraft:bread" => Some(64),
+            "minecraft:iron_boots" | "minecraft:diamond_sword" => Some(1),
+            _ => None,
+        })
+    }
+
+    #[test]
+    fn villager_trades_empty_and_noop_listeners_keep_offers() {
+        let mut host = Reader {
+            block: "minecraft:air",
+            lines: Vec::new(),
+        };
+        let baseline = vec![
+            sample_offer(4, "minecraft:iron_boots", 12),
+            sample_offer(1, "minecraft:bread", 16),
+        ];
+
+        // No mods registered: fast path leaves list unchanged.
+        let mut offers = baseline.clone();
+        assert!(dispatch_validated_trades(
+            &mut host,
+            &[],
+            42,
+            "minecraft:villager",
+            "minecraft:armorer",
+            1,
+            &mut offers,
+            known_trade_items,
+        ));
+        assert_eq!(offers, baseline);
+
+        // No-op listener keeps offers identical (wandering trader case too).
+        let noop = [Box::new(Quiet) as Box<dyn Hooks>];
+        let mut offers = baseline.clone();
+        assert!(dispatch_validated_trades(
+            &mut host,
+            &noop,
+            99,
+            "minecraft:wandering_trader",
+            "minecraft:wandering_trader",
+            1,
+            &mut offers,
+            known_trade_items,
+        ));
+        assert_eq!(offers, baseline);
+    }
+
+    #[test]
+    fn villager_trades_mod_may_edit_add_remove_and_reorder_offers() {
+        struct TradeTweaker;
+        impl Hooks for TradeTweaker {
+            fn villager_trades(
+                &self,
+                _host: &mut dyn Host,
+                event: &mut VillagerTradesEvent<'_>,
+            ) {
+                assert_eq!(event.entity, 77);
+                assert_eq!(event.kind, "minecraft:villager");
+                assert_eq!(event.profession, "minecraft:weaponsmith");
+                assert_eq!(event.level, 2);
+
+                // Remove the first offer, edit the second, reorder, and add a new enchanted sword offer.
+                event.offers.remove(0);
+                event.offers[0].base_cost_a.stack.count = 3;
+                event.offers[0].max_uses = 24;
+                event.offers[0].xp = 15;
+                event.offers[0].demand = 2;
+                event.offers[0].special_price_diff = -1;
+
+                let mut sword = ItemStack::new("minecraft:diamond_sword", 1);
+                sword.enchant("minecraft:sharpness", 2);
+                let bonus = MerchantOffer {
+                    base_cost_a: ItemCost {
+                        stack: ItemStack::new("minecraft:emerald", 12),
+                    },
+                    cost_b: Some(ItemCost {
+                        stack: ItemStack::new("minecraft:book", 1),
+                    }),
+                    result: sword,
+                    uses: 0,
+                    max_uses: 3,
+                    reward_exp: false,
+                    special_price_diff: -2,
+                    demand: 1,
+                    price_multiplier: 0.05,
+                    xp: 30,
+                };
+                event.offers.insert(0, bonus);
+            }
+        }
+
+        let mut host = Reader {
+            block: "minecraft:air",
+            lines: Vec::new(),
+        };
+        let mods = [Box::new(TradeTweaker) as Box<dyn Hooks>];
+        let mut offers = vec![
+            sample_offer(4, "minecraft:iron_boots", 12),
+            sample_offer(1, "minecraft:bread", 16),
+        ];
+        assert!(dispatch_validated_trades(
+            &mut host,
+            &mods,
+            77,
+            "minecraft:villager",
+            "minecraft:weaponsmith",
+            2,
+            &mut offers,
+            known_trade_items,
+        ));
+        assert_eq!(offers.len(), 2);
+        assert_eq!(&*offers[0].result.item, "minecraft:diamond_sword");
+        assert_eq!(offers[0].result.enchantment_level("minecraft:sharpness"), 2);
+        assert_eq!(offers[0].cost_b.as_ref().unwrap().stack.count, 1);
+        assert_eq!(&*offers[1].result.item, "minecraft:bread");
+        assert_eq!(offers[1].base_cost_a.stack.count, 3);
+        assert_eq!((offers[1].max_uses, offers[1].xp), (24, 15));
+        assert_eq!((offers[1].demand, offers[1].special_price_diff), (2, -1));
+    }
+
+    #[test]
+    fn villager_trades_invalid_edits_fall_back_to_original_offers() {
+        struct BadMod(fn(&mut Vec<MerchantOffer>));
+        impl Hooks for BadMod {
+            fn villager_trades(
+                &self,
+                _host: &mut dyn Host,
+                event: &mut VillagerTradesEvent<'_>,
+            ) {
+                (self.0)(event.offers);
+            }
+        }
+
+        let cases: [(&str, fn(&mut Vec<MerchantOffer>)); 6] = [
+            ("unknown item", |offers| {
+                offers.push(sample_offer(1, "minecraft:not_a_real_item", 4));
+            }),
+            ("zero count", |offers| {
+                offers[0].base_cost_a.stack.count = 0;
+            }),
+            ("over max stack", |offers| {
+                offers[0].result.count = 2; // iron_boots has max_stack 1
+            }),
+            ("too many offers", |offers| {
+                offers.resize(
+                    crate::merchant::MAX_MOD_OFFERS + 1,
+                    sample_offer(1, "minecraft:bread", 4),
+                );
+            }),
+            ("non-positive max_uses", |offers| {
+                offers[0].max_uses = 0;
+            }),
+            ("nan price_multiplier", |offers| {
+                offers[0].price_multiplier = f32::NAN;
+            }),
+        ];
+
+        let mut host = Reader {
+            block: "minecraft:air",
+            lines: Vec::new(),
+        };
+        let baseline = vec![sample_offer(4, "minecraft:iron_boots", 12)];
+        for (label, mutate) in cases {
+            let mods = [Box::new(BadMod(mutate)) as Box<dyn Hooks>];
+            let mut offers = baseline.clone();
+            assert!(
+                !dispatch_validated_trades(
+                    &mut host,
+                    &mods,
+                    11,
+                    "minecraft:villager",
+                    "minecraft:armorer",
+                    1,
+                    &mut offers,
+                    known_trade_items,
+                ),
+                "{label}"
+            );
+            assert_eq!(offers, baseline, "{label}");
+        }
     }
 }
