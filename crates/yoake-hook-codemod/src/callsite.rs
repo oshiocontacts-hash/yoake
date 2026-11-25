@@ -737,7 +737,7 @@ impl StaticParamIndex {
                     }
                 }
                 Item::Type(item_type) if !modules::has_cfg_test(&item_type.attrs) => {
-                    if !eligible::type_has_non_static_lifetime(&item_type.ty) {
+                    if item_type.generics.params.is_empty() && !eligible::type_has_non_static_lifetime(&item_type.ty) {
                         let short = item_type.ident.to_string();
                         self.insert_alias(short.clone(), (*item_type.ty).clone());
                         self.insert_alias(format!("{prefix}::{short}"), (*item_type.ty).clone());
