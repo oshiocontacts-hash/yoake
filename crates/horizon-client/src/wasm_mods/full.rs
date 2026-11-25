@@ -1348,10 +1348,18 @@ fn finite_script_vec3(v: &yoake_wasm::client_types::ScriptVec3) -> Result<crate:
     Ok(crate::mobs::custom::script::ScriptVec3 { x: v.x, y: v.y, z: v.z })
 }
 
+/// Validated fields of a WASM `model-skeleton` payload.
+pub(super) struct ParsedSkeleton {
+    pub(super) model: String,
+    pub(super) pose: Vec<crate::mobs::custom::script::MobBoneWrite>,
+    pub(super) texture_layer: Option<String>,
+    pub(super) entity: Option<u32>,
+}
+
 /// Validates and converts a WASM `model-skeleton` payload into engine bone writes.
 pub(super) fn parse_skeleton(
     skeleton: &yoake_wasm::client_types::ModelSkeleton,
-) -> Result<(String, Vec<crate::mobs::custom::script::MobBoneWrite>, Option<String>), String> {
+) -> Result<ParsedSkeleton, String> {
     if !valid_model_id(&skeleton.model) {
         return Err("model id is a namespace:path id of at most 128 characters".into());
     }
@@ -1375,20 +1383,23 @@ pub(super) fn parse_skeleton(
             visible: w.visible,
         });
     }
-    Ok((
-        skeleton.model.clone(),
-        writes,
-        skeleton.texture_layer.clone(),
-    ))
+    Ok(ParsedSkeleton {
+        model: skeleton.model.clone(),
+        pose: writes,
+        texture_layer: skeleton.texture_layer.clone(),
+        entity: skeleton.entity,
+    })
 }
 
-/// Draws a custom mob's skeleton `model` posed by `pose` and optional `texture_layer` under `draw`.
+/// Draws a custom mob's skeleton `model` posed by `pose`, optional `texture_layer`, and optional
+/// runtime texture `entity` under `draw`.
 pub(super) fn apply_skeleton(
     host: Option<&dyn Host>,
     draw: &mut BlockEntityDraw,
     model: &str,
     pose: &[crate::mobs::custom::script::MobBoneWrite],
     texture_layer: Option<&str>,
+    entity: Option<u32>,
 ) -> bool {
     let Some(host) = host else { return false };
     if !valid_model_id(model) {
@@ -1409,7 +1420,7 @@ pub(super) fn apply_skeleton(
     {
         return false;
     }
-    if host.draw_skeleton(draw, model, pose, texture_layer) {
+    if host.draw_skeleton(draw, model, pose, texture_layer, entity) {
         note_applied(3, "skeleton");
         true
     } else {
@@ -2058,7 +2069,14 @@ mod tests {
         drawn_items: RefCell<Vec<(String, DisplayContext, Option<f32>, i32)>>,
         drawn_blocks: RefCell<Vec<String>>,
         drawn_models: RefCell<Vec<(String, u32)>>,
-        drawn_skeletons: RefCell<Vec<(String, Vec<crate::mobs::custom::script::MobBoneWrite>, Option<String>)>>,
+        drawn_skeletons: RefCell<
+            Vec<(
+                String,
+                Vec<crate::mobs::custom::script::MobBoneWrite>,
+                Option<String>,
+                Option<u32>,
+            )>,
+        >,
         custom_mob_anims: RefCell<Vec<(u32, String)>>,
         fill_rects: RefCell<Vec<([f32; 4], u32)>>,
     }
@@ -2108,11 +2126,13 @@ mod tests {
             model_id: &str,
             writes: &[crate::mobs::custom::script::MobBoneWrite],
             texture_layer: Option<&str>,
+            entity: Option<u32>,
         ) -> bool {
             self.drawn_skeletons.borrow_mut().push((
                 model_id.to_owned(),
                 writes.to_vec(),
                 texture_layer.map(str::to_owned),
+                entity,
             ));
             model_id == "sample_mobs:cinder_fox" || model_id.starts_with("mymod:")
         }
@@ -2473,14 +2493,38 @@ mod tests {
                 visible: Some(true),
             }],
             texture_layer: Some("glow".into()),
+            entity: Some(77),
         };
-        let (model, writes, layer) = parse_skeleton(&valid).expect("valid skeleton parses");
-        assert!(!apply_skeleton(None, &mut draw, &model, &writes, layer.as_deref()));
+        let parsed = parse_skeleton(&valid).expect("valid skeleton parses");
+        assert_eq!(parsed.entity, Some(77));
+        assert!(!apply_skeleton(
+            None,
+            &mut draw,
+            &parsed.model,
+            &parsed.pose,
+            parsed.texture_layer.as_deref(),
+            parsed.entity,
+        ));
         assert!(host.drawn_skeletons.borrow().is_empty());
-        assert!(apply_skeleton(Some(&host), &mut draw, &model, &writes, layer.as_deref()));
+        assert!(apply_skeleton(
+            Some(&host),
+            &mut draw,
+            &parsed.model,
+            &parsed.pose,
+            parsed.texture_layer.as_deref(),
+            parsed.entity,
+        ));
+        assert!(apply_skeleton(
+            Some(&host),
+            &mut draw,
+            &parsed.model,
+            &parsed.pose,
+            None,
+            None,
+        ));
         {
             let drawn = host.drawn_skeletons.borrow();
-            assert_eq!(drawn.len(), 1);
+            assert_eq!(drawn.len(), 2);
             assert_eq!(drawn[0].0, "sample_mobs:cinder_fox");
             assert_eq!(drawn[0].1.len(), 1);
             let w = &drawn[0].1[0];
@@ -2489,6 +2533,9 @@ mod tests {
             assert_eq!(w.rotation_degrees.map(|p| (p.x, p.y, p.z)), Some((15.0, 0.0, 0.0)));
             assert!(w.scale.is_none());
             assert_eq!(drawn[0].2.as_deref(), Some("glow"));
+            assert_eq!(drawn[0].3, Some(77));
+            assert_eq!(drawn[1].2.as_deref(), None);
+            assert_eq!(drawn[1].3, None);
         }
 
         // Bad model id, bad texture layer, non-finite bone write, and oversized pose are refused cleanly.
@@ -2530,8 +2577,9 @@ mod tests {
                 visible: None,
             }],
             None,
+            None,
         ));
-        assert_eq!(host.drawn_skeletons.borrow().len(), 1);
+        assert_eq!(host.drawn_skeletons.borrow().len(), 2);
     }
 
     #[test]
@@ -2549,6 +2597,11 @@ mod tests {
             model: "sample_mobs:cinder_fox".into(),
             pose: Vec::new(),
             texture_layer: None,
+            entity: None,
+        };
+        let with_entity = ct::ModelSkeleton {
+            entity: Some(42),
+            ..skeleton.clone()
         };
 
         // Missing service.mobs grant refuses both client services.
@@ -2585,7 +2638,11 @@ mod tests {
         };
         let _scope = Scope::enter(&mut invocation);
         assert_eq!(service.mob_draw_skeleton(skeleton), Ok(true));
-        assert_eq!(host.drawn_skeletons.borrow().len(), 1);
+        assert_eq!(service.mob_draw_skeleton(with_entity), Ok(true));
+        let drawn = host.drawn_skeletons.borrow();
+        assert_eq!(drawn.len(), 2);
+        assert_eq!(drawn[0].3, None);
+        assert_eq!(drawn[1].3, Some(42));
     }
 
     #[test]

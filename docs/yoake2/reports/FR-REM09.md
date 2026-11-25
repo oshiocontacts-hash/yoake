@@ -76,3 +76,34 @@ anything with the game (render e2e is on GALLERIA).
   process-wide `DISPATCH` in parallel (the second passes alone; `set_thread_engine_dispatch` is the fix for both).
   Claude fixed the lane's tests (`take_local_anims(id)` takes the entity, `LocalAnimRequest` has no `entity` field,
   the test path to `client_services::allow_mobs_for_test`).
+
+## REM-09b
+
+- **Default texture fallback (`render_state.rs`)**: `TypeRender::from_model` now falls back to `default_texture_name(&file.id)` (`<ns>:entity/<path>`, with `glow_texture` `<ns>:entity/<path>_glowmask`) when `model.textures.default` is unset, so both `TypeRender::draw` and `TypeRender::draw_skeleton` resolve the default atlas name consistently.
+- **Per-mob `mob-texture-bind` overrides (`abi-subset-client.json`, `render_state.rs`, `native_block_entity_draw.rs`, `wasm_mods/full.rs`, `wasm_mods/client_services.rs`)**:
+  - Added `entity: option<u32>` to WIT record `model-skeleton` in `crates/horizon-mod-api-gen/abi-subset-client.json` (client interface `1.11.0`, unreleased on this branch).
+  - `TypeRender::draw_skeleton` and `draw_skeleton_model` now take `texture_overrides: Option<&MobTextureOverrides>`. Body draws (`None` / `""` / `"default"`) check `"default"` and per-bone overrides before the model's texture; `"glowmask"` checks `"glowmask"` before `glow_texture`; named layers share `TypeRender::resolve_layer_uv` with `layer_paint` to check the layer override (or `"default"` when `layer.texture` is unset) before the model's texture.
+  - `Game::native_draw_skeleton`, `full::parse_skeleton` (`ParsedSkeleton`), `full::apply_skeleton`, and `ClientServices::mob_draw_skeleton` forward optional `entity`, resolving overrides via `self.custom_mob_texture_overrides(id)`.
+- **Host tests**:
+  - `crates/horizon-client/src/mobs/custom/render_state.rs`: `draw_skeleton_falls_back_to_default_texture_name_when_textures_default_is_missing`, `draw_skeleton_honours_mob_texture_overrides_and_falls_back_to_model_when_none` (existing `draw_skeleton_poses_bones_applies_visibility_and_selects_layer` updated for `None` overrides).
+  - `crates/horizon-client/src/wasm_mods/full.rs`: updated `skeleton_commands_validate_and_reach_host_draw_skeleton` and `client_services_mob_play_local_anim_and_skeleton_gate_validate_and_dispatch` to test both `entity: Some(...)` and `entity: None`.
+- **Test flakes and the launch_options failure (Claude)**:
+  - `launch_options::yoake_options_tests::...` did not race: it failed every time. Its Options field table had no
+    setters because a target's glue (`render`) wrote table setters only for its `writable` list; REM-11's
+    access-transformer policy (`table_setter_allowed`) was applied in `--tables` mode only. `render_tables` now takes
+    the policy for targets too (`Some(table_readonly)`; `--tables` passes `None`, it already applied it). regen.sh: the
+    target glue files gained the policy's setter arms (getters, bindings and `ids.lock.json` unchanged).
+  - The `f_state` guest test and the launch_options guest test use `set_thread_engine_dispatch` (per thread), as the
+    custom-mob guest tests do: parallel guest tests no longer replace each other's dispatcher.
+  - `yoake2_f_state::tests::the_gpu_services_refuse_without_a_gpu...` raced `wasm_mods::full::gpu_tests`, which
+    configures a real device in the process-wide renderer GPU runtime and leaves it: it takes that test lock now and
+    expects the refusals only when no device is configured (`GPU device is not ready`).
+  - Result: `cargo test -p horizon-client --lib --features yoake2-slice` 1309 passed, twice in a row;
+    `--lib --bins --tests` 1302 and the integration tests; horizon-client-lib 1975; horizon-mod-api-gen 46 (after
+    `YOAKE_UPDATE_WIT=1`); yoake-bindgen --lib 7. The `mini_engine` / guest-sdk link tests still fail to **link** on
+    this laptop (environment), as on the base.
+- **jmath (Claude)**: `matches_hotspot_on_aarch64` passes here (debug and release), so the 1-ULP case was not
+  reproduced on LENOVO. `jmath::aarch64` used `f64::mul_add` 21 times; without the `fma` target feature that calls the
+  C runtime's `fma`, which is not correctly rounded in every MSVC runtime. A local `Fma::fma_` uses the hardware
+  instruction when `target_feature = "fma"` and `libm::fma` (correctly rounded, already a dependency) otherwise, so
+  every machine gets HotSpot's once-rounded result. horizon-core --lib 123 passed. Please rerun it on GALLERIA.

@@ -369,7 +369,7 @@ pub mod fdlibm {
     clippy::unreadable_literal
 )]
 pub mod aarch64 {
-    use super::hi;
+    use super::{Fma, hi};
 
     const S: [f64; 6] = [
         -1.66666666666666324348e-01,
@@ -406,16 +406,16 @@ pub mod aarch64 {
     fn kernel_sin(x: f64, y: f64, iy: bool) -> f64 {
         let z = x * x;
         let v = z * x;
-        let mut r = z.mul_add(S[5], S[4]);
-        r = z.mul_add(r, S[3]);
-        r = z.mul_add(r, S[2]);
-        r = z.mul_add(r, S[1]);
+        let mut r = z.fma_(S[5], S[4]);
+        r = z.fma_(r, S[3]);
+        r = z.fma_(r, S[2]);
+        r = z.fma_(r, S[1]);
         if !iy {
-            v.mul_add(z.mul_add(r, S[0]), x)
+            v.fma_(z.fma_(r, S[0]), x)
         } else {
-            let t = (-v).mul_add(r, 0.5 * y);
-            let t = (-z).mul_add(t, y);
-            x + v.mul_add(S[0], t)
+            let t = (-v).fma_(r, 0.5 * y);
+            let t = (-z).fma_(t, y);
+            x + v.fma_(S[0], t)
         }
     }
 
@@ -424,24 +424,24 @@ pub mod aarch64 {
     /// takes the `qx = 0.28125` branch.
     fn kernel_cos(x: f64, y: f64, ix: i32) -> f64 {
         let z = x * x;
-        let mut r = z.mul_add(C[5], C[4]);
-        r = z.mul_add(r, C[3]);
+        let mut r = z.fma_(C[5], C[4]);
+        r = z.fma_(r, C[3]);
         let xy = x * y;
-        r = z.mul_add(r, C[2]);
-        r = z.mul_add(r, C[1]);
+        r = z.fma_(r, C[2]);
+        r = z.fma_(r, C[1]);
         let zz = z * z;
-        r = z.mul_add(r, C[0]);
+        r = z.fma_(r, C[0]);
         if ix <= 0x3FD33333 {
-            let v = (-zz).mul_add(r, xy);
-            1.0 - 0.5f64.mul_add(z, v)
+            let v = (-zz).fma_(r, xy);
+            1.0 - 0.5f64.fma_(z, v)
         } else {
             let qx = if ix > 0x3fe90000 {
                 0.28125
             } else {
                 f64::from_bits(u64::from((ix - 0x0020_0000) as u32) << 32)
             };
-            let zr_xy = zz.mul_add(r, -xy);
-            let h = 0.5f64.mul_add(z, -qx);
+            let zr_xy = zz.fma_(r, -xy);
+            let h = 0.5f64.fma_(z, -qx);
             let a = 1.0 - qx;
             a - (h - zr_xy)
         }
@@ -476,9 +476,9 @@ pub mod aarch64 {
             return None;
         }
         let t = x.abs();
-        let fnv = t.mul_add(INVPIO2, 0.5).trunc();
+        let fnv = t.fma_(INVPIO2, 0.5).trunc();
         let n = fnv as i32;
-        let mut r = (-fnv).mul_add(PIO2_1, t);
+        let mut r = (-fnv).fma_(PIO2_1, t);
         let mut w = fnv * PIO2_1T;
         let mut y0 = r - w;
         if n > 32 || ix == NPIO2_HW[(n - 1) as usize] {
@@ -488,13 +488,13 @@ pub mod aarch64 {
                 let t = r;
                 let w2 = fnv * PIO2_2;
                 r = t - w2;
-                w = fnv.mul_add(PIO2_2T, w2 - (t - r));
+                w = fnv.fma_(PIO2_2T, w2 - (t - r));
                 y0 = r - w;
                 if j - exponent(y0) > 49 {
                     let t = r;
                     let w3 = fnv * PIO2_3;
                     r = t - w3;
-                    w = fnv.mul_add(PIO2_3T, w3 - (t - r));
+                    w = fnv.fma_(PIO2_3T, w3 - (t - r));
                     y0 = r - w;
                 }
             }
@@ -762,5 +762,25 @@ mod tests {
         // NaN payloads may differ, so only NaN-ness is checked.
         assert!(super::atan2(f64::NAN, 1.0).is_nan());
         assert!(super::atan2(1.0, f64::NAN).is_nan());
+    }
+}
+
+/// A fused multiply-add rounded once, the same on every machine. `f64::mul_add` without the `fma` target feature
+/// calls the C runtime's `fma`, which is not correctly rounded in every MSVC runtime (one ULP off on an x86_64
+/// Windows PC); `libm::fma` is, and so equals the hardware instruction (and HotSpot's results on aarch64).
+trait Fma {
+    fn fma_(self, b: f64, c: f64) -> f64;
+}
+impl Fma for f64 {
+    #[inline(always)]
+    fn fma_(self, b: f64, c: f64) -> f64 {
+        #[cfg(target_feature = "fma")]
+        {
+            self.mul_add(b, c)
+        }
+        #[cfg(not(target_feature = "fma"))]
+        {
+            libm::fma(self, b, c)
+        }
     }
 }

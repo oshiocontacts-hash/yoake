@@ -1287,6 +1287,26 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.natural_regeneration = v != 0;
+                true
+            }
+            2 => {
+                t.drowning_damage = v != 0;
+                true
+            }
+            3 => {
+                t.fall_damage = v != 0;
+                true
+            }
+            4 => {
+                t.fire_damage = v != 0;
+                true
+            }
+            5 => {
+                t.freeze_damage = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -1314,6 +1334,26 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.clear_time = v as i32;
+                true
+            }
+            1 => {
+                t.rain_time = v as i32;
+                true
+            }
+            2 => {
+                t.thunder_time = v as i32;
+                true
+            }
+            3 => {
+                t.raining = v != 0;
+                true
+            }
+            4 => {
+                t.thundering = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -1340,6 +1380,22 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            3 => {
+                t.fast_lava = v != 0;
+                true
+            }
+            6 => {
+                t.revision = v as u64;
+                true
+            }
+            21 => {
+                t.game_time = v as i64;
+                true
+            }
+            22 => {
+                t.day_time = v as i64;
+                true
+            }
             _ => false,
         },
     };

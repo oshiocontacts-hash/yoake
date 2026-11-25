@@ -161,7 +161,7 @@ pub struct TypeRender {
     /// Per bone, its range in `quads`.
     pub bone_quads: Vec<Range<u32>>,
     pub locators: Vec<Locator>,
-    /// The body texture's atlas name (`model.textures.default`).
+    /// The body texture's atlas name (`model.textures.default`, else [`default_texture_name`]).
     pub texture: Option<String>,
     /// The automatic glow-mask layer's texture name: the body texture with `_glowmask`.
     pub glow_texture: Option<String>,
@@ -285,7 +285,12 @@ impl TypeRender {
         };
         let mut rest_matrices = Vec::new();
         bone_matrices_into(&model.skeleton, &Pose::rest(&model.skeleton), &mut rest_matrices);
-        let texture = m.textures.default.clone();
+        let texture = Some(
+            m.textures
+                .default
+                .clone()
+                .unwrap_or_else(|| default_texture_name(&file.id)),
+        );
         let glow_texture = texture.as_ref().map(|t| format!("{t}_glowmask"));
         let embedded = model
             .textures
@@ -293,7 +298,9 @@ impl TypeRender {
             .take(1)
             .filter(|t| !t.rgba.is_empty() && t.width > 0 && t.height > 0)
             .map(|t| EmbeddedTexture {
-                name: texture.clone().unwrap_or_else(|| default_texture_name(&file.id)),
+                name: texture
+                    .clone()
+                    .unwrap_or_else(|| default_texture_name(&file.id)),
                 width: t.width,
                 height: t.height,
                 rgba: t.rgba.clone(),
@@ -1334,22 +1341,31 @@ impl TypeRender {
         bone_uvs
     }
 
+    fn resolve_layer_uv(
+        &self,
+        l: &LayerDef,
+        overrides: Option<&super::textures::MobTextureOverrides>,
+        atlas: &dyn Fn(&str) -> Option<[f32; 4]>,
+    ) -> Option<[f32; 4]> {
+        if let Some(uv) = overrides.and_then(|o| o.get(&l.name)) {
+            Some(uv)
+        } else if l.texture.is_none()
+            && let Some(uv) = overrides.and_then(|o| o.get("default"))
+        {
+            Some(uv)
+        } else {
+            let name = l.texture.as_deref().or(self.texture.as_deref())?;
+            atlas(name)
+        }
+    }
+
     /// The texture rectangle and colour a layer draws with this frame, `None` when it is hidden
     /// (`visible` false, no texture in the atlas).
     fn layer_paint(&self, l: &LayerDef, mr: &MobRender, ctx: &DrawCtx) -> Option<([f32; 4], u32)> {
         if l.visible.as_ref().is_some_and(|e| !e.eval_bool(mr.inputs())) {
             return None;
         }
-        let uv = if let Some(uv) = ctx.texture_overrides.and_then(|o| o.get(&l.name)) {
-            uv
-        } else if l.texture.is_none()
-            && let Some(uv) = ctx.texture_overrides.and_then(|o| o.get("default"))
-        {
-            uv
-        } else {
-            let name = l.texture.as_deref().or(self.texture.as_deref())?;
-            (ctx.atlas)(name)?
-        };
+        let uv = self.resolve_layer_uv(l, ctx.texture_overrides, ctx.atlas)?;
         let color = match &l.tint {
             Some(e) => {
                 let rgb = e.eval(mr.inputs());
@@ -1445,11 +1461,14 @@ impl TypeRender {
 
     /// Draws this model from a fresh rest pose with script `writes` applied, using `texture_layer`
     /// (`None` / `""` / `"default"` for body, `"glowmask"` for glowmask, or a named layer of
-    /// `model.layers`), under `world_from_model` (model pixels to output space). Returns vertex count.
+    /// `model.layers`), optionally overridden per-entity via `texture_overrides` (`mob-texture-bind`),
+    /// under `world_from_model` (model pixels to output space). Returns vertex count.
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_skeleton(
         &self,
         writes: &[super::script::MobBoneWrite],
         texture_layer: Option<&str>,
+        texture_overrides: Option<&super::textures::MobTextureOverrides>,
         world_from_model: Mat4,
         light: u32,
         atlas: &dyn Fn(&str) -> Option<[f32; 4]>,
@@ -1462,16 +1481,35 @@ impl TypeRender {
         let mut matrices = Vec::new();
         bone_matrices_into(&self.skeleton, &pose, &mut matrices);
 
-        let (only, tex_name, emit_light, shade, oit) = match texture_layer {
-            None | Some("") | Some("default") => (None, self.texture.as_deref(), light, Shade::Lit, false),
-            Some("glowmask") => (None, self.glow_texture.as_deref(), FULL_BRIGHT, Shade::Lit, false),
+        let (only, base_uv, bone_uvs, emit_light, shade, oit) = match texture_layer {
+            None | Some("") | Some("default") => (
+                None,
+                texture_overrides
+                    .and_then(|o| o.get("default"))
+                    .or_else(|| self.texture.as_deref().and_then(atlas)),
+                self.bone_texture_overrides(texture_overrides),
+                light,
+                Shade::Lit,
+                false,
+            ),
+            Some("glowmask") => (
+                None,
+                texture_overrides
+                    .and_then(|o| o.get("glowmask"))
+                    .or_else(|| self.glow_texture.as_deref().and_then(atlas)),
+                None,
+                FULL_BRIGHT,
+                Shade::Lit,
+                false,
+            ),
             Some(name) => {
                 let Some(l) = self.layers.iter().find(|l| l.name == name) else {
                     return 0;
                 };
                 (
                     l.bones.as_deref(),
-                    l.texture.as_deref().or(self.texture.as_deref()),
+                    self.resolve_layer_uv(l, texture_overrides, atlas),
+                    None,
                     if matches!(l.mode, LayerMode::Emissive | LayerMode::Additive) {
                         FULL_BRIGHT
                     } else {
@@ -1482,14 +1520,21 @@ impl TypeRender {
                 )
             }
         };
-        let Some(uv) = tex_name.and_then(atlas) else {
+        if base_uv.is_none() && bone_uvs.is_none() {
             return 0;
-        };
+        }
         let start = out.len();
         for b in 0..self.bone_quads.len() {
             if only.is_some_and(|o| !o.get(b).copied().unwrap_or(false)) {
                 continue;
             }
+            let Some(uv) = bone_uvs
+                .as_deref()
+                .and_then(|uvs| uvs.get(b).copied().flatten())
+                .or(base_uv)
+            else {
+                continue;
+            };
             self.emit_bone_from(
                 &matrices,
                 &visibility,
@@ -1624,12 +1669,15 @@ pub fn embedded_textures_of<'a>(types: impl Iterator<Item = &'a TypeRender>) -> 
         .collect()
 }
 
-/// Resolves custom mob type `type_id` from the registry and draws its skeleton with `writes` and
-/// `texture_layer` under `world_from_model` (engine helper for `model-command::skeleton`).
+/// Resolves custom mob type `type_id` from the registry and draws its skeleton with `writes`,
+/// `texture_layer`, and optional `texture_overrides` under `world_from_model` (engine helper for
+/// `model-command::skeleton`).
+#[allow(clippy::too_many_arguments)]
 pub fn draw_skeleton_model(
     type_id: &str,
     writes: &[super::script::MobBoneWrite],
     texture_layer: Option<&str>,
+    texture_overrides: Option<&super::textures::MobTextureOverrides>,
     world_from_model: Mat4,
     light: u32,
     atlas: &dyn Fn(&str) -> Option<[f32; 4]>,
@@ -1641,7 +1689,15 @@ pub fn draw_skeleton_model(
     let Some(tr) = ct.render.as_ref() else {
         return false;
     };
-    tr.draw_skeleton(writes, texture_layer, world_from_model, light, atlas, out) > 0
+    tr.draw_skeleton(
+        writes,
+        texture_layer,
+        texture_overrides,
+        world_from_model,
+        light,
+        atlas,
+        out,
+    ) > 0
 }
 
 #[cfg(test)]
@@ -2680,7 +2736,7 @@ mod tests {
 
         // Rest draw produces all model quads.
         let mut rest_out = Vec::new();
-        let n_rest = tr.draw_skeleton(&[], None, Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut rest_out);
+        let n_rest = tr.draw_skeleton(&[], None, None, Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut rest_out);
         assert_eq!(n_rest, tr.quads.len() * 4);
 
         // Hiding the head bone removes head quads; moving/turning it changes its matrices.
@@ -2690,7 +2746,7 @@ mod tests {
             visible: Some(false),
             ..Default::default()
         }];
-        let n_hidden = tr.draw_skeleton(&hide_head, Some("default"), Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut hidden_out);
+        let n_hidden = tr.draw_skeleton(&hide_head, Some("default"), None, Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut hidden_out);
         assert!(n_hidden > 0 && n_hidden < n_rest);
 
         // Shifting head moves the head bone's vertices cleanly without moving non-head vertices; unknown layer draws nothing.
@@ -2700,13 +2756,144 @@ mod tests {
             translation: Some(super::super::script::ScriptVec3 { x: 8.0, y: 0.0, z: 0.0 }),
             ..Default::default()
         }];
-        tr.draw_skeleton(&shift_head, Some(""), Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut moved_out);
+        tr.draw_skeleton(&shift_head, Some(""), None, Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut moved_out);
         let head_vert = tr.bone_quads[head_idx as usize].start as usize * 4;
         assert_ne!(rest_out[head_vert].pos, moved_out[head_vert].pos);
         assert_eq!(
-            tr.draw_skeleton(&[], Some("no_such_layer"), Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut Vec::new()),
+            tr.draw_skeleton(&[], Some("no_such_layer"), None, Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut Vec::new()),
             0
         );
+    }
+
+    #[test]
+    fn draw_skeleton_falls_back_to_default_texture_name_when_textures_default_is_missing() {
+        let ct = fox_with(
+            true,
+            |v| {
+                v["model"]["textures"] = serde_json::json!({});
+                v["model"]["layers"] = serde_json::json!([{"name": "coat", "mode": "cutout"}]);
+            },
+            |_| {},
+        )
+        .0;
+        let tr = ct.render.as_ref().unwrap();
+        let fallback = default_texture_name("sample_mobs:cinder_fox");
+        let fallback_glow = format!("{fallback}_glowmask");
+        assert_eq!(tr.texture.as_deref(), Some(fallback.as_str()));
+        assert_eq!(tr.glow_texture.as_deref(), Some(fallback_glow.as_str()));
+
+        let body_uv = [0.1, 0.1, 0.4, 0.4];
+        let glow_uv = [0.6, 0.6, 0.9, 0.9];
+        let atlas_fn = |name: &str| {
+            if name == fallback {
+                Some(body_uv)
+            } else if name == fallback_glow {
+                Some(glow_uv)
+            } else {
+                None
+            }
+        };
+        let inside = |v: &Vertex, r: [f32; 4]| {
+            v.uv[0] >= r[0] - 1e-6 && v.uv[0] <= r[2] + 1e-6 && v.uv[1] >= r[1] - 1e-6 && v.uv[1] <= r[3] + 1e-6
+        };
+
+        // Normal draw and draw_skeleton both find the fallback body, glowmask, and textureless layer.
+        let mut normal_out = Vec::new();
+        let ctx = DrawCtx { atlas: &atlas_fn, ..draw_ctx(LodMode::Full) };
+        let stats = tr.draw(&MobRender::new(tr), &ctx, &mut normal_out);
+        let n = tr.quads.len() * 4;
+        assert_eq!(stats, DrawStats { cutout: n * 2, translucent: 0, emissive: n });
+
+        let mut skel_body = Vec::new();
+        assert_eq!(tr.draw_skeleton(&[], None, None, Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut skel_body), n);
+        assert!(skel_body.iter().all(|v| inside(v, body_uv)));
+
+        let mut skel_coat = Vec::new();
+        assert_eq!(tr.draw_skeleton(&[], Some("coat"), None, Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut skel_coat), n);
+        assert!(skel_coat.iter().all(|v| inside(v, body_uv)));
+
+        let mut skel_glow = Vec::new();
+        assert_eq!(tr.draw_skeleton(&[], Some("glowmask"), None, Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut skel_glow), n);
+        assert!(skel_glow.iter().all(|v| inside(v, glow_uv)));
+
+        let empty_atlas = |_: &str| None;
+        assert_eq!(tr.draw_skeleton(&[], None, None, Mat4::IDENTITY, 0x00F0_00F0, &empty_atlas, &mut Vec::new()), 0);
+    }
+
+    #[test]
+    fn draw_skeleton_honours_mob_texture_overrides_and_falls_back_to_model_when_none() {
+        let ct = fox_with(
+            true,
+            |v| {
+                v["model"]["layers"] = serde_json::json!([
+                    {"name": "glow", "texture": GLOW, "mode": "emissive"},
+                    {"name": "coat", "mode": "cutout"}
+                ]);
+            },
+            |_| {},
+        )
+        .0;
+        let tr = ct.render.as_ref().unwrap();
+        let n = tr.quads.len() * 4;
+        let region = [2560, 0, 1024, 1024];
+        let atlas_size = [4096, 4096];
+
+        let mut store = super::super::textures::MobTextureStore::default();
+        let t_body = store.create("m", 1, 64, 32).unwrap();
+        let t_glow = store.create("m", 1, 64, 32).unwrap();
+        let t_coat = store.create("m", 1, 64, 32).unwrap();
+        let t_head = store.create("m", 1, 64, 32).unwrap();
+        store.bind("m", 1, "default", Some(t_body)).unwrap();
+        store.bind("m", 1, "glow", Some(t_glow)).unwrap();
+        store.bind("m", 1, "glowmask", Some(t_glow)).unwrap();
+        let ov = store.overrides_for(1, region, atlas_size).unwrap();
+        let ov_body = ov.get("default").unwrap();
+        let ov_glow = ov.get("glow").unwrap();
+
+        let inside = |v: &Vertex, r: [f32; 4]| {
+            v.uv[0] >= r[0] - 1e-6 && v.uv[0] <= r[2] + 1e-6 && v.uv[1] >= r[1] - 1e-6 && v.uv[1] <= r[3] + 1e-6
+        };
+
+        // No overrides (e.g. entity omitted or unbound): draws the model's pack textures.
+        let mut model_body = Vec::new();
+        assert_eq!(tr.draw_skeleton(&[], None, None, Mat4::IDENTITY, 0x00F0_00F0, &atlas, &mut model_body), n);
+        assert!(model_body.iter().all(|v| inside(v, [0.0, 0.0, 0.5, 0.5])));
+        let mut model_glow = Vec::new();
+        assert_eq!(tr.draw_skeleton(&[], Some("glow"), None, Mat4::IDENTITY, 0x00F0_00F0, &atlas, &mut model_glow), n);
+        assert!(model_glow.iter().all(|v| inside(v, [0.5, 0.5, 1.0, 1.0])));
+        assert!(store.overrides_for(99, region, atlas_size).is_none());
+
+        // Entity override wins for body, glow, glowmask, and textureless layer fallback ("default").
+        let mut out = Vec::new();
+        assert_eq!(tr.draw_skeleton(&[], Some("default"), Some(&ov), Mat4::IDENTITY, 0x00F0_00F0, &atlas, &mut out), n);
+        assert!(out.iter().all(|v| inside(v, ov_body)));
+        out.clear();
+        assert_eq!(tr.draw_skeleton(&[], Some("glow"), Some(&ov), Mat4::IDENTITY, 0x00F0_00F0, &atlas, &mut out), n);
+        assert!(out.iter().all(|v| inside(v, ov_glow)));
+        out.clear();
+        assert_eq!(tr.draw_skeleton(&[], Some("glowmask"), Some(&ov), Mat4::IDENTITY, 0x00F0_00F0, &atlas, &mut out), n);
+        assert!(out.iter().all(|v| inside(v, ov_glow)));
+        out.clear();
+        assert_eq!(tr.draw_skeleton(&[], Some("coat"), Some(&ov), Mat4::IDENTITY, 0x00F0_00F0, &atlas, &mut out), n);
+        assert!(out.iter().all(|v| inside(v, ov_body)));
+
+        // Dedicated layer binding beats "default", and bone binding overrides only that bone.
+        store.bind("m", 1, "coat", Some(t_coat)).unwrap();
+        let ov2 = store.overrides_for(1, region, atlas_size).unwrap();
+        let ov_coat = ov2.get("coat").unwrap();
+        out.clear();
+        assert_eq!(tr.draw_skeleton(&[], Some("coat"), Some(&ov2), Mat4::IDENTITY, 0x00F0_00F0, &atlas, &mut out), n);
+        assert!(out.iter().all(|v| inside(v, ov_coat)));
+
+        store.bind("m", 2, "head", Some(t_head)).unwrap();
+        let ov_head = store.overrides_for(2, region, atlas_size).unwrap();
+        let head_uv = ov_head.get("head").unwrap();
+        let head_idx = tr.skeleton.find("head").unwrap().index();
+        let head_verts = (tr.bone_quads[head_idx].end - tr.bone_quads[head_idx].start) as usize * 4;
+        out.clear();
+        assert_eq!(tr.draw_skeleton(&[], None, Some(&ov_head), Mat4::IDENTITY, 0x00F0_00F0, &atlas, &mut out), n);
+        assert_eq!(out.iter().filter(|v| inside(v, head_uv)).count(), head_verts);
+        assert_eq!(out.iter().filter(|v| inside(v, [0.0, 0.0, 0.5, 0.5])).count(), n - head_verts);
     }
 
     #[test]

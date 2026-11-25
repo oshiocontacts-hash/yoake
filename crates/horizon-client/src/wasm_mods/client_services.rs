@@ -289,7 +289,7 @@ impl ClientServices for GameHost {
 
     fn mob_draw_skeleton(&mut self, skeleton: ct::ModelSkeleton) -> Result<bool, String> {
         gate_mobs(&self.id)?;
-        let (model, pose, texture_layer) = full::parse_skeleton(&skeleton)?;
+        let parsed = full::parse_skeleton(&skeleton)?;
         self.client_call(|invocation| {
             let draw = invocation
                 .client
@@ -300,9 +300,10 @@ impl ClientServices for GameHost {
             Ok(full::apply_skeleton(
                 host,
                 draw,
-                &model,
-                &pose,
-                texture_layer.as_deref(),
+                &parsed.model,
+                &parsed.pose,
+                parsed.texture_layer.as_deref(),
+                parsed.entity,
             ))
         })
     }

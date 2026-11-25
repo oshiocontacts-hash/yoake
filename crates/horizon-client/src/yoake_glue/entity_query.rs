@@ -598,6 +598,10 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            5 => {
+                t.alive = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -621,6 +625,18 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.queries = v as usize;
+                true
+            }
+            2 => {
+                t.candidates = v as usize;
+                true
+            }
+            3 => {
+                t.results = v as usize;
+                true
+            }
             _ => false,
         },
     };
@@ -643,6 +659,10 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.radius = f64::from_bits(v as u64);
+                true
+            }
             _ => false,
         },
     };

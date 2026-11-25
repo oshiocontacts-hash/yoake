@@ -104,6 +104,7 @@ pub fn render(
     ids: &BTreeMap<String, u32>,
     game_paths: &[crate::GamePathCfg],
     root_name: Option<&str>,
+    table_readonly: &[String],
 ) -> String {
     let mut bound: Vec<Bound<'_>> = Vec::new();
     for (index, path) in game_paths.iter().enumerate() {
@@ -162,7 +163,9 @@ pub fn render(
     for b in &bound {
         render_binding(b, &an.defs, &mut out);
     }
-    render_tables(an, scan, &mut out);
+    // REM-11 access-transformer parity: a target's field tables get the same setters as the stamped tables
+    // (`table_setter_allowed`), besides the fields its `writable` list opens to guest bindings.
+    render_tables(an, scan, Some(table_readonly), &mut out);
     if let (false, Some(root)) = (game_paths.is_empty(), root_name) {
         render_path_root(an, root, game_paths, &mut out);
     }
@@ -551,13 +554,15 @@ pub fn render_tables_only(an: &Analyzer<'_>, module_label: &str, crate_name: &st
     let _ = writeln!(out, "    #![forbid(unsafe_code)]");
     let _ = writeln!(out, "    use yoake_slice::activation::{{FieldTable, RefFieldTable}};");
     let _ = writeln!(out);
-    render_tables(an, scan, &mut out);
+    // `tables` already applied the policy to `writable`
+    render_tables(an, scan, None, &mut out);
     out.push_str("}
 ");
     Some(out)
 }
 
-fn render_tables(an: &Analyzer<'_>, scan: &ModuleScan, out: &mut String) {
+/// `table_policy`: `Some(table_readonly)` adds the setters [`crate::table_setter_allowed`] allows to the `writable` ones.
+fn render_tables(an: &Analyzer<'_>, scan: &ModuleScan, table_policy: Option<&[String]>, out: &mut String) {
     let mut by_type: BTreeMap<&str, Vec<&FieldReport>> = BTreeMap::new();
     for field in scan.fields.iter().filter(|f| f.shape.as_ref().and_then(scalar_of).is_some()) {
         by_type.entry(field.owner_path.as_str()).or_default().push(field);
@@ -574,7 +579,10 @@ fn render_tables(an: &Analyzer<'_>, scan: &ModuleScan, out: &mut String) {
         }
         let _ = writeln!(out, "            _ => None,\n        }},");
         let _ = writeln!(out, "        set: |t, f, v| match f {{");
-        for field in fields.iter().filter(|f| f.writable) {
+        let settable = |f: &&&FieldReport| {
+            f.writable || table_policy.is_some_and(|ro| crate::table_setter_allowed(&f.owner_path, &f.field, ro))
+        };
+        for field in fields.iter().filter(settable) {
             let p = scalar_of(field.shape.as_ref().unwrap()).unwrap();
             let _ = writeln!(out, "            {} => {{\n                {}\n                true\n            }}", field.index, set_stmt(p, &field_access(&field.field, field.tuple)));
         }

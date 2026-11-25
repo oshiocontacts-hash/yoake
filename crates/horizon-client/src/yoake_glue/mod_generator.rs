@@ -239,6 +239,18 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.chunk_x = v as i32;
+                true
+            }
+            2 => {
+                t.chunk_z = v as i32;
+                true
+            }
+            5 => {
+                t.failed = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -260,6 +272,10 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.seed = v as i64;
+                true
+            }
             _ => false,
         },
     };
@@ -279,6 +295,10 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.failed = v != 0;
+                true
+            }
             _ => false,
         },
     };
