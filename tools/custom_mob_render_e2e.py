@@ -203,7 +203,8 @@ def reload_and_debug(host, guest, shot, mod, hx, hy, hz):
     """F4M-13 scenario 7 and the F4M-12 debug view on the running fox; returns the two results."""
     clear_foxes(host)
     host('command', command='kill @e[type=minecraft:item]')  # the drops bob about and would blur the pixel counts
-    host('command', command=f'summon {FOX} {hx + 0.5} {hy} {hz - 6.5}')
+    # NoAI: a fox that walks or turns between the shots blurs the before/restored count (seen: 897 px).
+    host('command', command=f'summon {FOX} {hx + 0.5} {hy} {hz - 6.5} {{NoAI:1b}}')
     host.wait(20)
     look_at_fox(host, fox_list(host)[0], back=2.0, dy=0.6)
     geo = mod / GEO
