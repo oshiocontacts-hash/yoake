@@ -39,7 +39,11 @@ impl Game<'_> {
         if m.kind.flags.animal && m.kind.food.iter().any(|f| f.as_str() == item) {
             return true;
         }
-        let sneaking = self.keys.contains(&winit::keyboard::KeyCode::ShiftLeft);
+        let sneaking = self.keys.contains(&winit::keyboard::KeyCode::ShiftLeft)
+            || self.keys.contains(&winit::keyboard::KeyCode::ShiftRight);
+        if let Some(t) = m.kind.custom.as_deref() {
+            return self.remote_custom_mob_takes(t, item, sneaking);
+        }
         match m.species() {
             // Villager / WanderingTrader.mobInteract: trading, or a baby's head shake.
             Species::Villager | Species::WanderingTrader => item != "minecraft:villager_spawn_egg",
@@ -100,6 +104,53 @@ impl Game<'_> {
             }
             _ => false,
         }
+    }
+
+    fn remote_custom_mob_takes(
+        &self,
+        t: &horizon_client::mobs::custom::CustomType,
+        item: &str,
+        sneaking: bool,
+    ) -> bool {
+        let tags = &self.res.items().item_tags;
+        let matches = |pattern: &str, id: &str| match pattern.strip_prefix('#') {
+            Some(tag) => tags.get(tag).is_some_and(|set| set.contains(id)),
+            None => pattern == id,
+        };
+        let item_opt = (!item.is_empty()).then_some(item);
+        if t.file.interact.iter().any(|row| {
+            row.sneaking.is_none_or(|s| s == sneaking)
+                && match (&row.item, item_opt) {
+                    (None, _) => true,
+                    (Some(p), Some(id)) => matches(p, id),
+                    (Some(_), None) => false,
+                }
+        }) {
+            return true;
+        }
+        if item_opt.is_some() && t.ride.saddle_item.as_deref() == item_opt {
+            return true;
+        }
+        if let Some(tm) = &t.tame
+            && item_opt.is_some_and(|id| tm.items.iter().any(|p| matches(p, id)))
+        {
+            return true;
+        }
+        if let Some(b) = &t.breed
+            && item_opt.is_some_and(|id| b.food.iter().any(|p| matches(p, id)))
+        {
+            return true;
+        }
+        if !t.ride.seats.is_empty() && !sneaking {
+            return true;
+        }
+        if t.tame.as_ref().is_some_and(|tm| tm.sits_on_command)
+            && item_opt.is_none()
+            && (!sneaking || !t.ride.seats.is_empty())
+        {
+            return true;
+        }
+        false
     }
     /// `AbstractHorse.handleEating` (`Llama`'s and `Camel`'s too) on this
     /// client's copy: a baby fed something that ages it draws one happy
