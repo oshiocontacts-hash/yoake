@@ -48,3 +48,31 @@ anything with the game (render e2e is on GALLERIA).
   `native_draw_skeleton` resolves textures in the GUI atlas: check custom mob textures there.
 * Per-`Game` client runtime, locators and grants; built-ins beyond `finalize::Attr` (needs vanilla-safe growth).
 * The `launch_options` guest test race above.
+
+## WASM wiring
+
+- **Additive ABI (`crates/horizon-mod-api-gen/abi-subset-client.json`, `interface_version`: `"1.10.0"` -> `"1.11.0"`)**:
+  - Kept frozen `variant model-command` in `abi-1.0-baseline.wit` untouched; added `script-vec3`, `mob-bone-write`, and `model-skeleton` to `client-types` and two `service.mobs` client services:
+    - `299`: `mob_play_local_anim(entity: u32, name: string, speed: f32) -> result<bool, string>`
+    - `300`: `mob_draw_skeleton(skeleton: model-skeleton) -> result<bool, string>`
+  - Updated `crates/yoake-wasm/src/client_services.rs` and added `yoake_wasm_sdk::full::client::{mob_play_local_anim, mob_draw_skeleton}` in `crates/yoake-wasm-sdk/src/full.rs`.
+- **Host & runtime (`crates/horizon-client/`)**:
+  - Exposed `Game::native_draw_skeleton` (`draw_skeleton`) and added `Game::native_client_custom_mob_has_anim` (`client_custom_mob_has_anim`) in `src/game/native_block_entity_draw.rs` and `native-hooks.json` `"helpers"`.
+  - Added `parse_skeleton` and `apply_skeleton` validation/dispatch plus `FakeHost` test coverage in `src/wasm_mods/full.rs`.
+  - Implemented `ClientServices::mob_play_local_anim` (permission gate `service.mobs`, name & finite positive `speed` validation, loaded client custom-mob anim/trigger check, queues client-only `script::queue_local_anim`) and `ClientServices::mob_draw_skeleton` (permission gate `service.mobs`, requires active `mob_draw` hook, delegates via `full::apply_skeleton` -> `Host::draw_skeleton`) in `src/wasm_mods/client_services.rs`.
+- **F route (`src/game/yoake2_custom_mobs.rs`, `src/game/yoake2_custom_mobs_state.rs`)**:
+  - Added `mob_play_local_anim` / `play_local_anim` (client-only `script::queue_local_anim`; regenerate glue/stubs with `crates/yoake-bindgen/regen.sh`). `mob_draw_skeleton` remains S-route/native because F-route stage hooks operate on `StagePose` without `BlockEntityDraw`.
+- **Atlas check**:
+  - `Game::native_draw_skeleton` resolves sprites from `self.gui.atlas.sprites`, the same atlas built by `HudAtlas::build_over_with_mob_textures` (`src/game/packs.rs`) with both pack `entity/` sprites and custom-mob embedded textures (`render_state::embedded_textures()`).
+  - Caveats observed: `TypeRender::draw_skeleton` (`src/mobs/custom/render_state.rs`) uses `self.texture.as_deref()` without falling back to `default_texture_name(&file.id)` when `textures.default` is unset, and per-entity runtime overrides (`mob-texture-bind` / `custom_mob_texture_overrides`) are not consulted by `draw_skeleton_model` / `native_draw_skeleton` because they take a `model_id` rather than an entity handle.
+- **Host tests added**:
+  - `crates/horizon-client/src/wasm_mods/full.rs`: `skeleton_commands_validate_and_reach_host_draw_skeleton`, `client_services_mob_play_local_anim_and_skeleton_gate_validate_and_dispatch`.
+  - `crates/horizon-client/src/game/yoake2_custom_mobs_state/tests.rs`: `play_local_anim` validation & queue checks in `client_helpers_and_texture_lifecycle_work_without_resources`.
+- **Run on LENOVO** (after `YOAKE_UPDATE_WIT=1 cargo test -p horizon-mod-api-gen` and regen.sh; ids.lock appended
+  only): horizon-mod-api-gen 46 passed (incl. `abi_1_0_is_additive`), yoake-wasm 73, horizon-client-lib 1973,
+  horizon-client --lib --bins --tests 1302 and the integration tests, `--features yoake2-slice` the custom-mob and
+  f_state tests (5 and 12). In the full `yoake2-slice` run `launch_options::yoake_options_tests::...` (fails on the base)
+  and, once, `yoake2_f_state::...guest_tests::an_f_guest_draws_a_hud...` fail: guest tests replacing each other's
+  process-wide `DISPATCH` in parallel (the second passes alone; `set_thread_engine_dispatch` is the fix for both).
+  Claude fixed the lane's tests (`take_local_anims(id)` takes the entity, `LocalAnimRequest` has no `entity` field,
+  the test path to `client_services::allow_mobs_for_test`).

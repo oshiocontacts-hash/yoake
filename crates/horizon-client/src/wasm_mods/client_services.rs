@@ -231,7 +231,81 @@ fn anchor(value: ct::PcmAnchor) -> Result<NativeStreamAnchor, String> {
     }
 }
 
+#[cfg(test)]
+thread_local! {
+    static TEST_GRANT_MOBS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[cfg(test)]
+pub(super) struct MobsGrantGuard(bool);
+
+#[cfg(test)]
+impl Drop for MobsGrantGuard {
+    fn drop(&mut self) {
+        TEST_GRANT_MOBS.with(|flag| flag.set(self.0));
+    }
+}
+
+#[cfg(test)]
+pub(super) fn allow_mobs_for_test() -> MobsGrantGuard {
+    let prev = TEST_GRANT_MOBS.with(|flag| flag.replace(true));
+    MobsGrantGuard(prev)
+}
+
+fn gate_mobs(id: &str) -> Result<(), String> {
+    #[cfg(test)]
+    if TEST_GRANT_MOBS.with(std::cell::Cell::get) {
+        return Ok(());
+    }
+    super::mob_services::gate(super::mob_services::granted(id))
+}
+
 impl ClientServices for GameHost {
+
+    fn mob_play_local_anim(
+        &mut self,
+        entity: u32,
+        name: String,
+        speed: f32,
+    ) -> Result<bool, String> {
+        gate_mobs(&self.id)?;
+        if name.is_empty() || name.len() > 128 || name.chars().any(char::is_control) {
+            return Err("not a valid animation name".into());
+        }
+        if !speed.is_finite() || speed <= 0.0 {
+            return Err("speed must be a finite positive number".into());
+        }
+        let known = self.client_call(|invocation| {
+            Ok(read_host(invocation)?.client_custom_mob_has_anim(entity, &name))
+        })?;
+        if !known {
+            return Err(format!(
+                "custom mob {entity} has no client animation {name:.64}"
+            ));
+        }
+        crate::mobs::custom::script::queue_local_anim(entity, &name, speed)?;
+        Ok(true)
+    }
+
+    fn mob_draw_skeleton(&mut self, skeleton: ct::ModelSkeleton) -> Result<bool, String> {
+        gate_mobs(&self.id)?;
+        let (model, pose, texture_layer) = full::parse_skeleton(&skeleton)?;
+        self.client_call(|invocation| {
+            let draw = invocation
+                .client
+                .mob_draw
+                .as_deref_mut()
+                .ok_or("mob render hook required")?;
+            let host = invocation.host.read();
+            Ok(full::apply_skeleton(
+                host,
+                draw,
+                &model,
+                &pose,
+                texture_layer.as_deref(),
+            ))
+        })
+    }
 
     fn mob_bone_index(&mut self, name: String, type_id: String) -> Result<Option<u32>, String> {
         super::mob_services::gate(super::mob_services::granted(&self.id))?;

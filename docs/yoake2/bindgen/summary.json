@@ -144,9 +144,9 @@
   },
   {
     "label": "custom_mobs",
-    "total": 48,
+    "total": 49,
     "bound_a": 0,
-    "bound_mech": 48,
+    "bound_mech": 49,
     "handle_required": 0,
     "excluded": 0,
     "derived": 56,

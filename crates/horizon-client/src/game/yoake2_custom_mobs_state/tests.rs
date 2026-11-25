@@ -156,6 +156,14 @@ fn client_texture_store_and_bone_helpers_round_trip() {
     assert!(textures::overrides_for(88, [0, 0, 1024, 1024], [4096, 4096]).is_some());
     release_f_textures();
     assert!(textures::overrides_for(88, [0, 0, 1024, 1024], [4096, 4096]).is_none());
+
+    assert!(play_local_anim(88, "", 1.0).is_err());
+    assert!(play_local_anim(88, "pounce", 0.0).is_err());
+    assert!(play_local_anim(88, "pounce", f32::NAN).is_err());
+    assert!(play_local_anim(88, "pounce", 1.5).unwrap());
+    let queued = script::take_local_anims(88);
+    assert_eq!(queued.len(), 1);
+    assert_eq!((queued[0].name.as_str(), queued[0].speed), ("pounce", 1.5));
 }
 
 #[test]

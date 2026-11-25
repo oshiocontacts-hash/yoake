@@ -15,7 +15,7 @@ Functions counted: free functions, inherent methods, and non-derived trait-impl 
 | `mod_generator` | 46 | 8 | 1 | **9 (19.6%)** | 7 (15.2%) | 30 (65.2%) | 0 / 3 | 9 / 28 | 4 |
 | `launch_options` | 3 | 1 | 0 | **1 (33.3%)** | 0 (0.0%) | 2 (66.7%) | 0 / 1 | 32 / 42 | 1 |
 | `f_services` | 32 | 3 | 29 | **32 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 38 / 57 | 63 / 63 | 19 |
-| `custom_mobs` | 48 | 0 | 48 | **48 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 38 / 56 | 65 / 65 | 18 |
+| `custom_mobs` | 49 | 0 | 49 | **49 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 38 / 56 | 65 / 65 | 18 |
 
 ## `items` (horizon-items/src/items.rs)
 
@@ -724,7 +724,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 ## `custom_mobs` (horizon-client/src/game/yoake2_custom_mobs.rs)
 
-- bound now: **48 of 48** (100.0%): 0 basic + 48 mechanical
+- bound now: **49 of 49** (100.0%): 0 basic + 49 mechanical
 - handle-required, not yet bound: 0 (0.0%)
 - excluded: 0 (0.0%)
 - field accessors (get + set pairs): 65 of 65 fields

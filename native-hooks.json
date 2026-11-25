@@ -21,6 +21,14 @@
       "target": "horizon_client::game::native_block_entity_draw::Game<'_>::native_draw_item"
     },
     {
+      "name": "draw_skeleton",
+      "target": "horizon_client::game::native_block_entity_draw::Game<'_>::native_draw_skeleton"
+    },
+    {
+      "name": "client_custom_mob_has_anim",
+      "target": "horizon_client::game::native_block_entity_draw::Game<'_>::native_client_custom_mob_has_anim"
+    },
+    {
       "name": "attachments",
       "target": "horizon_client::game::native_hooks::Game<'_>::native_attachments"
     },

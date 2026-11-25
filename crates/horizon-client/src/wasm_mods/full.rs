@@ -1075,9 +1075,9 @@ pub(crate) fn apply_f_hud(host: Option<&dyn Host>, batch: &mut HudBatch, command
     apply_hud(host, batch, &f_hud_commands(commands));
 }
 
-/// Logs the first time each kind of model command (cube, item, model) is drawn, once per process.
+/// Logs the first time each kind of model command (cube, item, model, skeleton) is drawn, once per process.
 fn note_applied(slot: usize, kind: &str) {
-    static SEEN: [std::sync::atomic::AtomicBool; 3] = [const { std::sync::atomic::AtomicBool::new(false) }; 3];
+    static SEEN: [std::sync::atomic::AtomicBool; 4] = [const { std::sync::atomic::AtomicBool::new(false) }; 4];
     if !SEEN[slot].swap(true, Ordering::Relaxed) {
         log::info!("wasm: model command {kind} applied");
     }
@@ -1331,6 +1331,89 @@ pub(super) fn apply_model(
     while depth > 0 {
         depth -= 1;
         draw.pop();
+    }
+}
+
+fn validate_skeleton_layer(layer: &str) -> Result<(), String> {
+    if layer.is_empty() || layer.len() > 128 || layer.chars().any(char::is_control) {
+        return Err("texture layer is 1 to 128 printable characters".into());
+    }
+    Ok(())
+}
+
+fn finite_script_vec3(v: &yoake_wasm::client_types::ScriptVec3) -> Result<crate::mobs::custom::script::ScriptVec3, String> {
+    if !v.x.is_finite() || !v.y.is_finite() || !v.z.is_finite() {
+        return Err("numbers must be finite".into());
+    }
+    Ok(crate::mobs::custom::script::ScriptVec3 { x: v.x, y: v.y, z: v.z })
+}
+
+/// Validates and converts a WASM `model-skeleton` payload into engine bone writes.
+pub(super) fn parse_skeleton(
+    skeleton: &yoake_wasm::client_types::ModelSkeleton,
+) -> Result<(String, Vec<crate::mobs::custom::script::MobBoneWrite>, Option<String>), String> {
+    if !valid_model_id(&skeleton.model) {
+        return Err("model id is a namespace:path id of at most 128 characters".into());
+    }
+    if let Some(layer) = skeleton.texture_layer.as_deref() {
+        validate_skeleton_layer(layer)?;
+    }
+    if skeleton.pose.len() > crate::mobs::custom::script::MAX_POSE_WRITES {
+        return Err(format!(
+            "skeleton pose has at most {} bone writes",
+            crate::mobs::custom::script::MAX_POSE_WRITES
+        ));
+    }
+    let mut writes = Vec::with_capacity(skeleton.pose.len());
+    for w in &skeleton.pose {
+        writes.push(crate::mobs::custom::script::MobBoneWrite {
+            bone: w.bone,
+            additive: w.additive,
+            translation: w.translation.as_ref().map(finite_script_vec3).transpose()?,
+            rotation_degrees: w.rotation_degrees.as_ref().map(finite_script_vec3).transpose()?,
+            scale: w.scale.as_ref().map(finite_script_vec3).transpose()?,
+            visible: w.visible,
+        });
+    }
+    Ok((
+        skeleton.model.clone(),
+        writes,
+        skeleton.texture_layer.clone(),
+    ))
+}
+
+/// Draws a custom mob's skeleton `model` posed by `pose` and optional `texture_layer` under `draw`.
+pub(super) fn apply_skeleton(
+    host: Option<&dyn Host>,
+    draw: &mut BlockEntityDraw,
+    model: &str,
+    pose: &[crate::mobs::custom::script::MobBoneWrite],
+    texture_layer: Option<&str>,
+) -> bool {
+    let Some(host) = host else { return false };
+    if !valid_model_id(model) {
+        return false;
+    }
+    if let Some(layer) = texture_layer
+        && validate_skeleton_layer(layer).is_err()
+    {
+        return false;
+    }
+    let finite_vec = |v: Option<crate::mobs::custom::script::ScriptVec3>| {
+        v.is_none_or(|p| p.x.is_finite() && p.y.is_finite() && p.z.is_finite())
+    };
+    if pose.len() > crate::mobs::custom::script::MAX_POSE_WRITES
+        || pose
+            .iter()
+            .any(|w| !finite_vec(w.translation) || !finite_vec(w.rotation_degrees) || !finite_vec(w.scale))
+    {
+        return false;
+    }
+    if host.draw_skeleton(draw, model, pose, texture_layer) {
+        note_applied(3, "skeleton");
+        true
+    } else {
+        false
     }
 }
 
@@ -1975,6 +2058,8 @@ mod tests {
         drawn_items: RefCell<Vec<(String, DisplayContext, Option<f32>, i32)>>,
         drawn_blocks: RefCell<Vec<String>>,
         drawn_models: RefCell<Vec<(String, u32)>>,
+        drawn_skeletons: RefCell<Vec<(String, Vec<crate::mobs::custom::script::MobBoneWrite>, Option<String>)>>,
+        custom_mob_anims: RefCell<Vec<(u32, String)>>,
         fill_rects: RefCell<Vec<([f32; 4], u32)>>,
     }
 
@@ -2015,6 +2100,28 @@ mod tests {
         fn draw_model(&self, _draw: &mut BlockEntityDraw, model: &str, tint: u32) -> bool {
             self.drawn_models.borrow_mut().push((model.to_owned(), tint));
             model.starts_with("mymod:block/")
+        }
+
+        fn draw_skeleton(
+            &self,
+            _draw: &mut BlockEntityDraw,
+            model_id: &str,
+            writes: &[crate::mobs::custom::script::MobBoneWrite],
+            texture_layer: Option<&str>,
+        ) -> bool {
+            self.drawn_skeletons.borrow_mut().push((
+                model_id.to_owned(),
+                writes.to_vec(),
+                texture_layer.map(str::to_owned),
+            ));
+            model_id == "sample_mobs:cinder_fox" || model_id.starts_with("mymod:")
+        }
+
+        fn client_custom_mob_has_anim(&self, entity: u32, name: &str) -> bool {
+            self.custom_mob_anims
+                .borrow()
+                .iter()
+                .any(|(id, anim)| *id == entity && anim == name)
         }
 
         fn draw_block(
@@ -2346,6 +2453,139 @@ mod tests {
         assert!(host.cubes.borrow().is_empty());
         apply_model(Some(&host), &mut draw, &good);
         assert_eq!(host.cubes.borrow().len(), 1);
+    }
+
+    #[test]
+    fn skeleton_commands_validate_and_reach_host_draw_skeleton() {
+        use crate::mobs::custom::script::{MAX_POSE_WRITES, MobBoneWrite, ScriptVec3};
+        use yoake_wasm::client_types as ct;
+
+        let host = FakeHost::default();
+        let mut draw = plain_draw();
+        let valid = ct::ModelSkeleton {
+            model: "sample_mobs:cinder_fox".into(),
+            pose: vec![ct::MobBoneWrite {
+                bone: 1,
+                additive: true,
+                translation: Some(ct::ScriptVec3 { x: 0.0, y: 0.25, z: 0.0 }),
+                rotation_degrees: Some(ct::ScriptVec3 { x: 15.0, y: 0.0, z: 0.0 }),
+                scale: None,
+                visible: Some(true),
+            }],
+            texture_layer: Some("glow".into()),
+        };
+        let (model, writes, layer) = parse_skeleton(&valid).expect("valid skeleton parses");
+        assert!(!apply_skeleton(None, &mut draw, &model, &writes, layer.as_deref()));
+        assert!(host.drawn_skeletons.borrow().is_empty());
+        assert!(apply_skeleton(Some(&host), &mut draw, &model, &writes, layer.as_deref()));
+        {
+            let drawn = host.drawn_skeletons.borrow();
+            assert_eq!(drawn.len(), 1);
+            assert_eq!(drawn[0].0, "sample_mobs:cinder_fox");
+            assert_eq!(drawn[0].1.len(), 1);
+            let w = &drawn[0].1[0];
+            assert_eq!((w.bone, w.additive, w.visible), (1, true, Some(true)));
+            assert_eq!(w.translation.map(|p| (p.x, p.y, p.z)), Some((0.0, 0.25, 0.0)));
+            assert_eq!(w.rotation_degrees.map(|p| (p.x, p.y, p.z)), Some((15.0, 0.0, 0.0)));
+            assert!(w.scale.is_none());
+            assert_eq!(drawn[0].2.as_deref(), Some("glow"));
+        }
+
+        // Bad model id, bad texture layer, non-finite bone write, and oversized pose are refused cleanly.
+        let mut bad_model = valid.clone();
+        bad_model.model = "bad id\n".into();
+        assert!(parse_skeleton(&bad_model).is_err());
+
+        let mut bad_layer = valid.clone();
+        bad_layer.texture_layer = Some(String::new());
+        assert!(parse_skeleton(&bad_layer).is_err());
+
+        let mut bad_float = valid.clone();
+        bad_float.pose[0].translation = Some(ct::ScriptVec3 { x: f32::NAN, y: 0.0, z: 0.0 });
+        assert!(parse_skeleton(&bad_float).is_err());
+
+        let mut too_many = valid;
+        too_many.pose = vec![
+            ct::MobBoneWrite {
+                bone: 0,
+                additive: false,
+                translation: None,
+                rotation_degrees: None,
+                scale: None,
+                visible: None,
+            };
+            MAX_POSE_WRITES + 1
+        ];
+        assert!(parse_skeleton(&too_many).is_err());
+        assert!(!apply_skeleton(
+            Some(&host),
+            &mut draw,
+            "bad id\n",
+            &[MobBoneWrite {
+                bone: 0,
+                additive: false,
+                translation: None,
+                rotation_degrees: None,
+                scale: None,
+                visible: None,
+            }],
+            None,
+        ));
+        assert_eq!(host.drawn_skeletons.borrow().len(), 1);
+    }
+
+    #[test]
+    fn client_services_mob_play_local_anim_and_skeleton_gate_validate_and_dispatch() {
+        use yoake_wasm::{ClientServices, client_types as ct};
+
+        static ANIM_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _lock = ANIM_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _ = crate::mobs::custom::script::take_local_anims(42);
+
+        let host = FakeHost::default();
+        host.custom_mob_anims.borrow_mut().push((42, "pounce".into()));
+        let mut service = GameHost::new("custom-mob-client-test");
+        let skeleton = ct::ModelSkeleton {
+            model: "sample_mobs:cinder_fox".into(),
+            pose: Vec::new(),
+            texture_layer: None,
+        };
+
+        // Missing service.mobs grant refuses both client services.
+        with_services(HostAccess::Read(&host), || {
+            assert!(service.mob_play_local_anim(42, "pounce".into(), 1.0).is_err());
+            assert!(service.mob_draw_skeleton(skeleton.clone()).is_err());
+        });
+
+        let _grant = super::super::client_services::allow_mobs_for_test();
+        with_services(HostAccess::Read(&host), || {
+            assert!(service.mob_play_local_anim(42, String::new(), 1.0).is_err());
+            assert!(service.mob_play_local_anim(42, "pounce".into(), 0.0).is_err());
+            assert!(service.mob_play_local_anim(42, "pounce".into(), f32::NAN).is_err());
+            assert!(service.mob_play_local_anim(42, "unknown_anim".into(), 1.0).is_err());
+            assert!(service.mob_play_local_anim(999, "pounce".into(), 1.0).is_err());
+            assert_eq!(service.mob_play_local_anim(42, "pounce".into(), 1.25), Ok(true));
+            // Outside a mob render hook, mob_draw_skeleton refuses cleanly.
+            assert!(service.mob_draw_skeleton(skeleton.clone()).is_err());
+        });
+
+        let queued = crate::mobs::custom::script::take_local_anims(42);
+        assert_eq!(queued.len(), 1);
+        assert_eq!((queued[0].name.as_str(), queued[0].speed), ("pounce", 1.25));
+
+        let mut draw = plain_draw();
+        let mut invocation = Invocation {
+            host: HostAccess::Read(&host),
+            batch: None,
+            batch_start: 0,
+            client: ClientExtras {
+                mob_draw: Some(&mut draw),
+                ..ClientExtras::default()
+            },
+        };
+        let _scope = Scope::enter(&mut invocation);
+        assert_eq!(service.mob_draw_skeleton(skeleton), Ok(true));
+        assert_eq!(host.drawn_skeletons.borrow().len(), 1);
     }
 
     #[test]

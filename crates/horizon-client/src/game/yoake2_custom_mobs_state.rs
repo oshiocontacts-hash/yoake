@@ -522,6 +522,15 @@ pub(super) fn texture_bind(entity: u32, slot: &str, id: Option<u32>) -> Result<(
     textures::bind(F_TEXTURE_OWNER, entity, slot, id)
 }
 
+pub(super) fn play_local_anim(entity: u32, name: &str, speed: f32) -> Result<bool, String> {
+    validate_name(name, "animation name")?;
+    if !speed.is_finite() || speed <= 0.0 {
+        return Err("speed must be a finite positive number".into());
+    }
+    script::queue_local_anim(entity, name, speed)?;
+    Ok(true)
+}
+
 /// Client session end: frees all runtime custom-mob textures owned by F modules and advances the generation.
 pub(crate) fn release_f_textures() {
     let generation = F_TEXTURE_GENERATION.fetch_add(1, Ordering::Relaxed);

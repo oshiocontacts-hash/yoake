@@ -3739,3 +3739,27 @@ pub fn custom_mobs_mob_trigger_anim(a0: u32, a1: String, a2: String, a3: f32) ->
     Ok(value)
 }
 
+/// `custom_mobs::mob_play_local_anim`
+pub fn custom_mobs_mob_play_local_anim(a0: u32, a1: String, a2: f32) -> Result<Result<bool, String>, Error> {
+    let mut args: Vec<u8> = Vec::new();
+    {
+        let out = &mut args;
+        Encode::encode(&a0, out);
+        Encode::encode(&a1, out);
+        Encode::encode(&a2, out);
+    }
+    let result = call(Handle(0), 3311, &args)?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<Result<bool, String>, CallError> {
+        let d = &mut dec;
+        let value = match d.tag()? {
+            0 => Ok(<bool as Decode>::decode(d)?),
+            1 => Err(<String as Decode>::decode(d)?),
+            t => return Err(CallError::InvalidTag("Result", u32::from(t))),
+        };
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
