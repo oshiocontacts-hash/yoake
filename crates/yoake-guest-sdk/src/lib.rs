@@ -35,6 +35,7 @@ extern crate alloc;
 extern crate std;
 
 mod heap;
+pub mod custom_mobs;
 pub mod stubs;
 pub mod sys;
 pub mod wire;
@@ -60,6 +61,52 @@ pub mod hooks {
     pub const IME_PREEDIT: u32 = SYNTHETIC_BASE + 5;
     /// REM-12: the input method committed text; read it with `stubs::f_services::ime_event`. Observe-only.
     pub const IME_COMMIT: u32 = SYNTHETIC_BASE + 6;
+    /// F4M-11: custom mob renderer stage hook before pose evaluation; cancellable via `custom_mobs::draw_cancel`.
+    pub const CUSTOM_MOB_BEFORE_POSE: u32 = SYNTHETIC_BASE + 7;
+    /// F4M-11: custom mob renderer stage hook after pose evaluation; may read/override pose and cancel.
+    pub const CUSTOM_MOB_AFTER_POSE: u32 = SYNTHETIC_BASE + 8;
+    /// F4M-11: custom mob renderer stage hook after vertices are emitted. Observe-only.
+    pub const CUSTOM_MOB_AFTER_VERTICES: u32 = SYNTHETIC_BASE + 9;
+    /// F4M-11: custom mob `ScriptGoal` `can-use` hook.
+    pub const MOB_GOAL_CAN_USE: u32 = SYNTHETIC_BASE + 10;
+    /// F4M-11: custom mob `ScriptGoal` `can-continue` hook.
+    pub const MOB_GOAL_CAN_CONTINUE: u32 = SYNTHETIC_BASE + 11;
+    /// F4M-11: custom mob `ScriptGoal` `start` hook. Observe-only.
+    pub const MOB_GOAL_START: u32 = SYNTHETIC_BASE + 12;
+    /// F4M-11: custom mob `ScriptGoal` `tick` hook. Observe-only.
+    pub const MOB_GOAL_TICK: u32 = SYNTHETIC_BASE + 13;
+    /// F4M-11: custom mob `ScriptGoal` `stop` hook. Observe-only.
+    pub const MOB_GOAL_STOP: u32 = SYNTHETIC_BASE + 14;
+    /// F4M-11: custom mob server `mob-tick` hook. Observe-only.
+    pub const MOB_TICK: u32 = SYNTHETIC_BASE + 15;
+    /// F4M-11: custom mob server `mob-spawn-check` hook.
+    pub const MOB_SPAWN_CHECK: u32 = SYNTHETIC_BASE + 16;
+    /// F4M-11: custom mob server `mob-spawned` hook. Observe-only.
+    pub const MOB_SPAWNED: u32 = SYNTHETIC_BASE + 17;
+    /// F4M-11: custom mob server `mob-hurt` hook.
+    pub const MOB_HURT: u32 = SYNTHETIC_BASE + 18;
+    /// F4M-11: custom mob server `mob-died` hook. Observe-only.
+    pub const MOB_DIED: u32 = SYNTHETIC_BASE + 19;
+    /// F4M-11: custom mob server `mob-interact` hook.
+    pub const MOB_INTERACT: u32 = SYNTHETIC_BASE + 20;
+    /// F4M-11: custom mob server `mob-anim-event` hook. Observe-only.
+    pub const MOB_ANIM_EVENT: u32 = SYNTHETIC_BASE + 21;
+    /// F4M-11: custom mob server `mob-load` hook. Observe-only.
+    pub const MOB_LOAD: u32 = SYNTHETIC_BASE + 22;
+    /// F4M-11: custom mob server `mob-save` hook.
+    pub const MOB_SAVE: u32 = SYNTHETIC_BASE + 23;
+    /// F4M-11: custom mob server `mob-tamed` hook. Observe-only.
+    pub const MOB_TAMED: u32 = SYNTHETIC_BASE + 24;
+    /// F4M-11: custom mob server `mob-bred` hook. Observe-only.
+    pub const MOB_BRED: u32 = SYNTHETIC_BASE + 25;
+    /// F4M-11: custom mob server `synced-changed-server` hook. Observe-only.
+    pub const MOB_SYNCED_CHANGED_SERVER: u32 = SYNTHETIC_BASE + 26;
+    /// F4M-11: custom mob client `mob-pose` hook.
+    pub const MOB_POSE: u32 = SYNTHETIC_BASE + 27;
+    /// F4M-11: custom mob client `mob-anim-event-client` hook. Observe-only.
+    pub const MOB_ANIM_EVENT_CLIENT: u32 = SYNTHETIC_BASE + 28;
+    /// F4M-11: custom mob client `synced-changed-client` hook. Observe-only.
+    pub const MOB_SYNCED_CHANGED_CLIENT: u32 = SYNTHETIC_BASE + 29;
 }
 
 /// A handle the engine gave this activation: a hook argument, the `Game` root, or a path handle.

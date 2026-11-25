@@ -235,6 +235,11 @@ mod yoake2_client;
 pub(crate) mod yoake2_f_services;
 #[cfg_attr(not(feature = "yoake2-slice"), allow(dead_code))]
 mod yoake2_f_state;
+/// F4M-11: custom-mob services, goal/hook bridge, and draw stage pose bindings (`yoake-bindgen` target `custom_mobs`).
+#[cfg_attr(not(feature = "yoake2-slice"), allow(dead_code))]
+pub(crate) mod yoake2_custom_mobs;
+#[cfg_attr(not(feature = "yoake2-slice"), allow(dead_code))]
+pub(crate) mod yoake2_custom_mobs_state;
 pub mod native_client_map;
 mod native_client_state;
 mod native_components;

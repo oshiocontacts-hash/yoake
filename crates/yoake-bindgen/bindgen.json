@@ -293,6 +293,14 @@
       "glue": "crates/horizon-client/src/yoake_glue/f_services.rs",
       "writable": {},
       "guest_stubs": "crates/yoake-guest-sdk/src/stubs/f_services.rs"
+    },
+    {
+      "name": "custom_mobs",
+      "crate_name": "horizon_client",
+      "source": "horizon-client/src/game/yoake2_custom_mobs.rs",
+      "glue": "crates/horizon-client/src/yoake_glue/custom_mobs.rs",
+      "writable": {},
+      "guest_stubs": "crates/yoake-guest-sdk/src/stubs/custom_mobs.rs"
     }
   ],
   "frozen_files": [

@@ -697,6 +697,29 @@ pub const ENGINE_DISPATCHED: &[(u32, yoake_slice::bridge::Mode)] = &[
     (runtime::HOOK_GPU_FRAME, yoake_slice::bridge::Mode::ObserveOnly),
     (runtime::HOOK_IME_PREEDIT, yoake_slice::bridge::Mode::ObserveOnly),
     (runtime::HOOK_IME_COMMIT, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_CUSTOM_MOB_BEFORE_POSE, yoake_slice::bridge::Mode::Full),
+    (runtime::HOOK_CUSTOM_MOB_AFTER_POSE, yoake_slice::bridge::Mode::Full),
+    (runtime::HOOK_CUSTOM_MOB_AFTER_VERTICES, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_MOB_GOAL_CAN_USE, yoake_slice::bridge::Mode::Full),
+    (runtime::HOOK_MOB_GOAL_CAN_CONTINUE, yoake_slice::bridge::Mode::Full),
+    (runtime::HOOK_MOB_GOAL_START, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_MOB_GOAL_TICK, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_MOB_GOAL_STOP, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_MOB_TICK, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_MOB_SPAWN_CHECK, yoake_slice::bridge::Mode::Full),
+    (runtime::HOOK_MOB_SPAWNED, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_MOB_HURT, yoake_slice::bridge::Mode::Full),
+    (runtime::HOOK_MOB_DIED, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_MOB_INTERACT, yoake_slice::bridge::Mode::Full),
+    (runtime::HOOK_MOB_ANIM_EVENT, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_MOB_LOAD, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_MOB_SAVE, yoake_slice::bridge::Mode::Full),
+    (runtime::HOOK_MOB_TAMED, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_MOB_BRED, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_MOB_SYNCED_CHANGED_SERVER, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_MOB_POSE, yoake_slice::bridge::Mode::Full),
+    (runtime::HOOK_MOB_ANIM_EVENT_CLIENT, yoake_slice::bridge::Mode::ObserveOnly),
+    (runtime::HOOK_MOB_SYNCED_CHANGED_CLIENT, yoake_slice::bridge::Mode::ObserveOnly),
 ];
 
 /// One generated hook bridge module (`hook_bridge`, yoake-hook-codemod bridge).
@@ -901,6 +924,24 @@ pub fn dispatch_ime_commit() {
 /// Whether a mod loaded on this thread registered `hook` (so a flush point can skip its work otherwise).
 pub fn client_registered(hook: u32) -> bool {
     runtime::all_stats().iter().any(|(_, _, stats)| stats.registered.iter().any(|(id, _)| *id == hook))
+}
+
+/// F4M-11: whether any mod loaded on this thread registered synthetic custom-mob hook `hook`.
+pub fn mob_hook_registered(hook: u32) -> bool {
+    client_registered(hook)
+}
+
+/// F4M-11: whether any mod loaded on this thread registered any hook in `hooks`.
+pub fn thread_registered_any(hooks: &[u32]) -> bool {
+    runtime::all_stats()
+        .iter()
+        .any(|(_, _, stats)| stats.registered.iter().any(|(id, _)| hooks.contains(id)))
+}
+
+/// F4M-11: dispatches a synthetic custom-mob hook on this thread and returns the chain's `i64` result.
+pub fn dispatch_custom_mob_hook(hook: u32) -> i64 {
+    static NOTHING: yoake_slice::activation::FieldTable<()> = yoake_slice::activation::FieldTable { get: |_, _| None, set: |_, _, _| false };
+    runtime::dispatch_id(hook, &mut (), &NOTHING, &mut |_| 0)
 }
 
 fn dispatch_nothing(hook: u32) {

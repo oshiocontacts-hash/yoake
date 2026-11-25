@@ -5,8 +5,8 @@
 | `game_items::Game::native_client_item_in_tag` | 16 | &self | bound (a) | - |
 | `game_items::Game::native_client_item_tags_ready` | 26 | &self | bound (a) | - |
 | `game_items::Game::native_item_is_block` | 7 | &self | bound (a) | - |
-| `game_items::Game::yoake2_tick_hook` | 59 | &mut self | bound (a) | - |
-| `game_items::Game::yoake2_world_start_hook` | 83 | &mut self | bound (a) | - |
+| `game_items::Game::yoake2_tick_hook` | 80 | &mut self | bound (a) | - |
+| `game_items::Game::yoake2_world_start_hook` | 107 | &mut self | bound (a) | - |
 
 ## Fields
 
