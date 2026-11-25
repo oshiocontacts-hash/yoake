@@ -508,6 +508,28 @@ fn entity_type(
     types: &mut std::collections::HashMap<String, i32>,
     sync: &SyncData,
     kind: &str,
+    stock: bool,
+) -> Option<i32> {
+    let kind = super::mob_proxy::wire_kind(kind, stock)?;
+    resolve_entity_type(types, sync, kind.as_ref())
+}
+
+#[cfg(test)]
+pub(crate) fn entity_type_with(
+    reg: &crate::mobs::custom::CustomRegistry,
+    types: &mut std::collections::HashMap<String, i32>,
+    sync: &SyncData,
+    kind: &str,
+    stock: bool,
+) -> Option<i32> {
+    let kind = super::mob_proxy::wire_kind_in(reg, kind, stock)?;
+    resolve_entity_type(types, sync, kind.as_ref())
+}
+
+fn resolve_entity_type(
+    types: &mut std::collections::HashMap<String, i32>,
+    sync: &SyncData,
+    kind: &str,
 ) -> Option<i32> {
     if let Some(id) = types.get(kind) {
         return Some(*id);
@@ -2879,6 +2901,7 @@ impl Hub {
                 entity_id: g.entity_id,
                 spectator: g.spectator(),
                 permission: g.permission,
+                stock: g.brand != "horizon",
                 moved: std::mem::take(&mut g.moved),
                 position: g.position,
                 view_distance: g.view_distance,
@@ -2890,8 +2913,8 @@ impl Hub {
             .collect();
         level.range_percent = Some(self.entity_range_percent);
         let (types, sync) = (&mut self.entity_types, &self.sync);
-        level.tick(&entities, &self.riding, &mut viewers, |kind| {
-            entity_type(types, sync, kind)
+        level.tick(&entities, &self.riding, &mut viewers, |kind, stock| {
+            entity_type(types, sync, kind, stock)
         });
         drop(viewers);
         for (g, out) in self.guests.iter().filter(|g| here(g)).zip(outs.iter_mut()) {

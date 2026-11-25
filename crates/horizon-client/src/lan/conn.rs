@@ -1016,16 +1016,14 @@ fn login_and_configure(
         }
     };
     // Custom component IDs need Horizon's registry check. The server may also
-    // require Horizon clients even when it has no custom components.
-    if brand != "horizon"
-        && (shared.config.horizon_clients_only
-            || horizon_protocol::item::custom::entries().next().is_some())
-    {
-        let text = if shared.config.horizon_clients_only {
-            super::HORIZON_CLIENTS_ONLY_REASON
-        } else {
-            crate::content_identity::MISMATCH
-        };
+    // require Horizon clients even when it has no custom components, or when
+    // any loaded custom mob type has no vanilla proxy for stock clients.
+    if let Some(text) = brand_gate_reason(
+        &brand,
+        shared.config.horizon_clients_only,
+        horizon_protocol::item::custom::entries().next().is_some(),
+        super::mob_proxy::any_without_proxy(),
+    ) {
         let reason = horizon_world::nbt::Tag::String(horizon_world::nbt::JavaString::from(text));
         let _ = send(c, cfg::Clientbound::Disconnect(cfg::Disconnect { reason }));
         if let Some(log) = &shared.config.log {
@@ -1268,6 +1266,25 @@ fn login_and_configure(
         info,
         brand,
     }))
+}
+
+/// Reason to refuse a client whose `minecraft:brand` is not `"horizon"`, if any.
+pub(crate) fn brand_gate_reason(
+    brand: &str,
+    horizon_clients_only: bool,
+    custom_components: bool,
+    unproxied_custom_mobs: bool,
+) -> Option<&'static str> {
+    if brand == "horizon" {
+        return None;
+    }
+    if horizon_clients_only {
+        Some(super::HORIZON_CLIENTS_ONLY_REASON)
+    } else if custom_components || unproxied_custom_mobs {
+        Some(crate::content_identity::MISMATCH)
+    } else {
+        None
+    }
 }
 
 /// ServerboundResourcePackPacket.Action.DECLINED.
@@ -2129,6 +2146,24 @@ mod tests {
             rate.received(t0);
         }
         assert_eq!(rate.received(t0 + second), Some(12.5));
+    }
+
+    #[test]
+    fn brand_gate_refuses_stock_clients_for_unproxied_custom_mobs() {
+        assert_eq!(brand_gate_reason("horizon", true, true, true), None);
+        assert_eq!(brand_gate_reason("vanilla", false, false, false), None);
+        assert_eq!(
+            brand_gate_reason("vanilla", true, false, true),
+            Some(crate::lan::HORIZON_CLIENTS_ONLY_REASON)
+        );
+        assert_eq!(
+            brand_gate_reason("vanilla", false, true, false),
+            Some(crate::content_identity::MISMATCH)
+        );
+        assert_eq!(
+            brand_gate_reason("vanilla", false, false, true),
+            Some(crate::content_identity::MISMATCH)
+        );
     }
 
     #[test]

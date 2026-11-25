@@ -222,9 +222,16 @@ impl Riding {
 struct ServerEntity {
     /// What the mods hear of it when a client starts or stops tracking it.
     tracked: Arc<Tracked>,
-    /// The registry id of its type (None: a type the clients don't know,
-    /// never paired).
+    /// The registry id of its type for Horizon clients (None: a type the
+    /// clients don't know, never paired).
     kind: Option<i32>,
+    /// The registry id of its type for stock clients (None: an unproxied
+    /// custom mob or an unknown type, never paired).
+    stock_kind: Option<i32>,
+    /// Vanilla proxy target for a custom mob shown to stock clients.
+    stock_proxy: Option<super::mob_proxy::ProxyTarget>,
+    /// Stock-safe entity data the stock clients hold.
+    stock_meta: Vec<(u8, i32, Value)>,
     /// The type's tracking range in chunks, update interval (0: never),
     /// whether velocity is tracked, whether it is an `AbstractArrow` and its
     /// `AbstractHurtingProjectile.accelerationPower`.
@@ -303,14 +310,27 @@ fn full_precision_required(e: &EntityState, delta: [i64; 3]) -> bool {
 
 impl ServerEntity {
     /// `new ServerEntity`: the entity as it is when it joins the level.
-    fn new(e: &EntityState, kind: Option<i32>, riding: &Riding) -> Self {
+    fn new(
+        e: &EntityState,
+        kind: Option<i32>,
+        stock_kind: Option<i32>,
+        riding: &Riding,
+    ) -> Self {
         let (range, interval, track_deltas) = tracking::settings(&e.kind);
+        let stock_proxy = super::mob_proxy::proxy_for(&e.kind);
+        let stock_meta = stock_proxy
+            .as_ref()
+            .map(|p| super::mob_proxy::stock_meta(p, &e.meta))
+            .unwrap_or_default();
         Self {
             tracked: Arc::new(Tracked {
                 uuid: e.uuid,
                 kind: Arc::from(e.kind.as_str()),
             }),
             kind,
+            stock_kind,
+            stock_proxy,
+            stock_meta,
             range: i32::from(range),
             interval,
             track_deltas,
@@ -349,6 +369,39 @@ impl ServerEntity {
         riding: &Riding,
         out: &mut Vec<play::Clientbound>,
     ) {
+        self.pairing_with(e, kind, &self.meta, true, riding, out);
+    }
+
+    fn pairing_stock(
+        &self,
+        e: &EntityState,
+        kind: i32,
+        riding: &Riding,
+        out: &mut Vec<play::Clientbound>,
+    ) {
+        if let Some(proxy) = &self.stock_proxy {
+            self.pairing_with(
+                e,
+                kind,
+                &self.stock_meta,
+                super::mob_proxy::is_living(&proxy.kind),
+                riding,
+                out,
+            );
+        } else {
+            self.pairing(e, kind, riding, out);
+        }
+    }
+
+    fn pairing_with(
+        &self,
+        e: &EntityState,
+        kind: i32,
+        meta: &[(u8, i32, Value)],
+        living: bool,
+        riding: &Riding,
+        out: &mut Vec<play::Clientbound>,
+    ) {
         out.push(play::Clientbound::AddEntity(AddEntity {
             id: e.id,
             uuid: e.uuid,
@@ -360,20 +413,20 @@ impl ServerEntity {
             head_yaw: pack_degrees(e.head_yaw),
             data: e.data,
         }));
-        if !self.meta.is_empty() {
+        if !meta.is_empty() {
             out.push(play::Clientbound::SetEntityData(SetEntityData {
                 id: e.id,
-                values: self.meta.clone(),
+                values: meta.to_vec(),
             }));
         }
         // getSyncableAttributes: the instances as they are now.
-        if !e.attributes.is_empty() {
+        if living && !e.attributes.is_empty() {
             out.push(play::Clientbound::UpdateAttributes(UpdateAttributes {
                 id: e.id,
                 values: e.attributes.clone(),
             }));
         }
-        if !self.equipment.is_empty() {
+        if living && !self.equipment.is_empty() {
             out.push(play::Clientbound::SetEquipment(SetEquipment {
                 id: e.id,
                 slots: self.equipment.clone(),
@@ -398,7 +451,12 @@ impl ServerEntity {
     /// rotation every update interval (positions at least every 60 ticks, a
     /// full position sync every 400 or when the entity lands or leaves the
     /// ground), velocity for types that track it, changed data at once.
-    fn send_changes(&mut self, e: &EntityState, riding: &Riding, out: &mut Vec<play::Clientbound>) {
+    fn send_changes(
+        &mut self,
+        e: &EntityState,
+        riding: &Riding,
+        out: &mut Vec<play::Clientbound>,
+    ) -> Option<Vec<(u8, i32, Value)>> {
         if let Some(steps) = &e.minecart_steps {
             self.minecart_steps.extend_from_slice(steps);
         } else {
@@ -421,6 +479,7 @@ impl ServerEntity {
         // SynchedEntityData.isDirty: once for every client.
         let dirty = e.meta != self.meta;
         let due = self.interval != 0 && self.tick.is_multiple_of(self.interval);
+        let mut stock_meta = None;
         if due || dirty || e.needs_sync {
             let rotation = (pack_degrees(e.pitch), pack_degrees(e.yaw));
             let turned = |a: i8, b: i8| (i32::from(a) - i32::from(b)).abs() >= 1;
@@ -442,19 +501,19 @@ impl ServerEntity {
                 }
                 self.base = e.position;
                 self.was_riding = true;
-                self.send_dirty(e, dirty, out);
+                stock_meta = self.send_dirty(e, dirty, out);
                 self.send_head(e, out);
                 self.tick += 1;
                 self.send_equipment(e, out);
-                return;
+                return stock_meta;
             }
             if e.minecart_steps.is_some() {
-                self.send_dirty(e, dirty, out);
+                stock_meta = self.send_dirty(e, dirty, out);
                 self.send_minecart(e, rotation, rotate, out);
                 self.send_head(e, out);
                 self.tick += 1;
                 self.send_equipment(e, out);
-                return;
+                return stock_meta;
             }
             self.teleport_delay += 1;
             let d: f64 = (0..3).map(|k| (e.position[k] - self.base[k]).powi(2)).sum();
@@ -548,11 +607,12 @@ impl ServerEntity {
                     self.rotation = rotation;
                 }
             }
-            self.send_dirty(e, dirty, out);
+            stock_meta = self.send_dirty(e, dirty, out);
             self.send_head(e, out);
         }
         self.tick += 1;
         self.send_equipment(e, out);
+        stock_meta
     }
 
     /// ServerEntity.handleMinecartPosRot: send every recorded substep in order.
@@ -601,36 +661,16 @@ impl ServerEntity {
     /// ServerEntity.sendDirtyEntityData: the changed entity data, then the
     /// attribute instances that changed since they were last sent
     /// (`AttributeMap.getAttributesToSync`).
-    fn send_dirty(&mut self, e: &EntityState, dirty: bool, out: &mut Vec<play::Clientbound>) {
+    fn send_dirty(
+        &mut self,
+        e: &EntityState,
+        dirty: bool,
+        out: &mut Vec<play::Clientbound>,
+    ) -> Option<Vec<(u8, i32, Value)>> {
+        let mut stock_changed = None;
         if dirty {
-            let mut changed: Vec<_> = e
-                .meta
-                .iter()
-                .filter(|m| !self.meta.contains(m))
-                .cloned()
-                .collect();
-            // A value back at its default is left out of the state, but the
-            // clients still hold the old one: Entity's shared flags and pose go
-            // back to 0 (a player standing up again, a mob no longer on fire),
-            // a sleeper's bed to none, an item frame's item to empty and its
-            // rotation to 0 (ItemFrame.DATA_ITEM and DATA_ROTATION).
             let frame = e.kind.ends_with("item_frame");
-            for (index, kind, _) in &self.meta {
-                let default = match (*index, *kind) {
-                    (0, serializer::BYTE) => Value::Byte(0),
-                    (6, serializer::POSE) => Value::Id(0),
-                    (14, serializer::OPTIONAL_BLOCK_POS) => Value::OptPos(None),
-                    (9, serializer::ITEM_STACK) if frame => Value::Item(None),
-                    (10, serializer::INT) if frame => Value::Int(0),
-                    _ => match e.defaults.iter().find(|d| (d.0, d.1) == (*index, *kind)) {
-                        Some(d) => d.2.clone(),
-                        None => continue,
-                    },
-                };
-                if !e.meta.iter().any(|m| m.0 == *index) {
-                    changed.push((*index, *kind, default));
-                }
-            }
+            let changed = dirty_meta(&self.meta, &e.meta, &e.defaults, frame);
             if !changed.is_empty() {
                 out.push(play::Clientbound::SetEntityData(SetEntityData {
                     id: e.id,
@@ -638,6 +678,15 @@ impl ServerEntity {
                 }));
             }
             self.meta.clone_from(&e.meta);
+            if let Some(proxy) = &self.stock_proxy {
+                let next_meta = super::mob_proxy::stock_meta(proxy, &e.meta);
+                let next_defaults = super::mob_proxy::stock_defaults(proxy, &e.defaults);
+                let changed = dirty_meta(&self.stock_meta, &next_meta, &next_defaults, false);
+                if !changed.is_empty() {
+                    stock_changed = Some(changed);
+                }
+                self.stock_meta = next_meta;
+            }
         }
         if e.attributes != self.attributes {
             let changed = changed_attributes(&e.attributes, &self.attributes);
@@ -649,6 +698,7 @@ impl ServerEntity {
             }
             self.attributes.clone_from(&e.attributes);
         }
+        stock_changed
     }
 
     fn send_head(&mut self, e: &EntityState, out: &mut Vec<play::Clientbound>) {
@@ -686,6 +736,37 @@ impl ServerEntity {
             self.equipment.clone_from(&e.equipment);
         }
     }
+}
+
+fn dirty_meta(
+    prev: &[(u8, i32, Value)],
+    now: &[(u8, i32, Value)],
+    defaults: &[(u8, i32, Value)],
+    frame: bool,
+) -> Vec<(u8, i32, Value)> {
+    let mut changed: Vec<_> = now.iter().filter(|m| !prev.contains(m)).cloned().collect();
+    // A value back at its default is left out of the state, but the
+    // clients still hold the old one: Entity's shared flags and pose go
+    // back to 0 (a player standing up again, a mob no longer on fire),
+    // a sleeper's bed to none, an item frame's item to empty and its
+    // rotation to 0 (ItemFrame.DATA_ITEM and DATA_ROTATION).
+    for (index, kind, _) in prev {
+        let default = match (*index, *kind) {
+            (0, serializer::BYTE) => Value::Byte(0),
+            (6, serializer::POSE) => Value::Id(0),
+            (14, serializer::OPTIONAL_BLOCK_POS) => Value::OptPos(None),
+            (9, serializer::ITEM_STACK) if frame => Value::Item(None),
+            (10, serializer::INT) if frame => Value::Int(0),
+            _ => match defaults.iter().find(|d| (d.0, d.1) == (*index, *kind)) {
+                Some(d) => d.2.clone(),
+                None => continue,
+            },
+        };
+        if !now.iter().any(|m| m.0 == *index) {
+            changed.push((*index, *kind, default));
+        }
+    }
+    changed
 }
 
 /// An entity a client tracks, as the mods hear of it.
@@ -765,6 +846,8 @@ pub struct Viewer<'a> {
     /// Its player's permission level: players a native mod hid from lower
     /// levels are not tracked by it.
     pub permission: u8,
+    /// Non-`"horizon"` brand client: custom mobs are proxied or omitted.
+    pub stock: bool,
     /// It accepted a move since the last tick (ChunkMap.move): every pair
     /// of it is checked again.
     pub moved: bool,
@@ -947,7 +1030,7 @@ impl Entities {
         entities: &[&EntityState],
         riding: &Riding,
         viewers: &mut [Viewer],
-        mut kind: impl FnMut(&str) -> Option<i32>,
+        mut kind: impl FnMut(&str, bool) -> Option<i32>,
     ) {
         self.tick = self.tick.wrapping_add(1);
         let now = self.tick;
@@ -964,7 +1047,7 @@ impl Entities {
             let mut added = false;
             let s = self.states.entry(e.id).or_insert_with(|| {
                 added = true;
-                ServerEntity::new(e, kind(&e.kind), riding)
+                ServerEntity::new(e, kind(&e.kind, false), kind(&e.kind, true), riding)
             });
             s.seen = now;
             s.index = index;
@@ -1162,42 +1245,68 @@ impl Entities {
                     .synced
                     .iter()
                     .any(|&(after, through)| e.id > after && e.id <= through);
-            if !s.added || synced {
-                s.send_changes(e, riding, &mut self.packets);
-            }
+            let stock_meta = if !s.added || synced {
+                s.send_changes(e, riding, &mut self.packets)
+            } else {
+                None
+            };
             s.added = false;
             // Nothing to send: no changes, and nobody starts tracking it.
-            if self.packets.is_empty() && !self.pairs[index] {
+            if self.packets.is_empty() && stock_meta.is_none() && !self.pairs[index] {
                 continue;
             }
             let mut encoded = false;
             let mut pairing: Option<Vec<Vec<u8>>> = None;
+            let mut stock_bodies: Option<Vec<Vec<u8>>> = None;
+            let mut stock_pairing: Option<Vec<Vec<u8>>> = None;
             for (v, flags) in viewers.iter_mut().zip(&self.flags) {
                 let f = flags[index];
+                let use_stock_proxy = v.stock && s.stock_proxy.is_some();
+                let viewer_kind = if v.stock { s.stock_kind } else { s.kind };
+                let mut send_updates = |v: &mut Viewer, bodies: &mut Vec<Vec<u8>>, encoded: &mut bool| {
+                    if use_stock_proxy {
+                        let proxy = s.stock_proxy.as_ref().unwrap();
+                        let sb = stock_bodies.get_or_insert_with(|| {
+                            encode_stock_changes(
+                                &self.packets,
+                                e.id,
+                                stock_meta.as_deref(),
+                                super::mob_proxy::is_living(&proxy.kind),
+                            )
+                        });
+                        v.out.extend(sb.iter().cloned());
+                    } else if !self.packets.is_empty() {
+                        if !*encoded {
+                            encode_all(&self.packets, bodies);
+                            *encoded = true;
+                        }
+                        v.out.extend(bodies.iter().cloned());
+                    }
+                };
                 if f & TRACKS != 0 {
-                    if self.packets.is_empty() {
+                    if self.packets.is_empty() && stock_meta.is_none() {
                         continue;
                     }
-                    if !encoded {
-                        encode_all(&self.packets, &mut self.bodies);
-                        encoded = true;
-                    }
-                    v.out.extend(self.bodies.iter().cloned());
+                    send_updates(v, &mut self.bodies, &mut encoded);
                 } else if f & SEES != 0
-                    && let Some(kind) = s.kind
+                    && let Some(kind) = viewer_kind
                 {
-                    let bodies = pairing.get_or_insert_with(|| {
-                        let mut packets = Vec::new();
-                        s.pairing(e, kind, riding, &mut packets);
-                        packets.iter().map(play::Clientbound::encode).collect()
-                    });
+                    let bodies = if use_stock_proxy {
+                        stock_pairing.get_or_insert_with(|| {
+                            let mut packets = Vec::new();
+                            s.pairing_stock(e, kind, riding, &mut packets);
+                            packets.iter().map(play::Clientbound::encode).collect()
+                        })
+                    } else {
+                        pairing.get_or_insert_with(|| {
+                            let mut packets = Vec::new();
+                            s.pairing(e, kind, riding, &mut packets);
+                            packets.iter().map(play::Clientbound::encode).collect()
+                        })
+                    };
                     v.out.extend(bodies.iter().cloned());
-                    if synced && !self.packets.is_empty() {
-                        if !encoded {
-                            encode_all(&self.packets, &mut self.bodies);
-                            encoded = true;
-                        }
-                        v.out.extend(self.bodies.iter().cloned());
+                    if synced && (!self.packets.is_empty() || stock_meta.is_some()) {
+                        send_updates(v, &mut self.bodies, &mut encoded);
                     }
                     if v.tracker
                         .seen
@@ -1215,6 +1324,45 @@ impl Entities {
         }
         self.states.retain(|_, s| s.seen == now);
     }
+}
+
+fn encode_stock_changes(
+    packets: &[play::Clientbound],
+    entity_id: i32,
+    stock_meta: Option<&[(u8, i32, Value)]>,
+    living: bool,
+) -> Vec<Vec<u8>> {
+    let mut out = Vec::new();
+    let mut sent_meta = false;
+    for packet in packets {
+        match packet {
+            play::Clientbound::SetEntityData(_) => {
+                sent_meta = true;
+                if let Some(values) = stock_meta.filter(|v| !v.is_empty()) {
+                    out.push(
+                        play::Clientbound::SetEntityData(SetEntityData {
+                            id: entity_id,
+                            values: values.to_vec(),
+                        })
+                        .encode(),
+                    );
+                }
+            }
+            play::Clientbound::UpdateAttributes(_) | play::Clientbound::SetEquipment(_)
+                if !living => {}
+            other => out.push(other.encode()),
+        }
+    }
+    if !sent_meta && let Some(values) = stock_meta.filter(|v| !v.is_empty()) {
+        out.push(
+            play::Clientbound::SetEntityData(SetEntityData {
+                id: entity_id,
+                values: values.to_vec(),
+            })
+            .encode(),
+        );
+    }
+    out
 }
 
 #[cfg(test)]
@@ -1282,7 +1430,7 @@ mod tests {
 
     /// The entity as added this tick, then its updates (one a tick).
     fn added(e: &EntityState) -> ServerEntity {
-        ServerEntity::new(e, Some(100), &Riding::default())
+        ServerEntity::new(e, Some(100), Some(100), &Riding::default())
     }
     fn changes(s: &mut ServerEntity, e: &EntityState) -> Vec<play::Clientbound> {
         let mut out = Vec::new();
@@ -1723,6 +1871,7 @@ mod tests {
                     entity_id: 1,
                     spectator: self.spectators[0],
                     permission: self.permissions[0],
+                    stock: false,
                     moved: self.moved[0],
                     position: self.positions[0],
                     view_distance: 10,
@@ -1735,6 +1884,7 @@ mod tests {
                     entity_id: 2,
                     spectator: self.spectators[1],
                     permission: self.permissions[1],
+                    stock: false,
                     moved: self.moved[1],
                     position: self.positions[1],
                     view_distance: 10,
@@ -1744,7 +1894,7 @@ mod tests {
                     gone: None,
                 },
             ];
-            level.tick(entities, &Riding::default(), &mut viewers, |_| Some(100));
+            level.tick(entities, &Riding::default(), &mut viewers, |_, _| Some(100));
         }
     }
 
