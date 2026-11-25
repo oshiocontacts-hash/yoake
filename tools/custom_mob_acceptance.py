@@ -97,8 +97,13 @@ def item_entities(game, radius=40):
     return [e for e in game.raw('entities', radius)['entities'] if e.get('kind') == 'item']
 
 
-def chicken_entities(game, radius=40):
-    return [e for e in game.raw('entities', radius)['entities'] if e.get('type') == 'minecraft:chicken']
+def chicken_entities(game, radius=40, near=None, within=3.0):
+    found = [e for e in game.raw('entities', radius)['entities'] if e.get('type') == 'minecraft:chicken']
+    if near is not None:
+        # Only the chicken this check summoned: chickens spawned with new chunks would
+        # otherwise keep the list non-empty after the prey died.
+        found = [e for e in found if 'pos' in e and math.dist((e['pos'][0], e['pos'][2]), near) <= within]
+    return found
 
 
 def parse_entity_uuid(nbt_text):
@@ -722,7 +727,7 @@ def run_s3_and_s4(ctl, out_dir, shots_dir, resources, wasm_path, client_wasm_pat
         pounce_hit = False
         for _ in range(120):
             host.wait(2)
-            if render_e2e.SERVER_FRAME.search(render_e2e.log_of(host)[mark_pounce:]) and not chicken_entities(host):
+            if render_e2e.SERVER_FRAME.search(render_e2e.log_of(host)[mark_pounce:]) and not chicken_entities(host, near=(hx + 0.5, hz - 2.0)):
                 pounce_hit = True
                 break
         host.wait(10)
