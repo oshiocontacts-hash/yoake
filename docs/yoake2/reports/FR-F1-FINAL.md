@@ -39,3 +39,14 @@ The stamped release build (`tools/yoake-stamped-cargo.sh build --release -j 6 -p
 - `horizon_client` still has no `.callsites.patch` (keeps its in-place `game::item_use` sites; left from FR-REM11b).
 - Re-running `callsite-patch` on the 4 earlier crates (`horizon_command`, `horizon_core`, `horizon_items`, `horizon_protocol`) with the newer generator fixes (left from FR-REM11b).
 - `callsite-bench-gate`, `yoake-bindgen` full `--check` (for non-table glue / `ids.lock.json`), and game / benchmark runs were not run in this task.
+
+## Bench gate (coordinator run, 2026-11-26)
+`tools/yoake-hook-bench-gate.py --mode game --runs 21 --flight-seconds 40`, plain release (`target/release`) vs stamped release with the call-site patches (`target-stamped/release`, 321 MB), pregenerated world, paired median of per-run ratios. Gate exit 0.
+
+| Metric | Baseline | Stamped | Paired median (95% CI) | Limit |
+|---|---|---|---|---|
+| Server tick | 18.734 ms | 18.717 ms | **+0.71%** [-3.47, +3.89] | 1.0% |
+| Client frame p50 | 2.263 ms | 2.259 ms | **+0.35%** [-3.11, +5.21] | 1.0% |
+| Client CPU frame p50 (info) | 2.132 ms | 2.129 ms | -0.19% [-3.42, +5.07] | — |
+
+F1's no-mod overhead target (under 1%) is met for both tick and frame, with the call-site hooks of 7 crates in. Earlier run (FR-REM02, without call-sites): tick +1.56%, frame +0.56%.
