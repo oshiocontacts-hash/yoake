@@ -510,5 +510,7 @@
   "horizon.extras.cosmetics.shown": "Shown",
   "horizon.extras.cosmetics.hidden": "Hidden",
   "horizon.extras.cosmetics.name_tags": "Name tags only",
-  "horizon.mod_guard.stopped": "Mod %s stopped after an error (%s). The game goes on without it."
+  "horizon.mod_guard.stopped": "Mod %s stopped after an error (%s). The game goes on without it.",
+  "horizon.custommobs.stats": "Custom mob statistics",
+  "horizon.custommobs.trigger": "Custom mob animation trigger"
 }

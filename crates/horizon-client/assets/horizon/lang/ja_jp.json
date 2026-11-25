@@ -510,5 +510,7 @@
   "horizon.extras.cosmetics.shown": "表示",
   "horizon.extras.cosmetics.hidden": "非表示",
   "horizon.extras.cosmetics.name_tags": "ネームタグのみ",
-  "horizon.mod_guard.stopped": "Mod %sはエラー (%s) のため停止しました。ゲームはそのまま続行します。"
+  "horizon.mod_guard.stopped": "Mod %sはエラー (%s) のため停止しました。ゲームはそのまま続行します。",
+  "horizon.custommobs.stats": "カスタムMobの統計",
+  "horizon.custommobs.trigger": "カスタムMobのアニメーショントリガー"
 }
