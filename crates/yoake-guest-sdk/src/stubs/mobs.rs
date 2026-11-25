@@ -276,6 +276,37 @@ pub mod types {
         pub client: bool,
     }
     #[derive(Clone, Debug, PartialEq)]
+    pub enum Attr {
+        MaxHealth,
+        MovementSpeed,
+        FollowRange,
+        AttackDamage,
+        KnockbackResistance,
+        SpawnReinforcements,
+        JumpStrength,
+        Armor,
+        BurningTime,
+        FlyingSpeed,
+    }
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct Attributes {
+        pub bases: Vec<(types::Attr, f64,)>,
+        pub modifiers: Vec<types::Modifier>,
+    }
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct Modifier {
+        pub attr: types::Attr,
+        pub id: String,
+        pub amount: f64,
+        pub op: types::Op,
+    }
+    #[derive(Clone, Debug, PartialEq)]
+    pub enum Op {
+        AddValue,
+        AddMultipliedBase,
+        AddMultipliedTotal,
+    }
+    #[derive(Clone, Debug, PartialEq)]
     pub struct Illusions {
         pub ticks: i32,
         pub offsets: [[[f64; 3]; 4]; 2],
@@ -1960,6 +1991,158 @@ pub mod types {
             jumping: <bool as Decode>::decode(d)?,
             client: <bool as Decode>::decode(d)?,
         })
+    }
+
+    fn enc_crate__mobs__finalize__Attr(v: &types::Attr, out: &mut Vec<u8>) {
+        match v {
+            types::Attr::MaxHealth => {
+                Encode::encode(&0u32, out);
+            }
+            types::Attr::MovementSpeed => {
+                Encode::encode(&1u32, out);
+            }
+            types::Attr::FollowRange => {
+                Encode::encode(&2u32, out);
+            }
+            types::Attr::AttackDamage => {
+                Encode::encode(&3u32, out);
+            }
+            types::Attr::KnockbackResistance => {
+                Encode::encode(&4u32, out);
+            }
+            types::Attr::SpawnReinforcements => {
+                Encode::encode(&5u32, out);
+            }
+            types::Attr::JumpStrength => {
+                Encode::encode(&6u32, out);
+            }
+            types::Attr::Armor => {
+                Encode::encode(&7u32, out);
+            }
+            types::Attr::BurningTime => {
+                Encode::encode(&8u32, out);
+            }
+            types::Attr::FlyingSpeed => {
+                Encode::encode(&9u32, out);
+            }
+        }
+    }
+    fn dec_crate__mobs__finalize__Attr(d: &mut Decoder<'_>) -> Result<types::Attr, CallError> {
+        d.enter()?;
+        let r = dec_crate__mobs__finalize__Attr_body(d);
+        d.leave();
+        r
+    }
+    fn dec_crate__mobs__finalize__Attr_body(d: &mut Decoder<'_>) -> Result<types::Attr, CallError> {
+        match <u32 as Decode>::decode(d)? {
+            0 => Ok(types::Attr::MaxHealth),
+            1 => Ok(types::Attr::MovementSpeed),
+            2 => Ok(types::Attr::FollowRange),
+            3 => Ok(types::Attr::AttackDamage),
+            4 => Ok(types::Attr::KnockbackResistance),
+            5 => Ok(types::Attr::SpawnReinforcements),
+            6 => Ok(types::Attr::JumpStrength),
+            7 => Ok(types::Attr::Armor),
+            8 => Ok(types::Attr::BurningTime),
+            9 => Ok(types::Attr::FlyingSpeed),
+            n => Err(CallError::InvalidTag("Attr", n)),
+        }
+    }
+
+    fn enc_crate__mobs__finalize__Attributes(v: &types::Attributes, out: &mut Vec<u8>) {
+        {
+            let s0 = &v.bases;
+            codec::enc_len(s0.len(), out);
+            for e0 in s0.iter() {
+                {
+                    let t1 = e0;
+                    enc_crate__mobs__finalize__Attr(&t1.0, out);
+                    Encode::encode(&t1.1, out);
+                }
+            }
+        }
+        {
+            let s0 = &v.modifiers;
+            codec::enc_len(s0.len(), out);
+            for e0 in s0.iter() {
+                enc_crate__mobs__finalize__Modifier(e0, out);
+            }
+        }
+    }
+    fn dec_crate__mobs__finalize__Attributes(d: &mut Decoder<'_>) -> Result<types::Attributes, CallError> {
+        d.enter()?;
+        let r = dec_crate__mobs__finalize__Attributes_body(d);
+        d.leave();
+        r
+    }
+    fn dec_crate__mobs__finalize__Attributes_body(d: &mut Decoder<'_>) -> Result<types::Attributes, CallError> {
+        Ok(types::Attributes {
+            bases: {
+                let n0 = d.vec_len()?;
+                let mut v0 = Decoder::vec_with(n0);
+                for _ in 0..n0 {
+                    v0.push((dec_crate__mobs__finalize__Attr(d)?, <f64 as Decode>::decode(d)?,));
+                }
+                v0
+            },
+            modifiers: {
+                let n0 = d.vec_len()?;
+                let mut v0 = Decoder::vec_with(n0);
+                for _ in 0..n0 {
+                    v0.push(dec_crate__mobs__finalize__Modifier(d)?);
+                }
+                v0
+            },
+        })
+    }
+
+    fn enc_crate__mobs__finalize__Modifier(v: &types::Modifier, out: &mut Vec<u8>) {
+        enc_crate__mobs__finalize__Attr(&v.attr, out);
+        Encode::encode(&v.id, out);
+        Encode::encode(&v.amount, out);
+        enc_crate__mobs__finalize__Op(&v.op, out);
+    }
+    fn dec_crate__mobs__finalize__Modifier(d: &mut Decoder<'_>) -> Result<types::Modifier, CallError> {
+        d.enter()?;
+        let r = dec_crate__mobs__finalize__Modifier_body(d);
+        d.leave();
+        r
+    }
+    fn dec_crate__mobs__finalize__Modifier_body(d: &mut Decoder<'_>) -> Result<types::Modifier, CallError> {
+        Ok(types::Modifier {
+            attr: dec_crate__mobs__finalize__Attr(d)?,
+            id: <String as Decode>::decode(d)?,
+            amount: <f64 as Decode>::decode(d)?,
+            op: dec_crate__mobs__finalize__Op(d)?,
+        })
+    }
+
+    fn enc_crate__mobs__finalize__Op(v: &types::Op, out: &mut Vec<u8>) {
+        match v {
+            types::Op::AddValue => {
+                Encode::encode(&0u32, out);
+            }
+            types::Op::AddMultipliedBase => {
+                Encode::encode(&1u32, out);
+            }
+            types::Op::AddMultipliedTotal => {
+                Encode::encode(&2u32, out);
+            }
+        }
+    }
+    fn dec_crate__mobs__finalize__Op(d: &mut Decoder<'_>) -> Result<types::Op, CallError> {
+        d.enter()?;
+        let r = dec_crate__mobs__finalize__Op_body(d);
+        d.leave();
+        r
+    }
+    fn dec_crate__mobs__finalize__Op_body(d: &mut Decoder<'_>) -> Result<types::Op, CallError> {
+        match <u32 as Decode>::decode(d)? {
+            0 => Ok(types::Op::AddValue),
+            1 => Ok(types::Op::AddMultipliedBase),
+            2 => Ok(types::Op::AddMultipliedTotal),
+            n => Err(CallError::InvalidTag("Op", n)),
+        }
     }
 
     fn enc_crate__mobs__illusioner__Illusions(v: &types::Illusions, out: &mut Vec<u8>) {
@@ -11890,6 +12073,23 @@ pub fn mobs_mob_profile_get(h: Handle) -> Result<Option<types::Profile>, Error> 
         let value = match d.tag()? {
             0 => None,
             1 => Some(dec_horizon_protocol__entity_data__Profile(d)?),
+            t => return Err(CallError::InvalidTag("Option", u32::from(t))),
+        };
+        d.finish()?;
+        Ok(value)
+    })()?;
+    Ok(value)
+}
+
+/// `mobs::Extra.attributes#get`
+pub fn mobs_extra_attributes_get(h: Handle) -> Result<Option<Box<types::Attributes>>, Error> {
+    let result = call(h, 3309, &[])?;
+    let mut dec = Decoder::new(&result);
+    let value = (|| -> Result<Option<Box<types::Attributes>>, CallError> {
+        let d = &mut dec;
+        let value = match d.tag()? {
+            0 => None,
+            1 => Some(Box::new(dec_crate__mobs__finalize__Attributes(d)?)),
             t => return Err(CallError::InvalidTag("Option", u32::from(t))),
         };
         d.finish()?;

@@ -6,7 +6,7 @@ Functions counted: free functions, inherent methods, and non-derived trait-impl 
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | `items` | 70 | 7 | 13 | **20 (28.6%)** | 16 (22.9%) | 34 (48.6%) | 8 / 21 | 73 / 90 | 9 |
 | `entities` | 163 | 30 | 25 | **55 (33.7%)** | 32 (19.6%) | 76 (46.6%) | 9 / 23 | 85 / 97 | 13 |
-| `mobs` | 131 | 52 | 38 | **90 (68.7%)** | 27 (20.6%) | 14 (10.7%) | 24 / 57 | 370 / 453 | 22 |
+| `mobs` | 131 | 52 | 38 | **90 (68.7%)** | 27 (20.6%) | 14 (10.7%) | 24 / 57 | 371 / 453 | 22 |
 | `motion` | 369 | 35 | 7 | **42 (11.4%)** | 5 (1.4%) | 322 (87.3%) | 2 / 6 | 90 / 110 | 3 |
 | `game_items` | 5 | 5 | 0 | **5 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 0 / 0 | 0 / 0 | 0 |
 | `entity_query` | 20 | 1 | 6 | **7 (35.0%)** | 4 (20.0%) | 9 (45.0%) | 6 / 10 | 14 / 43 | 4 |
@@ -188,7 +188,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 - bound now: **90 of 131** (68.7%): 52 basic + 38 mechanical
 - handle-required, not yet bound: 27 (20.6%)
 - excluded: 14 (10.7%)
-- field accessors (get + set pairs): 370 of 453 fields
+- field accessors (get + set pairs): 371 of 453 fields
 - handle types (receivers of bound methods or owners of bound fields): 22
 
 ### Handle types and how a guest reaches them
@@ -205,7 +205,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | `crate::mobs::DamageKind` | 2 | 0 | `Game.fight.last_blow` |
 | `crate::mobs::ElytraAnimation` | 3 | 2 | `Game.mobs.extra.elytra` |
 | `crate::mobs::EntityModelDocument` | 1 | 0 | - |
-| `crate::mobs::Extra` | 3 | 126 | `Game.mobs.extra` |
+| `crate::mobs::Extra` | 3 | 127 | `Game.mobs.extra` |
 | `crate::mobs::Flags` | 1 | 13 | `Game.mobs.kind.flags` |
 | `crate::mobs::MannequinDescription` | 3 | 0 | `Game.mobs.extra.description` |
 | `crate::mobs::Mob` | 55 | 66 | `Game.mobs` |
@@ -266,7 +266,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 - `mobs::Mob`: `position`, `previous`, `velocity`, `yaw`, `previous_yaw`, `body_yaw`, `head_yaw`, `head_pitch`, `on_ground`, `health`, `fall_distance`, `persistent`, `name_visible`, `invisible`, `no_gravity`, `no_ai`, `silent`, `fire_ticks`, `ticks_frozen`, `glowing`, `air`, `absorption`
 
-348 read-only field accessors (getter only).
+349 read-only field accessors (getter only).
 
 ### Fields without accessors
 
@@ -274,7 +274,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 |---|---:|
 | `MobWorld` carries a lifetime (cannot be a handle type) | 39 |
 | `Teams` carries a lifetime (cannot be a handle type) | 2 |
-| a reference nested inside another type needs a handle | 14 |
+| a reference nested inside another type needs a handle | 13 |
 | external type `glam::f32::mat3::Mat3` (crate not loaded) | 1 |
 | external type `horizon_mods::custom_mob::CustomMobFile` (crate not loaded) | 1 |
 | external type `serde_json::value::Value` (crate not loaded) | 2 |

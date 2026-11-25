@@ -399,7 +399,7 @@
 | `mobs::Extra.screaming` | get + set |
 | `mobs::Extra.lost_horns` | get + set |
 | `mobs::Extra.goat` | no accessor: field `lower_head_tick` of `State` is private to another module |
-| `mobs::Extra.attributes` | no accessor: a reference nested inside another type needs a handle |
+| `mobs::Extra.attributes` | get + set |
 | `mobs::Extra.memories` | no accessor: a reference nested inside another type needs a handle |
 | `mobs::Extra.pose_change_tick` | get + set |
 | `mobs::Extra.camel_sitting` | get + set |

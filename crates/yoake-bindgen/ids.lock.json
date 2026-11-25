@@ -13855,6 +13855,18 @@
       "path": "custom_mobs::mob_trigger_anim",
       "sig": "fn mob_trigger_anim(u32, String, String, f32) -> Result<bool, String>",
       "status": "bound"
+    },
+    {
+      "id": 3309,
+      "path": "mobs::Extra.attributes#get",
+      "sig": "get attributes: Option<Box<finalize::Attributes>>",
+      "status": "bound"
+    },
+    {
+      "id": 3310,
+      "path": "mobs::Extra.attributes#set",
+      "sig": "set attributes: Option<Box<finalize::Attributes>>",
+      "status": "ReadOnly"
     }
   ],
   "reserved": [
