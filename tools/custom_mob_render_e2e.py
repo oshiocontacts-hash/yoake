@@ -34,6 +34,7 @@ Not covered here: parity golden C (cargo test), the comparison of the laptop's g
 """
 import argparse
 import json
+import math
 import os
 import re
 import shutil
@@ -129,6 +130,17 @@ def install_package(game, package):
 
 STRIKE_LINE = re.compile(r'^.*(?:Horizon custom-mob (?:strike|death|script goal|target|goal|texture):).*$', re.M)
 
+
+
+def prey_chickens(host, x, z, within=4.0):
+    """Chickens near (x, z), nearest first: chickens spawned with new chunks are not the prey."""
+    found = []
+    for e in host.raw('entities', 20)['entities']:
+        if e.get('type') == 'minecraft:chicken' and 'pos' in e:
+            d = math.dist((e['pos'][0], e['pos'][2]), (x, z))
+            if d <= within:
+                found.append((d, e))
+    return [e for _, e in sorted(found, key=lambda p: p[0])]
 
 def log_of(game):
     log = game.socket.with_suffix('.log')
@@ -416,12 +428,12 @@ def run(ctl, out, shots, resources, wasm=None, client_wasm=None):
             chicken_hp = []
             for _ in range(100):
                 host.wait(2)
-                chickens = [e for e in host.raw('entities', 20)['entities'] if e.get('type') == 'minecraft:chicken']
+                chickens = prey_chickens(host, hx + 1.5, hz - 1.5)
                 chicken_hp.append(chickens[0]['health'] if chickens else None)
                 if SERVER_FRAME.search(log_of(host)[mark_h:]):
                     break
             host.wait(10)
-            chickens = [e for e in host.raw('entities', 20)['entities'] if e.get('type') == 'minecraft:chicken']
+            chickens = prey_chickens(host, hx + 1.5, hz - 1.5)
             chicken_hp.append(chickens[0]['health'] if chickens else None)
             results['strike_mob'] = {'pass': len(SERVER_FRAME.findall(log_of(host)[mark_h:])) == 1 and (chicken_hp[-1] is None or chicken_hp[-1] < 4.0),
                                      'detail': {'chicken_health_samples': chicken_hp[-6:]}}
