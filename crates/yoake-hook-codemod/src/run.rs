@@ -1035,7 +1035,12 @@ fn reconcile_missing_keys(
     let stale_excluded: Vec<String> = shard
         .excluded()
         .iter()
-        .filter(|ex| !ex.manual && in_scan(&ex.key) && !seen_keys.contains(&ex.key))
+        .filter(|ex| {
+            ex.kind == Kind::Fn
+                && !ex.manual
+                && in_scan(&ex.key)
+                && !seen_keys.contains(&ex.key)
+        })
         .map(|ex| ex.key.clone())
         .collect();
     for stale_key in stale_excluded {
@@ -1607,5 +1612,83 @@ impl Stand {
                 "demo::entities::Stand::second_caller@store:self.velocity#0",
             ]
         );
+    }
+
+    #[test]
+    fn reconcile_keeps_non_manual_callsite_and_store_exclusions_while_dropping_stale_fn_exclusions() {
+        let mut ledger_set = LedgerSet::new();
+        {
+            let shard = ledger_set.shard_mut("demo");
+            shard
+                .exclude_kind(Kind::Fn, "demo::entities::removed_fn", "small body")
+                .unwrap();
+            shard
+                .exclude_manual(Kind::Fn, "demo::entities::manual_removed_fn", "manual skip")
+                .unwrap();
+            shard
+                .exclude_kind(
+                    Kind::Callsite,
+                    "demo::entities::Stand::tick@call:Vec3::add",
+                    "path call",
+                )
+                .unwrap();
+            shard
+                .exclude_kind(
+                    Kind::Store,
+                    "demo::entities::Stand::tick@store:self.x",
+                    "store unsupported",
+                )
+                .unwrap();
+        }
+
+        let tmp = ledger_io::TempDirGuard::new("unit_reconcile").unwrap();
+        std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+        std::fs::write(
+            tmp.path().join("Cargo.toml"),
+            "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+        )
+        .unwrap();
+        std::fs::write(tmp.path().join("src/lib.rs"), "pub mod entities;\n").unwrap();
+        std::fs::write(tmp.path().join("src/entities.rs"), "pub fn alive() {}\n").unwrap();
+        let targets = vec![vec!["entities".to_string()]];
+        let scanned_files =
+            modules::collect_module_files(tmp.path(), "demo", &targets, false).unwrap();
+        let crate_index =
+            CrateIndex::build(tmp.path(), "demo", "demo", &scanned_files).unwrap();
+        let seen_keys = BTreeSet::from(["demo::entities::alive".to_string()]);
+        let mut tombstones = BTreeSet::new();
+        let mut stats = SummaryStats::default();
+
+        reconcile_missing_keys(
+            "demo",
+            &targets,
+            false,
+            &crate_index,
+            &seen_keys,
+            &mut tombstones,
+            &mut ledger_set,
+            &mut stats,
+        )
+        .unwrap();
+
+        let excluded: Vec<(&str, Kind, bool)> = ledger_set
+            .shard("demo")
+            .unwrap()
+            .excluded()
+            .iter()
+            .map(|e| (e.key.as_str(), e.kind, e.manual))
+            .collect();
+        assert!(!excluded.iter().any(|(k, _, _)| *k == "demo::entities::removed_fn"));
+        assert!(excluded.contains(&("demo::entities::manual_removed_fn", Kind::Fn, true)));
+        assert!(excluded.contains(&(
+            "demo::entities::Stand::tick@call:Vec3::add",
+            Kind::Callsite,
+            false
+        )));
+        assert!(excluded.contains(&(
+            "demo::entities::Stand::tick@store:self.x",
+            Kind::Store,
+            false
+        )));
     }
 }
