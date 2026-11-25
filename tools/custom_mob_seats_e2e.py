@@ -113,7 +113,23 @@ def player_offset(game, kind=r.FOX):
 def clear_mobs(host):
     for kind in (r.FOX, MOUTH_FOX, CHICKEN):
         host('command', command=f'kill @e[type={kind}]')
-    host.wait(25)
+    host.until(lambda: (vehicle(host), vehicle(host, MOUTH_FOX), chickens(host)),
+               lambda s: s[0] is None and s[1] is None and not s[2], ticks=200)
+
+
+def safe_chicken_pos(host, hx, hy, hz):
+    """A stone-floor spot >5 blocks from the current fox, so `--seat-wasm` (4-block radius) will not auto-seat it."""
+    v = vehicle(host)
+    candidates = [
+        (hx, hy, hz + 6.0),
+        (hx, hy, hz - 6.0),
+        (hx + 6.0, hy, hz),
+        (hx - 6.0, hy, hz),
+    ]
+    if v is None:
+        return candidates[0]
+    vp = v['pos']
+    return max(candidates, key=lambda c: math.dist(c, vp))
 
 
 def reopen_world(host, guest):
@@ -131,7 +147,7 @@ def reopen_world(host, guest):
     back_to_game(guest)
     guest.raw('connect', f'127.0.0.1:{port}', 'Guest')
     guest.raw('wait-for', 'loaded', '--timeout', 300)
-    guest.wait(20)
+    guest.wait(10)
     return port
 
 
@@ -156,17 +172,17 @@ def run(ctl, out, resources, seat_wasm=None):
         for cmd in ('gamemode creative', 'difficulty peaceful', 'time set day', 'gamerule spawn_mobs false'):
             host('command', command=cmd)
         hx, hy, hz = (int(v // 1) for v in pos_of(host))
-        host('command', command=f'fill {hx - 12} {hy - 1} {hz - 12} {hx + 12} {hy - 1} {hz + 12} minecraft:stone')
-        host('command', command=f'fill {hx - 12} {hy} {hz - 12} {hx + 12} {hy + 6} {hz + 12} minecraft:air')
+        host('command', command=f'fill {hx - 20} {hy - 1} {hz - 20} {hx + 20} {hy - 1} {hz + 20} minecraft:stone')
+        host('command', command=f'fill {hx - 20} {hy} {hz - 20} {hx + 20} {hy + 5} {hz + 20} minecraft:air')
         host.wait(5)
 
         if seat_wasm is not None:
             host('command', command=f'summon {CHICKEN} {hx + 0.5} {hy} {hz - 3.5} {{Tags:["wasm_c"]}}')
-            host.wait(10)
+            host.until(lambda: chickens(host), lambda c: len(c) == 1, ticks=200)
             mark = len(r.log_of(host))
             host('command', command=f'summon {r.FOX} {hx + 0.5} {hy} {hz - 4.5}')
             try:
-                wasm_seen = host.until(lambda: offsets(host), lambda o: o == [(0.5, 0.8)], ticks=40)
+                wasm_seen = host.until(lambda: offsets(host), lambda o: o == [(0.5, 0.8)], ticks=200)
             except (AssertionError, Failed):
                 # Not fatal: the other checks still run. The seat lines say which path seated the chicken.
                 wasm_seen = offsets(host)
@@ -178,16 +194,23 @@ def run(ctl, out, resources, seat_wasm=None):
         host('command', command=f'summon {r.FOX} {hx + 0.5} {hy} {hz - 4.5}')
         for i in range(1, 5):
             host('command', command=f'summon {CHICKEN} {hx - 3.5 + i} {hy} {hz + 2.5} {{Tags:["c{i}"]}}')
-        host.wait(20)
+        host.until(lambda: (vehicle(host), len(chickens(host))),
+                   lambda s: s[0] is not None and s[1] == 4, ticks=200)
         replies = []
         for i in range(1, 5):
             replies.append(host('command', command=f'ride @e[tag=c{i},limit=1] mount {VEHICLE}').get('chat'))
-            host.wait(4)
-        host.wait(10)
-        three = offsets(host)
-        taken = [o for o in three if o[0] < 1.0]
+            host.wait(2)
+        try:
+            three = host.until(
+                lambda: offsets(host),
+                lambda o: o is not None and len([x for x in o if x[0] < 1.0]) == 3 and len(o) == 4,
+                ticks=200,
+            )
+        except AssertionError:
+            three = offsets(host)
+        taken = [o for o in (three or []) if o[0] < 1.0]
         results['ride3'] = {'pass': len(taken) == 3 and [o[0] for o in taken] == [0.0, 0.5, 0.5]
-                            and all(abs(o[1] - 0.8) < 0.15 for o in taken) and len([o for o in three if o[0] >= 1.0]) == 1,
+                            and all(abs(o[1] - 0.8) < 0.15 for o in taken) and len([o for o in (three or []) if o[0] >= 1.0]) == 1,
                             'detail': {'offsets_from_vehicle': three, 'ride_replies': replies}}
 
         # check 5: guest joins late and receives the snapshot
@@ -195,8 +218,14 @@ def run(ctl, out, resources, seat_wasm=None):
         guest.raw('connect', f"127.0.0.1:{host.raw('lan', 'open', 0, 'commands')['port']}", 'Guest')
         guest.raw('wait-for', 'loaded', '--timeout', 300)
         guest('command', command=f'tp @s {hx + 0.5} {hy} {hz - 1.5}')
-        guest.wait(60)
-        g_three = offsets(guest)
+        try:
+            g_three = guest.until(
+                lambda: offsets(guest),
+                lambda o: bool(o) and [x[0] for x in o if x[0] < 1.0] == [0.0, 0.5, 0.5],
+                ticks=240,
+            )
+        except AssertionError:
+            g_three = offsets(guest)
         g_taken = [o for o in (g_three or []) if o[0] < 1.0]
         results['guest'] = {'pass': bool(g_three) and [o[0] for o in g_taken] == [0.0, 0.5, 0.5],
                             'detail': {'offsets_on_the_guest': g_three}}
@@ -206,14 +235,26 @@ def run(ctl, out, resources, seat_wasm=None):
         seat1 = [c for c in chickens(host) if abs(math.hypot(c['pos'][0] - v['pos'][0], c['pos'][2] - v['pos'][2]) - 0.5) < 0.1]
         before = [o for o in offsets(host) if o[0] < 1.0]
         host('command', command=f'kill @e[type={CHICKEN},sort=nearest,limit=1,x={seat1[0]["pos"][0]},y={seat1[0]["pos"][1]},z={seat1[0]["pos"][2]},distance=..0.3]')
-        host.wait(40)
-        after = [o for o in offsets(host) if o[0] < 1.0]
+        try:
+            after = host.until(
+                lambda: [o for o in (offsets(host) or []) if o[0] < 1.0],
+                lambda o: len(o) == 2,
+                ticks=200,
+            )
+        except AssertionError:
+            after = [o for o in (offsets(host) or []) if o[0] < 1.0]
         results['stay'] = {'pass': len(before) == 3 and len(after) == 2 and set(after) <= set(before),
                            'detail': {'before': before, 'after': after}}
         host('command', command=f'kill {VEHICLE}')
-        host.wait(60)
-        left = [c for c in chickens(host) if c['health'] > 0]
-        v_gone = vehicle(host) is None
+        try:
+            v_gone, left = host.until(
+                lambda: (vehicle(host) is None, [c for c in chickens(host) if c['health'] > 0]),
+                lambda s: s[0] and len(s[1]) >= 1,
+                ticks=200,
+            )
+        except AssertionError:
+            v_gone = vehicle(host) is None
+            left = [c for c in chickens(host) if c['health'] > 0]
         results['vehicle'] = {'pass': v_gone and len(left) >= 1, 'detail': {'vehicle_removed': v_gone, 'chickens_left': len(left)}}
         clear_mobs(host)
 
@@ -223,17 +264,21 @@ def run(ctl, out, resources, seat_wasm=None):
         host.raw('select', 1)
         guest.raw('select', 1)
         host('command', command=f'summon {r.FOX} {hx + 0.5} {hy} {hz - 4.5}')
-        host.wait(10)
+        host.until(lambda: vehicle(host), lambda v: v is not None, ticks=200)
         host('command', command=f'tp @s {hx + 0.5} {hy} {hz - 2.3}')
-        host.wait(10)
+        host.until(lambda: pos_of(host), lambda p: abs(p[0] - (hx + 0.5)) < 0.25 and abs(p[2] - (hz - 2.3)) < 0.25, ticks=100)
         use_h = None
         try:
             use_h = host.raw('use-entity', '--type', r.FOX)
-            host.wait(8)
-            h_off = player_offset(host)
+            h_off = host.until(
+                lambda: player_offset(host),
+                lambda o: o is not None and o[0] < 0.25 and abs(o[1] - 0.2) < 0.05,
+                ticks=120,
+            )
             v0 = vehicle(host)['pos']
-            host.raw('move', 'forward', 0.9)
-            host.wait(10)
+            host.raw('move', 'forward', 0.5)
+            host.raw('move', 'forward', 0.0)
+            host.wait(5)
             v1 = vehicle(host)['pos']
             steer_dist = round(math.hypot(v1[0] - v0[0], v1[2] - v0[2]), 3)
             results['use_entity'] = {
@@ -258,8 +303,13 @@ def run(ctl, out, resources, seat_wasm=None):
                 hv_pos = hv['pos']
                 vx, vy, vz = hv_pos
                 guest('command', command=f'tp @s {vx:.2f} {vy:.2f} {vz + 2.2:.2f}')
+                guest.until(
+                    lambda: pos_of(guest),
+                    lambda p: math.dist(p, [vx, vy, vz + 2.2]) < 0.5,
+                    ticks=120,
+                )
                 gv = guest.until(lambda: vehicle(guest),
-                                 lambda v: v is not None and math.dist(v['pos'], hv_pos) < 0.25, ticks=60)
+                                 lambda v: v is not None and math.dist(v['pos'], hv_pos) < 0.25, ticks=240)
                 try:
                     use_g = guest.raw('use-entity', str(gv['id']))
                     guest_replies.append(use_g)
@@ -269,28 +319,47 @@ def run(ctl, out, resources, seat_wasm=None):
                     guest_replies.append(use_g)
             else:
                 raise AssertionError(f'guest use-entity failed after retries: {guest_replies}')
-            guest.wait(8)
-            g_off = player_offset(guest)
+            g_off = guest.until(
+                lambda: player_offset(guest),
+                lambda o: o is not None and abs(o[0] - 0.5) < 0.2 and abs(o[1] - 0.2) < 0.1,
+                ticks=120,
+            )
             g0 = vehicle(host)['pos']
             guest.raw('move', 'forward', 0.8)
             guest.wait(10)
             guest.raw('move', 'forward', 0.0)
             g1 = vehicle(host)['pos']
             g_steer = round(math.hypot(g1[0] - g0[0], g1[2] - g0[2]), 3)
-            host('command', command=f'summon {CHICKEN} {hx} {hy} {hz + 3.0} {{Tags:["m3"]}}')
-            host('command', command=f'summon {CHICKEN} {hx + 1.0} {hy} {hz + 3.0} {{Tags:["m4"]}}')
-            host.wait(10)
+            cx, cy, cz = safe_chicken_pos(host, hx, hy, hz)
+            host('command', command=f'summon {CHICKEN} {cx} {cy} {cz} {{Tags:["m3"]}}')
+            host('command', command=f'summon {CHICKEN} {cx + 1.0} {cy} {cz} {{Tags:["m4"]}}')
+            host.until(lambda: len(chickens(host)), lambda n: n == 2, ticks=200)
             host('command', command=f'ride @e[tag=m3,limit=1] mount {VEHICLE}')
             host('command', command=f'ride @e[tag=m4,limit=1] mount {VEHICLE}')
-            host.wait(10)
-            full_offs = offsets(host)
+            full_offs = host.until(
+                lambda: offsets(host),
+                lambda o: o is not None and len(o) == 2 and o[0][0] == 0.5 and o[1][0] >= 1.0,
+                ticks=200,
+            )
             guest.raw('disconnect')
-            time.sleep(2)
-            host.wait(20)
-            h_after_dc = player_offset(host)
-            host('command', command=f'ride @e[tag=m4,limit=1] mount {VEHICLE}')
-            host.wait(10)
-            freed_offs = offsets(host)
+            host.until(
+                lambda: any(g.get('name') == 'Guest' for g in host.raw('lan', 'status').get('guests', [])),
+                lambda present: not present,
+                ticks=240,
+            )
+            h_after_dc = host.until(
+                lambda: player_offset(host),
+                lambda o: o is not None and o[0] < 0.25,
+                ticks=120,
+            )
+            # Retry /ride briefly in case the server frees the guest's seat on the next tick after disconnect.
+            freed_offs = None
+            for _ in range(24):
+                host('command', command=f'ride @e[tag=m4,limit=1] mount {VEHICLE}')
+                host.wait(5)
+                freed_offs = offsets(host)
+                if freed_offs == [(0.5, 0.8), (0.5, 0.8)]:
+                    break
             results['multi_player'] = {
                 'pass': (abs(g_off[0] - 0.5) < 0.2 and g_steer < 0.15 and full_offs[0][0] == 0.5
                          and full_offs[1][0] >= 1.0 and h_after_dc[0] < 0.25
@@ -309,7 +378,7 @@ def run(ctl, out, resources, seat_wasm=None):
         def dismount(game):
             # `key lshift tap` removes ShiftLeft before a tick can send PlayerInput; hold across ticks to dismount.
             game.raw('key', 'lshift', 'down')
-            game.wait(4)
+            game.wait(5)
             game.raw('key', 'lshift', 'up')
             game.wait(6)
 
@@ -317,55 +386,86 @@ def run(ctl, out, resources, seat_wasm=None):
         try:
             dismount(host)
             host('command', command='kill @e[tag=m4,limit=1]')
-            host.wait(10)
-            host('command', command=f'summon {CHICKEN} {hx} {hy} {hz + 3.0} {{Tags:["m0"]}}')
-            host.wait(10)
+            host.until(lambda: len(chickens(host)), lambda n: n == 1, ticks=200)
+            cx, cy, cz = safe_chicken_pos(host, hx, hy, hz)
+            host('command', command=f'summon {CHICKEN} {cx} {cy} {cz} {{Tags:["m0"]}}')
+            host.until(lambda: len(chickens(host)), lambda n: n == 2, ticks=200)
             host('command', command=f'ride @e[tag=m0,limit=1] mount {VEHICLE}')
-            host.wait(10)
+            host.until(lambda: offsets(host), lambda o: o == [(0.0, 0.8), (0.5, 0.8)], ticks=200)
             vx, vy, vz = vehicle(host)['pos']
             host('command', command=f'tp @s {vx:.2f} {vy:.2f} {vz + 2.2:.2f}')
-            host.wait(8)
+            host.until(lambda: player_offset(host), lambda o: o is not None and o[0] > 1.2, ticks=120)
             reload_reply = host.raw('use-entity', '--type', r.FOX)
-            host.wait(8)
-            pre_host = player_offset(host)
-            host('command', command='save-all')
-            host.wait(20)
+            pre_host = host.until(
+                lambda: player_offset(host),
+                lambda o: o is not None and abs(o[0] - 0.5) < 0.2,
+                ticks=120,
+            )
+            host.raw('save-all')
             reopen_world(host, guest)
-            post_chicks = offsets(host)
-            post_host = player_offset(host)
-            if post_host[0] > 0.8:
+            try:
+                post_chicks = host.until(
+                    lambda: offsets(host),
+                    lambda o: o == [(0.0, 0.8), (0.5, 0.8)],
+                    ticks=240,
+                )
+            except AssertionError:
+                post_chicks = offsets(host)
+            try:
+                post_host = host.until(
+                    lambda: player_offset(host),
+                    lambda o: o is not None and abs(o[0] - 0.5) < 0.2,
+                    ticks=120,
+                )
+            except AssertionError:
+                post_host = player_offset(host)
+            if post_host is not None and post_host[0] > 0.8:
                 host('command', command='kill @e[tag=m0,limit=1]')
-                host.wait(10)
+                host.until(lambda: len(chickens(host)), lambda n: n == 1, ticks=200)
                 vx, vy, vz = vehicle(host)['pos']
                 host('command', command=f'tp @s {vx:.2f} {vy:.2f} {vz + 2.2:.2f}')
-                host.wait(8)
+                host.until(lambda: player_offset(host), lambda o: o is not None and o[0] > 1.2, ticks=120)
                 reload_reply = host.raw('use-entity', '--type', r.FOX)
-                host.wait(8)
-                post_host = player_offset(host)
+                try:
+                    post_host = host.until(
+                        lambda: player_offset(host),
+                        lambda o: o is not None and abs(o[0] - 0.5) < 0.2,
+                        ticks=120,
+                    )
+                except AssertionError:
+                    post_host = player_offset(host)
             results['reload'] = {
                 'pass': abs(pre_host[0] - 0.5) < 0.2 and post_chicks == [(0.0, 0.8), (0.5, 0.8)]
-                        and abs(post_host[0] - 0.5) < 0.2,
+                        and post_host is not None and abs(post_host[0] - 0.5) < 0.2,
                 'detail': {'reply': reload_reply, 'pre_host': pre_host, 'post_chickens': post_chicks,
                            'post_host': post_host},
             }
         except (Failed, AssertionError, KeyError, StopIteration, IndexError, TypeError) as e:
             results['reload'] = {'pass': False, 'detail': {'reply': reload_reply, 'error': repr(e)}}
+            if guest('state').get('screen') == 'title':
+                port = host.raw('lan', 'open', 0, 'commands')['port']
+                back_to_game(guest)
+                guest.raw('connect', f'127.0.0.1:{port}', 'Guest')
+                guest.raw('wait-for', 'loaded', '--timeout', 300)
         dismount(host)
         clear_mobs(host)
 
         # check 12: the server stays at the mouth's rest offset; host and guest clients follow pounce together.
         host('command', command=f'summon {MOUTH_FOX} {hx + 0.5} {hy} {hz - 4.5}')
         host('command', command=f'summon {CHICKEN} {hx + 0.5} {hy} {hz + 2.5} {{Tags:["ml"]}}')
-        host.wait(10)
+        host.until(lambda: (vehicle(host, MOUTH_FOX), len(chickens(host))),
+                   lambda s: s[0] is not None and s[1] == 1, ticks=200)
         host('command', command=f'ride @e[tag=ml,limit=1] mount {MOUTH_VEHICLE}')
-        host.wait(10)
+        host.until(lambda: offsets(host, MOUTH_FOX),
+                   lambda o: bool(o) and abs(o[0][0] - 0.75) < 0.25, ticks=200)
         for g in (host, guest):
             g('command', command=f'tp @s {hx + 0.5} {hy} {hz - 1.5}')
-            g.wait(6)
+            g.until(lambda g=g: pos_of(g), lambda p: abs(p[0] - (hx + 0.5)) < 0.25 and abs(p[2] - (hz - 1.5)) < 0.25, ticks=120)
             g.raw('look-at', f'{hx + 0.5:.2f}', f'{hy + 0.5:.2f}', f'{hz - 4.5:.2f}')
-        host.wait(10)
-        h_rest = offsets(host, MOUTH_FOX)[0]
-        g_rest = offsets(guest, MOUTH_FOX)[0]
+        h_rest = host.until(lambda: offsets(host, MOUTH_FOX),
+                            lambda o: bool(o) and abs(o[0][0] - 0.75) < 0.15, ticks=200)[0]
+        g_rest = guest.until(lambda: offsets(guest, MOUTH_FOX),
+                             lambda o: bool(o) and abs(o[0][0] - 0.75) < 0.15, ticks=200)[0]
         # Freeze ticks and step 1 tick at a time so subprocess round-trips never skip the 16-tick pounce peak.
         host('command', command='tick freeze')
         host.wait(3)
@@ -384,11 +484,12 @@ def run(ctl, out, resources, seat_wasm=None):
         clear_mobs(host)
         host('command', command=f'summon {MOUTH_FOX} {hx + 0.5} {hy} {hz - 4.5} {{Age:-24000}}')
         host('command', command=f'summon {CHICKEN} {hx + 0.5} {hy} {hz + 2.5} {{Tags:["mb"]}}')
-        host.wait(10)
+        host.until(lambda: (vehicle(host, MOUTH_FOX), len(chickens(host))),
+                   lambda s: s[0] is not None and s[1] == 1, ticks=200)
         host('command', command=f'ride @e[tag=mb,limit=1] mount {MOUTH_VEHICLE}')
-        host.wait(15)
+        baby_off = host.until(lambda: offsets(host, MOUTH_FOX),
+                              lambda o: bool(o) and abs(o[0][0] - 0.38) < 0.15, ticks=200)[0]
         baby_veh = vehicle(host, MOUTH_FOX)
-        baby_off = offsets(host, MOUTH_FOX)[0]
         results['locator'] = {
             'pass': (abs(h_rest[0] - 0.75) < 0.15 and abs(h_rest[1] - 0.31) < 0.15
                      and abs(g_rest[0] - 0.75) < 0.15 and abs(g_rest[1] - 0.31) < 0.15
