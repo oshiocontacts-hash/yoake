@@ -61,6 +61,17 @@ Generated from `abi-subset-server.json` via `YOAKE_UPDATE_WIT=1 cargo test -p ho
 - Regenerate committed WIT/adapter/SDK files (`YOAKE_UPDATE_WIT=1 cargo test -p horizon-mod-api-gen`) and run builds/tests in Claude's shell round.
 - If dedicated `server-hooks` WIT methods (`parse-command-argument` / `suggest-command-argument`) are preferred over `handle-call` dispatch, `horizon-mod-api-gen`'s `wit_full.rs`/`wasm_adapters.rs` would need single-owner `result<string, string>` hook support added; using `handle-call` matches `behaviors.rs` (F4M-10) and `level_services.rs` (F3-8) without altering `mod_api::Hooks` or `horizon-mod-api-gen`.
 
+### Round 2 (per-server ownership)
+
+- **What changed**:
+  - Removed the process-wide `ACTIVE_CUSTOM_COMMANDS` and `HAS_ACTIVE_CUSTOM_COMMANDS` statics from [`native_server.rs`](file:///C:/Users/suke0/YoakeBuild/wt-r17d-cmd/crates/horizon-client/src/game/native_server.rs); `CustomCommandIndex` now lives on [`LanHost::custom_commands`](file:///C:/Users/suke0/YoakeBuild/wt-r17d-cmd/crates/horizon-client/src/game/lan.rs) beside `LanHost::native_commands`. The no-custom-type fast path checks `custom_commands.is_empty()`.
+  - Removed the process-wide `TABLE` and `ANY` statics from [`command_arguments.rs`](file:///C:/Users/suke0/YoakeBuild/wt-r17d-cmd/crates/horizon-client/src/wasm_mods/command_arguments.rs); registered `<modid>:<name>` argument types are staged per `ServerInitScope` during `load_server_with_args` and committed into `NativeLifecycle::custom_arg_types` (`CustomArgTypes`) on the active `Game` via `ActiveArgTypesScope` during `native_server_about_to_start` and `native_server_tick`.
+  - Cleared `LanHost::clear_native_commands()` and `NativeLifecycle::custom_arg_types.clear()` on `native_server_about_to_start`, `lan_close`, `stop_integrated`, `stop_dedicated`, `stop_after_crash`, `native_lifecycle_world_failed`, `native_lifecycle_close_failed`, and `native_lifecycle_world_closed`, as well as before tree registration (`register_native_commands`) and per-mod on `FullMod::reload_server`.
+  - Updated `register_native_commands`, `prepare_native_custom_command`, `perform_native_command`, `perform_native_console_command`, and `guest_suggestions` (`lan_actions.rs`) to pass the server session's own `custom_commands` and `custom_arg_types`.
+- **Tests (written, pending Claude shell verification)**:
+  - Added `wasm_mods::command_arguments::tests::separate_server_registries_stay_isolated_and_clear_on_stop_or_reload` and `game::native_server::tests::custom_command_indexes_stay_isolated_per_server_and_clear_on_stop`.
+  - Updated existing `command_arguments.rs` unit tests and `wasm_mods::full::tests::command_argument_type_registration_requires_owning_server_initialization` to own `CommandArgRegistry` / `CustomArgTypes` directly without `TEST_LOCK` or `reset()`.
+
 ## 2. `yak::resolve()` in package loading (lane YAK)
 
 ### What changed
@@ -178,9 +189,7 @@ horizon-mods --features yak --test yak 43; launcher `yoake_mods` 65. Nothing wit
 
 ## Left (all lanes)
 
-* Custom argument types: the active index (`ACTIVE_CUSTOM_COMMANDS`) is process-wide like other server statics, not
-  per server session; parse/suggest go through `handle-call` with reserved method names instead of dedicated hooks
-  (the hook generator has no single-owner routing or `result<string,string>` hooks).
+* Custom argument types: per-server ownership/isolation is now implemented for both `CustomCommandIndex` (`LanHost`) and `CustomArgTypes` (`NativeLifecycle`); parse/suggest still go through `handle-call` with reserved method names instead of dedicated hooks (the hook generator has no single-owner routing or `result<string,string>` hooks), and hot-reloading a server module replaces its `CustomArgTypes` entries while `LanHost::native_commands` is built once per `LanHost` unless cleared.
 * Villager trades: on level-up the whole session offer list is passed (not only the new offers); fires on the
   authoritative server only. No custom profession/POI.
 * yak: full-access packages stay on their approved-loader path, outside this resolver pass.

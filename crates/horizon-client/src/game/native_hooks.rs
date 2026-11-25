@@ -2691,6 +2691,13 @@ impl Game<'_> {
     /// player one. API 44.
     pub(super) fn native_server_about_to_start(&mut self, dedicated: bool) {
         crate::entry::wasm_mods::reset_attachments();
+        self.native_lifecycle.custom_arg_types.clear();
+        if let Some(host) = self.lan.as_mut() {
+            host.clear_native_commands();
+        }
+        let _custom_args = crate::entry::wasm_mods::enter_command_arguments(
+            &self.native_lifecycle.custom_arg_types,
+        );
         horizon_client::mobs::mod_mob::activate(&self.options.resources);
         mod_api::dispatch_server_about_to_start(self, mod_api::mods(), dedicated);
     }
@@ -2714,6 +2721,9 @@ impl Game<'_> {
         context: &NativeLifecycleContext,
         phase: ServerTickPhase,
     ) {
+        let _custom_args = crate::entry::wasm_mods::enter_command_arguments(
+            &self.native_lifecycle.custom_arg_types,
+        );
         mod_api::dispatch_server_tick(self, mod_api::mods(), context, phase);
     }
     /// Before an authoritative server level's tick pass. `dimension` is its ID.

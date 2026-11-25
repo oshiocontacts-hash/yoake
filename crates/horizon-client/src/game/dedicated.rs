@@ -2085,6 +2085,9 @@ impl Game<'_> {
         self.save_game()?;
         self.log_saved_levels();
         self.native_lifecycle_world_closed();
+        if let Some(host) = self.lan.as_mut() {
+            host.clear_native_commands();
+        }
         self.lan_close(false);
         Err(format!("the server thread panicked: {message}").into())
     }
@@ -2121,6 +2124,9 @@ impl Game<'_> {
         self.log_saved_levels();
         // Only a successful final save closes the epoch; storage is still held.
         self.native_lifecycle_world_closed();
+        if let Some(host) = self.lan.as_mut() {
+            host.clear_native_commands();
+        }
         self.lan_close(false);
         self.native_server_ops = Default::default();
         Ok(())

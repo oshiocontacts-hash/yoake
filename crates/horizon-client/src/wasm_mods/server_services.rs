@@ -1195,11 +1195,8 @@ impl ServerHost for GameServerHost {
     }
 
     fn register_command_argument_types(&mut self, types: Vec<st::CommandArgumentType>) -> Result<(), String> {
-        if !super::full::initializing_server(&self.id) {
-            return Err("command argument types may only be registered during server initialization".into());
-        }
         let pairs: Vec<(String, bool)> = types.into_iter().map(|entry| (entry.name, entry.greedy)).collect();
-        super::command_arguments::register_types(&self.id, &pairs)
+        super::full::register_server_arg_types(&self.id, &pairs)
     }
 }
 

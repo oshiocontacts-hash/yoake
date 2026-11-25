@@ -242,35 +242,10 @@ impl CustomCommandIndex {
     pub(super) fn is_empty(&self) -> bool {
         self.by_root.is_empty()
     }
-}
 
-static ACTIVE_CUSTOM_COMMANDS: std::sync::OnceLock<std::sync::Mutex<CustomCommandIndex>> =
-    std::sync::OnceLock::new();
-static HAS_ACTIVE_CUSTOM_COMMANDS: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
-
-fn active_custom_commands() -> &'static std::sync::Mutex<CustomCommandIndex> {
-    ACTIVE_CUSTOM_COMMANDS.get_or_init(|| std::sync::Mutex::new(CustomCommandIndex::default()))
-}
-
-fn set_active_custom_commands(index: CustomCommandIndex) {
-    let empty = index.is_empty();
-    *active_custom_commands()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = index;
-    HAS_ACTIVE_CUSTOM_COMMANDS.store(!empty, std::sync::atomic::Ordering::Release);
-}
-
-fn snapshot_custom_commands(root: &str) -> Option<Vec<CompiledUsage>> {
-    if !HAS_ACTIVE_CUSTOM_COMMANDS.load(std::sync::atomic::Ordering::Relaxed) {
-        return None;
+    pub(super) fn clear(&mut self) {
+        self.by_root.clear();
     }
-    active_custom_commands()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .by_root
-        .get(root)
-        .cloned()
 }
 
 fn skip_ws(s: &str, mut pos: usize) -> usize {
@@ -1349,31 +1324,50 @@ impl Game<'_> {
         if host.native_commands.is_some() {
             return;
         }
+        host.custom_commands.clear();
         let mut commands = Vec::new();
         self.native_register_commands(&mut commands);
         let (tree, levels, custom_index, problems) = command_tree_with(
             &commands,
             |name| host.hub.vanilla_command(name),
-            crate::entry::wasm_mods::custom_command_argument_greedy,
+            |kind| {
+                crate::entry::wasm_mods::custom_command_argument_greedy(
+                    &self.native_lifecycle.custom_arg_types,
+                    kind,
+                )
+            },
         );
         for p in problems {
             log::warn!("Horizon: a native mod's command was left out: {p}");
         }
-        set_active_custom_commands(custom_index);
+        host.custom_commands = custom_index;
         host.hub.set_mod_commands(0, tree);
         host.native_commands = Some(levels);
     }
 
-    fn prepare_native_custom_command(&self, permission: u8, line: &str) -> CustomPrepare {
+    fn prepare_native_custom_command(
+        &self,
+        custom_commands: &CustomCommandIndex,
+        permission: u8,
+        line: &str,
+    ) -> CustomPrepare {
+        if custom_commands.is_empty() {
+            return CustomPrepare::PassThrough;
+        }
         let trimmed = line.trim();
         let Some(root) = trimmed.split_whitespace().next() else {
             return CustomPrepare::PassThrough;
         };
-        let Some(usages) = snapshot_custom_commands(root) else {
+        let Some(usages) = custom_commands.by_root.get(root) else {
             return CustomPrepare::PassThrough;
         };
-        prepare_custom_command(&usages, permission, trimmed, |type_id, input| {
-            crate::entry::wasm_mods::parse_custom_command_argument(self, type_id, input)
+        prepare_custom_command(usages, permission, trimmed, |type_id, input| {
+            crate::entry::wasm_mods::parse_custom_command_argument(
+                self,
+                &self.native_lifecycle.custom_arg_types,
+                type_id,
+                input,
+            )
         })
     }
 
@@ -1381,13 +1375,14 @@ impl Game<'_> {
     /// completes a registered custom `<modid>:<name>` argument.
     pub(super) fn add_custom_command_suggestions(
         &self,
+        custom_commands: &CustomCommandIndex,
         permission: u8,
         command: &str,
         start: &mut usize,
         end: &mut usize,
         suggestions: &mut Vec<horizon_client::command::Suggestion>,
     ) {
-        if !HAS_ACTIVE_CUSTOM_COMMANDS.load(std::sync::atomic::Ordering::Relaxed) {
+        if custom_commands.is_empty() {
             return;
         }
         let Some(root) = command.split_whitespace().next() else {
@@ -1396,18 +1391,21 @@ impl Game<'_> {
         if command.len() == root.len() && !command.ends_with(char::is_whitespace) {
             return;
         }
-        let Some(usages) = snapshot_custom_commands(root) else {
+        let Some(usages) = custom_commands.by_root.get(root) else {
             return;
         };
-        let targets = plan_custom_suggestions(&usages, permission, command);
+        let targets = plan_custom_suggestions(usages, permission, command);
         if targets.is_empty() {
             return;
         }
         let mut added = false;
         for (arg_start, type_id, partial) in targets {
-            for text in
-                crate::entry::wasm_mods::suggest_custom_command_argument(self, &type_id, &partial)
-            {
+            for text in crate::entry::wasm_mods::suggest_custom_command_argument(
+                self,
+                &self.native_lifecycle.custom_arg_types,
+                &type_id,
+                &partial,
+            ) {
                 suggestions.push(horizon_client::command::Suggestion {
                     range: (arg_start, command.len()),
                     text,
@@ -1501,7 +1499,11 @@ impl Game<'_> {
             yaw: g.yaw,
             pitch: g.pitch,
         };
-        let effective = match self.prepare_native_custom_command(permission, line) {
+        let effective = match self.prepare_native_custom_command(
+            &host.custom_commands,
+            permission,
+            line,
+        ) {
             CustomPrepare::PassThrough => None,
             CustomPrepare::Rewritten(rewritten) => Some(rewritten),
             CustomPrepare::Error(message) => {
@@ -1536,7 +1538,7 @@ impl Game<'_> {
         if Self::native_command_level(host, line).is_none() {
             return false;
         }
-        let effective = match self.prepare_native_custom_command(4, line) {
+        let effective = match self.prepare_native_custom_command(&host.custom_commands, 4, line) {
             CustomPrepare::PassThrough => None,
             CustomPrepare::Rewritten(rewritten) => Some(rewritten),
             CustomPrepare::Error(message) => {
@@ -1895,5 +1897,55 @@ mod tests {
             plan_custom_suggestions(memo, 2, "memo hello w"),
             vec![(5, "demo:note".into(), "hello w".into())]
         );
+    }
+
+    #[test]
+    fn custom_command_indexes_stay_isolated_per_server_and_clear_on_stop() {
+        let server_a_types = crate::entry::wasm_mods::CustomArgTypes::default();
+        let server_b_types = crate::entry::wasm_mods::CustomArgTypes::default();
+        let mut reg_a = crate::entry::wasm_mods::command_arguments::CommandArgRegistry::default();
+        let mut reg_b = crate::entry::wasm_mods::command_arguments::CommandArgRegistry::default();
+        reg_a.register_types("alpha", &[("color".into(), false)]).unwrap();
+        reg_b.register_types("beta", &[("note".into(), true)]).unwrap();
+        server_a_types.replace_owner("alpha", &reg_a).unwrap();
+        server_b_types.replace_owner("beta", &reg_b).unwrap();
+
+        let (_, _, mut index_a, problems_a) = command_tree_with(
+            &[NativeCommand::new("paint <shade:alpha:color>")],
+            |_| false,
+            |kind| crate::entry::wasm_mods::custom_command_argument_greedy(&server_a_types, kind),
+        );
+        assert!(problems_a.is_empty(), "{problems_a:?}");
+
+        let (_, _, index_b, problems_b) = command_tree_with(
+            &[NativeCommand::new("memo <body:beta:note>")],
+            |_| false,
+            |kind| crate::entry::wasm_mods::custom_command_argument_greedy(&server_b_types, kind),
+        );
+        assert!(problems_b.is_empty(), "{problems_b:?}");
+
+        assert!(!index_a.is_empty());
+        assert!(!index_b.is_empty());
+        assert!(index_a.by_root.contains_key("paint"));
+        assert!(!index_a.by_root.contains_key("memo"));
+        assert!(index_b.by_root.contains_key("memo"));
+        assert!(!index_b.by_root.contains_key("paint"));
+
+        // Registering server_a's command against server_b's types rejects unknown argument type.
+        let (_, _, _, cross_problems) = command_tree_with(
+            &[NativeCommand::new("paint <shade:alpha:color>")],
+            |_| false,
+            |kind| crate::entry::wasm_mods::custom_command_argument_greedy(&server_b_types, kind),
+        );
+        assert_eq!(cross_problems.len(), 1);
+        assert!(cross_problems[0].contains("unknown custom argument type"));
+
+        // Clearing server_a empties its index and types while server_b keeps theirs.
+        index_a.clear();
+        server_a_types.clear();
+        assert!(index_a.is_empty());
+        assert!(server_a_types.is_empty());
+        assert!(!index_b.is_empty());
+        assert!(!server_b_types.is_empty());
     }
 }

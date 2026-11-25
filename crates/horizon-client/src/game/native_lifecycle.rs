@@ -53,6 +53,8 @@ pub(super) struct NativeLifecycle {
     read_scope: bool,
     /// F4M-10: this server's hold on the script runtime of custom mobs, from its open to its close.
     pub(super) script_session: Option<horizon_client::mobs::custom::script::Session>,
+    /// REM-17d: custom command argument types registered for this server session.
+    pub(super) custom_arg_types: crate::entry::wasm_mods::CustomArgTypes,
 }
 
 impl NativeLifecycle {
@@ -260,6 +262,10 @@ impl Game<'_> {
     /// `error_text` is the engine's own error text, unchanged.
     pub(super) fn native_lifecycle_world_failed(&mut self, error_text: &str) {
         self.script_session_close();
+        self.native_lifecycle.custom_arg_types.clear();
+        if let Some(host) = self.lan.as_mut() {
+            host.clear_native_commands();
+        }
         self.clear_native_local_sounds();
         self.native_player_ops.bars.clear();
         self.native_player_ops.inventory_dirty.clear();
@@ -274,6 +280,10 @@ impl Game<'_> {
     /// Report a server-loop or shutdown failure once and retire its epoch.
     pub(super) fn native_lifecycle_close_failed(&mut self, error_text: &str) {
         self.script_session_close();
+        self.native_lifecycle.custom_arg_types.clear();
+        if let Some(host) = self.lan.as_mut() {
+            host.clear_native_commands();
+        }
         self.clear_native_local_sounds();
         self.native_player_ops.bars.clear();
         self.native_player_ops.inventory_dirty.clear();
@@ -290,6 +300,10 @@ impl Game<'_> {
             return;
         }
         self.script_session_close();
+        self.native_lifecycle.custom_arg_types.clear();
+        if let Some(host) = self.lan.as_mut() {
+            host.clear_native_commands();
+        }
         self.native_player_ops.bars.clear();
         self.native_player_ops.inventory_dirty.clear();
         // Each level closes after the final save (`LevelEvent.Unload`).

@@ -196,6 +196,9 @@ pub(super) struct LanHost {
     /// Native mods' commands and the level each needs, once asked
     /// (game/native_server.rs).
     pub native_commands: Option<HashMap<String, u8>>,
+    /// Compiled custom-argument command usages for this server session
+    /// (game/native_server.rs).
+    pub(super) custom_commands: super::native_server::CustomCommandIndex,
     /// The players a native mod leaves out of the sleep count when they
     /// aren't in bed (`native_sleep_ignored`).
     pub sleep_ignored: std::collections::HashSet<u128>,
@@ -205,6 +208,14 @@ pub(super) struct LanHost {
     /// The entity id counter when this tick's states were taken for guests
     /// (`lan_note_joined`), None when no guest tracked them.
     pub(super) states_next_entity: Option<u32>,
+}
+
+impl LanHost {
+    /// Clears cached native mod commands and custom-argument usages when rebuilding or stopping.
+    pub(super) fn clear_native_commands(&mut self) {
+        self.native_commands = None;
+        self.custom_commands.clear();
+    }
 }
 
 impl Game<'_> {
@@ -1362,6 +1373,7 @@ impl Game<'_> {
             quiet: std::collections::VecDeque::new(),
             far,
             native_commands: None,
+            custom_commands: Default::default(),
             sleep_ignored: Default::default(),
             states: Default::default(),
             states_next_entity: None,
@@ -1393,6 +1405,7 @@ impl Game<'_> {
         let Some(mut host) = self.lan.take() else {
             return;
         };
+        host.clear_native_commands();
         self.award_leave_game_to_all(&mut host);
         self.save_leaving_guests(&mut host);
         host.hub.disconnect_all();

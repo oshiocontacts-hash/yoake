@@ -3581,6 +3581,7 @@ impl Game<'_> {
         let ((mut start, mut end), mut suggestions) =
             d.suggestions(&parse, command.len(), &self.ui.registries);
         self.add_custom_command_suggestions(
+            &host.custom_commands,
             permission,
             command,
             &mut start,

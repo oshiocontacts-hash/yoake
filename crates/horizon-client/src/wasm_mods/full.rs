@@ -267,8 +267,15 @@ impl FullMod {
             return;
         };
         let commands = self.server_source.as_ref().is_some_and(|source| source.commands);
-        match load_server(&ModuleSource { id: &self.id, bytes: &bytes, commands, gpu: false }) {
-            Ok(module) => {
+        match load_server_with_args(&ModuleSource { id: &self.id, bytes: &bytes, commands, gpu: false }) {
+            Ok((module, arg_types)) => {
+                if let Err(error) = super::command_arguments::commit_active_owner(&self.id, &arg_types) {
+                    log::warn!(
+                        "wasm mod {} (server) not reloaded, the old instance keeps running: {error}",
+                        self.id
+                    );
+                    return;
+                }
                 for (word, fresh) in self.masks[Side::Server as usize].iter().zip(mask_of(|name| module.subscribed(name))) {
                     word.store(fresh.load(Ordering::Relaxed), Ordering::Relaxed);
                 }
@@ -344,8 +351,17 @@ impl FullMod {
             Some(bytes) => ModuleSource { bytes, ..source.module() },
             None => source.module(),
         };
-        match load_server(&module) {
-            Ok(module) => {
+        match load_server_with_args(&module) {
+            Ok((module, arg_types)) => {
+                if let Err(error) = super::command_arguments::commit_active_owner(&self.id, &arg_types) {
+                    state.module = None;
+                    self.disable(Side::Server);
+                    log::error!(
+                        "wasm mod {} (server) could not start afresh and is off: {error}",
+                        self.id
+                    );
+                    return;
+                }
                 for (word, fresh) in self.masks[Side::Server as usize]
                     .iter()
                     .zip(mask_of(|name| module.subscribed(name)))
@@ -1469,15 +1485,36 @@ pub(super) struct GameServerHost {
     pub(super) commands: bool,
 }
 
-thread_local! {
-    static SERVER_INIT_OWNER: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+struct ServerInitState {
+    owner: String,
+    arg_types: super::command_arguments::CommandArgRegistry,
 }
 
-pub(super) struct ServerInitScope(Option<String>);
+thread_local! {
+    static SERVER_INIT_OWNER: std::cell::RefCell<Option<ServerInitState>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+pub(super) struct ServerInitScope(Option<ServerInitState>);
 
 impl ServerInitScope {
     pub(super) fn enter(owner: &str) -> Self {
-        Self(SERVER_INIT_OWNER.with(|active| active.replace(Some(owner.to_owned()))))
+        Self(SERVER_INIT_OWNER.with(|active| {
+            active.replace(Some(ServerInitState {
+                owner: owner.to_owned(),
+                arg_types: Default::default(),
+            }))
+        }))
+    }
+
+    fn take_arg_types(&self) -> super::command_arguments::CommandArgRegistry {
+        SERVER_INIT_OWNER.with(|active| {
+            active
+                .borrow_mut()
+                .as_mut()
+                .map(|state| std::mem::take(&mut state.arg_types))
+                .unwrap_or_default()
+        })
     }
 }
 
@@ -1488,7 +1525,34 @@ impl Drop for ServerInitScope {
 }
 
 pub(super) fn initializing_server(owner: &str) -> bool {
-    SERVER_INIT_OWNER.with(|active| active.borrow().as_deref() == Some(owner))
+    SERVER_INIT_OWNER.with(|active| {
+        active
+            .borrow()
+            .as_ref()
+            .is_some_and(|state| state.owner == owner)
+    })
+}
+
+pub(super) fn register_server_arg_types(
+    owner: &str,
+    entries: &[(String, bool)],
+) -> Result<(), String> {
+    SERVER_INIT_OWNER.with(|active| {
+        let mut borrow = active.borrow_mut();
+        let Some(state) = borrow.as_mut() else {
+            return Err(
+                "command argument types may only be registered during server initialization"
+                    .into(),
+            );
+        };
+        if state.owner != owner {
+            return Err(
+                "command argument types may only be registered during server initialization"
+                    .into(),
+            );
+        }
+        state.arg_types.register_types(owner, entries)
+    })
 }
 
 /// A path as the guest may see it: relative to the game folder (the server's working directory), or
@@ -1640,12 +1704,28 @@ fn load_client_with_host(source: &ModuleSource<'_>, host: GameHost) -> Result<Cl
     Ok(module)
 }
 
-pub(super) fn load_server(source: &ModuleSource<'_>) -> Result<ServerFullMod, String> {
+fn load_server_with_args(
+    source: &ModuleSource<'_>,
+) -> Result<(ServerFullMod, super::command_arguments::CommandArgRegistry), String> {
     horizon_items::items::publish_registry_for_checks();
     let mut sandbox = sandbox().lock().unwrap_or_else(|error| error.into_inner());
-    let _initialization = ServerInitScope::enter(source.id);
-    ServerFullMod::instantiate(&mut sandbox, source.id, source.bytes, Box::new(GameServerHost { id: source.id.to_owned(), commands: source.commands }), UNWIRED)
-        .map_err(|error| error.to_string())
+    let initialization = ServerInitScope::enter(source.id);
+    let module = ServerFullMod::instantiate(
+        &mut sandbox,
+        source.id,
+        source.bytes,
+        Box::new(GameServerHost {
+            id: source.id.to_owned(),
+            commands: source.commands,
+        }),
+        UNWIRED,
+    )
+    .map_err(|error| error.to_string())?;
+    Ok((module, initialization.take_arg_types()))
+}
+
+pub(super) fn load_server(source: &ModuleSource<'_>) -> Result<ServerFullMod, String> {
+    load_server_with_args(source).map(|(module, _)| module)
 }
 
 /// How many hooks have an adapter: all but [`UNWIRED`].
@@ -1754,10 +1834,6 @@ mod tests {
 
     #[test]
     fn command_argument_type_registration_requires_owning_server_initialization() {
-        let _guard = super::super::command_arguments::TEST_LOCK
-            .lock()
-            .unwrap();
-        super::super::command_arguments::reset();
         let mut host = GameServerHost {
             id: "cmd-init".into(),
             commands: false,
@@ -1769,21 +1845,26 @@ mod tests {
             }])
         };
         assert!(register(&mut host).is_err());
+        let server = super::super::command_arguments::CustomArgTypes::default();
         {
-            let _initialization = ServerInitScope::enter("cmd-init");
+            let initialization = ServerInitScope::enter("cmd-init");
             register(&mut host).unwrap();
             {
                 let _other_initialization = ServerInitScope::enter("cmd-other");
                 assert!(register(&mut host).is_err());
             }
             register(&mut host).unwrap();
+            let staged = initialization.take_arg_types();
+            let _scope = super::super::command_arguments::ActiveArgTypesScope::enter(&server);
+            super::super::command_arguments::commit_active_owner("cmd-init", &staged).unwrap();
         }
         assert!(register(&mut host).is_err());
         assert_eq!(
-            super::super::command_arguments::lookup_type("cmd-init:zone").map(|t| t.greedy),
+            server.lookup_type("cmd-init:zone").map(|t| t.greedy),
             Some(false)
         );
-        super::super::command_arguments::reset();
+        server.clear();
+        assert!(server.is_empty());
     }
 
     #[test]

@@ -17,7 +17,7 @@ pub(crate) mod behaviors;
 #[path = "wasm_mods/client_services.rs"]
 mod client_services;
 #[path = "wasm_mods/command_arguments.rs"]
-mod command_arguments;
+pub(crate) mod command_arguments;
 #[path = "wasm_mods/dev_shaders.rs"]
 mod dev_shaders;
 #[path = "wasm_mods/f_route.rs"]
@@ -41,27 +41,41 @@ pub(crate) fn install_script_runtimes() {
     mob_runtime::install_client();
 }
 
-/// Returns `Some(greedy)` when `kind` is a registered `<modid>:<name>` custom command argument type.
-pub(crate) fn custom_command_argument_greedy(kind: &str) -> Option<bool> {
-    command_arguments::lookup_type(kind).map(|entry| entry.greedy)
+pub(crate) use command_arguments::{ActiveArgTypesScope, CustomArgTypes};
+
+/// Binds a server's [`CustomArgTypes`] registry onto the current thread while initializing or
+/// hot-reloading server WASM modules.
+pub(crate) fn enter_command_arguments(target: &CustomArgTypes) -> ActiveArgTypesScope {
+    ActiveArgTypesScope::enter(target)
+}
+
+/// Returns `Some(greedy)` when `kind` is a registered `<modid>:<name>` custom command argument type
+/// on the server's `registry`.
+pub(crate) fn custom_command_argument_greedy(
+    registry: &CustomArgTypes,
+    kind: &str,
+) -> Option<bool> {
+    registry.lookup_type(kind).map(|entry| entry.greedy)
 }
 
 /// Calls the owning server mod to parse and normalize a custom command argument value.
 pub(crate) fn parse_custom_command_argument(
     host: &dyn Host,
+    registry: &CustomArgTypes,
     kind: &str,
     input: &str,
 ) -> Result<String, String> {
-    command_arguments::parse_argument(kind, input, HostAccess::Read(host))
+    registry.parse_argument(kind, input, HostAccess::Read(host))
 }
 
 /// Calls the owning server mod to collect bounded tab-completion suggestions for a custom argument.
 pub(crate) fn suggest_custom_command_argument(
     host: &dyn Host,
+    registry: &CustomArgTypes,
     kind: &str,
     partial: &str,
 ) -> Vec<String> {
-    command_arguments::suggest_argument(kind, partial, HostAccess::Read(host))
+    registry.suggest_argument(kind, partial, HostAccess::Read(host))
 }
 
 /// A server's isolated session over the script runtime and command bus of custom mobs, opened

@@ -10,7 +10,7 @@ use super::server_services::endpoint;
 use super::{ClientExtras, HostAccess, Invocation, Scope};
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 
 /// Method name passed to `handle-call` when parsing and normalizing a custom argument value.
 pub(crate) const METHOD_PARSE: &str = "yoake:command-argument/parse";
@@ -33,39 +33,133 @@ pub(crate) struct RegisteredArgType {
     pub(crate) greedy: bool,
 }
 
-#[derive(Default)]
-struct Registry {
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct CommandArgRegistry {
     types: BTreeMap<String, RegisteredArgType>,
     counts: BTreeMap<String, usize>,
 }
 
-static TABLE: Mutex<Registry> = Mutex::new(Registry {
-    types: BTreeMap::new(),
-    counts: BTreeMap::new(),
-});
-static ANY: AtomicBool = AtomicBool::new(false);
 static BUSY_WARNED: AtomicBool = AtomicBool::new(false);
 static FAILED_WARNED: AtomicBool = AtomicBool::new(false);
 
-#[cfg(test)]
-pub(crate) static TEST_LOCK: Mutex<()> = Mutex::new(());
-
-fn table() -> MutexGuard<'static, Registry> {
-    TABLE.lock().unwrap_or_else(|error| error.into_inner())
+thread_local! {
+    static ACTIVE_ARG_TYPES: std::cell::RefCell<Option<CustomArgTypes>> =
+        const { std::cell::RefCell::new(None) };
 }
 
-/// Whether any server mod has registered a custom command argument type (single atomic load).
-pub(crate) fn any() -> bool {
-    ANY.load(Ordering::Relaxed)
+/// Server-owned custom command argument type registry shared only within one server session.
+#[derive(Clone, Default)]
+pub(crate) struct CustomArgTypes {
+    inner: Arc<CustomArgTypesInner>,
 }
 
-/// Clears all registered custom argument types (tests).
-#[cfg(test)]
-pub(crate) fn reset() {
-    let mut guard = table();
-    guard.types.clear();
-    guard.counts.clear();
-    ANY.store(false, Ordering::Release);
+#[derive(Default)]
+struct CustomArgTypesInner {
+    registry: Mutex<CommandArgRegistry>,
+    any: AtomicBool,
+}
+
+/// Binds a server's [`CustomArgTypes`] onto the current thread while server modules initialize
+/// or hot-reload.
+pub(crate) struct ActiveArgTypesScope(Option<CustomArgTypes>);
+
+impl ActiveArgTypesScope {
+    pub(crate) fn enter(target: &CustomArgTypes) -> Self {
+        Self(ACTIVE_ARG_TYPES.with(|active| active.replace(Some(target.clone()))))
+    }
+}
+
+impl Drop for ActiveArgTypesScope {
+    fn drop(&mut self) {
+        ACTIVE_ARG_TYPES.with(|active| active.replace(self.0.take()));
+    }
+}
+
+/// Commits types staged during module initialization into the active server's registry, if any.
+///
+/// Outside a live server open/reload (such as startup probing or isolated guest tests), staged
+/// registrations were already validated and are discarded.
+pub(crate) fn commit_active_owner(
+    owner: &str,
+    staged: &CommandArgRegistry,
+) -> Result<(), String> {
+    let target = ACTIVE_ARG_TYPES.with(|active| active.borrow().clone());
+    if let Some(target) = target {
+        target.replace_owner(owner, staged)?;
+    }
+    Ok(())
+}
+
+impl CustomArgTypes {
+    /// Whether no custom argument type is registered for this server session (single atomic load).
+    pub(crate) fn is_empty(&self) -> bool {
+        !self.inner.any.load(Ordering::Relaxed)
+    }
+
+    /// Clears all custom argument types owned by this server session.
+    pub(crate) fn clear(&self) {
+        let mut guard = self
+            .inner
+            .registry
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        guard.clear();
+        self.inner.any.store(false, Ordering::Release);
+    }
+
+    /// Replaces `owner`'s registered types atomically when that server module initializes or reloads.
+    pub(crate) fn replace_owner(
+        &self,
+        owner: &str,
+        staged: &CommandArgRegistry,
+    ) -> Result<(), String> {
+        let mut guard = self
+            .inner
+            .registry
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        guard.replace_owner_from(owner, staged)?;
+        self.inner.any.store(!guard.is_empty(), Ordering::Release);
+        Ok(())
+    }
+
+    /// Looks up a registered `<modid>:<name>` custom argument type on this server session.
+    pub(crate) fn lookup_type(&self, type_id: &str) -> Option<RegisteredArgType> {
+        if self.is_empty() {
+            return None;
+        }
+        self.inner
+            .registry
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .lookup_type(type_id)
+    }
+
+    /// Calls the owning mod to parse and normalize a custom command argument value.
+    pub(crate) fn parse_argument(
+        &self,
+        type_id: &str,
+        input: &str,
+        host: HostAccess<'_>,
+    ) -> Result<String, String> {
+        let Some(entry) = self.lookup_type(type_id) else {
+            return Err(format!("unknown custom argument type `{type_id}`"));
+        };
+        parse_with_entry(&entry, type_id, input, host)
+    }
+
+    /// Calls the owning mod to collect bounded tab-completion suggestions for a custom argument.
+    pub(crate) fn suggest_argument(
+        &self,
+        type_id: &str,
+        partial: &str,
+        host: HostAccess<'_>,
+    ) -> Vec<String> {
+        let Some(entry) = self.lookup_type(type_id) else {
+            return Vec::new();
+        };
+        suggest_with_entry(&entry, type_id, partial, host)
+    }
 }
 
 fn valid_mod_id(owner: &str) -> bool {
@@ -84,80 +178,148 @@ fn valid_type_name(name: &str) -> bool {
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-'))
 }
 
-/// Registers custom command argument types for `owner`, namespacing each as `<owner>:<name>`.
-pub(crate) fn register_types(owner: &str, entries: &[(String, bool)]) -> Result<(), String> {
-    if !valid_mod_id(owner) {
-        return Err(format!("invalid mod id `{owner:.64}`"));
+impl CommandArgRegistry {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.types.is_empty()
     }
-    if entries.len() > MAX_TYPES_PER_MOD {
-        return Err(format!(
-            "a package registers at most {MAX_TYPES_PER_MOD} command argument types"
-        ));
+
+    pub(crate) fn clear(&mut self) {
+        self.types.clear();
+        self.counts.clear();
     }
-    let mut staged: Vec<(String, RegisteredArgType)> = Vec::with_capacity(entries.len());
-    for (name, greedy) in entries {
-        if !valid_type_name(name) {
+
+    fn clear_owner(&mut self, owner: &str) {
+        self.counts.remove(owner);
+        self.types.retain(|_, entry| entry.owner != owner);
+    }
+
+    /// Registers custom command argument types for `owner`, namespacing each as `<owner>:<name>`.
+    pub(crate) fn register_types(
+        &mut self,
+        owner: &str,
+        entries: &[(String, bool)],
+    ) -> Result<(), String> {
+        if !valid_mod_id(owner) {
+            return Err(format!("invalid mod id `{owner:.64}`"));
+        }
+        if entries.len() > MAX_TYPES_PER_MOD {
             return Err(format!(
-                "invalid command argument type name `{name:.64}` (expected 1..={MAX_NAME_LEN} lowercase ASCII letters, digits, `_` or `-`)"
+                "a package registers at most {MAX_TYPES_PER_MOD} command argument types"
             ));
         }
-        let id = format!("{owner}:{name}");
-        if let Some((_, prev)) = staged.iter().find(|(existing, _)| existing == &id) {
-            if prev.greedy != *greedy {
+        let mut staged: Vec<(String, RegisteredArgType)> = Vec::with_capacity(entries.len());
+        for (name, greedy) in entries {
+            if !valid_type_name(name) {
                 return Err(format!(
-                    "command argument type `{id}` declared with conflicting greedy flags"
+                    "invalid command argument type name `{name:.64}` (expected 1..={MAX_NAME_LEN} lowercase ASCII letters, digits, `_` or `-`)"
                 ));
             }
-            continue;
-        }
-        staged.push((
-            id,
-            RegisteredArgType {
-                owner: owner.to_owned(),
-                greedy: *greedy,
-            },
-        ));
-    }
-
-    let mut guard = table();
-    let existing_count = guard.counts.get(owner).copied().unwrap_or(0);
-    let mut new_for_owner = 0usize;
-    for (id, entry) in &staged {
-        if let Some(prev) = guard.types.get(id) {
-            if prev.owner != owner {
-                return Err(format!(
-                    "command argument type `{id}` belongs to another package"
-                ));
+            let id = format!("{owner}:{name}");
+            if let Some((_, prev)) = staged.iter().find(|(existing, _)| existing == &id) {
+                if prev.greedy != *greedy {
+                    return Err(format!(
+                        "command argument type `{id}` declared with conflicting greedy flags"
+                    ));
+                }
+                continue;
             }
-        } else {
-            new_for_owner += 1;
+            staged.push((
+                id,
+                RegisteredArgType {
+                    owner: owner.to_owned(),
+                    greedy: *greedy,
+                },
+            ));
         }
-        let _ = entry;
-    }
-    if existing_count + new_for_owner > MAX_TYPES_PER_MOD {
-        return Err(format!(
-            "a package registers at most {MAX_TYPES_PER_MOD} command argument types"
-        ));
-    }
-    if guard.types.len() + new_for_owner > MAX_TOTAL_TYPES {
-        return Err(format!(
-            "too many command argument types registered (limit {MAX_TOTAL_TYPES})"
-        ));
-    }
-    for (id, entry) in staged {
-        guard.types.insert(id, entry);
-    }
-    *guard.counts.entry(owner.to_owned()).or_insert(0) += new_for_owner;
-    ANY.store(!guard.types.is_empty(), Ordering::Release);
-    Ok(())
-}
 
-/// Looks up a registered `<modid>:<name>` custom argument type.
-pub(crate) fn lookup_type(type_id: &str) -> Option<RegisteredArgType> {
-    if !any() {
-        return None;
+        let existing_count = self.counts.get(owner).copied().unwrap_or(0);
+        let mut new_for_owner = 0usize;
+        for (id, entry) in &staged {
+            if let Some(prev) = self.types.get(id) {
+                if prev.owner != owner {
+                    return Err(format!(
+                        "command argument type `{id}` belongs to another package"
+                    ));
+                }
+            } else {
+                new_for_owner += 1;
+            }
+            let _ = entry;
+        }
+        if existing_count + new_for_owner > MAX_TYPES_PER_MOD {
+            return Err(format!(
+                "a package registers at most {MAX_TYPES_PER_MOD} command argument types"
+            ));
+        }
+        if self.types.len() + new_for_owner > MAX_TOTAL_TYPES {
+            return Err(format!(
+                "too many command argument types registered (limit {MAX_TOTAL_TYPES})"
+            ));
+        }
+        for (id, entry) in staged {
+            self.types.insert(id, entry);
+        }
+        *self.counts.entry(owner.to_owned()).or_insert(0) += new_for_owner;
+        Ok(())
     }
-    table().types.get(type_id).cloned()
+
+    pub(crate) fn replace_owner_from(
+        &mut self,
+        owner: &str,
+        staged: &Self,
+    ) -> Result<(), String> {
+        let old_count = self.counts.get(owner).copied().unwrap_or(0);
+        let new_count = staged.counts.get(owner).copied().unwrap_or(0);
+        if self.types.len().saturating_sub(old_count) + new_count > MAX_TOTAL_TYPES {
+            return Err(format!(
+                "too many command argument types registered (limit {MAX_TOTAL_TYPES})"
+            ));
+        }
+        self.clear_owner(owner);
+        for (id, entry) in &staged.types {
+            if entry.owner == owner {
+                self.types.insert(id.clone(), entry.clone());
+            }
+        }
+        if new_count > 0 {
+            self.counts.insert(owner.to_owned(), new_count);
+        }
+        Ok(())
+    }
+
+    /// Looks up a registered `<modid>:<name>` custom argument type.
+    pub(crate) fn lookup_type(&self, type_id: &str) -> Option<RegisteredArgType> {
+        if self.is_empty() {
+            return None;
+        }
+        self.types.get(type_id).cloned()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn parse_argument(
+        &self,
+        type_id: &str,
+        input: &str,
+        host: HostAccess<'_>,
+    ) -> Result<String, String> {
+        let Some(entry) = self.lookup_type(type_id) else {
+            return Err(format!("unknown custom argument type `{type_id}`"));
+        };
+        parse_with_entry(&entry, type_id, input, host)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn suggest_argument(
+        &self,
+        type_id: &str,
+        partial: &str,
+        host: HostAccess<'_>,
+    ) -> Vec<String> {
+        let Some(entry) = self.lookup_type(type_id) else {
+            return Vec::new();
+        };
+        suggest_with_entry(&entry, type_id, partial, host)
+    }
 }
 
 fn push_str(buf: &mut Vec<u8>, text: &str) {
@@ -308,15 +470,12 @@ fn log_failure(owner: &str, method: &str, detail: &str) {
     }
 }
 
-/// Calls the owning mod to parse and normalize a custom command argument value.
-pub(crate) fn parse_argument(
+fn parse_with_entry(
+    entry: &RegisteredArgType,
     type_id: &str,
     input: &str,
     host: HostAccess<'_>,
 ) -> Result<String, String> {
-    let Some(entry) = lookup_type(type_id) else {
-        return Err(format!("unknown custom argument type `{type_id}`"));
-    };
     let payload = encode_request(type_id, input);
     let Some(answer) = invoke_owner(&entry.owner, METHOD_PARSE, &payload, host) else {
         return Err(format!("command argument parser `{type_id}` is unavailable"));
@@ -343,15 +502,12 @@ pub(crate) fn parse_argument(
     }
 }
 
-/// Calls the owning mod to collect bounded tab-completion suggestions for a custom argument.
-pub(crate) fn suggest_argument(
+fn suggest_with_entry(
+    entry: &RegisteredArgType,
     type_id: &str,
     partial: &str,
     host: HostAccess<'_>,
 ) -> Vec<String> {
-    let Some(entry) = lookup_type(type_id) else {
-        return Vec::new();
-    };
     let payload = encode_request(type_id, partial);
     let Some(answer) = invoke_owner(&entry.owner, METHOD_SUGGEST, &payload, host) else {
         return Vec::new();
@@ -380,54 +536,52 @@ mod tests {
 
     #[test]
     fn registration_namespaces_validates_and_enforces_limits() {
-        let _guard = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        reset();
-        assert!(!any());
+        let mut registry = CommandArgRegistry::default();
+        assert!(registry.is_empty());
 
         // Rejects bad names (empty, colon, uppercase, whitespace, overlong).
-        assert!(register_types("cmdmod", &[("".into(), false)]).is_err());
-        assert!(register_types("cmdmod", &[("a:b".into(), false)]).is_err());
-        assert!(register_types("cmdmod", &[("Color".into(), false)]).is_err());
-        assert!(register_types("cmdmod", &[("two words".into(), false)]).is_err());
-        assert!(register_types("cmdmod", &[("x".repeat(MAX_NAME_LEN + 1), false)]).is_err());
-        assert!(register_types("bad mod", &[("ok".into(), false)]).is_err());
-        assert!(!any());
+        assert!(registry.register_types("cmdmod", &[("".into(), false)]).is_err());
+        assert!(registry.register_types("cmdmod", &[("a:b".into(), false)]).is_err());
+        assert!(registry.register_types("cmdmod", &[("Color".into(), false)]).is_err());
+        assert!(registry.register_types("cmdmod", &[("two words".into(), false)]).is_err());
+        assert!(registry.register_types("cmdmod", &[("x".repeat(MAX_NAME_LEN + 1), false)]).is_err());
+        assert!(registry.register_types("bad mod", &[("ok".into(), false)]).is_err());
+        assert!(registry.is_empty());
 
         // Valid registration namespaces as `<modid>:<name>`.
-        register_types("cmdmod", &[("color".into(), false), ("note".into(), true)]).unwrap();
-        assert!(any());
+        registry
+            .register_types("cmdmod", &[("color".into(), false), ("note".into(), true)])
+            .unwrap();
+        assert!(!registry.is_empty());
         assert_eq!(
-            lookup_type("cmdmod:color"),
+            registry.lookup_type("cmdmod:color"),
             Some(RegisteredArgType {
                 owner: "cmdmod".into(),
                 greedy: false,
             })
         );
         assert_eq!(
-            lookup_type("cmdmod:note"),
+            registry.lookup_type("cmdmod:note"),
             Some(RegisteredArgType {
                 owner: "cmdmod".into(),
                 greedy: true,
             })
         );
-        assert!(lookup_type("other:color").is_none());
+        assert!(registry.lookup_type("other:color").is_none());
 
         // Idempotent repeat is accepted; conflicting greedy flag inside batch is rejected.
-        register_types("cmdmod", &[("color".into(), false)]).unwrap();
+        registry.register_types("cmdmod", &[("color".into(), false)]).unwrap();
         assert!(
-            register_types(
-                "cmdmod",
-                &[("dup".into(), false), ("dup".into(), true)]
-            )
-            .is_err()
+            registry
+                .register_types("cmdmod", &[("dup".into(), false), ("dup".into(), true)])
+                .is_err()
         );
 
         // Enforces per-mod cap.
         let too_many: Vec<(String, bool)> = (0..=MAX_TYPES_PER_MOD)
             .map(|i| (format!("t{i}"), false))
             .collect();
-        assert!(register_types("capmod", &too_many).is_err());
-        reset();
+        assert!(registry.register_types("capmod", &too_many).is_err());
     }
 
     #[test]
@@ -472,15 +626,78 @@ mod tests {
 
     #[test]
     fn parse_argument_fails_cleanly_for_unknown_or_missing_owner() {
-        let _guard = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        reset();
-        let err = parse_argument("ghostmod:arg", "x", HostAccess::None).unwrap_err();
+        let mut registry = CommandArgRegistry::default();
+        let err = registry
+            .parse_argument("ghostmod:arg", "x", HostAccess::None)
+            .unwrap_err();
         assert!(err.contains("unknown"), "{err}");
 
-        register_types("ghostmod", &[("arg".into(), false)]).unwrap();
-        let err = parse_argument("ghostmod:arg", "x", HostAccess::None).unwrap_err();
+        registry
+            .register_types("ghostmod", &[("arg".into(), false)])
+            .unwrap();
+        let err = registry
+            .parse_argument("ghostmod:arg", "x", HostAccess::None)
+            .unwrap_err();
         assert!(err.contains("unavailable"), "{err}");
-        assert!(suggest_argument("ghostmod:arg", "x", HostAccess::None).is_empty());
-        reset();
+        assert!(
+            registry
+                .suggest_argument("ghostmod:arg", "x", HostAccess::None)
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn separate_server_registries_stay_isolated_and_clear_on_stop_or_reload() {
+        let server_a = CustomArgTypes::default();
+        let server_b = CustomArgTypes::default();
+        assert!(server_a.is_empty());
+        assert!(server_b.is_empty());
+
+        let mut staged_a = CommandArgRegistry::default();
+        staged_a
+            .register_types("mod_a", &[("zone".into(), false), ("note".into(), true)])
+            .unwrap();
+        let mut staged_b = CommandArgRegistry::default();
+        staged_b
+            .register_types("mod_b", &[("region".into(), true)])
+            .unwrap();
+
+        {
+            let _scope_a = ActiveArgTypesScope::enter(&server_a);
+            commit_active_owner("mod_a", &staged_a).unwrap();
+            {
+                let _scope_b = ActiveArgTypesScope::enter(&server_b);
+                commit_active_owner("mod_b", &staged_b).unwrap();
+            }
+        }
+
+        assert!(!server_a.is_empty());
+        assert!(!server_b.is_empty());
+        assert!(server_a.lookup_type("mod_a:zone").is_some());
+        assert!(server_a.lookup_type("mod_b:region").is_none());
+        assert!(server_b.lookup_type("mod_b:region").is_some());
+        assert!(server_b.lookup_type("mod_a:zone").is_none());
+
+        // Reloading mod_a replaces only mod_a's types on server_a.
+        let mut staged_other = CommandArgRegistry::default();
+        staged_other
+            .register_types("other", &[("keep".into(), false)])
+            .unwrap();
+        server_a.replace_owner("other", &staged_other).unwrap();
+        let mut reloaded_a = CommandArgRegistry::default();
+        reloaded_a
+            .register_types("mod_a", &[("zone".into(), true)])
+            .unwrap();
+        server_a.replace_owner("mod_a", &reloaded_a).unwrap();
+        assert_eq!(server_a.lookup_type("mod_a:zone").map(|t| t.greedy), Some(true));
+        assert!(server_a.lookup_type("mod_a:note").is_none());
+        assert!(server_a.lookup_type("other:keep").is_some());
+
+        // Stopping server_a clears its registry without affecting server_b.
+        server_a.clear();
+        assert!(server_a.is_empty());
+        assert!(server_a.lookup_type("mod_a:zone").is_none());
+        assert!(server_a.lookup_type("other:keep").is_none());
+        assert!(server_b.lookup_type("mod_b:region").is_some());
     }
 }

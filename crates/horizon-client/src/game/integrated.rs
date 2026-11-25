@@ -1354,6 +1354,9 @@ impl Game<'_> {
         // ServerPlayer.disconnect: nobody is left in a bed.
         self.free_player_beds()?;
         self.save_game()?;
+        if let Some(host) = self.lan.as_mut() {
+            host.clear_native_commands();
+        }
         self.lan_close(false);
         self.save.flush()?;
         // `WorldCloseFinal` follows a successful final save.
