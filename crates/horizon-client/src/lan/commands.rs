@@ -325,7 +325,10 @@ fn fill(
                 )
             }),
             suggestions: if argument {
-                suggestions.get(path.join(" ").as_str()).copied()
+                match child["suggestions"].as_str() {
+                    Some("minecraft:ask_server") => Some("minecraft:ask_server"),
+                    _ => suggestions.get(path.join(" ").as_str()).copied(),
+                }
             } else {
                 None
             },

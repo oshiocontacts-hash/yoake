@@ -493,6 +493,113 @@ pub mod server {
         pub fn attachment_remove(id: &str, kind: &str, holder: &str) -> Result<bool, String> {
             services::attachment_remove(holder, id, kind)
         }
+
+        /// Registers custom command argument types for this package (`<package id>:<name>`), from `init`
+        /// (`<arg:<package id>:<name>>` or `[arg:<package id>:<name>]` in `register_commands`).
+        /// Answer [`command_arguments::METHOD_PARSE`] and [`command_arguments::METHOD_SUGGEST`] in
+        /// `handle_call` via [`command_arguments::handle`]. (Service 301.)
+        pub fn register_command_argument_types(types: &[(&str, bool)]) -> Result<(), String> {
+            let entries: Vec<types::CommandArgumentType> = types
+                .iter()
+                .map(|(name, greedy)| types::CommandArgumentType {
+                    name: (*name).to_owned(),
+                    greedy: *greedy,
+                })
+                .collect();
+            services::register_command_argument_types(&entries)
+        }
+    }
+
+    /// Custom Brigadier-style command argument types (`register_command_argument_types`, service 301).
+    pub mod command_arguments {
+        use alloc::{
+            string::{String, ToString},
+            vec::Vec,
+        };
+
+        pub const ENGINE_CALLER: &str = "yoake:engine";
+        pub const METHOD_PARSE: &str = "yoake:command-argument/parse";
+        pub const METHOD_SUGGEST: &str = "yoake:command-argument/suggest";
+        const WIRE_VERSION: u8 = 1;
+
+        fn push_str(out: &mut Vec<u8>, text: &str) {
+            let bytes = &text.as_bytes()[..text.len().min(usize::from(u16::MAX))];
+            out.extend_from_slice(&(bytes.len() as u16).to_le_bytes());
+            out.extend_from_slice(bytes);
+        }
+
+        fn read_str(bytes: &mut &[u8]) -> Option<String> {
+            if bytes.len() < 2 {
+                return None;
+            }
+            let len = usize::from(u16::from_le_bytes([bytes[0], bytes[1]]));
+            *bytes = &bytes[2..];
+            if bytes.len() < len {
+                return None;
+            }
+            let (head, tail) = bytes.split_at(len);
+            *bytes = tail;
+            core::str::from_utf8(head).ok().map(ToString::to_string)
+        }
+
+        fn read_request(mut bytes: &[u8]) -> Option<(String, String)> {
+            let (&version, rest) = bytes.split_first()?;
+            if version != WIRE_VERSION {
+                return None;
+            }
+            bytes = rest;
+            let arg_type = read_str(&mut bytes)?;
+            let input = read_str(&mut bytes)?;
+            bytes.is_empty().then_some((arg_type, input))
+        }
+
+        /// Handles [`METHOD_PARSE`] and [`METHOD_SUGGEST`] requests from `handle_call`.
+        pub fn handle(
+            caller: &str,
+            method: &str,
+            payload: &[u8],
+            mut on_parse: impl FnMut(&str, &str) -> Result<String, String>,
+            mut on_suggest: impl FnMut(&str, &str) -> Vec<String>,
+        ) -> Option<Result<Vec<u8>, String>> {
+            if caller != ENGINE_CALLER {
+                return None;
+            }
+            match method {
+                METHOD_PARSE => {
+                    let Some((arg_type, input)) = read_request(payload) else {
+                        return Some(Err("malformed command argument parse request".to_owned()));
+                    };
+                    let mut out = Vec::new();
+                    out.push(WIRE_VERSION);
+                    match on_parse(&arg_type, &input) {
+                        Ok(normalized) => {
+                            out.push(0);
+                            push_str(&mut out, &normalized);
+                        }
+                        Err(message) => {
+                            out.push(1);
+                            push_str(&mut out, &message);
+                        }
+                    }
+                    Some(Ok(out))
+                }
+                METHOD_SUGGEST => {
+                    let Some((arg_type, partial)) = read_request(payload) else {
+                        return Some(Err("malformed command argument suggest request".to_owned()));
+                    };
+                    let list = on_suggest(&arg_type, &partial);
+                    let count = list.len().min(usize::from(u16::MAX));
+                    let mut out = Vec::new();
+                    out.push(WIRE_VERSION);
+                    out.extend_from_slice(&(count as u16).to_le_bytes());
+                    for entry in list.into_iter().take(count) {
+                        push_str(&mut out, &entry);
+                    }
+                    Some(Ok(out))
+                }
+                _ => None,
+            }
+        }
     }
 
     /// Scripting fully custom mobs (F4M-10; the `service.mobs` permission, services 260 to 281).

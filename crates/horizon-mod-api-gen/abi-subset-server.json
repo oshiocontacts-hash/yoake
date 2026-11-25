@@ -1,7 +1,7 @@
 {
   "abi_version": 2,
   "world": "server-mod",
-  "interface_version": "1.8.0",
+  "interface_version": "1.9.0",
   "status": "design-only",
   "id_policy": "Proposed IDs extend the client catalog; allocation and package versioning require review.",
   "type_syntax": "WIT value types; null means no result. Types below are records and enums are named WIT enums.",
@@ -50,7 +50,8 @@
     "recipe-match": {"outputs":"list<item-stack>","recipe":"string"},
     "recipe-data": {"data":"list<u8>","recipe":"string"},
     "mob-spawn-options": {"yaw":"f32","baby":"bool","persistent":"bool"},
-    "mob-info": {"handle":"u32","type-id":"string","dimension":"string","position":"vec3","velocity":"vec3","yaw":"f32","pitch":"f32","health":"f32","max-health":"f32","alive":"bool","on-ground":"bool","target":"option<u32>","target-player":"option<string>","owner":"option<string>","sitting":"bool","baby":"bool","age":"s32","controlled":"bool","target-position":"option<vec3>","target-visible":"bool"}
+    "mob-info": {"handle":"u32","type-id":"string","dimension":"string","position":"vec3","velocity":"vec3","yaw":"f32","pitch":"f32","health":"f32","max-health":"f32","alive":"bool","on-ground":"bool","target":"option<u32>","target-player":"option<string>","owner":"option<string>","sitting":"bool","baby":"bool","age":"s32","controlled":"bool","target-position":"option<vec3>","target-visible":"bool"},
+    "command-argument-type": {"name":"string","greedy":"bool"}
   },
   "enums": {
     "config-value-kind": ["bool","int","float","string","enum","bool-list","int-list","float-list","string-list","enum-list"],
@@ -231,6 +232,7 @@
     {"name":"level_regenerate","abi":true,"id":232,"kind":"level","side":"server","phase":"server callbacks","thread":"server","contract":"mutate","arguments":{"id":"string","seed":"option<s64>"},"result":"result<_, string>","fallback":"Return an error; the world is unchanged.","capability":"world-control","status":"new","doc":"Throws a level's terrain away (its region, entities and poi folders) and starts it again under the same id, with a new seed for a created level when `seed` is some. Refused while anyone is in the level. (F3-7/F3-8.)"},
     {"name":"level_list","abi":true,"id":233,"kind":"level","side":"server","phase":"server callbacks","thread":"server","contract":"listen","arguments":{},"result":"result<list<string>, string>","fallback":"Return an error; the world is unchanged.","capability":"server-read","status":"new","doc":"The ids of the world's levels, the three vanilla ones first. (F3-8.)"},
     {"name":"generator_register","abi":true,"id":234,"kind":"level","side":"server","phase":"server callbacks","thread":"server","contract":"mutate","arguments":{"id":"string"},"result":"result<_, string>","fallback":"Return an error; the world is unchanged.","capability":"world-control","status":"new","doc":"Declares that this package generates the chunks of levels whose stem says `{\"type\":\"yoake:mod\",\"id\":<id>}`. Call it from `init` (or before the world ticks). The engine calls this package's `handle-call` with the method `yoake:generate-chunk` for every chunk (see the SDK's `generator` module for the request and the answer); a call that fails or takes too long leaves an empty chunk. (F3-8.)"},
-    {"name":"current_level","abi":true,"id":235,"kind":"level","side":"server","phase":"server callbacks","thread":"server","contract":"listen","arguments":{"player":"string"},"result":"result<string, string>","fallback":"Return an error.","capability":"server-read","status":"new","doc":"The id of the level a player is in, as the real level id (`yoake:overworld`-style ids for vanilla, the registered id for any other), so a mod need not use the frozen three-level enum. An error if the player is not here. (F3-8b.)"}
+    {"name":"current_level","abi":true,"id":235,"kind":"level","side":"server","phase":"server callbacks","thread":"server","contract":"listen","arguments":{"player":"string"},"result":"result<string, string>","fallback":"Return an error.","capability":"server-read","status":"new","doc":"The id of the level a player is in, as the real level id (`yoake:overworld`-style ids for vanilla, the registered id for any other), so a mod need not use the frozen three-level enum. An error if the player is not here. (F3-8b.)"},
+    {"name":"register_command_argument_types","abi":true,"id":301,"kind":"commands","side":"server","phase":"server init","thread":"server","contract":"mutate","arguments":{"types":"list<command-argument-type>"},"result":"result<_, string>","fallback":"Return an error; nothing is registered.","capability":null,"status":"new","doc":"Registers custom Brigadier-style command argument types owned by this package, each namespaced as `<package id>:<name>`. Call during `init`, then reference `<arg:<package id>:<name>>` or `[arg:<package id>:<name>]` in `register-commands` usages. The host calls `handle-call` with caller `yoake:engine` and methods `yoake:command-argument/parse` and `yoake:command-argument/suggest`. (REM-17d.)"}
   ]
 }

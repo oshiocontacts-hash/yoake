@@ -1193,6 +1193,14 @@ impl ServerHost for GameServerHost {
         log::debug!("wasm mod {} qa {}: {}", self.id, clean(&event, 64), clean(&json, 1024));
         Ok(())
     }
+
+    fn register_command_argument_types(&mut self, types: Vec<st::CommandArgumentType>) -> Result<(), String> {
+        if !super::full::initializing_server(&self.id) {
+            return Err("command argument types may only be registered during server initialization".into());
+        }
+        let pairs: Vec<(String, bool)> = types.into_iter().map(|entry| (entry.name, entry.greedy)).collect();
+        super::command_arguments::register_types(&self.id, &pairs)
+    }
 }
 
 // ---------------------------------------------------------------------------------------------

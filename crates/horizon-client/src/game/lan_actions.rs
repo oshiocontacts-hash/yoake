@@ -3578,8 +3578,15 @@ impl Game<'_> {
         let own_banned_ips = std::mem::replace(&mut reg.banned_ips, banned_ips);
         let own_whitelisted = std::mem::replace(&mut reg.whitelisted, whitelisted);
         let parse = d.parse(command, &self.ui.registries);
-        let ((start, end), mut suggestions) =
+        let ((mut start, mut end), mut suggestions) =
             d.suggestions(&parse, command.len(), &self.ui.registries);
+        self.add_custom_command_suggestions(
+            permission,
+            command,
+            &mut start,
+            &mut end,
+            &mut suggestions,
+        );
         self.native_tab_complete(
             player_uuid,
             &player_name,

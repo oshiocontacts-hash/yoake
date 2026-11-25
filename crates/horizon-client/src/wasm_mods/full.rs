@@ -1753,6 +1753,40 @@ mod tests {
     }
 
     #[test]
+    fn command_argument_type_registration_requires_owning_server_initialization() {
+        let _guard = super::super::command_arguments::TEST_LOCK
+            .lock()
+            .unwrap();
+        super::super::command_arguments::reset();
+        let mut host = GameServerHost {
+            id: "cmd-init".into(),
+            commands: false,
+        };
+        let register = |host: &mut GameServerHost| {
+            host.register_command_argument_types(vec![yoake_wasm::server_types::CommandArgumentType {
+                name: "zone".into(),
+                greedy: false,
+            }])
+        };
+        assert!(register(&mut host).is_err());
+        {
+            let _initialization = ServerInitScope::enter("cmd-init");
+            register(&mut host).unwrap();
+            {
+                let _other_initialization = ServerInitScope::enter("cmd-other");
+                assert!(register(&mut host).is_err());
+            }
+            register(&mut host).unwrap();
+        }
+        assert!(register(&mut host).is_err());
+        assert_eq!(
+            super::super::command_arguments::lookup_type("cmd-init:zone").map(|t| t.greedy),
+            Some(false)
+        );
+        super::super::command_arguments::reset();
+    }
+
+    #[test]
     fn attachment_calls_enforce_current_hook_access_and_package_ownership() {
         let _guard = super::super::server_services::ATTACHMENT_TEST_LOCK
             .lock()
