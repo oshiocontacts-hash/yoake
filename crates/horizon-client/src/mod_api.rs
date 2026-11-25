@@ -1371,4 +1371,252 @@ mod tests {
             assert_eq!(offers, baseline, "{label}");
         }
     }
+
+    fn level_up_test_trades() -> crate::merchant::Trades {
+        use serde_json::json;
+        use std::collections::HashMap;
+        let mut trades = HashMap::new();
+        trades.insert(
+            "minecraft:t/l2_bread".into(),
+            json!({
+                "gives": {"count": 4, "id": "minecraft:bread"},
+                "max_uses": 16,
+                "reputation_discount": 0.05,
+                "wants": {"count": 1, "id": "minecraft:emerald"},
+                "xp": 5
+            }),
+        );
+        trades.insert(
+            "minecraft:t/l2_book".into(),
+            json!({
+                "gives": {"id": "minecraft:book"},
+                "max_uses": 12,
+                "reputation_discount": 0.2,
+                "wants": {"count": 2, "id": "minecraft:emerald"},
+                "xp": 5
+            }),
+        );
+        trades.insert(
+            "minecraft:t/l3_sword".into(),
+            json!({
+                "gives": {"id": "minecraft:diamond_sword"},
+                "max_uses": 3,
+                "reputation_discount": 0.2,
+                "wants": {"count": 8, "id": "minecraft:emerald"},
+                "xp": 15
+            }),
+        );
+        let mut tags = HashMap::new();
+        tags.insert(
+            "minecraft:t/level_2".into(),
+            vec!["minecraft:t/l2_bread".into(), "minecraft:t/l2_book".into()],
+        );
+        tags.insert(
+            "minecraft:t/level_3".into(),
+            vec!["minecraft:t/l3_sword".into()],
+        );
+        let mut sets = HashMap::new();
+        sets.insert(
+            "minecraft:armorer/level_2".into(),
+            json!({
+                "amount": 2,
+                "random_sequence": "minecraft:trade_set/armorer/level_2",
+                "trades": "#minecraft:t/level_2"
+            }),
+        );
+        sets.insert(
+            "minecraft:armorer/level_3".into(),
+            json!({
+                "amount": 1,
+                "random_sequence": "minecraft:trade_set/armorer/level_3",
+                "trades": "#minecraft:t/level_3"
+            }),
+        );
+        crate::merchant::Trades {
+            trades,
+            tags,
+            sets,
+            potion_tags: HashMap::new(),
+        }
+    }
+
+    fn apply_level_up_events(
+        host: &mut dyn Host,
+        mods: &[Box<dyn Hooks>],
+        session: &mut crate::merchant::Session,
+        lookup: impl Fn(&str) -> Option<Option<u32>> + Copy,
+    ) -> bool {
+        let mut all_valid = true;
+        let mut offer_shift: isize = 0;
+        let events = std::mem::take(&mut session.events);
+        for event in events {
+            if let crate::merchant::Event::LevelUp {
+                level,
+                added_from,
+                added_len,
+            } = event
+                && let Some(start) = added_from.checked_add_signed(offer_shift)
+            {
+                let prof = session.profession.clone();
+                offer_shift += crate::merchant::edit_offer_range(
+                    &mut session.offers,
+                    start,
+                    added_len,
+                    |new_offers| {
+                        all_valid &= dispatch_validated_trades(
+                            host,
+                            mods,
+                            77,
+                            "minecraft:villager",
+                            &prof,
+                            level,
+                            new_offers,
+                            lookup,
+                        );
+                    },
+                );
+            }
+        }
+        all_valid
+    }
+
+    #[test]
+    fn villager_trades_level_up_passes_only_new_offers_and_preserves_earlier_offers() {
+        struct LevelUpMod;
+        impl Hooks for LevelUpMod {
+            fn villager_trades(
+                &self,
+                _host: &mut dyn Host,
+                event: &mut VillagerTradesEvent<'_>,
+            ) {
+                match event.level {
+                    2 => {
+                        // Only the 2 level-2 offers are visible, never level-1 iron_boots.
+                        assert_eq!(event.offers.len(), 2);
+                        assert!(
+                            event
+                                .offers
+                                .iter()
+                                .all(|o| &*o.result.item != "minecraft:iron_boots")
+                        );
+                        // Remove one generated offer, edit the other, and add two new offers.
+                        event.offers.remove(1);
+                        event.offers[0].base_cost_a.stack.count = 7;
+                        event.offers.push(sample_offer(3, "minecraft:emerald", 8));
+                        event.offers.push(sample_offer(5, "minecraft:book", 6));
+                    }
+                    3 => {
+                        // Only the 1 level-3 offer is visible, even after level 2 resized the list.
+                        assert_eq!(event.offers.len(), 1);
+                        assert_eq!(&*event.offers[0].result.item, "minecraft:diamond_sword");
+                        event.offers[0].max_uses = 9;
+                    }
+                    other => panic!("unexpected level {other}"),
+                }
+            }
+        }
+
+        let items = crate::items::Items::for_tests(Default::default());
+        let trades = level_up_test_trades();
+        let enchantments = crate::enchant::Enchantments::default();
+        let env = crate::merchant::TradeEnv {
+            trades: &trades,
+            enchantments: &enchantments,
+            maps: None,
+        };
+        let mut earlier = sample_offer(4, "minecraft:iron_boots", 12);
+        earlier.uses = 3;
+        earlier.demand = 5;
+        earlier.special_price_diff = -2;
+        earlier.xp = 40;
+
+        let mut session = crate::merchant::Session::new(vec![earlier.clone()], true);
+        session.profession = "minecraft:armorer".into();
+        session.sequences.insert(
+            "minecraft:trade_set/armorer/level_2".into(),
+            crate::merchant::sequence_random(1, "minecraft:trade_set/armorer/level_2"),
+        );
+        session.sequences.insert(
+            "minecraft:trade_set/armorer/level_3".into(),
+            crate::merchant::sequence_random(1, "minecraft:trade_set/armorer/level_3"),
+        );
+
+        // Two trades in one batch cross level 2 (10 xp) and level 3 (70 xp).
+        assert!(session.notify_trade(0, Some(&env), &items));
+        assert!(session.notify_trade(0, Some(&env), &items));
+        let mut expected_earlier = earlier;
+        expected_earlier.uses = 5;
+        // notify_trade recomputes special prices with reputation = 0, hero = None.
+        expected_earlier.special_price_diff = 0;
+        assert_eq!(session.offers[0], expected_earlier);
+
+        let mut host = Reader {
+            block: "minecraft:air",
+            lines: Vec::new(),
+        };
+        let mods = [Box::new(LevelUpMod) as Box<dyn Hooks>];
+        assert!(apply_level_up_events(
+            &mut host,
+            &mods,
+            &mut session,
+            known_trade_items
+        ));
+
+        assert_eq!(session.offers.len(), 5);
+        // Earlier offer stayed exact and untouched by the mod.
+        assert_eq!(session.offers[0], expected_earlier);
+        // Level 2's slice holds the 3 edited/added offers; level 3 sits right after.
+        assert_eq!(session.offers[1].base_cost_a.stack.count, 7);
+        assert_eq!(&*session.offers[2].result.item, "minecraft:emerald");
+        assert_eq!(&*session.offers[3].result.item, "minecraft:book");
+        assert_eq!(&*session.offers[4].result.item, "minecraft:diamond_sword");
+        assert_eq!(session.offers[4].max_uses, 9);
+    }
+
+    #[test]
+    fn villager_trades_level_up_invalid_edit_keeps_new_and_earlier_offers() {
+        struct BadLevelUpMod;
+        impl Hooks for BadLevelUpMod {
+            fn villager_trades(
+                &self,
+                _host: &mut dyn Host,
+                event: &mut VillagerTradesEvent<'_>,
+            ) {
+                assert_eq!(event.level, 2);
+                assert_eq!(event.offers.len(), 2);
+                event.offers[0].result = ItemStack::new("minecraft:not_a_real_item", 1);
+            }
+        }
+
+        let items = crate::items::Items::for_tests(Default::default());
+        let trades = level_up_test_trades();
+        let enchantments = crate::enchant::Enchantments::default();
+        let env = crate::merchant::TradeEnv {
+            trades: &trades,
+            enchantments: &enchantments,
+            maps: None,
+        };
+        let mut earlier = sample_offer(4, "minecraft:iron_boots", 12);
+        earlier.uses = 2;
+        earlier.demand = 3;
+        earlier.xp = 15;
+
+        let mut session = crate::merchant::Session::new(vec![earlier], true);
+        session.profession = "minecraft:armorer".into();
+        session.sequences.insert(
+            "minecraft:trade_set/armorer/level_2".into(),
+            crate::merchant::sequence_random(1, "minecraft:trade_set/armorer/level_2"),
+        );
+
+        assert!(session.notify_trade(0, Some(&env), &items));
+        let as_generated = session.offers.clone();
+
+        let mut host = Reader {
+            block: "minecraft:air",
+            lines: Vec::new(),
+        };
+        let mods = [Box::new(BadLevelUpMod) as Box<dyn Hooks>];
+        assert!(!apply_level_up_events(&mut host, &mods, &mut session, known_trade_items));
+        assert_eq!(session.offers, as_generated);
+    }
 }

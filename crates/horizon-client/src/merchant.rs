@@ -216,6 +216,28 @@ pub fn validate_offers(offers: &[MerchantOffer], items: Option<&Items>) -> bool 
     validate_offers_with(offers, |id| item_stack_limit(items, id))
 }
 
+/// Applies `edit` only to the sub-slice `offers[start..start + len]` (such as offers
+/// appended by a villager level-up), splicing the edited list back in place and returning
+/// the net length change (`edited.len() - len`). Out-of-bounds ranges are left untouched.
+pub fn edit_offer_range(
+    offers: &mut Vec<MerchantOffer>,
+    start: usize,
+    len: usize,
+    edit: impl FnOnce(&mut Vec<MerchantOffer>),
+) -> isize {
+    let Some(end) = start.checked_add(len) else {
+        return 0;
+    };
+    if end > offers.len() {
+        return 0;
+    }
+    let mut slice: Vec<MerchantOffer> = offers.drain(start..end).collect();
+    edit(&mut slice);
+    let delta = slice.len() as isize - len as isize;
+    offers.splice(start..start, slice);
+    delta
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct MerchantOffer {
     pub base_cost_a: ItemCost,
@@ -357,8 +379,13 @@ pub fn sequence_random(world_seed: i64, id: &str) -> XoroshiroRandom {
 pub enum Event {
     /// An experience orb of this value at the merchant (`rewardTradeXp`).
     Orb(i32),
-    /// The villager reached this level (regeneration for 200 ticks).
-    LevelUp(i32),
+    /// The villager reached `level` (regeneration for 200 ticks), appending
+    /// `added_len` newly generated offers starting at `added_from` in `Session::offers`.
+    LevelUp {
+        level: i32,
+        added_from: usize,
+        added_len: usize,
+    },
     /// `notifyTradeUpdated`: the merchant says yes (a result) or no, at
     /// this pitch.
     TradeUpdated(bool, f32),
@@ -469,6 +496,7 @@ impl Session {
             self.last_traded = true;
             if can_level_up(self.level) && self.xp >= max_xp(self.level) {
                 self.level += 1;
+                let added_from = self.offers.len();
                 if let Some(env) = env {
                     let set = Trades::set_for(&self.profession, self.level);
                     if env.trades.sets.contains_key(&set) {
@@ -478,7 +506,12 @@ impl Session {
                         prices = true;
                     }
                 }
-                self.events.push(Event::LevelUp(self.level));
+                let added_len = self.offers.len() - added_from;
+                self.events.push(Event::LevelUp {
+                    level: self.level,
+                    added_from,
+                    added_len,
+                });
                 pop += 5;
             }
             if offer.reward_exp {
@@ -1330,5 +1363,132 @@ mod tests {
         // List length bound.
         let too_many = vec![offer(1, None); MAX_MOD_OFFERS + 1];
         assert!(!validate_offers_with(&too_many, known));
+    }
+
+    #[test]
+    fn level_up_records_only_the_newly_appended_offer_range() {
+        let items = items();
+        let enchantments = Enchantments::default();
+        let mut trades_map = HashMap::new();
+        trades_map.insert(
+            "minecraft:t/l2_a".into(),
+            json!({
+                "gives": {"id": "minecraft:iron_helmet"},
+                "max_uses": 12,
+                "reputation_discount": 0.2,
+                "wants": {"count": 5, "id": "minecraft:emerald"},
+                "xp": 5
+            }),
+        );
+        trades_map.insert(
+            "minecraft:t/l2_b".into(),
+            json!({
+                "gives": {"id": "minecraft:bread"},
+                "max_uses": 16,
+                "reputation_discount": 0.05,
+                "wants": {"count": 1, "id": "minecraft:emerald"},
+                "xp": 5
+            }),
+        );
+        trades_map.insert(
+            "minecraft:t/l3".into(),
+            json!({
+                "gives": {"id": "minecraft:diamond_sword"},
+                "max_uses": 3,
+                "reputation_discount": 0.2,
+                "wants": {"count": 8, "id": "minecraft:emerald"},
+                "xp": 15
+            }),
+        );
+        let mut tags = HashMap::new();
+        tags.insert(
+            "minecraft:t/level_2".into(),
+            vec!["minecraft:t/l2_a".into(), "minecraft:t/l2_b".into()],
+        );
+        tags.insert("minecraft:t/level_3".into(), vec!["minecraft:t/l3".into()]);
+        let mut sets = HashMap::new();
+        sets.insert(
+            "minecraft:armorer/level_2".into(),
+            json!({
+                "amount": 2,
+                "random_sequence": "minecraft:trade_set/armorer/level_2",
+                "trades": "#minecraft:t/level_2"
+            }),
+        );
+        sets.insert(
+            "minecraft:armorer/level_3".into(),
+            json!({
+                "amount": 1,
+                "random_sequence": "minecraft:trade_set/armorer/level_3",
+                "trades": "#minecraft:t/level_3"
+            }),
+        );
+        let trades = Trades {
+            trades: trades_map,
+            tags,
+            sets,
+            potion_tags: HashMap::new(),
+        };
+        let env = TradeEnv {
+            trades: &trades,
+            enchantments: &enchantments,
+            maps: None,
+        };
+
+        let mut initial = offer(4, None);
+        initial.xp = 40;
+        let mut s = Session::new(vec![initial], true);
+        s.profession = "minecraft:armorer".into();
+        s.sequences.insert(
+            "minecraft:trade_set/armorer/level_2".into(),
+            sequence_random(1, "minecraft:trade_set/armorer/level_2"),
+        );
+        s.sequences.insert(
+            "minecraft:trade_set/armorer/level_3".into(),
+            sequence_random(1, "minecraft:trade_set/armorer/level_3"),
+        );
+
+        assert!(s.notify_trade(0, Some(&env), &items));
+        assert!(s.notify_trade(0, Some(&env), &items));
+
+        let level_ups: Vec<_> = s
+            .events
+            .iter()
+            .filter_map(|e| match *e {
+                Event::LevelUp {
+                    level,
+                    added_from,
+                    added_len,
+                } => Some((level, added_from, added_len)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(level_ups, [(2, 1, 2), (3, 3, 1)]);
+        assert_eq!(s.offers.len(), 4);
+        assert_eq!(s.offers[0].uses, 2);
+
+        // edit_offer_range mutates only the target tier without touching earlier or later offers.
+        let before_l1 = s.offers[0].clone();
+        let before_l3 = s.offers[3].clone();
+        let delta = edit_offer_range(&mut s.offers, 1, 2, |new| {
+            assert_eq!(new.len(), 2);
+            new.remove(0);
+            new.push(offer(7, Some(1)));
+            new.push(offer(9, None));
+        });
+        assert_eq!(delta, 1);
+        assert_eq!(s.offers.len(), 5);
+        assert_eq!(s.offers[0], before_l1);
+        assert_eq!(s.offers[4], before_l3);
+
+        // Without TradeEnv (e.g. unit fixtures), LevelUp records an empty appended slice.
+        let mut s_no_env = Session::new(vec![offer(4, None)], true);
+        s_no_env.offers[0].xp = 10;
+        assert!(!s_no_env.notify_trade(0, None, &items));
+        assert!(s_no_env.events.contains(&Event::LevelUp {
+            level: 2,
+            added_from: 1,
+            added_len: 0,
+        }));
     }
 }
