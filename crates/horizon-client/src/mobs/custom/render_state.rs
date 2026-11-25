@@ -556,6 +556,15 @@ impl PoseCtx {
 // One mob
 // ----------------------------------------------------------------------------------------------
 
+/// Client-only local animation playback queued without server sync (`play-local-anim`).
+#[derive(Clone, Copy, Debug)]
+struct LocalAnimPlay {
+    animation: usize,
+    length: f32,
+    elapsed: f32,
+    speed: f32,
+}
+
 /// What one mob keeps between frames (see the module docs).
 pub struct MobRender {
     rig_state: Option<RigState>,
@@ -564,6 +573,7 @@ pub struct MobRender {
     pose: Pose,
     pstate: Option<ProceduralState>,
     triggers: Vec<TriggerPlay>,
+    local_anims: Vec<LocalAnimPlay>,
     /// Model-space bone matrices of the pose last evaluated (pixels).
     pub matrices: Vec<Mat4>,
     /// The script's bone visibility (`mob-pose` writes); everything visible by default.
@@ -580,6 +590,86 @@ pub struct MobRender {
     pub evaluations: u64,
 }
 
+/// Mutable pose and bone-visibility snapshot passed to renderer stage hooks (`after_pose`).
+#[derive(Clone, Debug)]
+pub struct StagePose {
+    pose: Pose,
+    visibility: BoneVisibility,
+}
+
+impl StagePose {
+    pub fn len(&self) -> usize {
+        self.pose.bones.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.pose.bones.is_empty()
+    }
+
+    pub fn get(&self, bone: u32) -> Option<([f32; 3], [f32; 4], [f32; 3], bool)> {
+        let idx = bone as usize;
+        let t = self.pose.bones.get(idx)?;
+        Some((
+            t.translation.to_array(),
+            t.rotation.to_array(),
+            t.scale.to_array(),
+            self.visibility.is_visible(idx),
+        ))
+    }
+
+    pub fn get_all(&self) -> Vec<([f32; 3], [f32; 4], [f32; 3], bool)> {
+        self.pose
+            .bones
+            .iter()
+            .enumerate()
+            .map(|(i, t)| (t.translation.to_array(), t.rotation.to_array(), t.scale.to_array(), self.visibility.is_visible(i)))
+            .collect()
+    }
+
+    pub fn set(
+        &mut self,
+        bone: u32,
+        translation: [f32; 3],
+        rotation_xyzw: [f32; 4],
+        scale: [f32; 3],
+        visible: Option<bool>,
+    ) -> Result<(), String> {
+        let idx = bone as usize;
+        if idx >= self.pose.bones.len() {
+            return Err(format!("bone index {bone} out of range (0..{})", self.pose.bones.len()));
+        }
+        if !translation.iter().chain(&rotation_xyzw).chain(&scale).all(|v| v.is_finite()) {
+            return Err("pose transform numbers must be finite".into());
+        }
+        let q = glam::Quat::from_xyzw(rotation_xyzw[0], rotation_xyzw[1], rotation_xyzw[2], rotation_xyzw[3]);
+        let len_sq = q.length_squared();
+        if !len_sq.is_finite() || len_sq <= 1.0e-12 {
+            return Err("pose rotation quaternion must be non-zero".into());
+        }
+        self.pose.bones[idx] = horizon_mobmodel::skeleton::BoneTransform {
+            translation: Vec3::from(translation),
+            rotation: q / len_sq.sqrt(),
+            scale: Vec3::from(scale),
+        };
+        if let Some(vis) = visible {
+            self.visibility.set_visible(idx, vis);
+        }
+        Ok(())
+    }
+
+    pub fn apply_write(&mut self, write: &super::script::MobBoneWrite) -> Result<(), String> {
+        if (write.bone as usize) >= self.pose.bones.len() {
+            return Err(format!("bone index {} out of range (0..{})", write.bone, self.pose.bones.len()));
+        }
+        let converted = super::script::bone_writes(std::slice::from_ref(write), self.pose.bones.len());
+        if converted.is_empty() {
+            return Err("bone write contains non-finite numbers".into());
+        }
+        apply_bone_writes_with_visibility(&mut self.pose, &mut self.visibility, &converted);
+        Ok(())
+    }
+}
+
 impl MobRender {
     pub fn new(t: &TypeRender) -> Self {
         Self {
@@ -589,6 +679,7 @@ impl MobRender {
             pose: Pose::default(),
             pstate: t.procedural.as_ref().map(ProceduralState::new),
             triggers: Vec::new(),
+            local_anims: Vec::new(),
             matrices: t.rest_matrices.clone(),
             visibility: BoneVisibility::new(t.skeleton.len()),
             writes: Vec::new(),
@@ -597,6 +688,42 @@ impl MobRender {
             used_frame: 0,
             evaluations: 0,
         }
+    }
+
+    /// Starts playing animation or trigger `name` locally on this client at `speed` (no network
+    /// sync). Returns false if `name` is unknown or `speed` is not finite and positive.
+    pub fn play_local_anim(&mut self, ta: &TypeAnim, name: &str, speed: f32) -> bool {
+        if name.is_empty() || !speed.is_finite() || speed <= 0.0 {
+            return false;
+        }
+        let animation = ta
+            .rig
+            .find_animation(name)
+            .or_else(|| ta.triggers.iter().find(|t| t.name == name).map(|t| t.animation));
+        let Some(animation) = animation else {
+            return false;
+        };
+        let Some(length) = ta.rig.animation(animation).map(|a| a.length) else {
+            return false;
+        };
+        if !length.is_finite() || length <= 0.0 {
+            return false;
+        }
+        if self.local_anims.len() >= 16 {
+            self.local_anims.remove(0);
+        }
+        self.local_anims.push(LocalAnimPlay {
+            animation,
+            length,
+            elapsed: 0.0,
+            speed: speed.clamp(0.0, 15.9),
+        });
+        true
+    }
+
+    /// How many client-only local animations are currently playing on this mob.
+    pub fn local_anim_count(&self) -> usize {
+        self.local_anims.len()
     }
 
     /// The type this mob is drawn with was replaced (a hot reload, F4M-13): drops what the old model
@@ -613,6 +740,7 @@ impl MobRender {
         self.visibility = BoneVisibility::new(t.skeleton.len());
         self.writes.clear();
         self.triggers.clear();
+        self.local_anims.clear();
         self.evaluated_frame = None;
     }
 
@@ -649,6 +777,12 @@ impl MobRender {
         let dt = self.last_now.map_or(0.0, |l| ((now - l) / 20.0).clamp(0.0, MAX_STEP_SECONDS)) as f32;
         let fresh = self.last_now.is_none();
         self.last_now = Some(now);
+        if dt > 0.0 && !self.local_anims.is_empty() {
+            for a in &mut self.local_anims {
+                a.elapsed += dt * a.speed;
+            }
+            self.local_anims.retain(|a| a.elapsed <= a.length);
+        }
         let values: &[SyncedValue] = match anim {
             Some(a) => &a.values,
             None => &[],
@@ -683,6 +817,26 @@ impl MobRender {
         }
         bone_matrices_into(&tr.skeleton, &self.pose, &mut self.matrices);
         true
+    }
+
+    /// Snapshots the evaluated pose and bone visibility for renderer stage hooks (F4M-11).
+    pub fn take_stage_pose(&self, tr: &TypeRender) -> StagePose {
+        let mut pose = self.pose.clone();
+        if pose.bones.len() != tr.skeleton.len() {
+            pose = Pose::rest(&tr.skeleton);
+        }
+        let mut visibility = self.visibility.clone();
+        if self.visibility.is_visible(0) && tr.skeleton.is_empty() {
+            visibility = BoneVisibility::new(0);
+        }
+        StagePose { pose, visibility }
+    }
+
+    /// Commits a stage-edited pose back onto this mob and recomputes model-space bone matrices.
+    pub fn commit_stage_pose(&mut self, tr: &TypeRender, stage: StagePose) {
+        self.pose = stage.pose;
+        self.visibility = stage.visibility;
+        bone_matrices_into(&tr.skeleton, &self.pose, &mut self.matrices);
     }
 
     fn evaluate_rig(&mut self, ta: &TypeAnim, anim: Option<&RemoteCustomMob>, ctx: &PoseCtx, dt: f32, fresh: bool, tr: &TypeRender) {
@@ -730,6 +884,10 @@ impl MobRender {
         let needed = (ctx.lod == LodMode::LowBones).then_some(tr.low_needed.as_slice());
         if let Some(st) = self.rig_state.as_ref() {
             rig.evaluate(st, &self.triggers, &mut self.inputs, &mut self.scratch, needed, &mut self.pose);
+        }
+        // Client-only local animations layer on top of the synced rig state before any death hold.
+        for a in &self.local_anims {
+            rig.sample_animation(a.animation, a.elapsed.clamp(0.0, a.length), &mut self.inputs, &mut self.pose);
         }
         // A dying mob plays its `death` animation alone, once, and holds its last pose (the engine's
         // tilt is not used then, see `death_roll_for`).
@@ -929,6 +1087,15 @@ impl CustomRender {
         let m = self.mobs.entry(id).or_insert_with(|| MobRender::new(t));
         m.used_frame = frame;
         m
+    }
+
+    /// Starts a client-only local animation on mob `id` (no sync); returns false if `id` or `name`
+    /// is unknown or the mob has no animation rig.
+    pub fn play_local_anim(&mut self, id: u32, ct: &CustomType, tr: &TypeRender, name: &str, speed: f32) -> bool {
+        let Some(ta) = ct.anim.as_ref() else {
+            return false;
+        };
+        self.mob(id, tr).play_local_anim(ta, name, speed)
     }
 
     pub fn len(&self) -> usize {
@@ -1193,12 +1360,14 @@ impl TypeRender {
         Some((uv, color))
     }
 
-    /// Emits the quads of a single bone `b`.
+    /// Emits the quads of a single bone `b` from explicit pose matrices and visibility.
     #[allow(clippy::too_many_arguments)]
-    fn emit_bone(
+    fn emit_bone_from(
         &self,
-        mr: &MobRender,
-        ctx: &DrawCtx,
+        matrices: &[Mat4],
+        visibility: &BoneVisibility,
+        world_from_model: Mat4,
+        lod: LodMode,
         b: usize,
         uv: [f32; 4],
         color: u32,
@@ -1210,13 +1379,13 @@ impl TypeRender {
         let Some(range) = self.bone_quads.get(b) else {
             return 0;
         };
-        if range.is_empty() || !self.bone_drawn(b, ctx.lod, &mr.visibility) {
+        if range.is_empty() || !self.bone_drawn(b, lod, visibility) {
             return 0;
         }
-        let Some(bone) = mr.matrices.get(b) else {
+        let Some(bone) = matrices.get(b) else {
             return 0;
         };
-        let m = ctx.world_from_model * *bone;
+        let m = world_from_model * *bone;
         let m3 = glam::Mat3::from_mat4(m);
         let det = m3.determinant();
         if !det.is_finite() || det.abs() < 1.0e-18 {
@@ -1240,6 +1409,107 @@ impl TypeRender {
                     normal,
                     glint_uv: [0.0; 2],
                 });
+            }
+        }
+        out.len() - start
+    }
+
+    /// Emits the quads of a single bone `b`.
+    #[allow(clippy::too_many_arguments)]
+    fn emit_bone(
+        &self,
+        mr: &MobRender,
+        ctx: &DrawCtx,
+        b: usize,
+        uv: [f32; 4],
+        color: u32,
+        light: u32,
+        overlay: u32,
+        shade: Shade,
+        out: &mut Vec<Vertex>,
+    ) -> usize {
+        self.emit_bone_from(
+            &mr.matrices,
+            &mr.visibility,
+            ctx.world_from_model,
+            ctx.lod,
+            b,
+            uv,
+            color,
+            light,
+            overlay,
+            shade,
+            out,
+        )
+    }
+
+    /// Draws this model from a fresh rest pose with script `writes` applied, using `texture_layer`
+    /// (`None` / `""` / `"default"` for body, `"glowmask"` for glowmask, or a named layer of
+    /// `model.layers`), under `world_from_model` (model pixels to output space). Returns vertex count.
+    pub fn draw_skeleton(
+        &self,
+        writes: &[super::script::MobBoneWrite],
+        texture_layer: Option<&str>,
+        world_from_model: Mat4,
+        light: u32,
+        atlas: &dyn Fn(&str) -> Option<[f32; 4]>,
+        out: &mut Vec<Vertex>,
+    ) -> usize {
+        let mut pose = Pose::rest(&self.skeleton);
+        let mut visibility = BoneVisibility::new(self.skeleton.len());
+        let converted = super::script::bone_writes(writes, self.skeleton.len());
+        apply_bone_writes_with_visibility(&mut pose, &mut visibility, &converted);
+        let mut matrices = Vec::new();
+        bone_matrices_into(&self.skeleton, &pose, &mut matrices);
+
+        let (only, tex_name, emit_light, shade, oit) = match texture_layer {
+            None | Some("") | Some("default") => (None, self.texture.as_deref(), light, Shade::Lit, false),
+            Some("glowmask") => (None, self.glow_texture.as_deref(), FULL_BRIGHT, Shade::Lit, false),
+            Some(name) => {
+                let Some(l) = self.layers.iter().find(|l| l.name == name) else {
+                    return 0;
+                };
+                (
+                    l.bones.as_deref(),
+                    l.texture.as_deref().or(self.texture.as_deref()),
+                    if matches!(l.mode, LayerMode::Emissive | LayerMode::Additive) {
+                        FULL_BRIGHT
+                    } else {
+                        light
+                    },
+                    if l.mode == LayerMode::Additive { Shade::Flat } else { Shade::Lit },
+                    matches!(l.mode, LayerMode::Translucent | LayerMode::Additive),
+                )
+            }
+        };
+        let Some(uv) = tex_name.and_then(atlas) else {
+            return 0;
+        };
+        let start = out.len();
+        for b in 0..self.bone_quads.len() {
+            if only.is_some_and(|o| !o.get(b).copied().unwrap_or(false)) {
+                continue;
+            }
+            self.emit_bone_from(
+                &matrices,
+                &visibility,
+                world_from_model,
+                LodMode::Full,
+                b,
+                uv,
+                WHITE,
+                emit_light,
+                0,
+                shade,
+                out,
+            );
+        }
+        if oit {
+            for v in &mut out[start..] {
+                if shade == Shade::Flat {
+                    v.layer |= u32::from(crate::mesher::BRIGHT) << 16;
+                }
+                v.layer |= crate::gfx::OIT_ENTITY;
             }
         }
         out.len() - start
@@ -1352,6 +1622,26 @@ pub fn embedded_textures_of<'a>(types: impl Iterator<Item = &'a TypeRender>) -> 
         .flat_map(|r| r.embedded.iter())
         .map(|e| (e.name.clone(), e.width, e.height, e.rgba.clone()))
         .collect()
+}
+
+/// Resolves custom mob type `type_id` from the registry and draws its skeleton with `writes` and
+/// `texture_layer` under `world_from_model` (engine helper for `model-command::skeleton`).
+pub fn draw_skeleton_model(
+    type_id: &str,
+    writes: &[super::script::MobBoneWrite],
+    texture_layer: Option<&str>,
+    world_from_model: Mat4,
+    light: u32,
+    atlas: &dyn Fn(&str) -> Option<[f32; 4]>,
+    out: &mut Vec<Vertex>,
+) -> bool {
+    let Some(ct) = super::get(type_id) else {
+        return false;
+    };
+    let Some(tr) = ct.render.as_ref() else {
+        return false;
+    };
+    tr.draw_skeleton(writes, texture_layer, world_from_model, light, atlas, out) > 0
 }
 
 #[cfg(test)]
@@ -2377,5 +2667,87 @@ mod tests {
              draw_ms(med/p95)={dm:.3}/{dp:.3} total_ms(med/p95)={fm:.3}/{fp:.3} evaluated_per_frame={em:.0} verts_per_frame={vm:.0}",
             if near { "near" } else { "spread" }
         );
+    }
+
+    #[test]
+    fn draw_skeleton_poses_bones_applies_visibility_and_selects_layer() {
+        let ct = fox();
+        let tr = ct.render.as_ref().unwrap();
+        let head_idx = tr.skeleton.find("head").expect("fox has head bone").0 as u32;
+        let atlas_fn = |name: &str| {
+            matches!(name, BODY | GLOW).then_some([0.0, 0.0, 1.0, 1.0])
+        };
+
+        // Rest draw produces all model quads.
+        let mut rest_out = Vec::new();
+        let n_rest = tr.draw_skeleton(&[], None, Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut rest_out);
+        assert_eq!(n_rest, tr.quads.len() * 4);
+
+        // Hiding the head bone removes head quads; moving/turning it changes its matrices.
+        let mut hidden_out = Vec::new();
+        let hide_head = [super::super::script::MobBoneWrite {
+            bone: head_idx,
+            visible: Some(false),
+            ..Default::default()
+        }];
+        let n_hidden = tr.draw_skeleton(&hide_head, Some("default"), Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut hidden_out);
+        assert!(n_hidden > 0 && n_hidden < n_rest);
+
+        // Shifting head moves the head bone's vertices cleanly without moving non-head vertices; unknown layer draws nothing.
+        let mut moved_out = Vec::new();
+        let shift_head = [super::super::script::MobBoneWrite {
+            bone: head_idx,
+            translation: Some(super::super::script::ScriptVec3 { x: 8.0, y: 0.0, z: 0.0 }),
+            ..Default::default()
+        }];
+        tr.draw_skeleton(&shift_head, Some(""), Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut moved_out);
+        let head_vert = tr.bone_quads[head_idx as usize].start as usize * 4;
+        assert_ne!(rest_out[head_vert].pos, moved_out[head_vert].pos);
+        assert_eq!(
+            tr.draw_skeleton(&[], Some("no_such_layer"), Mat4::IDENTITY, 0x00F0_00F0, &atlas_fn, &mut Vec::new()),
+            0
+        );
+    }
+
+    #[test]
+    fn play_local_anim_advances_on_client_only_and_clears_after_ending() {
+        use super::super::script;
+        let ct = fox();
+        let tr = ct.render.as_ref().unwrap();
+        let ta = ct.anim.as_ref().unwrap();
+        let mut mr = MobRender::new(tr);
+        let facts = MobFacts { seed: 1, max_health: 14.0, health: 14.0, on_ground: true, ..Default::default() };
+
+        // Unknown animation or bad speed fails cleanly.
+        assert!(!mr.play_local_anim(ta, "does_not_exist", 1.0));
+        assert!(!mr.play_local_anim(ta, "pounce", 0.0));
+        assert!(!mr.play_local_anim(ta, "pounce", f32::NAN));
+        assert_eq!(mr.local_anim_count(), 0);
+
+        // Playing a client-only trigger/animation advances locally without touching server sync.
+        assert!(mr.play_local_anim(ta, "pounce", 2.0));
+        assert_eq!(mr.local_anim_count(), 1);
+        let mut ctx = PoseCtx::new(10, 0.0, facts);
+        mr.update(&ct, tr, None, &ctx);
+        assert_eq!(mr.local_anim_count(), 1);
+
+        // Advancing enough client time finishes the animation and removes it automatically.
+        for t in 1..=20 {
+            ctx.tick = 10 + t * 4;
+            mr.update(&ct, tr, None, &ctx);
+        }
+        assert_eq!(mr.local_anim_count(), 0);
+
+        // Client queue helpers validate, store, and drain per entity.
+        script::clear_local_anims();
+        assert!(script::queue_local_anim(9, "", 1.0).is_err());
+        assert!(script::queue_local_anim(9, "pounce", -1.0).is_err());
+        script::queue_local_anim(9, "pounce", 1.5).unwrap();
+        assert!(script::has_local_anims());
+        assert_eq!(script::take_local_anims(8), Vec::new());
+        let drained = script::take_local_anims(9);
+        assert_eq!(drained.len(), 1);
+        assert_eq!(drained[0].name, "pounce");
+        assert!(!script::has_local_anims());
     }
 }

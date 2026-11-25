@@ -72,6 +72,7 @@
 | `items::Song::finished` | 448 | &self | bound (a) | - |
 | `items::apply_loot` | 2112 | - | handle-required | external type `serde_json::value::Value` (crate not loaded) [&argument] |
 | `items::bucket_contents` | 2191 | - | handle-required | a reference nested inside another type needs a handle [return value] |
+| `items::bucket_contents_with_custom` | 2197 | - | handle-required | a reference nested inside another type needs a handle [return value] |
 | `items::entity_spec` | 638 | - | bound (b, mechanical) | - |
 | `items::fire_starter_pitch` | 59 | - | excluded | `impl Trait` argument requires a listed instantiation; `impl Trait` requires a listed instantiation |
 | `items::fire_starter_sound` | 48 | - | bound (b, mechanical) | - |
@@ -90,7 +91,7 @@
 | `items::published_stack_limit` | 41 | - | bound (b, mechanical) | - |
 | `items::registry_order` | 390 | - | handle-required | std type `std::path::Path` has no codec yet [&argument] |
 | `items::set_villager_food` | 649 | - | excluded | generic type `horizon_world::consumable::Consumable` requires a listed instantiation |
-| `items::take_held_drop` | 2853 | - | bound (b, mechanical) | - |
+| `items::take_held_drop` | 2870 | - | bound (b, mechanical) | - |
 | `items::villager_food` | 662 | - | bound (b, mechanical) | - |
 
 ## Fields

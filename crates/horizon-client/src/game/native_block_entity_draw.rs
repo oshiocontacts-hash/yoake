@@ -640,6 +640,36 @@ impl Game<'_> {
         true
     }
 
+    /// Draws a custom mob's skeleton `model_id` posed by bone writes and optional `texture_layer`
+    /// under `draw`'s pose stack (engine counterpart to `model-command::skeleton`).
+    #[allow(dead_code)]
+    pub(super) fn native_draw_skeleton(
+        &self,
+        draw: &mut BlockEntityDraw,
+        model_id: &str,
+        writes: &[horizon_client::mobs::custom::script::MobBoneWrite],
+        texture_layer: Option<&str>,
+    ) -> bool {
+        let world_from_model = draw.pose() * Mat4::from_scale(Vec3::splat(1.0 / 16.0));
+        let atlas = |name: &str| {
+            self.gui
+                .atlas
+                .sprites
+                .get(name)
+                .copied()
+                .map(|r| [r.u0, r.v0, r.u1, r.v1])
+        };
+        horizon_client::mobs::custom::render_state::draw_skeleton_model(
+            model_id,
+            writes,
+            texture_layer,
+            world_from_model,
+            draw.light,
+            &atlas,
+            &mut draw.vertices,
+        )
+    }
+
     /// Property `key` of block state `state` (a machine's `facing`, from the
     /// `state` `native_block_entity_submit` gets), if it has one: no lookup in
     /// the world, so cheap each frame. API 91.

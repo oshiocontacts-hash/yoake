@@ -12559,6 +12559,1314 @@
       "path": "mod_generator::ModProto.failed#set",
       "sig": "set failed: bool",
       "status": "ReadOnly"
+    },
+    {
+      "id": 3093,
+      "path": "custom_mobs::<FAttributeOperation as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3094,
+      "path": "custom_mobs::<FAttributeOperation as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3095,
+      "path": "custom_mobs::<FAttributeValue as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3096,
+      "path": "custom_mobs::<FAttributeValue as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3097,
+      "path": "custom_mobs::<FBoneTransform as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3098,
+      "path": "custom_mobs::<FBoneTransform as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3099,
+      "path": "custom_mobs::<FInteractReply as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3100,
+      "path": "custom_mobs::<FInteractReply as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3101,
+      "path": "custom_mobs::<FMobBoneWrite as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3102,
+      "path": "custom_mobs::<FMobBoneWrite as Default>::default",
+      "sig": "fn default() -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3103,
+      "path": "custom_mobs::<FMobBoneWrite as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3104,
+      "path": "custom_mobs::<FMobDrawEvent as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3105,
+      "path": "custom_mobs::<FMobDrawEvent as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3106,
+      "path": "custom_mobs::<FMobDrawStage as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3107,
+      "path": "custom_mobs::<FMobDrawStage as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3108,
+      "path": "custom_mobs::<FMobHookEvent as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3109,
+      "path": "custom_mobs::<FMobHookEvent as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3110,
+      "path": "custom_mobs::<FMobInfo as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3111,
+      "path": "custom_mobs::<FMobInfo as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3112,
+      "path": "custom_mobs::<FMobLodMode as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3113,
+      "path": "custom_mobs::<FMobLodMode as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3114,
+      "path": "custom_mobs::<FMobMemoryValue as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3115,
+      "path": "custom_mobs::<FMobMemoryValue as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3116,
+      "path": "custom_mobs::<FMobPoseFrame as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3117,
+      "path": "custom_mobs::<FMobPoseFrame as Default>::default",
+      "sig": "fn default() -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3118,
+      "path": "custom_mobs::<FMobPoseFrame as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3119,
+      "path": "custom_mobs::<FMobSpawnOptions as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3120,
+      "path": "custom_mobs::<FMobSpawnOptions as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3121,
+      "path": "custom_mobs::<FMobTransform as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3122,
+      "path": "custom_mobs::<FMobTransform as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3123,
+      "path": "custom_mobs::<FMobValue as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3124,
+      "path": "custom_mobs::<FMobValue as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3125,
+      "path": "custom_mobs::<FQuat as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3126,
+      "path": "custom_mobs::<FQuat as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3127,
+      "path": "custom_mobs::<FVec3 as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3128,
+      "path": "custom_mobs::<FVec3 as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3129,
+      "path": "custom_mobs::<FVec3f as Clone>::clone",
+      "sig": "fn clone(&Self) -> Self",
+      "status": "bound"
+    },
+    {
+      "id": 3130,
+      "path": "custom_mobs::<FVec3f as PartialEq>::eq",
+      "sig": "fn eq(&Self, &Self) -> bool",
+      "status": "bound"
+    },
+    {
+      "id": 3131,
+      "path": "custom_mobs::FAttributeValue.base#get",
+      "sig": "get base: f64",
+      "status": "bound"
+    },
+    {
+      "id": 3132,
+      "path": "custom_mobs::FAttributeValue.base#set",
+      "sig": "set base: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3133,
+      "path": "custom_mobs::FAttributeValue.value#get",
+      "sig": "get value: f64",
+      "status": "bound"
+    },
+    {
+      "id": 3134,
+      "path": "custom_mobs::FAttributeValue.value#set",
+      "sig": "set value: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3135,
+      "path": "custom_mobs::FBoneTransform.rotation#get",
+      "sig": "get rotation: FQuat",
+      "status": "bound"
+    },
+    {
+      "id": 3136,
+      "path": "custom_mobs::FBoneTransform.rotation#set",
+      "sig": "set rotation: FQuat",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3137,
+      "path": "custom_mobs::FBoneTransform.scale#get",
+      "sig": "get scale: FVec3f",
+      "status": "bound"
+    },
+    {
+      "id": 3138,
+      "path": "custom_mobs::FBoneTransform.scale#set",
+      "sig": "set scale: FVec3f",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3139,
+      "path": "custom_mobs::FBoneTransform.translation#get",
+      "sig": "get translation: FVec3f",
+      "status": "bound"
+    },
+    {
+      "id": 3140,
+      "path": "custom_mobs::FBoneTransform.translation#set",
+      "sig": "set translation: FVec3f",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3141,
+      "path": "custom_mobs::FBoneTransform.visible#get",
+      "sig": "get visible: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3142,
+      "path": "custom_mobs::FBoneTransform.visible#set",
+      "sig": "set visible: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3143,
+      "path": "custom_mobs::FMobBoneWrite.additive#get",
+      "sig": "get additive: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3144,
+      "path": "custom_mobs::FMobBoneWrite.additive#set",
+      "sig": "set additive: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3145,
+      "path": "custom_mobs::FMobBoneWrite.bone#get",
+      "sig": "get bone: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3146,
+      "path": "custom_mobs::FMobBoneWrite.bone#set",
+      "sig": "set bone: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3147,
+      "path": "custom_mobs::FMobBoneWrite.rotation_degrees#get",
+      "sig": "get rotation_degrees: Option<FVec3f>",
+      "status": "bound"
+    },
+    {
+      "id": 3148,
+      "path": "custom_mobs::FMobBoneWrite.rotation_degrees#set",
+      "sig": "set rotation_degrees: Option<FVec3f>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3149,
+      "path": "custom_mobs::FMobBoneWrite.scale#get",
+      "sig": "get scale: Option<FVec3f>",
+      "status": "bound"
+    },
+    {
+      "id": 3150,
+      "path": "custom_mobs::FMobBoneWrite.scale#set",
+      "sig": "set scale: Option<FVec3f>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3151,
+      "path": "custom_mobs::FMobBoneWrite.translation#get",
+      "sig": "get translation: Option<FVec3f>",
+      "status": "bound"
+    },
+    {
+      "id": 3152,
+      "path": "custom_mobs::FMobBoneWrite.translation#set",
+      "sig": "set translation: Option<FVec3f>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3153,
+      "path": "custom_mobs::FMobBoneWrite.visible#get",
+      "sig": "get visible: Option<bool>",
+      "status": "bound"
+    },
+    {
+      "id": 3154,
+      "path": "custom_mobs::FMobBoneWrite.visible#set",
+      "sig": "set visible: Option<bool>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3155,
+      "path": "custom_mobs::FMobDrawEvent.bone_count#get",
+      "sig": "get bone_count: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3156,
+      "path": "custom_mobs::FMobDrawEvent.bone_count#set",
+      "sig": "set bone_count: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3157,
+      "path": "custom_mobs::FMobDrawEvent.entity#get",
+      "sig": "get entity: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3158,
+      "path": "custom_mobs::FMobDrawEvent.entity#set",
+      "sig": "set entity: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3159,
+      "path": "custom_mobs::FMobDrawEvent.lod#get",
+      "sig": "get lod: FMobLodMode",
+      "status": "bound"
+    },
+    {
+      "id": 3160,
+      "path": "custom_mobs::FMobDrawEvent.lod#set",
+      "sig": "set lod: FMobLodMode",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3161,
+      "path": "custom_mobs::FMobDrawEvent.partial#get",
+      "sig": "get partial: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3162,
+      "path": "custom_mobs::FMobDrawEvent.partial#set",
+      "sig": "set partial: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3163,
+      "path": "custom_mobs::FMobDrawEvent.roll#get",
+      "sig": "get roll: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3164,
+      "path": "custom_mobs::FMobDrawEvent.roll#set",
+      "sig": "set roll: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3165,
+      "path": "custom_mobs::FMobDrawEvent.scale#get",
+      "sig": "get scale: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3166,
+      "path": "custom_mobs::FMobDrawEvent.scale#set",
+      "sig": "set scale: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3167,
+      "path": "custom_mobs::FMobDrawEvent.stage#get",
+      "sig": "get stage: FMobDrawStage",
+      "status": "bound"
+    },
+    {
+      "id": 3168,
+      "path": "custom_mobs::FMobDrawEvent.stage#set",
+      "sig": "set stage: FMobDrawStage",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3169,
+      "path": "custom_mobs::FMobDrawEvent.type_id#get",
+      "sig": "get type_id: String",
+      "status": "bound"
+    },
+    {
+      "id": 3170,
+      "path": "custom_mobs::FMobDrawEvent.type_id#set",
+      "sig": "set type_id: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3171,
+      "path": "custom_mobs::FMobDrawEvent.vertex_count#get",
+      "sig": "get vertex_count: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3172,
+      "path": "custom_mobs::FMobDrawEvent.vertex_count#set",
+      "sig": "set vertex_count: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3173,
+      "path": "custom_mobs::FMobDrawEvent.yaw#get",
+      "sig": "get yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3174,
+      "path": "custom_mobs::FMobDrawEvent.yaw#set",
+      "sig": "set yaw: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3175,
+      "path": "custom_mobs::FMobInfo.age#get",
+      "sig": "get age: i32",
+      "status": "bound"
+    },
+    {
+      "id": 3176,
+      "path": "custom_mobs::FMobInfo.age#set",
+      "sig": "set age: i32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3177,
+      "path": "custom_mobs::FMobInfo.alive#get",
+      "sig": "get alive: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3178,
+      "path": "custom_mobs::FMobInfo.alive#set",
+      "sig": "set alive: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3179,
+      "path": "custom_mobs::FMobInfo.baby#get",
+      "sig": "get baby: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3180,
+      "path": "custom_mobs::FMobInfo.baby#set",
+      "sig": "set baby: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3181,
+      "path": "custom_mobs::FMobInfo.controlled#get",
+      "sig": "get controlled: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3182,
+      "path": "custom_mobs::FMobInfo.controlled#set",
+      "sig": "set controlled: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3183,
+      "path": "custom_mobs::FMobInfo.dimension#get",
+      "sig": "get dimension: String",
+      "status": "bound"
+    },
+    {
+      "id": 3184,
+      "path": "custom_mobs::FMobInfo.dimension#set",
+      "sig": "set dimension: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3185,
+      "path": "custom_mobs::FMobInfo.handle#get",
+      "sig": "get handle: u32",
+      "status": "bound"
+    },
+    {
+      "id": 3186,
+      "path": "custom_mobs::FMobInfo.handle#set",
+      "sig": "set handle: u32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3187,
+      "path": "custom_mobs::FMobInfo.health#get",
+      "sig": "get health: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3188,
+      "path": "custom_mobs::FMobInfo.health#set",
+      "sig": "set health: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3189,
+      "path": "custom_mobs::FMobInfo.max_health#get",
+      "sig": "get max_health: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3190,
+      "path": "custom_mobs::FMobInfo.max_health#set",
+      "sig": "set max_health: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3191,
+      "path": "custom_mobs::FMobInfo.on_ground#get",
+      "sig": "get on_ground: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3192,
+      "path": "custom_mobs::FMobInfo.on_ground#set",
+      "sig": "set on_ground: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3193,
+      "path": "custom_mobs::FMobInfo.owner#get",
+      "sig": "get owner: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 3194,
+      "path": "custom_mobs::FMobInfo.owner#set",
+      "sig": "set owner: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3195,
+      "path": "custom_mobs::FMobInfo.pitch#get",
+      "sig": "get pitch: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3196,
+      "path": "custom_mobs::FMobInfo.pitch#set",
+      "sig": "set pitch: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3197,
+      "path": "custom_mobs::FMobInfo.position#get",
+      "sig": "get position: FVec3",
+      "status": "bound"
+    },
+    {
+      "id": 3198,
+      "path": "custom_mobs::FMobInfo.position#set",
+      "sig": "set position: FVec3",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3199,
+      "path": "custom_mobs::FMobInfo.sitting#get",
+      "sig": "get sitting: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3200,
+      "path": "custom_mobs::FMobInfo.sitting#set",
+      "sig": "set sitting: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3201,
+      "path": "custom_mobs::FMobInfo.target#get",
+      "sig": "get target: Option<u32>",
+      "status": "bound"
+    },
+    {
+      "id": 3202,
+      "path": "custom_mobs::FMobInfo.target#set",
+      "sig": "set target: Option<u32>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3203,
+      "path": "custom_mobs::FMobInfo.target_player#get",
+      "sig": "get target_player: Option<String>",
+      "status": "bound"
+    },
+    {
+      "id": 3204,
+      "path": "custom_mobs::FMobInfo.target_player#set",
+      "sig": "set target_player: Option<String>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3205,
+      "path": "custom_mobs::FMobInfo.target_position#get",
+      "sig": "get target_position: Option<FVec3>",
+      "status": "bound"
+    },
+    {
+      "id": 3206,
+      "path": "custom_mobs::FMobInfo.target_position#set",
+      "sig": "set target_position: Option<FVec3>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3207,
+      "path": "custom_mobs::FMobInfo.target_visible#get",
+      "sig": "get target_visible: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3208,
+      "path": "custom_mobs::FMobInfo.target_visible#set",
+      "sig": "set target_visible: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3209,
+      "path": "custom_mobs::FMobInfo.type_id#get",
+      "sig": "get type_id: String",
+      "status": "bound"
+    },
+    {
+      "id": 3210,
+      "path": "custom_mobs::FMobInfo.type_id#set",
+      "sig": "set type_id: String",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3211,
+      "path": "custom_mobs::FMobInfo.velocity#get",
+      "sig": "get velocity: FVec3",
+      "status": "bound"
+    },
+    {
+      "id": 3212,
+      "path": "custom_mobs::FMobInfo.velocity#set",
+      "sig": "set velocity: FVec3",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3213,
+      "path": "custom_mobs::FMobInfo.yaw#get",
+      "sig": "get yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3214,
+      "path": "custom_mobs::FMobInfo.yaw#set",
+      "sig": "set yaw: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3215,
+      "path": "custom_mobs::FMobPoseFrame.ground_speed#get",
+      "sig": "get ground_speed: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3216,
+      "path": "custom_mobs::FMobPoseFrame.ground_speed#set",
+      "sig": "set ground_speed: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3217,
+      "path": "custom_mobs::FMobPoseFrame.head_pitch#get",
+      "sig": "get head_pitch: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3218,
+      "path": "custom_mobs::FMobPoseFrame.head_pitch#set",
+      "sig": "set head_pitch: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3219,
+      "path": "custom_mobs::FMobPoseFrame.head_yaw#get",
+      "sig": "get head_yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3220,
+      "path": "custom_mobs::FMobPoseFrame.head_yaw#set",
+      "sig": "set head_yaw: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3221,
+      "path": "custom_mobs::FMobPoseFrame.on_ground#get",
+      "sig": "get on_ground: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3222,
+      "path": "custom_mobs::FMobPoseFrame.on_ground#set",
+      "sig": "set on_ground: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3223,
+      "path": "custom_mobs::FMobPoseFrame.partial#get",
+      "sig": "get partial: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3224,
+      "path": "custom_mobs::FMobPoseFrame.partial#set",
+      "sig": "set partial: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3225,
+      "path": "custom_mobs::FMobPoseFrame.target#get",
+      "sig": "get target: Option<FVec3f>",
+      "status": "bound"
+    },
+    {
+      "id": 3226,
+      "path": "custom_mobs::FMobPoseFrame.target#set",
+      "sig": "set target: Option<FVec3f>",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3227,
+      "path": "custom_mobs::FMobPoseFrame.time#get",
+      "sig": "get time: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3228,
+      "path": "custom_mobs::FMobPoseFrame.time#set",
+      "sig": "set time: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3229,
+      "path": "custom_mobs::FMobSpawnOptions.baby#get",
+      "sig": "get baby: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3230,
+      "path": "custom_mobs::FMobSpawnOptions.baby#set",
+      "sig": "set baby: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3231,
+      "path": "custom_mobs::FMobSpawnOptions.persistent#get",
+      "sig": "get persistent: bool",
+      "status": "bound"
+    },
+    {
+      "id": 3232,
+      "path": "custom_mobs::FMobSpawnOptions.persistent#set",
+      "sig": "set persistent: bool",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3233,
+      "path": "custom_mobs::FMobSpawnOptions.yaw#get",
+      "sig": "get yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3234,
+      "path": "custom_mobs::FMobSpawnOptions.yaw#set",
+      "sig": "set yaw: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3235,
+      "path": "custom_mobs::FMobTransform.pitch#get",
+      "sig": "get pitch: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3236,
+      "path": "custom_mobs::FMobTransform.pitch#set",
+      "sig": "set pitch: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3237,
+      "path": "custom_mobs::FMobTransform.position#get",
+      "sig": "get position: FVec3",
+      "status": "bound"
+    },
+    {
+      "id": 3238,
+      "path": "custom_mobs::FMobTransform.position#set",
+      "sig": "set position: FVec3",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3239,
+      "path": "custom_mobs::FMobTransform.yaw#get",
+      "sig": "get yaw: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3240,
+      "path": "custom_mobs::FMobTransform.yaw#set",
+      "sig": "set yaw: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3241,
+      "path": "custom_mobs::FQuat.w#get",
+      "sig": "get w: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3242,
+      "path": "custom_mobs::FQuat.w#set",
+      "sig": "set w: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3243,
+      "path": "custom_mobs::FQuat.x#get",
+      "sig": "get x: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3244,
+      "path": "custom_mobs::FQuat.x#set",
+      "sig": "set x: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3245,
+      "path": "custom_mobs::FQuat.y#get",
+      "sig": "get y: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3246,
+      "path": "custom_mobs::FQuat.y#set",
+      "sig": "set y: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3247,
+      "path": "custom_mobs::FQuat.z#get",
+      "sig": "get z: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3248,
+      "path": "custom_mobs::FQuat.z#set",
+      "sig": "set z: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3249,
+      "path": "custom_mobs::FVec3.x#get",
+      "sig": "get x: f64",
+      "status": "bound"
+    },
+    {
+      "id": 3250,
+      "path": "custom_mobs::FVec3.x#set",
+      "sig": "set x: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3251,
+      "path": "custom_mobs::FVec3.y#get",
+      "sig": "get y: f64",
+      "status": "bound"
+    },
+    {
+      "id": 3252,
+      "path": "custom_mobs::FVec3.y#set",
+      "sig": "set y: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3253,
+      "path": "custom_mobs::FVec3.z#get",
+      "sig": "get z: f64",
+      "status": "bound"
+    },
+    {
+      "id": 3254,
+      "path": "custom_mobs::FVec3.z#set",
+      "sig": "set z: f64",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3255,
+      "path": "custom_mobs::FVec3f.x#get",
+      "sig": "get x: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3256,
+      "path": "custom_mobs::FVec3f.x#set",
+      "sig": "set x: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3257,
+      "path": "custom_mobs::FVec3f.y#get",
+      "sig": "get y: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3258,
+      "path": "custom_mobs::FVec3f.y#set",
+      "sig": "set y: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3259,
+      "path": "custom_mobs::FVec3f.z#get",
+      "sig": "get z: f32",
+      "status": "bound"
+    },
+    {
+      "id": 3260,
+      "path": "custom_mobs::FVec3f.z#set",
+      "sig": "set z: f32",
+      "status": "ReadOnly"
+    },
+    {
+      "id": 3261,
+      "path": "custom_mobs::mob_attack",
+      "sig": "fn mob_attack(u32, Option<u32>, Option<String>, f32, f32) -> Result<bool, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3262,
+      "path": "custom_mobs::mob_attribute_add_modifier",
+      "sig": "fn mob_attribute_add_modifier(u32, String, String, f64, FAttributeOperation) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3263,
+      "path": "custom_mobs::mob_attribute_get",
+      "sig": "fn mob_attribute_get(u32, String) -> Result<FAttributeValue, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3264,
+      "path": "custom_mobs::mob_attribute_remove_modifier",
+      "sig": "fn mob_attribute_remove_modifier(u32, String, String) -> Result<bool, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3265,
+      "path": "custom_mobs::mob_attribute_set_base",
+      "sig": "fn mob_attribute_set_base(u32, String, f64) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3266,
+      "path": "custom_mobs::mob_bone_index",
+      "sig": "fn mob_bone_index(String, String) -> Result<Option<u32>, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3267,
+      "path": "custom_mobs::mob_claim_control",
+      "sig": "fn mob_claim_control(u32, bool) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3268,
+      "path": "custom_mobs::mob_data_get",
+      "sig": "fn mob_data_get(u32) -> Result<Vec<u8>, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3269,
+      "path": "custom_mobs::mob_data_put",
+      "sig": "fn mob_data_put(u32, Vec<u8>) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3270,
+      "path": "custom_mobs::mob_despawn",
+      "sig": "fn mob_despawn(u32) -> Result<bool, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3271,
+      "path": "custom_mobs::mob_draw_cancel",
+      "sig": "fn mob_draw_cancel() -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3272,
+      "path": "custom_mobs::mob_draw_event",
+      "sig": "fn mob_draw_event() -> Option<FMobDrawEvent>",
+      "status": "bound"
+    },
+    {
+      "id": 3273,
+      "path": "custom_mobs::mob_get_synced",
+      "sig": "fn mob_get_synced(u32, String) -> Result<Option<FMobValue>, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3274,
+      "path": "custom_mobs::mob_goal_register",
+      "sig": "fn mob_goal_register(String) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3275,
+      "path": "custom_mobs::mob_hook_event",
+      "sig": "fn mob_hook_event() -> Option<FMobHookEvent>",
+      "status": "bound"
+    },
+    {
+      "id": 3276,
+      "path": "custom_mobs::mob_impulse",
+      "sig": "fn mob_impulse(u32, FVec3) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3277,
+      "path": "custom_mobs::mob_info",
+      "sig": "fn mob_info(u32) -> Result<Option<FMobInfo>, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3278,
+      "path": "custom_mobs::mob_jump",
+      "sig": "fn mob_jump(u32) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3279,
+      "path": "custom_mobs::mob_locator",
+      "sig": "fn mob_locator(u32, String) -> Option<FMobTransform>",
+      "status": "bound"
+    },
+    {
+      "id": 3280,
+      "path": "custom_mobs::mob_look_at",
+      "sig": "fn mob_look_at(u32, FVec3, f32, f32) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3281,
+      "path": "custom_mobs::mob_memory_get",
+      "sig": "fn mob_memory_get(u32, String) -> Result<Option<FMobMemoryValue>, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3282,
+      "path": "custom_mobs::mob_memory_set",
+      "sig": "fn mob_memory_set(u32, String, Option<FMobMemoryValue>, Option<u32>) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3283,
+      "path": "custom_mobs::mob_navigate_stop",
+      "sig": "fn mob_navigate_stop(u32) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3284,
+      "path": "custom_mobs::mob_navigate_to",
+      "sig": "fn mob_navigate_to(u32, FVec3, f64) -> Result<bool, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3285,
+      "path": "custom_mobs::mob_pose_bone_count",
+      "sig": "fn mob_pose_bone_count() -> Result<u32, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3286,
+      "path": "custom_mobs::mob_pose_bone_index",
+      "sig": "fn mob_pose_bone_index(String) -> Result<Option<u32>, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3287,
+      "path": "custom_mobs::mob_pose_bone_name",
+      "sig": "fn mob_pose_bone_name(u32) -> Result<Option<String>, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3288,
+      "path": "custom_mobs::mob_pose_get",
+      "sig": "fn mob_pose_get(u32) -> Result<FBoneTransform, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3289,
+      "path": "custom_mobs::mob_pose_get_all",
+      "sig": "fn mob_pose_get_all() -> Result<Vec<FBoneTransform>, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3290,
+      "path": "custom_mobs::mob_pose_set",
+      "sig": "fn mob_pose_set(u32, FBoneTransform) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3291,
+      "path": "custom_mobs::mob_pose_write",
+      "sig": "fn mob_pose_write(FMobBoneWrite) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3292,
+      "path": "custom_mobs::mob_release_controller_state",
+      "sig": "fn mob_release_controller_state(u32, String) -> Result<bool, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3293,
+      "path": "custom_mobs::mob_reply_bool",
+      "sig": "fn mob_reply_bool(bool) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3294,
+      "path": "custom_mobs::mob_reply_hurt",
+      "sig": "fn mob_reply_hurt(f32, bool) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3295,
+      "path": "custom_mobs::mob_reply_interact",
+      "sig": "fn mob_reply_interact(FInteractReply) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3296,
+      "path": "custom_mobs::mob_reply_pose",
+      "sig": "fn mob_reply_pose(Vec<FMobBoneWrite>) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3297,
+      "path": "custom_mobs::mob_reply_save",
+      "sig": "fn mob_reply_save(Vec<u8>) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3298,
+      "path": "custom_mobs::mob_seat_set",
+      "sig": "fn mob_seat_set(u32, u32, Option<u32>) -> Result<bool, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3299,
+      "path": "custom_mobs::mob_set_controller_state",
+      "sig": "fn mob_set_controller_state(u32, String, String) -> Result<bool, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3300,
+      "path": "custom_mobs::mob_set_controller_state_hold",
+      "sig": "fn mob_set_controller_state_hold(u32, String, String, Option<u32>) -> Result<bool, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3301,
+      "path": "custom_mobs::mob_set_hitbox_enabled",
+      "sig": "fn mob_set_hitbox_enabled(u32, String, bool) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3302,
+      "path": "custom_mobs::mob_set_synced",
+      "sig": "fn mob_set_synced(u32, String, FMobValue) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3303,
+      "path": "custom_mobs::mob_set_target",
+      "sig": "fn mob_set_target(u32, Option<u32>, Option<String>) -> Result<bool, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3304,
+      "path": "custom_mobs::mob_spawn_queued",
+      "sig": "fn mob_spawn_queued(String, String, FVec3, FMobSpawnOptions) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3305,
+      "path": "custom_mobs::mob_texture_bind",
+      "sig": "fn mob_texture_bind(u32, String, Option<u32>) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3306,
+      "path": "custom_mobs::mob_texture_create",
+      "sig": "fn mob_texture_create(u32, u32) -> Result<u32, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3307,
+      "path": "custom_mobs::mob_texture_write",
+      "sig": "fn mob_texture_write(u32, (u32, u32), (u32, u32), Vec<u8>) -> Result<(), String>",
+      "status": "bound"
+    },
+    {
+      "id": 3308,
+      "path": "custom_mobs::mob_trigger_anim",
+      "sig": "fn mob_trigger_anim(u32, String, String, f32) -> Result<bool, String>",
+      "status": "bound"
+    },
+    {
+      "id": 3309,
+      "path": "mobs::Extra.attributes#get",
+      "sig": "get attributes: Option<Box<finalize::Attributes>>",
+      "status": "bound"
+    },
+    {
+      "id": 3310,
+      "path": "mobs::Extra.attributes#set",
+      "sig": "set attributes: Option<Box<finalize::Attributes>>",
+      "status": "ReadOnly"
     }
   ],
   "reserved": [

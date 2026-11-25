@@ -39,5 +39,9 @@ fn custom_mob_textures_enabled() -> bool {
         .read()
         .map(|r| !r.is_empty())
         .unwrap_or(false);
+    #[cfg(feature = "yoake2-slice")]
+    if crate::yoake2_mods::client_mods_loaded() {
+        return true;
+    }
     has_custom_mobs || crate::entry::wasm_mods::mob_services::any_granted() || !textures::is_empty()
 }

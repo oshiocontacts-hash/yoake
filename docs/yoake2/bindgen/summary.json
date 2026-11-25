@@ -1,10 +1,10 @@
 [
   {
     "label": "items",
-    "total": 69,
+    "total": 70,
     "bound_a": 7,
     "bound_mech": 13,
-    "handle_required": 15,
+    "handle_required": 16,
     "excluded": 34,
     "derived": 21,
     "derived_bound": 8,
@@ -35,16 +35,16 @@
     "derived": 57,
     "derived_bound": 24,
     "fields_total": 453,
-    "fields_bound": 370,
+    "fields_bound": 371,
     "handle_types": 22
   },
   {
     "label": "motion",
-    "total": 367,
+    "total": 369,
     "bound_a": 35,
     "bound_mech": 7,
     "handle_required": 5,
-    "excluded": 320,
+    "excluded": 322,
     "derived": 6,
     "derived_bound": 2,
     "fields_total": 110,
@@ -141,5 +141,18 @@
     "fields_total": 63,
     "fields_bound": 63,
     "handle_types": 19
+  },
+  {
+    "label": "custom_mobs",
+    "total": 48,
+    "bound_a": 0,
+    "bound_mech": 48,
+    "handle_required": 0,
+    "excluded": 0,
+    "derived": 56,
+    "derived_bound": 38,
+    "fields_total": 65,
+    "fields_bound": 65,
+    "handle_types": 18
   }
 ]

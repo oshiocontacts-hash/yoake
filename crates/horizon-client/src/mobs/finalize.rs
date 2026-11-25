@@ -439,6 +439,11 @@ impl Attr {
             Self::FlyingSpeed => "flying_speed",
         }
     }
+    /// The attribute named `id` (`max_health` or `minecraft:max_health`).
+    pub fn from_id(id: &str) -> Option<Self> {
+        let bare = id.strip_prefix("minecraft:").unwrap_or(id);
+        Self::ALL.into_iter().find(|a| a.name() == bare)
+    }
     /// The attribute's registry id (`minecraft:` and its name), without
     /// building it: mob ticks and entity tracking ask for every mob.
     pub fn id(self) -> &'static str {
@@ -480,7 +485,7 @@ pub enum Op {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Modifier {
     pub attr: Attr,
-    pub id: &'static str,
+    pub id: String,
     pub amount: f64,
     pub op: Op,
 }
@@ -636,11 +641,12 @@ pub fn modifier_amount(m: &Mob, a: Attr, id: &str) -> Option<f64> {
         .map(|x| x.amount)
 }
 /// `addOrReplacePermanentModifier`.
-pub fn add_modifier(m: &mut Mob, a: Attr, id: &'static str, amount: f64, op: Op) {
+pub fn add_modifier(m: &mut Mob, a: Attr, id: impl Into<String>, amount: f64, op: Op) {
+    let id = id.into();
     let s = m.extra.attributes.get_or_insert_with(Box::default);
     let new = Modifier {
         attr: a,
-        id,
+        id: id.clone(),
         amount,
         op,
     };

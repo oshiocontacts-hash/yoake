@@ -4,10 +4,10 @@ Functions counted: free functions, inherent methods, and non-derived trait-impl 
 
 | module | functions | a (basic) | b (mechanical) | **bound now** | handle-required | excluded | derived (bound / total) | fields bound / total | handle types |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `items` | 69 | 7 | 13 | **20 (29.0%)** | 15 (21.7%) | 34 (49.3%) | 8 / 21 | 73 / 90 | 9 |
+| `items` | 70 | 7 | 13 | **20 (28.6%)** | 16 (22.9%) | 34 (48.6%) | 8 / 21 | 73 / 90 | 9 |
 | `entities` | 163 | 30 | 25 | **55 (33.7%)** | 32 (19.6%) | 76 (46.6%) | 9 / 23 | 85 / 97 | 13 |
-| `mobs` | 131 | 52 | 38 | **90 (68.7%)** | 27 (20.6%) | 14 (10.7%) | 24 / 57 | 370 / 453 | 22 |
-| `motion` | 367 | 35 | 7 | **42 (11.4%)** | 5 (1.4%) | 320 (87.2%) | 2 / 6 | 90 / 110 | 3 |
+| `mobs` | 131 | 52 | 38 | **90 (68.7%)** | 27 (20.6%) | 14 (10.7%) | 24 / 57 | 371 / 453 | 22 |
+| `motion` | 369 | 35 | 7 | **42 (11.4%)** | 5 (1.4%) | 322 (87.3%) | 2 / 6 | 90 / 110 | 3 |
 | `game_items` | 5 | 5 | 0 | **5 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 0 / 0 | 0 / 0 | 0 |
 | `entity_query` | 20 | 1 | 6 | **7 (35.0%)** | 4 (20.0%) | 9 (45.0%) | 6 / 10 | 14 / 43 | 4 |
 | `render_world` | 33 | 10 | 10 | **20 (60.6%)** | 5 (15.2%) | 8 (24.2%) | 3 / 8 | 37 / 46 | 4 |
@@ -15,12 +15,13 @@ Functions counted: free functions, inherent methods, and non-derived trait-impl 
 | `mod_generator` | 46 | 8 | 1 | **9 (19.6%)** | 7 (15.2%) | 30 (65.2%) | 0 / 3 | 9 / 28 | 4 |
 | `launch_options` | 3 | 1 | 0 | **1 (33.3%)** | 0 (0.0%) | 2 (66.7%) | 0 / 1 | 32 / 42 | 1 |
 | `f_services` | 32 | 3 | 29 | **32 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 38 / 57 | 63 / 63 | 19 |
+| `custom_mobs` | 48 | 0 | 48 | **48 (100.0%)** | 0 (0.0%) | 0 (0.0%) | 38 / 56 | 65 / 65 | 18 |
 
 ## `items` (horizon-items/src/items.rs)
 
-- bound now: **20 of 69** (29.0%): 7 basic + 13 mechanical
-- handle-required, not yet bound: 15 (21.7%)
-- excluded: 34 (49.3%)
+- bound now: **20 of 70** (28.6%): 7 basic + 13 mechanical
+- handle-required, not yet bound: 16 (22.9%)
+- excluded: 34 (48.6%)
 - field accessors (get + set pairs): 73 of 90 fields
 - handle types (receivers of bound methods or owners of bound fields): 9
 
@@ -45,7 +46,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | reason | occurrences |
 |---|---:|
 | external type `serde_json::value::Value` (crate not loaded) [&argument] | 5 |
-| a reference nested inside another type needs a handle [return value] | 3 |
+| a reference nested inside another type needs a handle [return value] | 4 |
 | external type `serde_json::value::Value` (crate not loaded) [return value] | 3 |
 | std type `std::path::Path` has no codec yet [&argument] | 3 |
 | field `states` of `BlockRegistry` is private to another module [&argument] | 2 |
@@ -187,7 +188,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 - bound now: **90 of 131** (68.7%): 52 basic + 38 mechanical
 - handle-required, not yet bound: 27 (20.6%)
 - excluded: 14 (10.7%)
-- field accessors (get + set pairs): 370 of 453 fields
+- field accessors (get + set pairs): 371 of 453 fields
 - handle types (receivers of bound methods or owners of bound fields): 22
 
 ### Handle types and how a guest reaches them
@@ -204,7 +205,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 | `crate::mobs::DamageKind` | 2 | 0 | `Game.fight.last_blow` |
 | `crate::mobs::ElytraAnimation` | 3 | 2 | `Game.mobs.extra.elytra` |
 | `crate::mobs::EntityModelDocument` | 1 | 0 | - |
-| `crate::mobs::Extra` | 3 | 126 | `Game.mobs.extra` |
+| `crate::mobs::Extra` | 3 | 127 | `Game.mobs.extra` |
 | `crate::mobs::Flags` | 1 | 13 | `Game.mobs.kind.flags` |
 | `crate::mobs::MannequinDescription` | 3 | 0 | `Game.mobs.extra.description` |
 | `crate::mobs::Mob` | 55 | 66 | `Game.mobs` |
@@ -265,7 +266,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 - `mobs::Mob`: `position`, `previous`, `velocity`, `yaw`, `previous_yaw`, `body_yaw`, `head_yaw`, `head_pitch`, `on_ground`, `health`, `fall_distance`, `persistent`, `name_visible`, `invisible`, `no_gravity`, `no_ai`, `silent`, `fire_ticks`, `ticks_frozen`, `glowing`, `air`, `absorption`
 
-348 read-only field accessors (getter only).
+349 read-only field accessors (getter only).
 
 ### Fields without accessors
 
@@ -273,7 +274,7 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 |---|---:|
 | `MobWorld` carries a lifetime (cannot be a handle type) | 39 |
 | `Teams` carries a lifetime (cannot be a handle type) | 2 |
-| a reference nested inside another type needs a handle | 14 |
+| a reference nested inside another type needs a handle | 13 |
 | external type `glam::f32::mat3::Mat3` (crate not loaded) | 1 |
 | external type `horizon_mods::custom_mob::CustomMobFile` (crate not loaded) | 1 |
 | external type `serde_json::value::Value` (crate not loaded) | 2 |
@@ -299,9 +300,9 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 ## `motion` (horizon-client/src/motion.rs)
 
-- bound now: **42 of 367** (11.4%): 35 basic + 7 mechanical
+- bound now: **42 of 369** (11.4%): 35 basic + 7 mechanical
 - handle-required, not yet bound: 5 (1.4%)
-- excluded: 320 (87.2%)
+- excluded: 322 (87.3%)
 - field accessors (get + set pairs): 90 of 110 fields
 - handle types (receivers of bound methods or owners of bound fields): 3
 
@@ -328,9 +329,9 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 
 | reason | occurrences |
 |---|---:|
-| receiver type carries a lifetime: it cannot be a hook-argument handle | 304 |
-| generic type alias `Result` | 259 |
-| hook machinery (`__yoake_*`): not an engine function | 126 |
+| receiver type carries a lifetime: it cannot be a hook-argument handle | 306 |
+| generic type alias `Result` | 261 |
+| hook machinery (`__yoake_*`): not an engine function | 128 |
 | field `min` of `Aabb` is private to another module | 6 |
 | associated-type projection requires a listed instantiation | 5 |
 | `impl Trait` requires a listed instantiation | 2 |
@@ -716,6 +717,55 @@ A type is reachable as a hook argument (`Root::HookArg`) when one of its methods
 ### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
 
 (none writable; 63 read-only field accessors)
+
+### Fields without accessors
+
+(none)
+
+## `custom_mobs` (horizon-client/src/game/yoake2_custom_mobs.rs)
+
+- bound now: **48 of 48** (100.0%): 0 basic + 48 mechanical
+- handle-required, not yet bound: 0 (0.0%)
+- excluded: 0 (0.0%)
+- field accessors (get + set pairs): 65 of 65 fields
+- handle types (receivers of bound methods or owners of bound fields): 18
+
+### Handle types and how a guest reaches them
+
+A type is reachable as a hook argument (`Root::HookArg`) when one of its methods is hooked; every type below has bound methods or accessors. The last column is the shortest chain of `Game` fields that mentions the type (resolution from `Game` is not built; this is where it would start).
+
+| handle type | bound methods | bound field pairs | from `Game` by field path |
+|---|---:|---:|---|
+| `crate::game::yoake2_custom_mobs::FAttributeOperation` | 2 | 0 | - |
+| `crate::game::yoake2_custom_mobs::FAttributeValue` | 2 | 2 | - |
+| `crate::game::yoake2_custom_mobs::FBoneTransform` | 2 | 4 | - |
+| `crate::game::yoake2_custom_mobs::FInteractReply` | 2 | 0 | - |
+| `crate::game::yoake2_custom_mobs::FMobBoneWrite` | 2 | 6 | - |
+| `crate::game::yoake2_custom_mobs::FMobDrawEvent` | 2 | 10 | - |
+| `crate::game::yoake2_custom_mobs::FMobDrawStage` | 2 | 0 | - |
+| `crate::game::yoake2_custom_mobs::FMobHookEvent` | 2 | 0 | - |
+| `crate::game::yoake2_custom_mobs::FMobInfo` | 2 | 20 | - |
+| `crate::game::yoake2_custom_mobs::FMobLodMode` | 2 | 0 | - |
+| `crate::game::yoake2_custom_mobs::FMobMemoryValue` | 2 | 0 | - |
+| `crate::game::yoake2_custom_mobs::FMobPoseFrame` | 2 | 7 | - |
+| `crate::game::yoake2_custom_mobs::FMobSpawnOptions` | 2 | 3 | - |
+| `crate::game::yoake2_custom_mobs::FMobTransform` | 2 | 3 | - |
+| `crate::game::yoake2_custom_mobs::FMobValue` | 2 | 0 | - |
+| `crate::game::yoake2_custom_mobs::FQuat` | 2 | 4 | - |
+| `crate::game::yoake2_custom_mobs::FVec3` | 2 | 3 | - |
+| `crate::game::yoake2_custom_mobs::FVec3f` | 2 | 3 | - |
+
+### Handle-required: reasons
+
+(none)
+
+### Excluded: reasons
+
+(none)
+
+### Writable fields (setters are opt-in; every other data field is read-only and its setter id is reserved as `ReadOnly`)
+
+(none writable; 65 read-only field accessors)
 
 ### Fields without accessors
 

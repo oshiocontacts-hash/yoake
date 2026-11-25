@@ -1374,6 +1374,158 @@ pub mod yoake_glue {
         })
     }
 
+    fn enc_crate__mobs__finalize__Attr(v: &crate::mobs::finalize::Attr, out: &mut Vec<u8>) {
+        match v {
+            crate::mobs::finalize::Attr::MaxHealth => {
+                Encode::encode(&0u32, out);
+            }
+            crate::mobs::finalize::Attr::MovementSpeed => {
+                Encode::encode(&1u32, out);
+            }
+            crate::mobs::finalize::Attr::FollowRange => {
+                Encode::encode(&2u32, out);
+            }
+            crate::mobs::finalize::Attr::AttackDamage => {
+                Encode::encode(&3u32, out);
+            }
+            crate::mobs::finalize::Attr::KnockbackResistance => {
+                Encode::encode(&4u32, out);
+            }
+            crate::mobs::finalize::Attr::SpawnReinforcements => {
+                Encode::encode(&5u32, out);
+            }
+            crate::mobs::finalize::Attr::JumpStrength => {
+                Encode::encode(&6u32, out);
+            }
+            crate::mobs::finalize::Attr::Armor => {
+                Encode::encode(&7u32, out);
+            }
+            crate::mobs::finalize::Attr::BurningTime => {
+                Encode::encode(&8u32, out);
+            }
+            crate::mobs::finalize::Attr::FlyingSpeed => {
+                Encode::encode(&9u32, out);
+            }
+        }
+    }
+    fn dec_crate__mobs__finalize__Attr(d: &mut Decoder<'_>) -> Result<crate::mobs::finalize::Attr, CallError> {
+        d.enter()?;
+        let r = dec_crate__mobs__finalize__Attr_body(d);
+        d.leave();
+        r
+    }
+    fn dec_crate__mobs__finalize__Attr_body(d: &mut Decoder<'_>) -> Result<crate::mobs::finalize::Attr, CallError> {
+        match <u32 as Decode>::decode(d)? {
+            0 => Ok(crate::mobs::finalize::Attr::MaxHealth),
+            1 => Ok(crate::mobs::finalize::Attr::MovementSpeed),
+            2 => Ok(crate::mobs::finalize::Attr::FollowRange),
+            3 => Ok(crate::mobs::finalize::Attr::AttackDamage),
+            4 => Ok(crate::mobs::finalize::Attr::KnockbackResistance),
+            5 => Ok(crate::mobs::finalize::Attr::SpawnReinforcements),
+            6 => Ok(crate::mobs::finalize::Attr::JumpStrength),
+            7 => Ok(crate::mobs::finalize::Attr::Armor),
+            8 => Ok(crate::mobs::finalize::Attr::BurningTime),
+            9 => Ok(crate::mobs::finalize::Attr::FlyingSpeed),
+            n => Err(CallError::InvalidTag("Attr", n)),
+        }
+    }
+
+    fn enc_crate__mobs__finalize__Attributes(v: &crate::mobs::finalize::Attributes, out: &mut Vec<u8>) {
+        {
+            let s0 = &v.bases;
+            codec::enc_len(s0.len(), out);
+            for e0 in s0.iter() {
+                {
+                    let t1 = e0;
+                    enc_crate__mobs__finalize__Attr(&t1.0, out);
+                    Encode::encode(&t1.1, out);
+                }
+            }
+        }
+        {
+            let s0 = &v.modifiers;
+            codec::enc_len(s0.len(), out);
+            for e0 in s0.iter() {
+                enc_crate__mobs__finalize__Modifier(e0, out);
+            }
+        }
+    }
+    fn dec_crate__mobs__finalize__Attributes(d: &mut Decoder<'_>) -> Result<crate::mobs::finalize::Attributes, CallError> {
+        d.enter()?;
+        let r = dec_crate__mobs__finalize__Attributes_body(d);
+        d.leave();
+        r
+    }
+    fn dec_crate__mobs__finalize__Attributes_body(d: &mut Decoder<'_>) -> Result<crate::mobs::finalize::Attributes, CallError> {
+        Ok(crate::mobs::finalize::Attributes {
+            bases: {
+                let n0 = d.vec_len()?;
+                let mut v0 = Decoder::vec_with(n0);
+                for _ in 0..n0 {
+                    v0.push((dec_crate__mobs__finalize__Attr(d)?, <f64 as Decode>::decode(d)?,));
+                }
+                v0
+            },
+            modifiers: {
+                let n0 = d.vec_len()?;
+                let mut v0 = Decoder::vec_with(n0);
+                for _ in 0..n0 {
+                    v0.push(dec_crate__mobs__finalize__Modifier(d)?);
+                }
+                v0
+            },
+        })
+    }
+
+    fn enc_crate__mobs__finalize__Modifier(v: &crate::mobs::finalize::Modifier, out: &mut Vec<u8>) {
+        enc_crate__mobs__finalize__Attr(&v.attr, out);
+        Encode::encode(&v.id, out);
+        Encode::encode(&v.amount, out);
+        enc_crate__mobs__finalize__Op(&v.op, out);
+    }
+    fn dec_crate__mobs__finalize__Modifier(d: &mut Decoder<'_>) -> Result<crate::mobs::finalize::Modifier, CallError> {
+        d.enter()?;
+        let r = dec_crate__mobs__finalize__Modifier_body(d);
+        d.leave();
+        r
+    }
+    fn dec_crate__mobs__finalize__Modifier_body(d: &mut Decoder<'_>) -> Result<crate::mobs::finalize::Modifier, CallError> {
+        Ok(crate::mobs::finalize::Modifier {
+            attr: dec_crate__mobs__finalize__Attr(d)?,
+            id: <String as Decode>::decode(d)?,
+            amount: <f64 as Decode>::decode(d)?,
+            op: dec_crate__mobs__finalize__Op(d)?,
+        })
+    }
+
+    fn enc_crate__mobs__finalize__Op(v: &crate::mobs::finalize::Op, out: &mut Vec<u8>) {
+        match v {
+            crate::mobs::finalize::Op::AddValue => {
+                Encode::encode(&0u32, out);
+            }
+            crate::mobs::finalize::Op::AddMultipliedBase => {
+                Encode::encode(&1u32, out);
+            }
+            crate::mobs::finalize::Op::AddMultipliedTotal => {
+                Encode::encode(&2u32, out);
+            }
+        }
+    }
+    fn dec_crate__mobs__finalize__Op(d: &mut Decoder<'_>) -> Result<crate::mobs::finalize::Op, CallError> {
+        d.enter()?;
+        let r = dec_crate__mobs__finalize__Op_body(d);
+        d.leave();
+        r
+    }
+    fn dec_crate__mobs__finalize__Op_body(d: &mut Decoder<'_>) -> Result<crate::mobs::finalize::Op, CallError> {
+        match <u32 as Decode>::decode(d)? {
+            0 => Ok(crate::mobs::finalize::Op::AddValue),
+            1 => Ok(crate::mobs::finalize::Op::AddMultipliedBase),
+            2 => Ok(crate::mobs::finalize::Op::AddMultipliedTotal),
+            n => Err(CallError::InvalidTag("Op", n)),
+        }
+    }
+
     fn enc_crate__mobs__gear__Gear(v: &crate::mobs::gear::Gear, out: &mut Vec<u8>) {
         for e0 in (&v.slots).iter() {
             {
@@ -9587,6 +9739,22 @@ pub mod yoake_glue {
     /// `mobs::Mob.profile#set`
     // read-only: the id is reserved, the dispatcher refuses the call
 
+    /// `mobs::Extra.attributes#get`
+    fn call_3309(recv: &crate::mobs::Extra, args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        Decoder::new(args).finish()?;
+        match &recv.attributes {
+            None => out.push(0),
+            Some(v0) => {
+                out.push(1);
+                enc_crate__mobs__finalize__Attributes(&**(v0), out);
+            }
+        }
+        Ok(())
+    }
+
+    /// `mobs::Extra.attributes#set`
+    // read-only: the id is reserved, the dispatcher refuses the call
+
     /// Scalar fields of `crate::mobs::Attrs` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__mobs__Attrs: FieldTable<crate::mobs::Attrs> = FieldTable {
         get: |t, f| match f {
@@ -11196,6 +11364,8 @@ pub mod yoake_glue {
         (2538, "mobs::Extra.effect_particles#set"),
         (2891, "mobs::Mob.profile#get"),
         (2892, "mobs::Mob.profile#set"),
+        (3309, "mobs::Extra.attributes#get"),
+        (3310, "mobs::Extra.attributes#set"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -12057,6 +12227,8 @@ pub mod yoake_glue {
             2538 => Err(CallError::ReadOnly(id)),
             2891 => activation::with_arg_shared::<crate::mobs::Mob, _>(handle, |recv| call_2891(recv, args, out)).map_err(CallError::from).and_then(|r| r),
             2892 => Err(CallError::ReadOnly(id)),
+            3309 => activation::with_arg_shared::<crate::mobs::Extra, _>(handle, |recv| call_3309(recv, args, out)).map_err(CallError::from).and_then(|r| r),
+            3310 => Err(CallError::ReadOnly(id)),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {

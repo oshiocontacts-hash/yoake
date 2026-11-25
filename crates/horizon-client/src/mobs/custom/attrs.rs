@@ -77,6 +77,82 @@ pub fn operation(name: &str) -> Option<Operation> {
         .find(|op| operation_name(*op) == name)
 }
 
+/// After a service changed a built-in attribute: lowering max health clamps the current health
+/// (`LivingEntity.setHealth` clamps to the new maximum).
+fn after_builtin(m: &mut crate::mobs::Mob, a: crate::mobs::finalize::Attr) {
+    if a == crate::mobs::finalize::Attr::MaxHealth {
+        m.health = m.health.min(m.attrs.max_health);
+    }
+}
+
+fn builtin(m: &crate::mobs::Mob, id: &str) -> Option<crate::mobs::finalize::Attr> {
+    let a = crate::mobs::finalize::Attr::from_id(id)?;
+    m.kind.attributes.contains_key(a.id()).then_some(a)
+}
+
+/// Whether `m` holds `id` (a built-in attribute in its type's attribute map or a custom attribute).
+pub fn has(m: &crate::mobs::Mob, id: &str) -> bool {
+    builtin(m, id).is_some()
+        || m.kind
+            .custom
+            .as_ref()
+            .is_some_and(|t| t.attributes.iter().any(|a| a.id == id))
+}
+
+/// Reads `(base, value)` for a built-in attribute in `m`'s attribute map or a custom attribute.
+pub fn get(m: &mut crate::mobs::Mob, id: &str) -> Option<(f64, f64)> {
+    if let Some(a) = builtin(m, id) {
+        Some((
+            crate::mobs::finalize::base_value(m, a),
+            crate::mobs::finalize::value(m, a),
+        ))
+    } else {
+        let s = m.extra.custom.as_mut()?;
+        Some((s.attrs.base(id)?, s.attrs.value(id)?))
+    }
+}
+
+/// Sets either a built-in attribute of the type or one of its custom attributes.
+pub fn set_base(m: &mut crate::mobs::Mob, id: &str, value: f64) -> bool {
+    if let Some(a) = builtin(m, id) {
+        crate::mobs::finalize::set_base(m, a, value);
+        after_builtin(m, a);
+        true
+    } else {
+        m.extra.custom.as_mut().is_some_and(|s| s.attrs.set_base(id, value))
+    }
+}
+
+/// Adds a permanent modifier through the same path for built-in and custom attributes.
+pub fn add_modifier(m: &mut crate::mobs::Mob, id: &str, modifier: &str, amount: f64, op: Operation) -> bool {
+    if let Some(a) = builtin(m, id) {
+        if Modifier::new(modifier, amount, op).is_err() {
+            return false;
+        }
+        let op = match op {
+            Operation::AddValue => crate::mobs::finalize::Op::AddValue,
+            Operation::AddMultipliedBase => crate::mobs::finalize::Op::AddMultipliedBase,
+            Operation::AddMultipliedTotal => crate::mobs::finalize::Op::AddMultipliedTotal,
+        };
+        crate::mobs::finalize::add_modifier(m, a, modifier, amount, op);
+        after_builtin(m, a);
+        true
+    } else {
+        m.extra.custom.as_mut().is_some_and(|s| s.attrs.add_modifier(id, modifier, amount, op))
+    }
+}
+
+pub fn remove_modifier(m: &mut crate::mobs::Mob, id: &str, modifier: &str) -> bool {
+    if let Some(a) = builtin(m, id) {
+        let had = crate::mobs::finalize::has_modifier(m, a, modifier);
+        crate::mobs::finalize::remove_modifier(m, a, modifier);
+        after_builtin(m, a);
+        had
+    } else {
+        m.extra.custom.as_mut().is_some_and(|s| s.attrs.remove_modifier(id, modifier))
+    }
+}
+
 impl AttrSet {
     pub fn new(defs: &[AttrDef]) -> Result<Self, String> {
         let mut list = Vec::with_capacity(defs.len());
@@ -345,5 +421,73 @@ pub fn sync_scale(m: &mut crate::mobs::Mob, w: Option<&crate::mobs::MobWorld>) {
     m.extra.model_scale = field;
     if let Some(w) = w {
         m.fudge_position_after_size_change(w, old_w, old_h);
+    }
+}
+
+#[cfg(test)]
+mod builtin_tests {
+    use super::*;
+    use crate::mobs::{Mob, custom::{CustomType, build}};
+    use horizon_core::geometry::Vec3;
+    use horizon_mods::custom_mob::CustomMobFile;
+    use std::sync::Arc;
+
+    fn mob_with_attrs(json: &str) -> Mob {
+        let file = CustomMobFile::parse("demo:mob", json.as_bytes()).unwrap();
+        let t = Arc::new(CustomType::new(file, None).unwrap());
+        let kind = Arc::new(build::mob_type(&t));
+        let mut m = Mob::new(1, kind, Vec3::ZERO, 0.0);
+        build::register(&mut m);
+        m
+    }
+
+    #[test]
+    fn builtin_attributes_get_set_modify_and_clamp_health() {
+        let mut m = mob_with_attrs(
+            r#"{"template":"yoake:mob","category":"creature",
+                "size":{"width":0.6,"height":1.0,"eye_height":0.8},
+                "attributes":{"max_health":20,"movement_speed":0.25,"attack_damage":4},
+                "ai":{"goals":[]}}"#,
+        );
+        assert!(has(&m, "max_health"));
+        assert!(has(&m, "minecraft:max_health"));
+        assert!(has(&m, "follow_range"));
+        assert!(!has(&m, "armor"), "absent built-in is not in the map");
+
+        assert_eq!(get(&mut m, "max_health"), Some((20.0, 20.0)));
+        assert_eq!(m.health, 20.0);
+
+        // Lowering max health clamps current health (`LivingEntity` health rule).
+        assert!(set_base(&mut m, "minecraft:max_health", 12.0));
+        assert_eq!(get(&mut m, "minecraft:max_health"), Some((12.0, 12.0)));
+        assert_eq!(m.attrs.max_health, 12.0);
+        assert_eq!(m.health, 12.0);
+
+        // Vanilla range clamping keeps value >= 1.0 and clamps health to 1.0.
+        assert!(set_base(&mut m, "max_health", 0.0));
+        assert_eq!(get(&mut m, "max_health"), Some((0.0, 1.0)));
+        assert_eq!(m.health, 1.0);
+        assert!(set_base(&mut m, "max_health", 20.0));
+
+        // Modifiers combine with base and clamp; removing lowers max health and clamps health.
+        m.health = 18.0;
+        assert!(add_modifier(&mut m, "max_health", "demo:boost", 0.5, Operation::AddMultipliedBase));
+        assert_eq!(get(&mut m, "max_health"), Some((20.0, 30.0)));
+        m.health = 28.0;
+        assert!(remove_modifier(&mut m, "max_health", "demo:boost"));
+        assert_eq!(m.attrs.max_health, 20.0);
+        assert_eq!(m.health, 20.0);
+
+        // Movement speed & attack damage update Mob.attrs.
+        assert!(set_base(&mut m, "attack_damage", 6.0));
+        assert!(add_modifier(&mut m, "minecraft:movement_speed", "demo:dash", 0.2, Operation::AddMultipliedTotal));
+        assert!((m.attrs.speed - 0.3).abs() < 1e-9);
+        assert_eq!(m.attrs.attack_damage, 6.0);
+
+        // Built-ins not declared in the type map are refused.
+        assert_eq!(get(&mut m, "armor"), None);
+        assert!(!set_base(&mut m, "armor", 5.0));
+        assert!(!add_modifier(&mut m, "armor", "demo:plate", 2.0, Operation::AddValue));
+        assert!(!remove_modifier(&mut m, "armor", "demo:plate"));
     }
 }

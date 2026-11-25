@@ -29,6 +29,7 @@ impl Game<'_> {
         if let Some(root) = crate::yak_mods::game_root() {
             super::native_client_items::yoake2_install_dispatch();
             let report = crate::yoake2_mods::load_client_mods(&root.join("mods"), crate::yoake2_mods::launch_approved_list().as_ref());
+            crate::entry::wasm_mods::install_script_runtimes();
             // REM-12: a module that registered `GPU_FRAME` gets the renderer's per-frame callback
             if crate::yoake2_mods::client_registered(yoake_slice::runtime::HOOK_GPU_FRAME) {
                 let fingerprint = report.loaded.iter().map(|l| format!("{}@{}", l.id, l.version)).collect::<Vec<_>>().join(",");
@@ -40,6 +41,7 @@ impl Game<'_> {
     pub(super) fn yoake2_client_session_end_hook(&mut self) {
         if self.options.execution_role.is_client() && crate::yoake2_mods::client_mods_loaded() {
             f_services::shutdown(&mut GameStreams(self));
+            super::yoake2_custom_mobs_state::release_f_textures();
             crate::entry::wasm_mods::release_f_gpu();
             crate::yoake2_mods::unload_client_mods();
         }
@@ -68,7 +70,9 @@ impl Game<'_> {
         use super::execution_role::ExecutionRole;
         let serves = self.options.dedicated.is_some() || matches!(self.options.execution_role, ExecutionRole::IntegratedServer);
         if serves {
-            crate::yoake2_mods::dev_reload_tick(crate::yoake2_mods::ThreadSide::Server);
+            if crate::yoake2_mods::dev_reload_tick(crate::yoake2_mods::ThreadSide::Server).is_some() {
+                super::yoake2_custom_mobs_state::ensure_world_script_session(&mut self.native_lifecycle.script_session);
+            }
         }
     }
 

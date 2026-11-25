@@ -224,14 +224,20 @@ pub(super) fn attack(damage: f32, entity: u32, knockback: f32, player: Option<&s
     Ok(true)
 }
 
+fn find_attribute(v: &MobView, attribute: &str) -> Result<(f64, f64), String> {
+    let builtin = crate::mobs::finalize::Attr::from_id(attribute).map(|a| a.id());
+    v.attributes
+        .iter()
+        .find(|(id, _, _)| id == attribute || Some(id.as_str()) == builtin)
+        .map(|(_, base, value)| (*base, *value))
+        .ok_or_else(|| format!("{} has no attribute {attribute:.64}", v.type_id))
+}
+
 pub(super) fn attribute_get(attribute: &str, entity: u32) -> Result<st::AttributeValue, String> {
     name(attribute, "attribute")?;
     let v = view(entity)?;
-    v.attributes
-        .iter()
-        .find(|(id, _, _)| id == attribute)
-        .map(|(_, base, value)| st::AttributeValue { base: *base, value: *value })
-        .ok_or_else(|| format!("{} has no attribute {attribute:.64}", v.type_id))
+    let (base, value) = find_attribute(&v, attribute)?;
+    Ok(st::AttributeValue { base, value })
 }
 
 pub(super) fn attribute_set_base(attribute: &str, entity: u32, value: f64) -> Result<(), String> {
@@ -239,7 +245,10 @@ pub(super) fn attribute_set_base(attribute: &str, entity: u32, value: f64) -> Re
     if !value.is_finite() {
         return Err("numbers must be finite".into());
     }
-    simple(entity, Command::SetAttributeBase { attribute: attribute.to_owned(), value })
+    let v = view(entity)?;
+    find_attribute(&v, attribute)?;
+    script::push(entity, Command::SetAttributeBase { attribute: attribute.to_owned(), value });
+    Ok(())
 }
 
 pub(super) fn attribute_add_modifier(amount: f64, attribute: &str, entity: u32, modifier: &str, operation: st::AttributeOperation) -> Result<(), String> {
@@ -248,18 +257,30 @@ pub(super) fn attribute_add_modifier(amount: f64, attribute: &str, entity: u32, 
     if !amount.is_finite() {
         return Err("numbers must be finite".into());
     }
-    let operation = match operation {
-        st::AttributeOperation::AddValue => "add_value",
-        st::AttributeOperation::AddMultipliedBase => "add_multiplied_base",
-        st::AttributeOperation::AddMultipliedTotal => "add_multiplied_total",
+    let v = view(entity)?;
+    find_attribute(&v, attribute)?;
+    let (operation_str, op) = match operation {
+        st::AttributeOperation::AddValue => ("add_value", horizon_world::attributes::Operation::AddValue),
+        st::AttributeOperation::AddMultipliedBase => ("add_multiplied_base", horizon_world::attributes::Operation::AddMultipliedBase),
+        st::AttributeOperation::AddMultipliedTotal => ("add_multiplied_total", horizon_world::attributes::Operation::AddMultipliedTotal),
     };
-    simple(entity, Command::AddModifier { attribute: attribute.to_owned(), modifier: modifier.to_owned(), amount, operation: operation.to_owned() })
+    horizon_world::attributes::Modifier::new(modifier, amount, op)
+        .map_err(|_| format!("not a valid modifier id {modifier:.64}"))?;
+    script::push(entity, Command::AddModifier {
+        attribute: attribute.to_owned(),
+        modifier: modifier.to_owned(),
+        amount,
+        operation: operation_str.to_owned(),
+    });
+    Ok(())
 }
 
 pub(super) fn attribute_remove_modifier(attribute: &str, entity: u32, modifier: &str) -> Result<bool, String> {
     name(attribute, "attribute")?;
     name(modifier, "modifier id")?;
-    simple(entity, Command::RemoveModifier { attribute: attribute.to_owned(), modifier: modifier.to_owned() })?;
+    let v = view(entity)?;
+    find_attribute(&v, attribute)?;
+    script::push(entity, Command::RemoveModifier { attribute: attribute.to_owned(), modifier: modifier.to_owned() });
     Ok(true)
 }
 
@@ -587,5 +608,98 @@ mod tests {
         )), "the hit frame must produce player damage: {events:?}");
         assert!(events.iter().any(|e| matches!(e, MobEvent::Knockback { target: Who::Player, .. })));
         assert_eq!(script::queued(), 0, "the attack command was applied in the animation callback");
+    }
+}
+
+#[cfg(test)]
+mod attr_tests {
+    use super::*;
+    use crate::mobs::{
+        Mob,
+        custom::{
+            CustomType, build,
+            script::{self, HurtReply, InteractReply, MobScriptValue, Runtime},
+        },
+    };
+    use horizon_core::geometry::Vec3;
+    use horizon_mods::custom_mob::CustomMobFile;
+    use std::sync::Arc;
+
+    struct NoopRuntime;
+    impl Runtime for NoopRuntime {
+        fn live(&self) -> bool { true }
+        fn goal_can_use(&self, _: u32, _: &str) -> Option<bool> { None }
+        fn goal_can_continue(&self, _: u32, _: &str) -> Option<bool> { None }
+        fn goal_start(&self, _: u32, _: &str) {}
+        fn goal_tick(&self, _: u32, _: &str) {}
+        fn goal_stop(&self, _: u32, _: &str) {}
+        fn mob_tick(&self, _: u32) {}
+        fn mob_spawn_check(&self, _: &str, _: &str, _: [i32; 3]) -> Option<bool> { None }
+        fn mob_spawned(&self, _: u32, _: &str, _: &str) {}
+        fn mob_hurt(&self, _: u32, _: &str, _: &str, _: f32) -> Option<HurtReply> { None }
+        fn mob_died(&self, _: u32, _: &str, _: Option<u32>) {}
+        fn mob_interact(&self, _: u32, _: &str, _: &str, _: &str) -> InteractReply { InteractReply::Pass }
+        fn mob_anim_event(&self, _: u32, _: &str) {}
+        fn mob_load(&self, _: u32, _: &[u8]) {}
+        fn mob_save(&self, _: u32, _: &[u8]) -> Option<Vec<u8>> { None }
+        fn mob_tamed(&self, _: u32, _: &str) {}
+        fn mob_bred(&self, _: u32, _: u32, _: u32) {}
+        fn synced_changed(&self, _: u32, _: &str, _: &MobScriptValue, _: &MobScriptValue) {}
+    }
+
+    fn mob_with_builtin_and_custom_attrs() -> Mob {
+        let json = r#"{"template":"yoake:mob","category":"creature",
+            "size":{"width":0.6,"height":1.0,"eye_height":0.9},
+            "attributes":{"max_health":20,"movement_speed":0.25,"attack_damage":3,"yoake:fury":{"default":2,"min":0,"max":10}},
+            "ai":{"goals":[]}}"#;
+        let file = CustomMobFile::parse("test:fox", json.as_bytes()).unwrap();
+        let t = Arc::new(CustomType::new(file, None).unwrap());
+        let kind = Arc::new(build::mob_type(&t));
+        let mut m = Mob::new(42, kind, Vec3::ZERO, 0.0);
+        build::register(&mut m);
+        m
+    }
+
+    #[test]
+    fn attribute_services_support_builtin_and_custom_attributes_with_health_clamp() {
+        let session = script::open_session(Arc::new(NoopRuntime)).unwrap();
+        let mut m = mob_with_builtin_and_custom_attrs();
+        session.in_scope(|| {
+            script::publish(script::MobView::of(&m).unwrap());
+
+            // Both bare and `minecraft:` names work for declared built-in attributes.
+            let mh = attribute_get("max_health", m.id).unwrap();
+            assert_eq!((mh.base, mh.value), (20.0, 20.0));
+            let mh2 = attribute_get("minecraft:max_health", m.id).unwrap();
+            assert_eq!(mh2.base, 20.0);
+            assert_eq!(attribute_get("follow_range", m.id).unwrap().value, 16.0);
+            assert_eq!(attribute_get("yoake:fury", m.id).unwrap().value, 2.0);
+
+            // Setting base and adding modifiers queue commands that apply and clamp health.
+            attribute_set_base("max_health", m.id, 12.0).unwrap();
+            attribute_add_modifier(-4.0, "minecraft:max_health", m.id, "test:curse", st::AttributeOperation::AddValue).unwrap();
+            attribute_add_modifier(1.0, "attack_damage", m.id, "test:claw", st::AttributeOperation::AddMultipliedTotal).unwrap();
+            attribute_set_base("yoake:fury", m.id, 5.0).unwrap();
+            script::apply_pending(&mut m, None, None);
+
+            assert_eq!(m.attrs.max_health, 8.0);
+            assert_eq!(m.health, 8.0, "lowering max_health clamps health");
+            assert_eq!(m.attrs.attack_damage, 6.0);
+
+            // Removing the penalty raises max_health back up.
+            assert!(attribute_remove_modifier("minecraft:max_health", m.id, "test:curse").unwrap());
+            script::apply_pending(&mut m, None, None);
+            assert_eq!(m.attrs.max_health, 12.0);
+
+            script::publish(script::MobView::of(&m).unwrap());
+            assert_eq!(attribute_get("max_health", m.id).unwrap().value, 12.0);
+            assert_eq!(attribute_get("yoake:fury", m.id).unwrap().value, 5.0);
+
+            // Absent built-ins and bad modifier IDs fail closed without queuing commands.
+            assert!(attribute_get("armor", m.id).is_err());
+            assert!(attribute_set_base("armor", m.id, 5.0).is_err());
+            assert!(attribute_add_modifier(1.0, "max_health", m.id, "Bad Id", st::AttributeOperation::AddValue).is_err());
+            assert_eq!(script::queued(), 0);
+        });
     }
 }

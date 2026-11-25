@@ -52,7 +52,7 @@ pub(super) struct NativeLifecycle {
     attempt: Option<OpenAttempt>,
     read_scope: bool,
     /// F4M-10: this server's hold on the script runtime of custom mobs, from its open to its close.
-    script_session: Option<horizon_client::mobs::custom::script::Session>,
+    pub(super) script_session: Option<horizon_client::mobs::custom::script::Session>,
 }
 
 impl NativeLifecycle {
@@ -220,9 +220,8 @@ impl Game<'_> {
         self.script_session_open(authority);
     }
 
-    /// F4M-10: a server world takes the script runtime of custom mobs (the WASM modules and the native mods)
-    /// for as long as it is open. There is one runtime per process: a second server open at the same time is
-    /// told so in the log and runs its custom mobs without the first one's scripts being touched.
+    /// F4M-10: a server world takes an isolated script session for custom mobs (runtime + command bus)
+    /// for as long as it is open. Concurrent servers each open and bind their own session.
     fn script_session_open(&mut self, authority: NativeAuthority) {
         // A session left from an open that never closed (a failed retry) is let go first.
         self.native_lifecycle.script_session = None;
@@ -236,6 +235,13 @@ impl Game<'_> {
         self.native_lifecycle.script_session = crate::entry::wasm_mods::open_world_script_session();
     }
 
+    /// Binds this server's custom-mob script session onto the current thread for the guard's lifetime.
+    pub(super) fn bind_script_session(
+        &self,
+    ) -> Option<horizon_client::mobs::custom::script::SessionGuard> {
+        self.native_lifecycle.script_session.as_ref().map(|s| s.bind())
+    }
+
     /// F4M-10: the world is closed (or failed to open or close): the runtime, the queued commands and the
     /// published views go with it.
     fn script_session_close(&mut self) {
@@ -243,6 +249,7 @@ impl Game<'_> {
     }
 
     pub(super) fn native_lifecycle_world_ready(&mut self) {
+        let _script = self.bind_script_session();
         if let Some(context) = self.native_lifecycle.world_open_ready() {
             // MX3L1: full-access mods of the world's mods folder load here (empty without the yoake2 feature)
             self.yoake2_world_start_hook();
