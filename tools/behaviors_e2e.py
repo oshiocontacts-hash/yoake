@@ -25,6 +25,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -63,34 +64,147 @@ def lit_of(game, pos):
     return 'true' if 'lit=true' in state else 'false'
 
 
-def aim_at(game, pos):
-    """Stands the guest two blocks in front of the block's north face and turns it to the block's centre, so the north
-    face is the one in view. `tp ... facing <x y z>` sets both the place and the look."""
+FACES = {
+    'north': (0, 0, -1),
+    'south': (0, 0, 1),
+    'west': (-1, 0, 0),
+    'east': (1, 0, 0),
+    'up': (0, 1, 0),
+    'down': (0, -1, 0),
+}
+AIR_BLOCKS = {'minecraft:air', 'minecraft:cave_air', 'minecraft:void_air'}
+
+
+def parse_state_props(state):
+    """Parse `mod:block[k1=v1,k2=v2]` into a dict of property strings."""
+    if '[' not in state or not state.endswith(']'):
+        return {}
+    inner = state.split('[', 1)[1][:-1]
+    props = {}
+    for item in inner.split(','):
+        if '=' in item:
+            k, v = item.split('=', 1)
+            props[k.strip()] = v.strip()
+    return props
+
+
+def is_air_block(game, pos):
+    info = game('block', x=pos[0], y=pos[1], z=pos[2])
+    return str(info.get('block', '')) in AIR_BLOCKS
+
+
+def aim_candidates(game, pos):
+    """Compute candidate `(face, stand_pos, look_target)` tuples for `pos` from its block state/facing and air around it."""
     x, y, z = pos
-    game('command', command=f'tp @s {x + 0.5} {y} {z - 1.5} facing {x + 0.5} {y + 0.5} {z + 0.5}')
+    state = str(game('block', x=x, y=y, z=z).get('state', ''))
+    props = parse_state_props(state)
+    horiz = ['north', 'south', 'west', 'east']
+    face_prop = props.get('face')
+    facing_prop = props.get('facing')
+    if face_prop == 'wall' and facing_prop in horiz:
+        order = [facing_prop] + [f for f in horiz if f != facing_prop]
+    elif face_prop == 'floor':
+        order = ['up'] + horiz
+    elif face_prop == 'ceiling':
+        order = ['down'] + horiz
+    elif facing_prop in horiz:
+        order = [facing_prop] + [f for f in horiz if f != facing_prop] + ['up']
+    else:
+        order = horiz + ['up']
+
+    candidates = []
+    for face in order:
+        dx, dy, dz = FACES[face]
+        if face in horiz:
+            if not (is_air_block(game, (x + dx, y, z + dz)) and is_air_block(game, (x + dx, y + 1, z + dz))):
+                continue
+            for dist in (2, 1):
+                sx, sy, sz = x + dist * dx, y, z + dist * dz
+                if is_air_block(game, (sx, sy, sz)) and is_air_block(game, (sx, sy + 1, sz)):
+                    candidates.append((
+                        face,
+                        (sx + 0.5, float(sy), sz + 0.5),
+                        (x + 0.5 + dx * 0.5, y + 0.5, z + 0.5 + dz * 0.5),
+                    ))
+        elif face == 'up':
+            if not is_air_block(game, (x, y + 1, z)):
+                continue
+            for hface in horiz:
+                hx, _, hz = FACES[hface]
+                sx, sy, sz = x + hx, y, z + hz
+                if (is_air_block(game, (sx, sy, sz))
+                        and is_air_block(game, (sx, sy + 1, sz))
+                        and is_air_block(game, (x + hx, y + 1, z + hz))):
+                    candidates.append((
+                        'up',
+                        (sx + 0.5, float(sy), sz + 0.5),
+                        (x + 0.5, y + 1.0, z + 0.5),
+                    ))
+        elif face == 'down':
+            if is_air_block(game, (x, y - 1, z)) and is_air_block(game, (x, y - 2, z)):
+                candidates.append((
+                    'down',
+                    (x + 0.5, float(y - 2), z + 0.5),
+                    (x + 0.5, float(y), z + 0.5),
+                ))
+    if not candidates:
+        candidates.append(('north', (x + 0.5, float(y), z - 1.5), (x + 0.5, y + 0.5, z + 0.5)))
+    return candidates
 
 
-def interact_when_ready(game, pos, tries=10):
-    """`interact`, again after a short wait while no face of the block is visible yet. Each retry aims the guest at the
-    block again: the block just placed is not in the view's picking until the client has it, and a look that missed
-    leaves no face in view, so a refusal is met with a new aim, not only with a wait."""
-    aim_at(game, pos)
-    game.wait(10)
+def aim_at(game, pos, stand=None, target=None):
+    """Teleport to a clear stand point looking at the exposed face's centre and wait until the client position updates."""
+    if stand is None or target is None:
+        _, stand, target = aim_candidates(game, pos)[0]
+    sx, sy, sz = stand
+    tx, ty, tz = target
+    game('command', command=f'tp @s {sx:.2f} {sy:.2f} {sz:.2f} facing {tx:.2f} {ty:.2f} {tz:.2f}')
+    game.until(
+        lambda: pos_of(game),
+        lambda p: abs(p[0] - sx) < 0.25 and abs(p[1] - sy) < 0.5 and abs(p[2] - sz) < 0.25,
+        ticks=80,
+    )
+
+
+def interact_when_ready(game, pos, tries=12):
+    """Wait for the target block on the client, stand facing an exposed face, and `interact` with that exact face."""
+    game.until(
+        lambda: str(game('block', x=pos[0], y=pos[1], z=pos[2]).get('block', '')),
+        lambda b: bool(b) and b not in AIR_BLOCKS,
+        ticks=120,
+    )
+    candidates = aim_candidates(game, pos)
     for attempt in range(tries):
+        face, stand, target = candidates[attempt % len(candidates)]
+        aim_at(game, pos, stand, target)
+        game.wait(4)
         try:
-            return game.raw('interact', *pos)
+            return game.raw('interact', *pos, face)
         except Failed as e:
-            if 'visible' not in str(e) or attempt == tries - 1:
+            msg = str(e)
+            if ('visible' not in msg and 'reach' not in msg and 'no block' not in msg) or attempt == tries - 1:
                 raise
-        aim_at(game, pos)
-        game.wait(10)
+            candidates = aim_candidates(game, pos) or candidates
+        game.wait(5)
+
+
+def wait_registered(game, pos, seconds=30):
+    """Wait until the lamp is on the client and the WASM module's load line is flushed to the log."""
+    end = time.monotonic() + seconds
+    while True:
+        lit = lit_of(game, pos)
+        log = log_text(game)
+        if lit == 'false' and ('ruby' in log or 'registering' in log):
+            return lit, log
+        if time.monotonic() > end:
+            return lit, log
+        game.wait(5)
 
 
 def wait_chat(game, text, seconds=20):
     """Whether a chat line containing `text` shows within the time. `messages` lists what the game already has: the
     line a use puts in chat can come before the harness's `use-item` returns, so `wait-for chat` (which waits for
     a line from now on) would miss it."""
-    import time
     end = time.monotonic() + seconds
     while True:
         if any(text in line for line in game.raw('messages', 50).get('chat', [])):
@@ -111,7 +225,6 @@ def wait_lit(game, pos, want, ticks=60):
 def wait_in_inventory(game, item, seconds=20):
     """Whether the item shows in the inventory within the time. A `give` is applied by the server and reaches the
     client's inventory a few ticks later, so a `select` right after it can find no slot yet."""
-    import time
     end = time.monotonic() + seconds
     while True:
         if game('inventory').get('counts', {}).get(item, 0) >= 1:
@@ -139,11 +252,19 @@ def run(ctl, out, resources, wasm):
         x, y, z = (int(v // 1) for v in pos_of(game))
         lamp = (x + 2, y, z)
         game('command', command=f'fill {x - 3} {y - 1} {z - 3} {x + 5} {y - 1} {z + 3} minecraft:stone')
+        game('command', command=f'fill {x - 3} {y} {z - 3} {x + 5} {y + 4} {z + 3} minecraft:air')
         ok, said = accepted(game, f'setblock {lamp[0]} {lamp[1]} {lamp[2]} ruby:lamp[lit=false]')
-        log = log_text(game)
+        lit, log = wait_registered(game, lamp, seconds=30)
         results['registered'] = {
-            'pass': ok and lit_of(game, lamp) == 'false' and 'ruby' in log and 'registering' not in log,
-            'detail': {'placed': ok, 'said': said, 'block': json.dumps(game('block', x=lamp[0], y=lamp[1], z=lamp[2]))[:200]}}
+            'pass': ok and lit == 'false' and 'ruby' in log and 'registering' not in log,
+            'detail': {
+                'placed': ok,
+                'said': said,
+                'log_has_ruby': 'ruby' in log,
+                'log_has_registering': 'registering' in log,
+                'block': json.dumps(game('block', x=lamp[0], y=lamp[1], z=lamp[2]))[:200],
+            },
+        }
         game.wait(10)  # the server has the new blocks
         # use: the block behaviour flips `lit` and tells the player what the lamp does now. A right-click of the
         # harness can reach the block more than once (the button is held across a frame), so the check is what
@@ -177,8 +298,11 @@ def run(ctl, out, resources, wasm):
         plain('wait_ready', seconds=400)
         none_ok, _ = accepted(plain, 'setblock ~ ~2 ~ ruby:lamp')
         px, py, pz = (int(v // 1) for v in pos_of(plain))
-        accepted(plain, f'setblock {px + 2} {py} {pz} minecraft:lever')
-        plain.raw('interact', px + 2, py, pz)
+        plain('command', command=f'fill {px - 3} {py - 1} {pz - 3} {px + 5} {py - 1} {pz + 3} minecraft:stone')
+        plain('command', command=f'fill {px - 3} {py} {pz - 3} {px + 5} {py + 4} {pz + 3} minecraft:air')
+        accepted(plain, f'setblock {px + 2} {py} {pz + 1} minecraft:stone')
+        accepted(plain, f'setblock {px + 2} {py} {pz} minecraft:lever[face=wall,facing=north]')
+        interact_when_ready(plain, (px + 2, py, pz))
         lever = json.dumps(plain('block', x=px + 2, y=py, z=pz)).lower()
         results['vanilla'] = {'pass': not none_ok and 'lever' in lever, 'detail': {'lamp_refused': not none_ok, 'lever': lever[:200]}}
     except (Failed, AssertionError, KeyError, StopIteration, IndexError, TypeError) as e:
