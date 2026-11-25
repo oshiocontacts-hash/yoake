@@ -2345,6 +2345,7 @@ interface client-types {
     }
 
     record model-skeleton {
+        entity: option<u32>,
         model: string,
         pose: list<mob-bone-write>,
         texture-layer: option<string>,

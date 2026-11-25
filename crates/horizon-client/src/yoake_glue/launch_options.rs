@@ -495,6 +495,62 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.distance = v as i32;
+                true
+            }
+            3 => {
+                t.seed = v as i64;
+                true
+            }
+            4 => {
+                t.creative = v != 0;
+                true
+            }
+            5 => {
+                t.test_terrain = v != 0;
+                true
+            }
+            7 => {
+                t.paced_by_split = v != 0;
+                true
+            }
+            8 => {
+                t.split_guest = v != 0;
+                true
+            }
+            9 => {
+                t.split_in_main_window = v != 0;
+                true
+            }
+            19 => {
+                t.no_pause = v != 0;
+                true
+            }
+            22 => {
+                t.offscreen = v != 0;
+                true
+            }
+            23 => {
+                t.no_focus = v != 0;
+                true
+            }
+            24 => {
+                t.headless = v != 0;
+                true
+            }
+            32 => {
+                t.fullscreen = v != 0;
+                true
+            }
+            36 => {
+                t.session_stdin = v != 0;
+                true
+            }
+            40 => {
+                t.social_control_stdin = v != 0;
+                true
+            }
             _ => false,
         },
     };

@@ -2273,6 +2273,10 @@ pub mod yoake_glue {
                 t.invisible = v != 0;
                 true
             }
+            15 => {
+                t.marker = v != 0;
+                true
+            }
             16 => {
                 t.no_gravity = v != 0;
                 true
@@ -2287,6 +2291,10 @@ pub mod yoake_glue {
             }
             22 => {
                 t.disabled_slots = v as i32;
+                true
+            }
+            24 => {
+                t.enchantment_fall_distance = f64::from_bits(v as u64);
                 true
             }
             _ => false,
@@ -2326,6 +2334,18 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            3 => {
+                t.yaw = f32::from_bits(v as u32);
+                true
+            }
+            4 => {
+                t.color = v as u8;
+                true
+            }
+            5 => {
+                t.check_interval = v as u32;
+                true
+            }
             _ => false,
         },
     };
@@ -2350,6 +2370,18 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.level = v as i32;
+                true
+            }
+            1 => {
+                t.progress = f32::from_bits(v as u32);
+                true
+            }
+            2 => {
+                t.total = v as i32;
+                true
+            }
             _ => false,
         },
     };
@@ -2378,6 +2410,34 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            5 => {
+                t.value = v as u32;
+                true
+            }
+            6 => {
+                t.age = v as u32;
+                true
+            }
+            7 => {
+                t.on_ground = v != 0;
+                true
+            }
+            8 => {
+                t.count = v as u32;
+                true
+            }
+            9 => {
+                t.ticks = v as u32;
+                true
+            }
+            10 => {
+                t.health = v as i32;
+                true
+            }
+            11 => {
+                t.no_gravity = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -2451,6 +2511,14 @@ pub mod yoake_glue {
                 t.no_gravity = v != 0;
                 true
             }
+            18 => {
+                t.vertical_collision = v != 0;
+                true
+            }
+            19 => {
+                t.horizontal_collision = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -2482,6 +2550,14 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.alive = v != 0;
+                true
+            }
+            1 => {
+                t.lava_hurt = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -2509,6 +2585,34 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            2 => {
+                t.facing = v as u8;
+                true
+            }
+            3 => {
+                t.glow = v != 0;
+                true
+            }
+            5 => {
+                t.rotation = v as u8;
+                true
+            }
+            6 => {
+                t.drop_chance = f32::from_bits(v as u32);
+                true
+            }
+            7 => {
+                t.fixed = v != 0;
+                true
+            }
+            8 => {
+                t.invisible = v != 0;
+                true
+            }
+            9 => {
+                t.check_interval = v as u32;
+                true
+            }
             _ => false,
         },
     };
@@ -2535,6 +2639,10 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.moved = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -2558,6 +2666,22 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            2 => {
+                t.facing = v as u8;
+                true
+            }
+            4 => {
+                t.width = v as i32;
+                true
+            }
+            5 => {
+                t.height = v as i32;
+                true
+            }
+            6 => {
+                t.check_interval = v as u32;
+                true
+            }
             _ => false,
         },
     };
@@ -2582,6 +2706,14 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.falling = v != 0;
+                true
+            }
+            1 => {
+                t.friction = f32::from_bits(v as u32);
+                true
+            }
             _ => false,
         },
     };

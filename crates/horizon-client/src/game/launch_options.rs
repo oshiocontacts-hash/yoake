@@ -544,7 +544,7 @@ export_guest!(init, hook);
         let wasm = guest_build::build_guest(&rlib, &guest_src, &scratch, "options_guest");
 
         let _ = runtime::uninstall();
-        runtime::set_engine_dispatch(Some(dispatch));
+        runtime::set_thread_engine_dispatch(Some(dispatch)); // per thread: parallel guest tests must not swap each other's dispatcher
         runtime::install(&wasm, ModConfig::new("")).unwrap();
 
         let mut options = Options::parse(["--render-distance", "16", "--creative", "--seed", "42"].into_iter().map(str::to_owned))
@@ -591,7 +591,7 @@ export_guest!(init, hook);
         assert_eq!(stats.entries, 2);
         assert_eq!(activation::live_activations(), 0);
         assert_eq!(activation::live_path_handles(), 0);
-        runtime::set_engine_dispatch(None);
+        runtime::set_thread_engine_dispatch(None);
         let _ = runtime::uninstall();
     }
 }

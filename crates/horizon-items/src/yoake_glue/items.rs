@@ -1891,6 +1891,18 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.horizontal_angle = f32::from_bits(v as u32);
+                true
+            }
+            2 => {
+                t.base = f32::from_bits(v as u32);
+                true
+            }
+            3 => {
+                t.factor = f32::from_bits(v as u32);
+                true
+            }
             _ => false,
         },
     };
@@ -1913,6 +1925,14 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.delay_seconds = f32::from_bits(v as u32);
+                true
+            }
+            1 => {
+                t.disable_scale = f32::from_bits(v as u32);
+                true
+            }
             _ => false,
         },
     };
@@ -1934,6 +1954,14 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.duration = v as i32;
+                true
+            }
+            2 => {
+                t.amplifier = v as i32;
+                true
+            }
             _ => false,
         },
     };
@@ -1955,6 +1983,14 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.use_duration = f32::from_bits(v as u32);
+                true
+            }
+            2 => {
+                t.range = f32::from_bits(v as u32);
+                true
+            }
             _ => false,
         },
     };
@@ -1991,6 +2027,74 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.fire_resistant = v != 0;
+                true
+            }
+            2 => {
+                t.max_stack = v as u32;
+                true
+            }
+            3 => {
+                t.max_damage = v as u32;
+                true
+            }
+            6 => {
+                t.tool_default_speed = f32::from_bits(v as u32);
+                true
+            }
+            8 => {
+                t.can_destroy_blocks_in_creative = v != 0;
+                true
+            }
+            10 => {
+                t.can_always_eat = v != 0;
+                true
+            }
+            15 => {
+                t.attack_damage = f32::from_bits(v as u32);
+                true
+            }
+            16 => {
+                t.attack_speed = f32::from_bits(v as u32);
+                true
+            }
+            25 => {
+                t.disable_blocking_seconds = f32::from_bits(v as u32);
+                true
+            }
+            28 => {
+                t.use_speed = f32::from_bits(v as u32);
+                true
+            }
+            29 => {
+                t.can_sprint = v != 0;
+                true
+            }
+            30 => {
+                t.interact_vibrations = v != 0;
+                true
+            }
+            31 => {
+                t.glider = v != 0;
+                true
+            }
+            32 => {
+                t.swappable = v != 0;
+                true
+            }
+            33 => {
+                t.equip_dispensable = v != 0;
+                true
+            }
+            34 => {
+                t.equip_damage_on_hurt = v != 0;
+                true
+            }
+            42 => {
+                t.bundle = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -2056,6 +2160,10 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            2 => {
+                t.comparator = v as i32;
+                true
+            }
             _ => false,
         },
     };

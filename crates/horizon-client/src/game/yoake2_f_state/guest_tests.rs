@@ -38,7 +38,7 @@ fn an_f_guest_draws_a_hud_plays_a_sound_feeds_a_stream_and_takes_the_input_metho
     let wasm = guest_build::build_guest(&rlib, &sdk.join("examples/f_client_services.rs"), &scratch, "f_client_services");
 
     let _ = runtime::uninstall();
-    runtime::set_engine_dispatch(Some(dispatch));
+    runtime::set_thread_engine_dispatch(Some(dispatch)); // per thread: parallel guest tests must not swap each other's dispatcher
     runtime::install(&wasm, ModConfig::new("")).unwrap();
     assert!(runtime::take_reports().unwrap().is_empty());
 
@@ -96,7 +96,7 @@ fn an_f_guest_draws_a_hud_plays_a_sound_feeds_a_stream_and_takes_the_input_metho
 
     let stats = runtime::stats();
     assert!(!stats.disabled, "{:?}", stats.trap);
-    runtime::set_engine_dispatch(None);
+    runtime::set_thread_engine_dispatch(None);
     let _ = runtime::uninstall();
     shutdown(&mut engine);
 }

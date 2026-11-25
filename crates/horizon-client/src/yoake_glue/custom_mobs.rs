@@ -3035,6 +3035,14 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.base = f64::from_bits(v as u64);
+                true
+            }
+            1 => {
+                t.value = f64::from_bits(v as u64);
+                true
+            }
             _ => false,
         },
     };
@@ -3055,6 +3063,10 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            3 => {
+                t.visible = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -3075,6 +3087,14 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.bone = v as u32;
+                true
+            }
+            1 => {
+                t.additive = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -3101,6 +3121,34 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.entity = v as u32;
+                true
+            }
+            4 => {
+                t.partial = f32::from_bits(v as u32);
+                true
+            }
+            5 => {
+                t.scale = f32::from_bits(v as u32);
+                true
+            }
+            6 => {
+                t.yaw = f32::from_bits(v as u32);
+                true
+            }
+            7 => {
+                t.roll = f32::from_bits(v as u32);
+                true
+            }
+            8 => {
+                t.bone_count = v as u32;
+                true
+            }
+            9 => {
+                t.vertex_count = v as u32;
+                true
+            }
             _ => false,
         },
     };
@@ -3137,6 +3185,50 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            5 => {
+                t.yaw = f32::from_bits(v as u32);
+                true
+            }
+            6 => {
+                t.pitch = f32::from_bits(v as u32);
+                true
+            }
+            7 => {
+                t.health = f32::from_bits(v as u32);
+                true
+            }
+            8 => {
+                t.max_health = f32::from_bits(v as u32);
+                true
+            }
+            9 => {
+                t.alive = v != 0;
+                true
+            }
+            10 => {
+                t.on_ground = v != 0;
+                true
+            }
+            14 => {
+                t.target_visible = v != 0;
+                true
+            }
+            16 => {
+                t.sitting = v != 0;
+                true
+            }
+            17 => {
+                t.baby = v != 0;
+                true
+            }
+            18 => {
+                t.age = v as i32;
+                true
+            }
+            19 => {
+                t.controlled = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -3172,6 +3264,30 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.time = f32::from_bits(v as u32);
+                true
+            }
+            1 => {
+                t.partial = f32::from_bits(v as u32);
+                true
+            }
+            2 => {
+                t.ground_speed = f32::from_bits(v as u32);
+                true
+            }
+            3 => {
+                t.head_yaw = f32::from_bits(v as u32);
+                true
+            }
+            4 => {
+                t.head_pitch = f32::from_bits(v as u32);
+                true
+            }
+            5 => {
+                t.on_ground = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -3198,6 +3314,18 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.yaw = f32::from_bits(v as u32);
+                true
+            }
+            1 => {
+                t.baby = v != 0;
+                true
+            }
+            2 => {
+                t.persistent = v != 0;
+                true
+            }
             _ => false,
         },
     };
@@ -3220,6 +3348,14 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.yaw = f32::from_bits(v as u32);
+                true
+            }
+            2 => {
+                t.pitch = f32::from_bits(v as u32);
+                true
+            }
             _ => false,
         },
     };
@@ -3243,6 +3379,22 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.x = f32::from_bits(v as u32);
+                true
+            }
+            1 => {
+                t.y = f32::from_bits(v as u32);
+                true
+            }
+            2 => {
+                t.z = f32::from_bits(v as u32);
+                true
+            }
+            3 => {
+                t.w = f32::from_bits(v as u32);
+                true
+            }
             _ => false,
         },
     };
@@ -3267,6 +3419,18 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.x = f64::from_bits(v as u64);
+                true
+            }
+            1 => {
+                t.y = f64::from_bits(v as u64);
+                true
+            }
+            2 => {
+                t.z = f64::from_bits(v as u64);
+                true
+            }
             _ => false,
         },
     };
@@ -3290,6 +3454,18 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.x = f32::from_bits(v as u32);
+                true
+            }
+            1 => {
+                t.y = f32::from_bits(v as u32);
+                true
+            }
+            2 => {
+                t.z = f32::from_bits(v as u32);
+                true
+            }
             _ => false,
         },
     };

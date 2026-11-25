@@ -276,7 +276,7 @@ pub fn generate(config: &Config, root: &Path, uni: &Universe) -> R<Generated> {
     files.insert(PathBuf::from(&config.lock), lock.to_text()?);
     let mut unresolved = std::collections::BTreeSet::new();
     for p in &prepared {
-        let text = render::render(&p.an, &p.target.name, &p.target.crate_name, &p.scan, &ids, &p.target.game_paths, p.target.roots.first().map(String::as_str));
+        let text = render::render(&p.an, &p.target.name, &p.target.crate_name, &p.scan, &ids, &p.target.game_paths, p.target.roots.first().map(String::as_str), &config.table_readonly);
         files.insert(PathBuf::from(&p.target.glue), text);
         if let Some(stubs) = &p.target.guest_stubs {
             files.insert(PathBuf::from(stubs), guest::render_guest(&p.an, &p.target.name, &p.scan, &ids, &p.target.game_paths));

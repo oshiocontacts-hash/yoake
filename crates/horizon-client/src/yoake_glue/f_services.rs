@@ -2674,6 +2674,18 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.components = v as u8;
+                true
+            }
+            1 => {
+                t.location = v as u32;
+                true
+            }
+            2 => {
+                t.offset = v as u64;
+                true
+            }
             _ => false,
         },
     };
@@ -2698,6 +2710,18 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.binding = v as u32;
+                true
+            }
+            3 => {
+                t.offset = v as u64;
+                true
+            }
+            4 => {
+                t.size = v as u64;
+                true
+            }
             _ => false,
         },
     };
@@ -2722,6 +2746,14 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.offset = v as u64;
+                true
+            }
+            2 => {
+                t.size = v as u64;
+                true
+            }
             _ => false,
         },
     };
@@ -2746,6 +2778,22 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.count = v as u32;
+                true
+            }
+            3 => {
+                t.index32 = v != 0;
+                true
+            }
+            4 => {
+                t.instances = v as u32;
+                true
+            }
+            5 => {
+                t.pipeline = v as u32;
+                true
+            }
             _ => false,
         },
     };
@@ -2772,6 +2820,18 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.delta_seconds = f32::from_bits(v as u32);
+                true
+            }
+            2 => {
+                t.height = v as u32;
+                true
+            }
+            7 => {
+                t.width = v as u32;
+                true
+            }
             _ => false,
         },
     };
@@ -2798,6 +2858,22 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.height = v as u32;
+                true
+            }
+            1 => {
+                t.width = v as u32;
+                true
+            }
+            2 => {
+                t.x = v as u32;
+                true
+            }
+            3 => {
+                t.y = v as u32;
+                true
+            }
             _ => false,
         },
     };
@@ -2825,6 +2901,30 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.x = f32::from_bits(v as u32);
+                true
+            }
+            1 => {
+                t.y = f32::from_bits(v as u32);
+                true
+            }
+            2 => {
+                t.width = f32::from_bits(v as u32);
+                true
+            }
+            3 => {
+                t.height = f32::from_bits(v as u32);
+                true
+            }
+            4 => {
+                t.texture_width = f32::from_bits(v as u32);
+                true
+            }
+            5 => {
+                t.texture_height = f32::from_bits(v as u32);
+                true
+            }
             _ => false,
         },
     };
@@ -2855,6 +2955,34 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            1 => {
+                t.blend = v != 0;
+                true
+            }
+            2 => {
+                t.cull = v != 0;
+                true
+            }
+            3 => {
+                t.depth = v != 0;
+                true
+            }
+            4 => {
+                t.depth_write = v != 0;
+                true
+            }
+            7 => {
+                t.lines = v != 0;
+                true
+            }
+            8 => {
+                t.shader = v as u32;
+                true
+            }
+            9 => {
+                t.stride = v as u64;
+                true
+            }
             _ => false,
         },
     };
@@ -2881,6 +3009,14 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.column = v as u32;
+                true
+            }
+            1 => {
+                t.line = v as u32;
+                true
+            }
             _ => false,
         },
     };
@@ -2906,6 +3042,30 @@ pub mod yoake_glue {
             _ => None,
         },
         set: |t, f, v| match f {
+            0 => {
+                t.depth = v as u32;
+                true
+            }
+            2 => {
+                t.height = v as u32;
+                true
+            }
+            3 => {
+                t.mips = v as u32;
+                true
+            }
+            4 => {
+                t.usage = v as u32;
+                true
+            }
+            5 => {
+                t.volume = v != 0;
+                true
+            }
+            6 => {
+                t.width = v as u32;
+                true
+            }
             _ => false,
         },
     };

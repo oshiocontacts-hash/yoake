@@ -230,12 +230,20 @@ fn ime_allowed_area_and_events() {
 
 #[test]
 fn the_gpu_services_refuse_without_a_gpu_or_a_renderer_and_never_panic() {
-    // no device in a unit test: the service reports it as an error (the S route does the same)
+    // no device in a unit test: the service reports it as an error (the S route does the same). The renderer's GPU
+    // runtime is process-wide and `wasm_mods::full::gpu_tests` configures a real device when the machine has one
+    // (and leaves it), so take its test lock and expect the shader refusal only when no device is configured.
+    let _gpu = horizon_client_render::gfx::mod_gpu_runtime::test_guard();
     let error = gpu_buffer(16, 1).unwrap_err();
     assert!(!error.is_empty());
-    assert!(gpu_shader("fn main() {}".into()).is_err());
-    assert!(gpu_frame().is_err());
-    assert!(gpu_poll(1).is_err());
+    if error.contains("not ready") {
+        assert!(gpu_shader("fn main() {}".into()).is_err());
+        assert!(gpu_frame().is_err());
+        assert!(gpu_poll(1).is_err());
+    } else {
+        // a device is configured: the calls must still answer without panicking
+        let _ = (gpu_shader("fn main() {}".into()), gpu_frame(), gpu_poll(1));
+    }
 }
 
 #[cfg(feature = "yoake2-slice")]

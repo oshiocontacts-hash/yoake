@@ -20,7 +20,7 @@
     "mob-transform": {"position":"vec3","yaw":"f32","pitch":"f32"},
     "script-vec3": {"x":"f32","y":"f32","z":"f32"},
     "mob-bone-write": {"bone":"u32","additive":"bool","translation":"option<script-vec3>","rotation-degrees":"option<script-vec3>","scale":"option<script-vec3>","visible":"option<bool>"},
-    "model-skeleton": {"model":"string","pose":"list<mob-bone-write>","texture-layer":"option<string>"}
+    "model-skeleton": {"model":"string","pose":"list<mob-bone-write>","texture-layer":"option<string>","entity":"option<u32>"}
   },
   "enums": {"hud-corner":["top-left","top-right","bottom-left","bottom-right"],"hud-corner-v2":["top-left","top-right","bottom-left","bottom-right","top-center"]},
   "hooks": [],

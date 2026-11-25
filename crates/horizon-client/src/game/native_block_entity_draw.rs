@@ -670,14 +670,16 @@ impl Game<'_> {
             .is_some_and(|a| a.length.is_finite() && a.length > 0.0)
     }
 
-    /// Draws a custom mob's skeleton `model_id` posed by bone writes and optional `texture_layer`
-    /// under `draw`'s pose stack (engine counterpart to `model-command::skeleton`).
+    /// Draws a custom mob's skeleton `model_id` posed by bone writes, optional `texture_layer`, and
+    /// optional per-mob `entity` runtime texture overrides under `draw`'s pose stack (engine
+    /// counterpart to `model-command::skeleton`).
     pub(super) fn native_draw_skeleton(
         &self,
         draw: &mut BlockEntityDraw,
         model_id: &str,
         writes: &[MobBoneWrite],
         texture_layer: Option<&str>,
+        entity: Option<u32>,
     ) -> bool {
         let world_from_model = draw.pose() * Mat4::from_scale(Vec3::splat(1.0 / 16.0));
         let atlas = |name: &str| {
@@ -688,10 +690,12 @@ impl Game<'_> {
                 .copied()
                 .map(|r| [r.u0, r.v0, r.u1, r.v1])
         };
+        let texture_overrides = entity.and_then(|id| self.custom_mob_texture_overrides(id));
         horizon_client::mobs::custom::render_state::draw_skeleton_model(
             model_id,
             writes,
             texture_layer,
+            texture_overrides.as_ref(),
             world_from_model,
             draw.light,
             &atlas,
