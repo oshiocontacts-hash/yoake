@@ -1,7 +1,7 @@
 {
   "abi_version": 2,
   "world": "client-full",
-  "interface_version": "1.10.0",
+  "interface_version": "1.11.0",
   "status": "active",
   "types": {
     "vec2": {"x":"f32","y":"f32"},
@@ -17,7 +17,10 @@
     "camera-state": {"position":"vec3","eye-height":"f32","partial-tick":"f32","yaw":"f32","pitch":"f32","fov-degrees":"f32","near":"f32","far":"f32","view":"list<f32>","projection":"list<f32>","dimension":"string"},
     "camera-override": {"position":"vec3","yaw":"f32","pitch":"f32","roll":"f32","fov-degrees":"f32"},
     "pcm-anchor": {"entity":"option<u32>","position":"option<vec3>"},
-    "mob-transform": {"position":"vec3","yaw":"f32","pitch":"f32"}
+    "mob-transform": {"position":"vec3","yaw":"f32","pitch":"f32"},
+    "script-vec3": {"x":"f32","y":"f32","z":"f32"},
+    "mob-bone-write": {"bone":"u32","additive":"bool","translation":"option<script-vec3>","rotation-degrees":"option<script-vec3>","scale":"option<script-vec3>","visible":"option<bool>"},
+    "model-skeleton": {"model":"string","pose":"list<mob-bone-write>","texture-layer":"option<string>"}
   },
   "enums": {"hud-corner":["top-left","top-right","bottom-left","bottom-right"],"hud-corner-v2":["top-left","top-right","bottom-left","bottom-right","top-center"]},
   "hooks": [],
@@ -78,6 +81,8 @@
     {"id":290,"abi":true,"name":"mob_texture_write","arguments":{"id":"u32","origin":"tuple<u32, u32>","size":"tuple<u32, u32>","rgba":"list<u8>"},"result":"result<_, string>","side":"client","capability":"service.mobs"},
     {"id":291,"abi":true,"name":"mob_texture_bind","arguments":{"entity":"u32","slot":"string","id":"option<u32>"},"result":"result<_, string>","side":"client","capability":"service.mobs"},
     {"id":297,"abi":true,"name":"client_attachment_get","arguments":{"id":"string","kind":"string","holder":"string"},"result":"result<option<list<u8>>, string>","side":"client","capability":"world-storage"},
-    {"id":298,"abi":true,"name":"client_mod_call","arguments":{"method":"string","payload":"list<u8>","target-mod":"string"},"result":"result<list<u8>, string>","side":"client","capability":"mod-call"}
+    {"id":298,"abi":true,"name":"client_mod_call","arguments":{"method":"string","payload":"list<u8>","target-mod":"string"},"result":"result<list<u8>, string>","side":"client","capability":"mod-call"},
+    {"id":299,"abi":true,"name":"mob_play_local_anim","arguments":{"entity":"u32","name":"string","speed":"f32"},"result":"result<bool, string>","side":"client","capability":"service.mobs"},
+    {"id":300,"abi":true,"name":"mob_draw_skeleton","arguments":{"skeleton":"model-skeleton"},"result":"result<bool, string>","side":"client","capability":"service.mobs"}
   ]
 }

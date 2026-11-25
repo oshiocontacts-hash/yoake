@@ -13867,6 +13867,12 @@
       "path": "mobs::Extra.attributes#set",
       "sig": "set attributes: Option<Box<finalize::Attributes>>",
       "status": "ReadOnly"
+    },
+    {
+      "id": 3311,
+      "path": "custom_mobs::mob_play_local_anim",
+      "sig": "fn mob_play_local_anim(u32, String, f32) -> Result<bool, String>",
+      "status": "bound"
     }
   ],
   "reserved": [

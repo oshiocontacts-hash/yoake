@@ -2329,15 +2329,36 @@ interface client-types {
         height: list<s16>,
     }
 
+    record mob-bone-write {
+        additive: bool,
+        bone: u32,
+        rotation-degrees: option<script-vec3>,
+        scale: option<script-vec3>,
+        translation: option<script-vec3>,
+        visible: option<bool>,
+    }
+
     record mob-transform {
         pitch: f32,
         position: vec3,
         yaw: f32,
     }
 
+    record model-skeleton {
+        model: string,
+        pose: list<mob-bone-write>,
+        texture-layer: option<string>,
+    }
+
     record pcm-anchor {
         entity: option<u32>,
         position: option<vec3>,
+    }
+
+    record script-vec3 {
+        x: f32,
+        y: f32,
+        z: f32,
     }
 
     record slot-rect {
@@ -2367,7 +2388,7 @@ interface client-types {
 
 /// Services listed in `abi-subset-client.json`.
 interface client-services {
-    use client-types.{hud-corner, hud-corner-v2, box2, camera-override, camera-state, item-stack, key-state, map-entity, map-player, map-tile, mob-transform, pcm-anchor, slot-rect, vec2, vec3, view-hit};
+    use client-types.{hud-corner, hud-corner-v2, box2, camera-override, camera-state, item-stack, key-state, map-entity, map-player, map-tile, mob-bone-write, mob-transform, model-skeleton, pcm-anchor, script-vec3, slot-rect, vec2, vec3, view-hit};
 
     use hud.{gui-texture};
 
@@ -2430,6 +2451,8 @@ interface client-services {
     mob-texture-bind: func(entity: u32, id: option<u32>, slot: string) -> result<_, string>;
     client-attachment-get: func(holder: string, id: string, kind: string) -> result<option<list<u8>>, string>;
     client-mod-call: func(method: string, payload: list<u8>, target-mod: string) -> result<list<u8>, string>;
+    mob-play-local-anim: func(entity: u32, name: string, speed: f32) -> result<bool, string>;
+    mob-draw-skeleton: func(skeleton: model-skeleton) -> result<bool, string>;
     config-get: func(key: string) -> result<config-value, string>;
     config-set: func(key: string, value: config-value) -> result<_, string>;
     storage-get: func(key: string, scope: storage-scope) -> result<option<list<u8>>, string>;

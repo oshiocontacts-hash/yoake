@@ -3005,6 +3005,28 @@ pub mod yoake_glue {
         Ok(())
     }
 
+    /// `custom_mobs::mob_play_local_anim`
+    fn call_3311(args: &[u8], out: &mut Vec<u8>) -> Result<(), CallError> {
+        let mut dec = Decoder::new(args);
+        let d = &mut dec;
+        let mut a0 = <u32 as Decode>::decode(d)?;
+        let mut a1 = <String as Decode>::decode(d)?;
+        let mut a2 = <f32 as Decode>::decode(d)?;
+        d.finish()?;
+        let r = super::mob_play_local_anim(a0, a1, a2);
+        match &r {
+            Ok(v0) => {
+                out.push(0);
+                Encode::encode(v0, out);
+            }
+            Err(e0) => {
+                out.push(1);
+                Encode::encode(e0, out);
+            }
+        }
+        Ok(())
+    }
+
     /// Scalar fields of `crate::game::yoake2_custom_mobs::FAttributeValue` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__game__yoake2_custom_mobs__FAttributeValue: FieldTable<crate::game::yoake2_custom_mobs::FAttributeValue> = FieldTable {
         get: |t, f| match f {
@@ -3500,6 +3522,7 @@ pub mod yoake_glue {
         (3306, "custom_mobs::mob_texture_create"),
         (3307, "custom_mobs::mob_texture_write"),
         (3308, "custom_mobs::mob_trigger_anim"),
+        (3311, "custom_mobs::mob_play_local_anim"),
     ];
 
     /// Runs binding `id`. `handle` is the hook-argument handle for a method (its receiver is checked to be
@@ -3723,6 +3746,7 @@ pub mod yoake_glue {
             3306 => call_3306(args, out),
             3307 => call_3307(args, out),
             3308 => call_3308(args, out),
+            3311 => call_3311(args, out),
             _ => Err(CallError::UnknownBinding(id)),
         };
         if result.is_err() {

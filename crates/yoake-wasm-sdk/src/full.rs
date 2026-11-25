@@ -113,6 +113,14 @@ pub mod client {
         services::mob_texture_bind(entity, id, slot)
     }
 
+    pub fn mob_play_local_anim(entity: u32, name: &str, speed: f32) -> Result<bool, String> {
+        services::mob_play_local_anim(entity, name, speed)
+    }
+
+    pub fn mob_draw_skeleton(skeleton: &types::ModelSkeleton) -> Result<bool, String> {
+        services::mob_draw_skeleton(skeleton)
+    }
+
     /// Read-only: the attachment `id` (`owner:name`) the server synced onto `holder` (`kind` is `player`,
     /// `entity`, `block-entity`, `chunk` or `level`; the holder is a UUID, an entity id, `x,y,z`, `cx,cz`
     /// or empty). `None` when the holder has no value. (Service 297.)

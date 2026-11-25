@@ -144,4 +144,6 @@ client_services! {
     mob_texture_bind(entity: u32, id: Option<u32>, slot: String) -> ();
     client_attachment_get(holder: String, id: String, kind: String) -> Option<Vec<u8>>;
     client_mod_call(method: String, payload: Vec<u8>, target_mod: String) -> Vec<u8>;
+    mob_play_local_anim(entity: u32, name: String, speed: f32) -> bool;
+    mob_draw_skeleton(skeleton: ModelSkeleton) -> bool;
 }

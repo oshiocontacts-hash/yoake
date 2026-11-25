@@ -363,6 +363,10 @@ pub fn mob_texture_bind(entity: u32, slot: String, id: Option<u32>) -> Result<()
     super::yoake2_custom_mobs_state::texture_bind(entity, &slot, id)
 }
 
+pub fn mob_play_local_anim(entity: u32, name: String, speed: f32) -> Result<bool, String> {
+    super::yoake2_custom_mobs_state::play_local_anim(entity, &name, speed)
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Script goal & lifecycle hook registration, event query, and typed replies
 // ---------------------------------------------------------------------------------------------------------------

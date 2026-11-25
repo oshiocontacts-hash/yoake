@@ -640,14 +640,43 @@ impl Game<'_> {
         true
     }
 
+}
+
+use horizon_client::mod_api::MobBoneWrite;
+
+impl Game<'_> {
+    /// Returns whether loaded client entity `entity` has an animation or trigger named `name`.
+    pub(super) fn native_client_custom_mob_has_anim(&self, entity: u32, name: &str) -> bool {
+        let Some(ct) = self
+            .mobs
+            .iter()
+            .find(|m| m.id == entity)
+            .and_then(|m| m.kind.custom.as_ref())
+        else {
+            return false;
+        };
+        let Some(ta) = ct.anim.as_ref() else {
+            return false;
+        };
+        let Some(animation) = ta
+            .rig
+            .find_animation(name)
+            .or_else(|| ta.triggers.iter().find(|t| t.name == name).map(|t| t.animation))
+        else {
+            return false;
+        };
+        ta.rig
+            .animation(animation)
+            .is_some_and(|a| a.length.is_finite() && a.length > 0.0)
+    }
+
     /// Draws a custom mob's skeleton `model_id` posed by bone writes and optional `texture_layer`
     /// under `draw`'s pose stack (engine counterpart to `model-command::skeleton`).
-    #[allow(dead_code)]
     pub(super) fn native_draw_skeleton(
         &self,
         draw: &mut BlockEntityDraw,
         model_id: &str,
-        writes: &[horizon_client::mobs::custom::script::MobBoneWrite],
+        writes: &[MobBoneWrite],
         texture_layer: Option<&str>,
     ) -> bool {
         let world_from_model = draw.pose() * Mat4::from_scale(Vec3::splat(1.0 / 16.0));
