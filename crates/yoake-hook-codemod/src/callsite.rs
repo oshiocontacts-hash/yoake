@@ -231,6 +231,12 @@ fn strip_cfg_suffix(mut key: &str) -> &str {
 }
 
 fn extract_sig_param_tys(sig: &syn::Signature) -> Vec<Type> {
+    // The declared return type is appended as the last element (callers index by argument position, so the
+    // extra element is only read by `callee_return_ty`, which checks `len == args + 1`).
+    let ret: Type = match &sig.output {
+        syn::ReturnType::Default => syn::parse_quote!(()),
+        syn::ReturnType::Type(_, ty) => (**ty).clone(),
+    };
     sig.inputs
         .iter()
         .map(|arg| match arg {
@@ -248,7 +254,40 @@ fn extract_sig_param_tys(sig: &syn::Signature) -> Vec<Type> {
             }
             syn::FnArg::Typed(pt) => (*pt.ty).clone(),
         })
+        .chain(std::iter::once(ret))
         .collect()
+}
+
+/// True when `ty` names a lifetime other than `'static` and `'_` (`&'r T`, `Foo<'a>`).
+fn type_has_named_lifetime(ty: &Type) -> bool {
+    let text = quote!(#ty).to_string();
+    let bytes: Vec<char> = text.chars().collect();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == '\'' {
+            let mut j = i + 1;
+            while j < bytes.len() && bytes[j].is_whitespace() {
+                j += 1;
+            }
+            let start = j;
+            while j < bytes.len() && (bytes[j].is_alphanumeric() || bytes[j] == '_') {
+                j += 1;
+            }
+            let name: String = bytes[start..j].iter().collect();
+            if !name.is_empty() && name != "static" && name != "_" {
+                return true;
+            }
+            i = j.max(i + 1);
+        } else {
+            i += 1;
+        }
+    }
+    false
+}
+
+/// The callee's declared return type, when the index entry carries it (`params.len() == nargs + 1`).
+fn callee_return_ty(callee_params: Option<&[Type]>, nargs: usize) -> Option<&Type> {
+    callee_params.filter(|v| v.len() == nargs + 1).and_then(|v| v.last())
 }
 
 fn strip_impl_generics(s: &str) -> String {
@@ -423,6 +462,65 @@ struct StaticParamIndex {
     aliases: BTreeMap<String, Option<Type>>,
     loaded_crates: BTreeSet<String>,
     crate_dirs: BTreeMap<String, (PathBuf, String)>,
+    /// Full paths (`crate_ident::a::b`) of modules declared without `pub`/`pub(crate)`: a shim in another
+    /// module cannot name a type through them (E0603).
+    private_mods: BTreeSet<String>,
+}
+
+/// Drops the segments of private modules from every `a::b::C` path in `text`, unless the caller lives inside
+/// the private module's parent (then the full path is visible). The surviving path is the module's re-export
+/// path (`placement::context::Err` -> `placement::Err`); if there is no re-export the compile/exclude loop
+/// removes the site.
+fn publicize_paths(text: &str, caller_key: &str, crate_ident: &str, private_mods: &BTreeSet<String>) -> String {
+    if private_mods.is_empty() {
+        return text.to_string();
+    }
+    let is_ident_char = |c: char| c.is_alphanumeric() || c == '_';
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        let prev_ok = i == 0 || !(is_ident_char(chars[i - 1]) || chars[i - 1] == '\'');
+        if !(prev_ok && (c.is_alphabetic() || c == '_')) {
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let mut segs: Vec<String> = Vec::new();
+        loop {
+            let start = i;
+            while i < chars.len() && is_ident_char(chars[i]) {
+                i += 1;
+            }
+            segs.push(chars[start..i].iter().collect());
+            if i + 2 < chars.len() && chars[i] == ':' && chars[i + 1] == ':' && (chars[i + 2].is_alphabetic() || chars[i + 2] == '_') {
+                i += 2;
+            } else {
+                break;
+            }
+        }
+        let mut kept: Vec<&str> = Vec::with_capacity(segs.len());
+        for idx in 0..segs.len() {
+            if idx + 1 < segs.len() && idx >= 1 {
+                let orig_path: Vec<&str> = segs[..=idx]
+                    .iter()
+                    .enumerate()
+                    .map(|(n, s)| if n == 0 && s == "crate" { crate_ident } else { s.as_str() })
+                    .collect();
+                let full = orig_path.join("::");
+                if private_mods.contains(&full) {
+                    let parent = orig_path[..idx].join("::");
+                    if !caller_key.starts_with(&format!("{parent}::")) {
+                        continue;
+                    }
+                }
+            }
+            kept.push(&segs[idx]);
+        }
+        out.push_str(&kept.join("::"));
+    }
+    out
 }
 
 impl StaticParamIndex {
@@ -474,6 +572,7 @@ impl StaticParamIndex {
         let mut index = Self {
             exact: BTreeMap::new(),
             no_cfg: BTreeMap::new(),
+            private_mods: BTreeSet::new(),
             aliases: BTreeMap::new(),
             loaded_crates: BTreeSet::new(),
             crate_dirs: Self::find_workspace_crates(crate_root),
@@ -589,6 +688,9 @@ impl StaticParamIndex {
         for item in items {
             match item {
                 Item::Mod(item_mod) if !modules::has_cfg_test(&item_mod.attrs) => {
+                    if matches!(item_mod.vis, syn::Visibility::Inherited) {
+                        self.private_mods.insert(format!("{prefix}::{}", item_mod.ident));
+                    }
                     if let Some((_, inner)) = &item_mod.content {
                         let mut child_mod = mod_path.to_vec();
                         child_mod.push(item_mod.ident.to_string());
@@ -1529,6 +1631,28 @@ fn validate_and_format_shim_sig(
         return Err("unwritable return type");
     };
     let parsed_ret: Type = syn::parse_str(raw_ret).map_err(|_| "unparseable return type")?;
+    // A callee declared `-> &'static T` (or `Option<&'static T>`, ...): keep the `'static` in the shim, otherwise
+    // the shim narrows it to the receiver's borrow and the caller no longer compiles.
+    let mut ret_static_str: Option<String> = None;
+    if let Some(callee_ret) = callee_return_ty(callee_params, call.args.len())
+        && type_has_named_lifetime(callee_ret)
+    {
+        // `-> &'r T` where `'r` belongs to the impl or the fn: the shim cannot name it, and tying the output to
+        // the receiver's borrow instead breaks callers that keep the result longer.
+        return Err("named lifetime in callee return");
+    }
+    let parsed_ret = match callee_return_ty(callee_params, call.args.len()) {
+        Some(callee_ret) => {
+            let (mapped, changed) = apply_static_from_param_ty(&parsed_ret, callee_ret, aliases, 0);
+            if changed {
+                ret_static_str = Some(format_mapped_type(&mapped));
+                mapped
+            } else {
+                parsed_ret
+            }
+        }
+        None => parsed_ret,
+    };
     let borrowed_inputs = parsed_args
         .iter()
         .filter(|ty| eligible::type_has_non_static_lifetime(ty))
@@ -1554,7 +1678,7 @@ fn validate_and_format_shim_sig(
         }
     }
 
-    let trimmed_ret = raw_ret.trim();
+    let trimmed_ret = ret_static_str.as_deref().unwrap_or_else(|| raw_ret.trim());
     let ret_ty = if trimmed_ret == "()" {
         None
     } else if self_borrow {
@@ -2661,6 +2785,8 @@ struct CandidateCall {
     caller_id: u32,
     callee_fn: Option<u32>,
     callee_path: String,
+    /// `callee_path` with private-module segments dropped (what the shim body names).
+    render_callee_path: String,
     base_key: String,
     orig: String,
     site: Site,
@@ -2897,6 +3023,18 @@ fn execute_with_thir(
                             continue;
                         }
                     };
+                    let mut shim_sig = shim_sig;
+                    let render_callee_path;
+                    {
+                        let pm = &static_index.private_mods;
+                        for ty in shim_sig.arg_tys.iter_mut() {
+                            *ty = publicize_paths(ty, &caller.fn_key, crate_ident, pm);
+                        }
+                        if let Some(ret) = shim_sig.ret_ty.as_mut() {
+                            *ret = publicize_paths(ret, &caller.fn_key, crate_ident, pm);
+                        }
+                        render_callee_path = publicize_paths(&callee_path, &caller.fn_key, crate_ident, pm);
+                    }
                     let adj_prefix = if is_path_call {
                         String::new()
                     } else {
@@ -2911,6 +3049,7 @@ fn execute_with_thir(
                         caller_id,
                         callee_fn,
                         callee_path,
+                        render_callee_path,
                         base_key,
                         orig,
                         site,
@@ -3913,7 +4052,7 @@ fn reconcile_and_plan(
             cfg_attrs: cand.cfg_attrs.clone(),
             arg_tys: cand.shim_sig.arg_tys.clone(),
             ret_ty: cand.shim_sig.ret_ty.clone(),
-            callee_path: cand.callee_path.clone(),
+            callee_path: cand.render_callee_path.clone(),
             turbofish_src: cand.turbofish_src.clone(),
             is_path_call: !cand.detail.is_method,
         });
@@ -4351,5 +4490,39 @@ pub fn verify_callsites(crate_name: &str, ledger: &Path, thir: &Path) -> Result<
         }
         eprintln!("verified {verified} of {checked}");
         Ok(false)
+    }
+}
+
+#[cfg(test)]
+mod private_path_tests {
+    use super::publicize_paths;
+    use std::collections::BTreeSet;
+
+    fn set() -> BTreeSet<String> {
+        ["demo::worldgen::placement::context".to_string()].into_iter().collect()
+    }
+
+    #[test]
+    fn private_module_segment_is_dropped_for_an_outside_caller() {
+        let out = publicize_paths(
+            "std::result::Result<i32, crate::worldgen::placement::context::PlacementQueryError>",
+            "demo::worldgen::generator::World::tick",
+            "demo",
+            &set(),
+        );
+        assert_eq!(out, "std::result::Result<i32, crate::worldgen::placement::PlacementQueryError>");
+    }
+
+    #[test]
+    fn private_module_segment_is_kept_for_a_caller_inside_the_parent() {
+        let path = "crate::worldgen::placement::context::PlacementQueryError";
+        let out = publicize_paths(path, "demo::worldgen::placement::run::go", "demo", &set());
+        assert_eq!(out, path);
+    }
+
+    #[test]
+    fn lifetimes_and_other_crates_are_left_alone() {
+        let out = publicize_paths("&'static horizon_core::a::B<'_>", "demo::x::f", "demo", &set());
+        assert_eq!(out, "&'static horizon_core::a::B<'_>");
     }
 }
