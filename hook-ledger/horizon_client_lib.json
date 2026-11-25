@@ -16961,7 +16961,7 @@
       "id": 2860,
       "key": "horizon_client_lib::mobs::finalize::add_modifier",
       "sig": "6c0922d0ad82a605",
-      "status": "live",
+      "status": "tombstone",
       "kind": "fn"
     },
     {
