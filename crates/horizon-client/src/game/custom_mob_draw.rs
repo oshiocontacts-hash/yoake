@@ -65,6 +65,13 @@ impl Game<'_> {
         let mut render = self.custom_mob_render.borrow_mut();
         let frame = render.frame();
         let (state, mirror) = render.parts(mob.id, tr);
+        if script::has_local_anims()
+            && let Some(ta) = ct.anim.as_ref()
+        {
+            for req in script::take_local_anims(mob.id) {
+                state.play_local_anim(ta, &req.name, req.speed);
+            }
+        }
         let anim = match &self.remote {
             Some(remote) => remote.custom_mobs.get(mob.id as i32),
             None => mirror.get(mob.id),

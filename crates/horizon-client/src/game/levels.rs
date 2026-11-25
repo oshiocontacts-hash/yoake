@@ -556,6 +556,7 @@ impl Game<'_> {
     /// run. The native server tick hook brackets it (`ServerTickStart` before
     /// the first level, `ServerTickEnd` after the last).
     pub(super) fn tick_server(&mut self, paused: bool) -> Result<()> {
+        let _script_session = self.bind_script_session();
         // The world's levels are fixed once it ticks (F3-6 adds run-time creation).
         self.level_registry.freeze();
         self.run_pending_level_ops();

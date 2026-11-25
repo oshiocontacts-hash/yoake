@@ -104,24 +104,20 @@ pub fn apply_in(m: &mut Mob, w: Option<&MobWorld>, events: Option<&mut Vec<MobEv
             }
         }
         Command::SetAttributeBase { attribute, value } => {
-            if let Some(s) = m.extra.custom.as_mut()
-                && (!value.is_finite() || !s.attrs.set_base(&attribute, value))
-            {
+            if !value.is_finite() || !attrs::set_base(m, &attribute, value) {
                 log::debug!("{}: script: cannot set attribute {attribute:?}", t.id);
             }
         }
         Command::AddModifier { attribute, modifier, amount, operation } => {
             let op = attrs::operation(&operation.replace('-', "_"));
-            if let (Some(s), Some(op)) = (m.extra.custom.as_mut(), op)
-                && (!amount.is_finite() || !s.attrs.add_modifier(&attribute, &modifier, amount, op))
+            if !(amount.is_finite()
+                && op.is_some_and(|op| attrs::add_modifier(m, &attribute, &modifier, amount, op)))
             {
                 log::debug!("{}: script: cannot add modifier {modifier:?} to {attribute:?}", t.id);
             }
         }
         Command::RemoveModifier { attribute, modifier } => {
-            if let Some(s) = m.extra.custom.as_mut() {
-                s.attrs.remove_modifier(&attribute, &modifier);
-            }
+            attrs::remove_modifier(m, &attribute, &modifier);
         }
         Command::SetHitbox { name, enabled } => {
             if let Some(part) = t.hitboxes.iter().position(|h| h.name == name)

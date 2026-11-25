@@ -21,7 +21,9 @@ use super::{
     ai::memory::{MemoryKind, MemoryValue},
 };
 use crate::mobs::{Mob, MobEvent, MobWorld};
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
 /// Script goal evaluations (`can-use`, `can-continue`, `start`, `tick`, `stop`) one mob may make in
@@ -143,11 +145,17 @@ impl MobView {
         let t = m.kind.custom.as_ref()?;
         let state = m.extra.custom.as_ref()?;
         let mut attrs = state.attrs.clone();
-        let attributes = t
+        let mut attributes: Vec<_> = t
             .attributes
             .iter()
             .filter_map(|d| Some((d.id.clone(), attrs.base(&d.id)?, attrs.value(&d.id)?)))
             .collect();
+        for a in crate::mobs::finalize::Attr::ALL {
+            if !attributes.iter().any(|(id, _, _)| id == a.id()) && m.kind.attributes.contains_key(a.id()) {
+                attributes.push((a.id().to_owned(), crate::mobs::finalize::base_value(m, a), crate::mobs::finalize::value(m, a)));
+            }
+        }
+        attributes.sort_by(|a, b| a.0.cmp(&b.0));
         Some(Self {
             id: m.id,
             type_id: t.id.clone(),
@@ -272,79 +280,150 @@ struct Bus {
     dropped: u64,
 }
 
-static BUS: std::sync::LazyLock<Mutex<Bus>> = std::sync::LazyLock::new(|| Mutex::new(Bus::default()));
+static UNSCOPED_BUS: std::sync::LazyLock<Mutex<Bus>> =
+    std::sync::LazyLock::new(|| Mutex::new(Bus::default()));
 
-fn bus() -> std::sync::MutexGuard<'static, Bus> {
-    BUS.lock().unwrap_or_else(|p| p.into_inner())
+fn with_bus_of<R>(bus: &Mutex<Bus>, f: impl FnOnce(&mut Bus) -> R) -> R {
+    let mut b = bus.lock().unwrap_or_else(|p| p.into_inner());
+    f(&mut b)
+}
+
+fn with_bus<R>(f: impl FnOnce(&mut Bus) -> R) -> R {
+    if let Some(inner) = active_or_fallback_session() {
+        with_bus_of(&inner.bus, f)
+    } else {
+        with_bus_of(&UNSCOPED_BUS, f)
+    }
+}
+
+fn publish_in(bus: &Mutex<Bus>, view: MobView) {
+    let id = view.id;
+    with_bus_of(bus, |b| {
+        b.views.insert(id, Arc::new(view));
+    });
+}
+
+fn forget_in(bus: &Mutex<Bus>, id: u32) {
+    with_bus_of(bus, |b| {
+        b.views.remove(&id);
+    });
+}
+
+fn view_in(bus: &Mutex<Bus>, id: u32) -> Option<Arc<MobView>> {
+    with_bus_of(bus, |b| b.views.get(&id).cloned())
+}
+
+fn push_in(bus: &Mutex<Bus>, mob: u32, command: Command) {
+    with_bus_of(bus, |b| {
+        if b.queue.len() >= MAX_QUEUED_COMMANDS {
+            b.queue.remove(0);
+            b.dropped += 1;
+        }
+        b.queue.push(Queued { mob, command });
+    });
+}
+
+fn take_for_in(bus: &Mutex<Bus>, mob: u32) -> Vec<Command> {
+    with_bus_of(bus, |b| {
+        if b.queue.is_empty() {
+            return Vec::new();
+        }
+        let mut mine = Vec::new();
+        b.queue.retain(|q| {
+            if q.mob == mob {
+                mine.push(q.command.clone());
+                false
+            } else {
+                true
+            }
+        });
+        mine
+    })
+}
+
+fn reset_in(bus: &Mutex<Bus>) {
+    with_bus_of(bus, |b| {
+        b.views.clear();
+        b.queue.clear();
+        b.current = None;
+        b.dropped = 0;
+    });
 }
 
 /// Publishes the view of a mob (the game does it for every custom mob at the start of a tick, and
 /// the engine again for the mob whose hook is about to run).
 pub fn publish(view: MobView) {
-    let id = view.id;
-    bus().views.insert(id, Arc::new(view));
+    with_bus(|b| {
+        let id = view.id;
+        b.views.insert(id, Arc::new(view));
+    });
 }
 
 /// Forgets a mob's view (it was removed).
 pub fn forget(id: u32) {
-    bus().views.remove(&id);
+    with_bus(|b| {
+        b.views.remove(&id);
+    });
 }
 
 /// The last published view of a mob.
 pub fn view(id: u32) -> Option<Arc<MobView>> {
-    bus().views.get(&id).cloned()
+    with_bus(|b| b.views.get(&id).cloned())
 }
 
 /// Queues `command` for `mob` (what the `mobs-server` services do).
 pub fn push(mob: u32, command: Command) {
-    let mut b = bus();
-    if b.queue.len() >= MAX_QUEUED_COMMANDS {
-        b.queue.remove(0);
-        b.dropped += 1;
-    }
-    b.queue.push(Queued { mob, command });
+    with_bus(|b| {
+        if b.queue.len() >= MAX_QUEUED_COMMANDS {
+            b.queue.remove(0);
+            b.dropped += 1;
+        }
+        b.queue.push(Queued { mob, command });
+    });
 }
 
 /// Takes the commands waiting for `mob`, oldest first.
 pub fn take_for(mob: u32) -> Vec<Command> {
-    let mut b = bus();
-    if b.queue.is_empty() {
-        return Vec::new();
-    }
-    let mut mine = Vec::new();
-    b.queue.retain(|q| {
-        if q.mob == mob {
-            mine.push(q.command.clone());
-            false
-        } else {
-            true
+    with_bus(|b| {
+        if b.queue.is_empty() {
+            return Vec::new();
         }
-    });
-    mine
+        let mut mine = Vec::new();
+        b.queue.retain(|q| {
+            if q.mob == mob {
+                mine.push(q.command.clone());
+                false
+            } else {
+                true
+            }
+        });
+        mine
+    })
 }
 
 /// How many commands wait.
 pub fn queued() -> usize {
-    bus().queue.len()
+    with_bus(|b| b.queue.len())
 }
 
 /// Commands dropped because the queue was full.
 pub fn dropped() -> u64 {
-    bus().dropped
+    with_bus(|b| b.dropped)
 }
 
 /// The mob whose guest call is running.
 pub fn current() -> Option<u32> {
-    bus().current
+    with_bus(|b| b.current)
 }
 
 /// Empties the bus (a new world; tests).
 pub fn reset() {
-    let mut b = bus();
-    b.views.clear();
-    b.queue.clear();
-    b.current = None;
-    b.dropped = 0;
+    with_bus(|b| {
+        b.views.clear();
+        b.queue.clear();
+        b.current = None;
+        b.dropped = 0;
+    });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -515,18 +594,32 @@ impl ClientRuntime for ClientChain {
     }
 }
 
-/// The runtime the engine calls, and the session that owns it (0: nobody, an installed test double).
+struct SessionInner {
+    id: u64,
+    runtime: RwLock<Option<Arc<dyn Runtime>>>,
+    bus: Mutex<Bus>,
+}
+
+impl std::fmt::Debug for SessionInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SessionInner").field("id", &self.id).finish_non_exhaustive()
+    }
+}
+
+/// The fallback runtime when no thread-local [`Session`] is bound (`set_runtime`, or the first
+/// un-scoped [`Session`]), and the session that owns it (0: an unowned test double).
 struct Slot {
     runtime: Option<Arc<dyn Runtime>>,
     owner: u64,
-    /// Tests only: the thread that installed the runtime ([`set_runtime`] or [`open_session`]). Other test
-    /// threads do not see it, so a mock cannot answer for the mobs of tests running beside it.
+    session: Option<Arc<SessionInner>>,
+    /// Tests only: the thread that installed the fallback runtime ([`set_runtime`] or [`open_session`]).
+    /// Other test threads do not see it, so a mock cannot answer for the mobs of tests running beside it.
     #[cfg(test)]
     thread: Option<std::thread::ThreadId>,
 }
 
 impl Slot {
-    /// The runtime this thread sees (in the game: the installed one).
+    /// The fallback runtime this thread sees (in the game: the installed one).
     fn visible(&self) -> Option<&Arc<dyn Runtime>> {
         #[cfg(test)]
         if self.thread.is_some_and(|t| t != std::thread::current().id()) {
@@ -534,59 +627,239 @@ impl Slot {
         }
         self.runtime.as_ref()
     }
+
+    fn visible_session(&self) -> Option<&Arc<SessionInner>> {
+        #[cfg(test)]
+        if self.thread.is_some_and(|t| t != std::thread::current().id()) {
+            return None;
+        }
+        self.session.as_ref()
+    }
 }
 
 static RUNTIME: RwLock<Slot> = RwLock::new(Slot {
     runtime: None,
     owner: 0,
+    session: None,
     #[cfg(test)]
     thread: None,
 });
-static NEXT_SESSION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+static NEXT_SESSION: AtomicU64 = AtomicU64::new(1);
+static OPEN_SESSIONS: AtomicUsize = AtomicUsize::new(0);
 
-/// A server's hold on the script runtime (F4M-10): opened when its world opens, dropped when the world is
-/// closed (or the server is dropped). The runtime, the command bus (views, queued commands) and the drawn
-/// locators belong to it, so the next world starts with none of the last one's. There is one runtime slot per
-/// process: while a session is open, [`open_session`] refuses another (see [`SessionBusy`]).
-#[derive(Debug)]
-pub struct Session {
-    id: u64,
+thread_local! {
+    static ACTIVE_SESSION: RefCell<Option<Arc<SessionInner>>> = const { RefCell::new(None) };
 }
 
-/// A second server asked for the runtime while another holds it.
+fn active_session() -> Option<Arc<SessionInner>> {
+    ACTIVE_SESSION.with(|slot| slot.borrow().clone())
+}
+
+fn active_or_fallback_session() -> Option<Arc<SessionInner>> {
+    if let Some(inner) = active_session() {
+        return Some(inner);
+    }
+    RUNTIME.read().ok()?.visible_session().cloned()
+}
+
+/// A server's hold on its own script runtime and command bus (F4M-10 / REM09): opened when its
+/// world opens, dropped when the world is closed (or the server is dropped). Each session owns
+/// an isolated command bus (views, queued commands, `current`, drop counter) and runtime, so
+/// concurrent servers never mix commands or views.
+#[derive(Debug)]
+pub struct Session {
+    inner: Arc<SessionInner>,
+}
+
+/// Cloneable handle to an open [`Session`] (for passing to a worker or re-binding its thread scope).
+#[derive(Clone, Debug)]
+pub struct SessionHandle {
+    inner: Arc<SessionInner>,
+}
+
+/// RAII scope binding a [`Session`] to the current thread (`Session::bind`). Restores the
+/// previous active session on drop.
+pub struct SessionGuard {
+    previous: Option<Arc<SessionInner>>,
+}
+
+impl Drop for SessionGuard {
+    fn drop(&mut self) {
+        ACTIVE_SESSION.with(|slot| {
+            *slot.borrow_mut() = self.previous.take();
+        });
+    }
+}
+
+/// Legacy error type kept for caller compatibility (`open_session` now opens isolated concurrent sessions).
 #[derive(Debug, PartialEq, Eq)]
 pub struct SessionBusy;
 
-/// Opens a session with `runtime`: it is installed, and the bus is empty. Refused (nothing changes: the first
-/// session keeps its runtime) while a runtime is installed, by a session or by [`set_runtime`].
+impl SessionHandle {
+    /// Binds this session's runtime and command bus to the current thread until the guard drops.
+    pub fn bind(&self) -> SessionGuard {
+        let previous = ACTIVE_SESSION.with(|slot| slot.borrow_mut().replace(Arc::clone(&self.inner)));
+        SessionGuard { previous }
+    }
+
+    /// Runs `f` with this session bound on the current thread.
+    pub fn in_scope<R>(&self, f: impl FnOnce() -> R) -> R {
+        let _guard = self.bind();
+        f()
+    }
+
+    pub fn publish(&self, view: MobView) {
+        publish_in(&self.inner.bus, view);
+    }
+
+    pub fn forget(&self, id: u32) {
+        forget_in(&self.inner.bus, id);
+    }
+
+    pub fn view(&self, id: u32) -> Option<Arc<MobView>> {
+        view_in(&self.inner.bus, id)
+    }
+
+    pub fn push(&self, mob: u32, command: Command) {
+        push_in(&self.inner.bus, mob, command);
+    }
+
+    pub fn take_for(&self, mob: u32) -> Vec<Command> {
+        take_for_in(&self.inner.bus, mob)
+    }
+
+    pub fn queued(&self) -> usize {
+        with_bus_of(&self.inner.bus, |b| b.queue.len())
+    }
+
+    pub fn dropped(&self) -> u64 {
+        with_bus_of(&self.inner.bus, |b| b.dropped)
+    }
+
+    pub fn current(&self) -> Option<u32> {
+        with_bus_of(&self.inner.bus, |b| b.current)
+    }
+
+    pub fn reset(&self) {
+        reset_in(&self.inner.bus);
+    }
+
+    pub fn runtime(&self) -> Option<Arc<dyn Runtime>> {
+        let r = self.inner.runtime.read().ok()?.clone()?;
+        r.live().then_some(r)
+    }
+
+    pub fn installed(&self) -> bool {
+        self.inner.runtime.read().ok().is_some_and(|r| r.is_some())
+    }
+}
+
+impl Session {
+    pub fn handle(&self) -> SessionHandle {
+        SessionHandle { inner: Arc::clone(&self.inner) }
+    }
+
+    /// Binds this session's runtime and command bus to the current thread until the guard drops.
+    pub fn bind(&self) -> SessionGuard {
+        self.handle().bind()
+    }
+
+    /// Runs `f` with this session bound on the current thread.
+    pub fn in_scope<R>(&self, f: impl FnOnce() -> R) -> R {
+        self.handle().in_scope(f)
+    }
+
+    pub fn publish(&self, view: MobView) {
+        self.handle().publish(view);
+    }
+
+    pub fn forget(&self, id: u32) {
+        self.handle().forget(id);
+    }
+
+    pub fn view(&self, id: u32) -> Option<Arc<MobView>> {
+        self.handle().view(id)
+    }
+
+    pub fn push(&self, mob: u32, command: Command) {
+        self.handle().push(mob, command);
+    }
+
+    pub fn take_for(&self, mob: u32) -> Vec<Command> {
+        self.handle().take_for(mob)
+    }
+
+    pub fn queued(&self) -> usize {
+        self.handle().queued()
+    }
+
+    pub fn dropped(&self) -> u64 {
+        self.handle().dropped()
+    }
+
+    pub fn current(&self) -> Option<u32> {
+        self.handle().current()
+    }
+
+    pub fn reset(&self) {
+        self.handle().reset();
+    }
+
+    pub fn runtime(&self) -> Option<Arc<dyn Runtime>> {
+        self.handle().runtime()
+    }
+
+    pub fn installed(&self) -> bool {
+        self.handle().installed()
+    }
+}
+
+/// Opens a new isolated session with `runtime` and an empty command bus. When no fallback runtime
+/// is installed yet, this session also backs calls made without [`Session::bind`]. Multiple
+/// concurrent servers each open their own session without blocking one another.
 pub fn open_session(runtime: Arc<dyn Runtime>) -> Result<Session, SessionBusy> {
+    let id = NEXT_SESSION.fetch_add(1, Ordering::Relaxed);
+    let inner = Arc::new(SessionInner {
+        id,
+        runtime: RwLock::new(Some(Arc::clone(&runtime))),
+        bus: Mutex::new(Bus::default()),
+    });
+    if OPEN_SESSIONS.fetch_add(1, Ordering::Relaxed) == 0 {
+        clear_locators();
+    }
     let mut slot = RUNTIME.write().unwrap_or_else(|p| p.into_inner());
-    if slot.runtime.is_some() {
-        return Err(SessionBusy);
+    if slot.runtime.is_none() {
+        slot.runtime = Some(runtime);
+        slot.owner = id;
+        slot.session = Some(Arc::clone(&inner));
+        #[cfg(test)]
+        {
+            slot.thread = Some(std::thread::current().id());
+        }
     }
-    let id = NEXT_SESSION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    reset();
-    clear_locators();
-    slot.runtime = Some(runtime);
-    slot.owner = id;
-    // Tests only: a session a test opens is seen by that test's thread, as a `set_runtime` double is
-    // (the game's sessions are not compiled with `cfg(test)`).
-    #[cfg(test)]
-    {
-        slot.thread = Some(std::thread::current().id());
-    }
-    Ok(Session { id })
+    Ok(Session { inner })
 }
 
 impl Drop for Session {
     fn drop(&mut self) {
-        let mut slot = RUNTIME.write().unwrap_or_else(|p| p.into_inner());
-        // A session that was replaced by `set_runtime` no longer owns anything.
-        if slot.owner == self.id {
-            slot.runtime = None;
-            slot.owner = 0;
-            drop(slot);
-            reset();
+        if let Ok(mut rt) = self.inner.runtime.write() {
+            *rt = None;
+        }
+        reset_in(&self.inner.bus);
+        {
+            let mut slot = RUNTIME.write().unwrap_or_else(|p| p.into_inner());
+            // A session that was replaced by `set_runtime` no longer owns the fallback slot.
+            if slot.owner == self.inner.id {
+                slot.runtime = None;
+                slot.owner = 0;
+                slot.session = None;
+                #[cfg(test)]
+                {
+                    slot.thread = None;
+                }
+            }
+        }
+        if OPEN_SESSIONS.fetch_sub(1, Ordering::Relaxed) == 1 {
             clear_locators();
         }
     }
@@ -598,6 +871,7 @@ pub fn set_runtime(r: Option<Arc<dyn Runtime>>) -> Option<Arc<dyn Runtime>> {
     match RUNTIME.write() {
         Ok(mut slot) => {
             slot.owner = 0;
+            slot.session = None;
             #[cfg(test)]
             {
                 slot.thread = r.as_ref().map(|_| std::thread::current().id());
@@ -608,15 +882,36 @@ pub fn set_runtime(r: Option<Arc<dyn Runtime>>) -> Option<Arc<dyn Runtime>> {
     }
 }
 
-/// The installed runtime, if it has a live module.
+/// The installed runtime for this thread's active session (or the fallback runtime), if live.
 pub fn runtime() -> Option<Arc<dyn Runtime>> {
-    let r = RUNTIME.read().ok()?.visible().cloned()?;
+    if let Some(inner) = active_session() {
+        let r = inner.runtime.read().ok()?.clone()?;
+        return r.live().then_some(r);
+    }
+    let slot = RUNTIME.read().ok()?;
+    let r = if let Some(inner) = slot.visible_session() {
+        inner.runtime.read().ok()?.clone()?
+    } else {
+        slot.visible()?.clone()
+    };
     r.live().then_some(r)
 }
 
-/// Whether a runtime is installed (cheap; the game asks it before it publishes views).
+/// Whether a runtime is installed for the active session (or fallback).
 pub fn installed() -> bool {
-    RUNTIME.read().map(|r| r.visible().is_some()).unwrap_or(false)
+    if let Some(inner) = active_session() {
+        return inner.runtime.read().ok().is_some_and(|r| r.is_some());
+    }
+    RUNTIME
+        .read()
+        .map(|slot| {
+            if let Some(inner) = slot.visible_session() {
+                inner.runtime.read().ok().is_some_and(|r| r.is_some())
+            } else {
+                slot.visible().is_some()
+            }
+        })
+        .unwrap_or(false)
 }
 
 /// Runs `f` (a call into the guest) for `m`: the mob's view is published, and the commands the
@@ -634,12 +929,15 @@ pub fn call<R>(
         _ => false,
     };
     if let Some(v) = MobView::of_in(m, w, sees) {
-        let mut b = bus();
-        b.views.insert(v.id, Arc::new(v));
-        b.current = Some(m.id);
+        with_bus(|b| {
+            b.views.insert(v.id, Arc::new(v));
+            b.current = Some(m.id);
+        });
     }
     let r = f(&*rt);
-    bus().current = None;
+    with_bus(|b| {
+        b.current = None;
+    });
     apply_pending(m, w, events);
     Some(r)
 }
@@ -879,9 +1177,77 @@ pub fn locator(id: u32, name: &str) -> Option<LocatorPlace> {
     g.as_ref()?.get(&id)?.iter().find(|p| p.name == name).cloned()
 }
 
-/// Forgets the drawn locators (a new world; tests).
+/// Forgets the drawn locators and pending local animations (a new world; tests).
 pub fn clear_locators() {
     *LOCATORS.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    clear_local_anims();
+}
+
+/// A client-only local animation request (`play-local-anim`), never synced to the server.
+#[derive(Clone, Debug, PartialEq)]
+pub struct LocalAnimRequest {
+    pub name: String,
+    pub speed: f32,
+}
+
+static LOCAL_ANIMS: Mutex<Option<HashMap<u32, Vec<LocalAnimRequest>>>> = Mutex::new(None);
+static HAS_LOCAL_ANIMS: AtomicBool = AtomicBool::new(false);
+
+const MAX_LOCAL_ANIMS_PER_MOB: usize = 16;
+const MAX_LOCAL_ANIM_MOBS: usize = 512;
+
+/// Fast non-locking check for the render loop: whether any mob has a queued local animation.
+pub fn has_local_anims() -> bool {
+    HAS_LOCAL_ANIMS.load(Ordering::Acquire)
+}
+
+/// Queues a client-only local animation `name` at `speed` for entity `id` (no network sync).
+/// Fails closed if `name` is invalid or `speed` is not finite and positive.
+pub fn queue_local_anim(id: u32, name: &str, speed: f32) -> Result<(), String> {
+    if name.is_empty() || name.len() > 128 || name.chars().any(char::is_control) {
+        return Err("not a valid animation name".into());
+    }
+    if !speed.is_finite() || speed <= 0.0 {
+        return Err("speed must be a positive finite number".into());
+    }
+    let mut g = LOCAL_ANIMS.lock().unwrap_or_else(|e| e.into_inner());
+    let map = g.get_or_insert_with(HashMap::new);
+    if !map.contains_key(&id) && map.len() >= MAX_LOCAL_ANIM_MOBS {
+        return Err("local animation queue is full".into());
+    }
+    let q = map.entry(id).or_default();
+    if q.len() >= MAX_LOCAL_ANIMS_PER_MOB {
+        q.remove(0);
+    }
+    q.push(LocalAnimRequest {
+        name: name.to_owned(),
+        speed: speed.clamp(0.0, 15.9),
+    });
+    HAS_LOCAL_ANIMS.store(true, Ordering::Release);
+    Ok(())
+}
+
+/// Drains pending client-only local animation requests for entity `id`.
+pub fn take_local_anims(id: u32) -> Vec<LocalAnimRequest> {
+    if !has_local_anims() {
+        return Vec::new();
+    }
+    let mut g = LOCAL_ANIMS.lock().unwrap_or_else(|e| e.into_inner());
+    let Some(map) = g.as_mut() else {
+        HAS_LOCAL_ANIMS.store(false, Ordering::Release);
+        return Vec::new();
+    };
+    let taken = map.remove(&id).unwrap_or_default();
+    if map.is_empty() {
+        HAS_LOCAL_ANIMS.store(false, Ordering::Release);
+    }
+    taken
+}
+
+/// Empties pending client-only local animation requests.
+pub fn clear_local_anims() {
+    *LOCAL_ANIMS.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    HAS_LOCAL_ANIMS.store(false, Ordering::Release);
 }
 
 /// The bone index a script writes for bone `name` of type `type_id` (`bone-index`).

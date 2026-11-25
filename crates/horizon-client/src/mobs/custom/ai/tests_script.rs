@@ -501,35 +501,116 @@ fn a_reopened_world_starts_without_the_last_worlds_scripts_or_commands() {
 }
 
 #[test]
-fn a_second_server_is_refused_while_the_first_holds_the_runtime() {
+fn two_concurrent_sessions_keep_separate_buses_and_runtimes() {
     let _g = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     script::set_runtime(None);
     script::reset();
     let (first, second) = (Mock::new(), Mock::new());
     let a = script::open_session(first.clone()).unwrap();
-    leave_traces(3);
-    assert_eq!(script::open_session(second.clone()).err(), Some(script::SessionBusy));
-    // Nothing of the first was touched by the refused open, and its drop is the only thing that ends it.
-    assert_eq!(script::queued(), 2);
-    assert!(script::installed());
+    let b = script::open_session(second.clone()).unwrap();
+
+    // Both sessions open without refusing each other and use the same entity handle independently.
+    a.in_scope(|| {
+        leave_traces(1);
+        assert_eq!(script::queued(), 2);
+        assert!(script::view(1).is_some());
+    });
+    assert_eq!(b.queued(), 0, "commands of session A must never reach session B");
+    assert_eq!(b.dropped(), 0);
+    assert!(b.view(1).is_none());
+
+    // Calls inside each session invoke only that session's runtime and leave `current` isolated.
+    let t = fixture_type();
+    let kind = std::sync::Arc::new(crate::mobs::custom::build::mob_type(&t));
+    let mut mob_a = Mob::new(1, kind.clone(), Vec3::ZERO, 0.0);
+    let mut mob_b = Mob::new(1, kind, Vec3::ZERO, 0.0);
+    crate::mobs::custom::build::register(&mut mob_a);
+    crate::mobs::custom::build::register(&mut mob_b);
+
+    a.in_scope(|| {
+        let _ = script::call(&mut mob_a, None, None, |rt| rt.mob_tick(1));
+    });
+    assert_eq!(first.count("mob_tick"), 1);
+    assert_eq!(second.count("mob_tick"), 0);
+
+    b.in_scope(|| {
+        script::push(1, Command::Impulse([0.0, 0.25, 0.0]));
+        let _ = script::call(&mut mob_b, None, None, |rt| {
+            assert_eq!(script::current(), Some(1));
+            assert_eq!(a.current(), None, "current mob in B does not affect A");
+            rt.mob_tick(1)
+        });
+    });
+    assert_eq!(first.count("mob_tick"), 1);
+    assert_eq!(second.count("mob_tick"), 1);
+    assert!(mob_b.velocity.y >= 0.25 - 1e-9);
+    assert!(mob_a.removed, "pending Despawn in A ran on A's mob only");
+    assert!(!mob_b.removed, "session B's mob was untouched by session A");
+
+    // Overflow and drop counters are also isolated per session.
+    a.in_scope(|| {
+        for _ in 0..=script::MAX_QUEUED_COMMANDS {
+            script::push(99, Command::Jump);
+        }
+        assert_eq!(script::dropped(), 1);
+    });
+    assert_eq!(b.dropped(), 0);
+    assert_eq!(b.queued(), 0);
+    // Empty A's full queue again before the threads count their own commands.
+    a.in_scope(|| {
+        let _ = script::take_for(99);
+        assert_eq!(script::queued(), 0);
+    });
+
+    // Two concurrent server threads keep independent buses and runtimes.
+    let handle_a = a.handle();
+    let handle_b = b.handle();
+    std::thread::scope(|scope| {
+        let ja = scope.spawn(|| {
+            handle_a.in_scope(|| {
+                script::push(10, Command::Jump);
+                assert_eq!(script::queued(), 1);
+                assert_eq!(script::take_for(10), vec![Command::Jump]);
+            });
+        });
+        let jb = scope.spawn(|| {
+            handle_b.in_scope(|| {
+                script::push(10, Command::Despawn);
+                assert_eq!(script::queued(), 1);
+                assert_eq!(script::take_for(10), vec![Command::Despawn]);
+            });
+        });
+        ja.join().unwrap();
+        jb.join().unwrap();
+    });
+
+    // Dropping session A clears A only; B remains installed with its own bus.
     drop(a);
-    assert!(!script::installed());
-    // After it, the second may open.
-    let b = script::open_session(second).unwrap();
+    assert!(b.installed());
+    b.in_scope(|| {
+        assert!(script::installed());
+        script::push(2, Command::Jump);
+        assert_eq!(script::queued(), 1);
+    });
     drop(b);
+    assert!(!script::installed());
 }
 
 #[test]
-fn a_test_runtime_blocks_a_session_and_a_replaced_session_clears_nothing_of_its_successor() {
+fn a_test_runtime_and_replacement_stay_untouched_when_an_unrelated_session_drops() {
     let _g = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     script::set_runtime(None);
     script::reset();
     let double = Mock::new();
     script::set_runtime(Some(double.clone()));
-    assert!(script::open_session(Mock::new()).is_err(), "an installed runtime is not taken over");
+    let s = script::open_session(Mock::new()).unwrap();
+    assert_eq!(s.queued(), 0);
+    drop(s);
+    assert!(script::installed(), "unowned test runtime stays installed");
     script::set_runtime(None);
+
     let a = script::open_session(Mock::new()).unwrap();
-    // Something else replaced the runtime of the session: its drop must not remove the replacement.
+    // Something else replaced the fallback slot: dropping `a` must not clear the replacement.
     let other = Mock::new();
     script::set_runtime(Some(other));
     leave_traces(5);
@@ -538,4 +619,35 @@ fn a_test_runtime_blocks_a_session_and_a_replaced_session_clears_nothing_of_its_
     assert_eq!(script::queued(), 2, "and so does its bus");
     script::set_runtime(None);
     script::reset();
+}
+
+#[test]
+fn builtin_attribute_commands_apply_and_clamp_health() {
+    let fx = flat();
+    let w = fx.world();
+    let t = crate::mobs::custom::anim_sync::tests::fox_type_with(serde_json::json!({"navigator":"ground","goals":[]}), |v| {
+        v["attributes"] = serde_json::json!({"max_health":20,"movement_speed":0.25,"attack_damage":3});
+    });
+    let mut m = Mob::new(1, std::sync::Arc::new(crate::mobs::custom::build::mob_type(&t)), at(0.5, 0.5), 0.0);
+    crate::mobs::custom::build::register(&mut m);
+    let mut events = Vec::new();
+    assert_eq!(m.health, 20.0);
+
+    assert!(run(&mut m, &w, &mut events, Command::SetAttributeBase { attribute: "max_health".into(), value: 10.0 }));
+    assert_eq!(m.attrs.max_health, 10.0);
+    assert_eq!(m.health, 10.0, "lowering max_health clamps health");
+
+    assert!(run(&mut m, &w, &mut events, Command::AddModifier {
+        attribute: "minecraft:movement_speed".into(),
+        modifier: "test:swift".into(),
+        amount: 1.0,
+        operation: "add_multiplied_total".into(),
+    }));
+    assert!((m.attrs.speed - 0.5).abs() < 1e-9);
+
+    assert!(run(&mut m, &w, &mut events, Command::RemoveModifier {
+        attribute: "minecraft:movement_speed".into(),
+        modifier: "test:swift".into(),
+    }));
+    assert!((m.attrs.speed - 0.25).abs() < 1e-9);
 }

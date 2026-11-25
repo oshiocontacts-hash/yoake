@@ -39,19 +39,11 @@ pub(crate) fn install_script_runtimes() {
     mob_runtime::install_client();
 }
 
-/// A server's session over the script runtime of custom mobs, opened with its world (`None`: no module or native
-/// mod scripts mobs, or another server holds the one runtime of the process: logged, the first keeps it).
+/// A server's isolated session over the script runtime and command bus of custom mobs, opened
+/// with its world (`None`: no module or native mod scripts mobs).
 pub(crate) fn open_world_script_session() -> Option<crate::mobs::custom::script::Session> {
     let runtime = mob_runtime::world_runtime()?;
-    match crate::mobs::custom::script::open_session(runtime) {
-        Ok(session) => Some(session),
-        Err(_) => {
-            log::warn!(
-                "another server already holds the script runtime of custom mobs: this world's custom mobs run without scripts (one runtime per process)"
-            );
-            None
-        }
-    }
+    crate::mobs::custom::script::open_session(runtime).ok()
 }
 #[path = "wasm_mods/media_services.rs"]
 mod media_services;
