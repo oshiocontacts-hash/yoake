@@ -123,7 +123,7 @@ fn usage() -> &'static str {
      yoake-hook-codemod bridge --crate-root <dir> --crate-name <name> \
      --ledger <dir> --module <mod> [--module <mod>...] [--shallow] [--glue <file>...] [--exclude-file <file>] [--check]\n  \
      yoake-hook-codemod sync-ledger --workspace-root <dir> [--crate NAME]... [--rename OLD=NEW]... [--tombstone KEY]... [--frozen]\n  \
-     yoake-hook-codemod callsite-patch --workspace-root <dir> --crate NAME --thir <calls.json> [--stamp-config F] [--ledger D] [--scratch DIR] [--verify [--verify-arg A]... [--verify-dir D] [--verify-rounds N] [--verify-max-withdraw N] [--stamp-target DIR]]\n  \
+     yoake-hook-codemod callsite-patch --workspace-root <dir> --crate NAME --thir <calls.json> [--stamp-config F] [--ledger D] [--scratch DIR] [--rename-site OLD=NEW]... [--tombstone-site KEY]... [--verify [--verify-arg A]... [--verify-dir D] [--verify-rounds N] [--verify-max-withdraw N] [--stamp-target DIR]]\n  \
      yoake-hook-codemod check-history --base <dir> --current <dir>\n  \
      yoake-hook-codemod track-caller-scan --workspace <dir> --out <file>\n  \
      yoake-hook-codemod verify-callsites --crate-name <name> --ledger <dir> --thir <calls.json>\n  \
@@ -439,6 +439,8 @@ fn parse_callsite_patch_args(args: &mut std::env::Args) -> Result<Option<Command
     let mut verify_rounds: usize = 8;
     let mut verify_max_withdraw: usize = 300;
     let mut stamp_target: Option<PathBuf> = None;
+    let mut rename_sites = Vec::new();
+    let mut tombstone_sites = Vec::new();
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-h" | "--help" => {
@@ -451,6 +453,23 @@ fn parse_callsite_patch_args(args: &mut std::env::Args) -> Result<Option<Command
             "--scratch" => scratch = Some(PathBuf::from(next_arg(args, "--scratch")?)),
             "--crate" => crate_name = Some(next_arg(args, "--crate")?),
             "--thir" => thir = Some(PathBuf::from(next_arg(args, "--thir")?)),
+            "--rename-site" => {
+                let raw = next_arg(args, "--rename-site")?;
+                let Some((old_key, new_key)) = raw.split_once('=') else {
+                    return Err(format!("--rename-site expects OLD=NEW, got '{raw}'"));
+                };
+                if old_key.is_empty() || new_key.is_empty() {
+                    return Err(format!("--rename-site keys must be non-empty, got '{raw}'"));
+                }
+                rename_sites.push((old_key.to_string(), new_key.to_string()));
+            }
+            "--tombstone-site" => {
+                let key = next_arg(args, "--tombstone-site")?;
+                if key.is_empty() {
+                    return Err("--tombstone-site key must be non-empty".to_string());
+                }
+                tombstone_sites.push(key);
+            }
             "--verify" => verify = true,
             "--verify-arg" => verify_args.push(next_arg(args, "--verify-arg")?),
             "--verify-dir" => verify_dir = Some(PathBuf::from(next_arg(args, "--verify-dir")?)),
@@ -478,6 +497,8 @@ fn parse_callsite_patch_args(args: &mut std::env::Args) -> Result<Option<Command
         verify_rounds,
         verify_max_withdraw,
         stamp_target,
+        rename_sites,
+        tombstone_sites,
         workspace_root,
         crate_name,
         thir,

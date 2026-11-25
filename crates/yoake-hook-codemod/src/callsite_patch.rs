@@ -565,6 +565,8 @@ impl Bag {
             verify_rounds: 4,
             verify_max_withdraw: 50,
             stamp_target: None,
+            rename_sites: vec![],
+            tombstone_sites: vec![],
         };
         let options = crate::verify::VerifyOptions {
             overlay: None,
@@ -635,6 +637,7 @@ impl Bag {
 }
 
 /// `callsite-patch` arguments (see [`generate`]).
+#[derive(Clone)]
 pub struct GenerateArgs {
     pub workspace_root: PathBuf,
     pub ledger: PathBuf,
@@ -650,6 +653,8 @@ pub struct GenerateArgs {
     pub verify_rounds: usize,
     pub verify_max_withdraw: usize,
     pub stamp_target: Option<PathBuf>,
+    pub rename_sites: Vec<(String, String)>,
+    pub tombstone_sites: Vec<String>,
 }
 
 fn read_skip_callsite_modules(ledger: &Path, crate_ident: &str) -> Result<Vec<String>, String> {
@@ -749,8 +754,8 @@ pub fn generate(args: &GenerateArgs) -> Result<(usize, usize), String> {
         callsites: true,
         thir: Some(args.thir.clone()),
         accept_sites: vec![],
-        rename_sites: vec![],
-        tombstone_sites: vec![],
+        rename_sites: args.rename_sites.clone(),
+        tombstone_sites: args.tombstone_sites.clone(),
         engine_crates: None,
         retire_ineligible: true,
         rustfmt: false,
@@ -1175,10 +1180,14 @@ where
     let crate_root = crate::overlay::canon(&workspace.join(&crate_rel))?;
     let overlay_root = options.overlay.as_ref().map(|o| o.stamp_dir.join("root"));
 
+    let mut round_args = args.clone();
     let mut total_withdrawn = 0usize;
     let rounds = options.rounds.max(1);
     for round in 1..=rounds {
-        let (changed, hunks) = generate(args)?;
+        let (changed, hunks) = generate(&round_args)?;
+        // One-shot rename/tombstone site flags are consumed in round 1's ledger update.
+        round_args.rename_sites.clear();
+        round_args.tombstone_sites.clear();
         let outcome = run_build()?;
         if outcome.stderr.contains("is built UNSTAMPED") {
             return Err(format!(
