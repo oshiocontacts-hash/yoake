@@ -154,6 +154,8 @@ impl Runtime {
             Ok(file) => file,
             Err(error) if error.kind() == ErrorKind::NotFound => {
                 runtime.add_remote(game, build, keys);
+                resolve_runtime(&mut runtime, build);
+                runtime.synced_config = runtime.entries.iter().any(Installed::has_synced_config);
                 return runtime;
             }
             Err(error) => {
@@ -246,6 +248,7 @@ impl Runtime {
             }
         }
         runtime.add_remote(game, build, keys);
+        resolve_runtime(&mut runtime, build);
         runtime.synced_config = runtime.entries.iter().any(Installed::has_synced_config);
         runtime
     }
@@ -272,6 +275,121 @@ impl Runtime {
         }
         self.synced_config = self.entries.iter().any(Installed::has_synced_config);
     }
+}
+
+fn resolve_runtime(runtime: &mut Runtime, build: &Build) {
+    if runtime.entries.is_empty() {
+        return;
+    }
+    let manifests: Vec<_> = runtime
+        .entries
+        .iter()
+        .map(|entry| entry.manifest.clone())
+        .collect();
+    let mut resolution = yak::resolve(&manifests);
+    let mut rejected = BTreeMap::<String, String>::new();
+    for issue in &resolution.issues {
+        use yak::ResolutionIssue;
+        match issue {
+            ResolutionIssue::Duplicate { id } => {
+                rejected.entry(id.clone()).or_insert_with(|| format!("duplicate package id {id}"));
+            }
+            ResolutionIssue::Missing { dependent, dependency, required } => {
+                rejected.entry(dependent.clone()).or_insert_with(|| {
+                    format!("missing required dependency {dependency} {required}")
+                });
+            }
+            ResolutionIssue::Version { dependent, dependency, required, actual } => {
+                rejected.entry(dependent.clone()).or_insert_with(|| {
+                    format!("dependency {dependency} requires version {required}, installed version is {actual}")
+                });
+            }
+            ResolutionIssue::Conflict { first, second, required, actual } => {
+                let reason = format!("{first} conflicts with {second} {required}, installed version is {actual}");
+                rejected.entry(first.clone()).or_insert_with(|| reason.clone());
+                rejected.entry(second.clone()).or_insert(reason);
+            }
+            ResolutionIssue::Cycle { ids } => {
+                for id in ids {
+                    rejected.entry(id.clone()).or_insert_with(|| {
+                        format!("dependency cycle: {}", ids.join(", "))
+                    });
+                }
+            }
+        }
+    }
+    if !rejected.is_empty() {
+        loop {
+            let mut dependents = Vec::new();
+            for entry in &runtime.entries {
+                if rejected.contains_key(&entry.manifest.id) {
+                    continue;
+                }
+                if let Some(dependency) = entry
+                    .manifest
+                    .dependencies
+                    .keys()
+                    .find(|dependency| rejected.contains_key(*dependency))
+                {
+                    dependents.push((
+                        entry.manifest.id.clone(),
+                        format!("required dependency {dependency} was not loaded"),
+                    ));
+                }
+            }
+            if dependents.is_empty() {
+                break;
+            }
+            for (id, reason) in dependents {
+                rejected.entry(id).or_insert(reason);
+            }
+        }
+        let notices: Vec<_> = runtime
+            .entries
+            .iter()
+            .filter_map(|entry| {
+                rejected.get(&entry.manifest.id).map(|reason| {
+                    (
+                        entry
+                            .manifest
+                            .name_ja
+                            .as_ref()
+                            .unwrap_or(&entry.manifest.name)
+                            .clone(),
+                        format!("dependency resolution: {reason}"),
+                    )
+                })
+            })
+            .collect();
+        for (name, reason) in notices {
+            runtime.reject(&name, &build.version.to_string(), &reason);
+        }
+        runtime.entries.retain(|entry| !rejected.contains_key(&entry.manifest.id));
+        let manifests: Vec<_> = runtime
+            .entries
+            .iter()
+            .map(|entry| entry.manifest.clone())
+            .collect();
+        resolution = yak::resolve(&manifests);
+    }
+    if !resolution.is_compatible() {
+        let reason = format!("dependency resolution failed: {:?}", resolution.issues);
+        for entry in std::mem::take(&mut runtime.entries) {
+            let name = entry.manifest.name_ja.as_ref().unwrap_or(&entry.manifest.name);
+            runtime.reject(name, &build.version.to_string(), &reason);
+        }
+        return;
+    }
+    let mut entries: BTreeMap<_, _> = runtime
+        .entries
+        .drain(..)
+        .map(|entry| (entry.manifest.id.clone(), entry))
+        .collect();
+    runtime.entries = resolution
+        .order
+        .into_iter()
+        .filter_map(|id| entries.remove(&id))
+        .collect();
 }
 
 /// Whether this process is a dedicated server (`--dedicated`): no client, no DLL mods.

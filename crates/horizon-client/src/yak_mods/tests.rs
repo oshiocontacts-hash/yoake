@@ -130,6 +130,10 @@ required_on_join = false
     )
 }
 
+fn dependent(id: &str, dependency: &str, requirement: &str) -> String {
+    data(id) + &format!("\n[dependencies]\n{dependency} = \"{requirement}\"\n")
+}
+
 fn program() -> String {
     data("sample_mod")
         + r#"
@@ -229,6 +233,59 @@ fn list_comments_and_unsigned_content_preserve_load_order() {
         Some(second.root.join("content").as_path())
     );
     assert!(runtime.notices.lock().unwrap().is_empty());
+}
+
+#[test]
+fn a_missing_dependency_skips_the_dependent_with_a_notice() {
+    let fixture = Fixture::new();
+    fixture.install(&dependent("addon_mod", "absent_mod", "^1"));
+    fixture.install(&data("healthy_mod"));
+    fixture.list("addon_mod 1.2.3\nhealthy_mod 1.2.3\n");
+    let runtime = Runtime::read(&fixture.0, &build(), &[]);
+    let ids: Vec<_> = runtime
+        .entries
+        .iter()
+        .map(|entry| entry.manifest.id.as_str())
+        .collect();
+    assert_eq!(ids, ["healthy_mod"]);
+    assert!(runtime.startup_log.join("\n").contains("missing required dependency absent_mod ^1"));
+    let notices = runtime.notices.lock().unwrap();
+    assert_eq!(notices.len(), 1);
+    assert!(notices[0].reason.contains("dependency resolution"));
+}
+
+#[test]
+fn an_incompatible_dependency_version_skips_only_the_dependent() {
+    let fixture = Fixture::new();
+    fixture.install(&dependent("addon_mod", "base_mod", ">=2"));
+    fixture.install(&data("base_mod"));
+    fixture.list("addon_mod 1.2.3\nbase_mod 1.2.3\n");
+    let runtime = Runtime::read(&fixture.0, &build(), &[]);
+    let ids: Vec<_> = runtime
+        .entries
+        .iter()
+        .map(|entry| entry.manifest.id.as_str())
+        .collect();
+    assert_eq!(ids, ["base_mod"]);
+    let log = runtime.startup_log.join("\n");
+    assert!(log.contains("dependency base_mod requires version >=2"));
+    assert!(log.contains("installed version is 1.2.3"));
+}
+
+#[test]
+fn dependencies_load_before_their_dependents() {
+    let fixture = Fixture::new();
+    fixture.install(&dependent("addon_mod", "base_mod", "^1"));
+    fixture.install(&data("base_mod"));
+    fixture.list("addon_mod 1.2.3\nbase_mod 1.2.3\n");
+    let runtime = Runtime::read(&fixture.0, &build(), &[]);
+    let ids: Vec<_> = runtime
+        .entries
+        .iter()
+        .map(|entry| entry.manifest.id.as_str())
+        .collect();
+    assert_eq!(ids, ["base_mod", "addon_mod"]);
+    assert!(runtime.startup_log.is_empty());
 }
 
 #[test]

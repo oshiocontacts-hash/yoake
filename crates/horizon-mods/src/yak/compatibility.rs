@@ -67,9 +67,12 @@ impl Resolution {
 pub fn resolve(manifests: &[Manifest]) -> Resolution {
     let mut result = Resolution::default();
     let mut installed = BTreeMap::new();
+    let mut discovery_order = Vec::new();
     for manifest in manifests {
         if installed.insert(manifest.id.clone(), manifest).is_some() {
             result.issues.push(ResolutionIssue::Duplicate { id: manifest.id.clone() });
+        } else {
+            discovery_order.push(manifest.id.clone());
         }
     }
     let mut dependencies: BTreeMap<String, BTreeSet<String>> = installed.keys()
@@ -101,8 +104,9 @@ pub fn resolve(manifests: &[Manifest]) -> Resolution {
         }
     }
     while !dependencies.is_empty() {
-        let ready: Vec<_> = dependencies.iter().filter(|(_, required)| required.is_empty())
-            .map(|(id, _)| id.clone()).collect();
+        let ready: Vec<_> = discovery_order.iter()
+            .filter(|id| dependencies.get(*id).is_some_and(|required| required.is_empty()))
+            .cloned().collect();
         if ready.is_empty() {
             result.issues.push(ResolutionIssue::Cycle { ids: dependencies.keys().cloned().collect() });
             break;
