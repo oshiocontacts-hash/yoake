@@ -417,6 +417,31 @@ fn apply_static_from_param_ty(
                 return (raw_ty.clone(), false);
             };
             let mut new_ab = ab_raw.clone();
+            // `Foo<'static>` in the callee, `Foo<'_>` in THIR: keep the `'static`.
+            let mut lt_changed = false;
+            {
+                let param_lts: Vec<&syn::Lifetime> = ab_param
+                    .args
+                    .iter()
+                    .filter_map(|a| match a {
+                        syn::GenericArgument::Lifetime(l) => Some(l),
+                        _ => None,
+                    })
+                    .collect();
+                let mut k = 0;
+                for arg in new_ab.args.iter_mut() {
+                    if let syn::GenericArgument::Lifetime(l) = arg {
+                        if let Some(pl) = param_lts.get(k)
+                            && pl.ident == "static"
+                            && l.ident != "static"
+                        {
+                            *l = syn::Lifetime::new("'static", proc_macro2::Span::call_site());
+                            lt_changed = true;
+                        }
+                        k += 1;
+                    }
+                }
+            }
             let raw_ty_args: Vec<usize> = new_ab
                 .args
                 .iter()
@@ -431,11 +456,15 @@ fn apply_static_from_param_ty(
                     _ => None,
                 })
                 .collect();
-            if raw_ty_args.len() != param_ty_args.len() {
+            let mut changed = lt_changed;
+            if raw_ty_args.len() != param_ty_args.len() && !lt_changed {
                 return (raw_ty.clone(), false);
             }
-            let mut changed = false;
+            let same_ty_arity = raw_ty_args.len() == param_ty_args.len();
             for (ri, p_arg) in raw_ty_args.into_iter().zip(param_ty_args) {
+                if !same_ty_arity {
+                    break;
+                }
                 if let syn::GenericArgument::Type(r_arg) = &mut new_ab.args[ri] {
                     let (mapped, c) = apply_static_from_param_ty(r_arg, p_arg, aliases, depth);
                     if c {
@@ -4518,6 +4547,18 @@ mod private_path_tests {
         let path = "crate::worldgen::placement::context::PlacementQueryError";
         let out = publicize_paths(path, "demo::worldgen::placement::run::go", "demo", &set());
         assert_eq!(out, path);
+    }
+
+    #[test]
+    fn static_lifetime_argument_of_the_callee_return_is_kept() {
+        use super::apply_static_from_param_ty;
+        use std::collections::BTreeMap;
+        let raw: syn::Type = syn::parse_str("Result<crate::b::Bindings<'_>, crate::E>").unwrap();
+        let callee: syn::Type = syn::parse_str("Result<super::b::Bindings<'static>, DecodeError>").unwrap();
+        let (mapped, changed) = apply_static_from_param_ty(&raw, &callee, &BTreeMap::new(), 0);
+        assert!(changed);
+        let text = quote::quote!(#mapped).to_string();
+        assert!(text.contains("Bindings < 'static >"), "{text}");
     }
 
     #[test]
