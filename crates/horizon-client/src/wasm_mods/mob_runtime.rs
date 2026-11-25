@@ -23,26 +23,47 @@ pub(crate) fn install() {
 }
 
 /// The script runtime a server opens its session with (`script::open_session`): the WASM server modules first,
-/// then the native mods (`mob_native`, through `mod_api::mods()`). `None` when there is neither (the custom
-/// mobs then run without scripts and publish no views).
+/// then the native mods (`mob_native`, through `mod_api::mods()`), then full-access (F) modules when active.
+/// `None` when none of them has scripts active (the custom mobs then run without scripts and publish no views).
 pub(crate) fn world_runtime() -> Option<Arc<dyn crate::mobs::custom::script::Runtime>> {
-    if endpoints().is_empty() && crate::mod_api::mods().is_empty() {
-        return None;
+    let base: Option<Arc<dyn crate::mobs::custom::script::Runtime>> =
+        if endpoints().is_empty() && crate::mod_api::mods().is_empty() {
+            None
+        } else {
+            Some(Arc::new(crate::mobs::custom::script::Chain {
+                first: Arc::new(WasmRuntime),
+                second: Arc::new(crate::mob_native::NativeRuntime::process()),
+            }))
+        };
+    #[cfg(feature = "yoake2-slice")]
+    {
+        let f_rt = crate::game::yoake2_custom_mobs_state::f_world_runtime();
+        return match base {
+            Some(first) => Some(Arc::new(crate::mobs::custom::script::Chain { first, second: f_rt })),
+            None if f_rt.live() => Some(f_rt),
+            None => None,
+        };
     }
-    Some(Arc::new(crate::mobs::custom::script::Chain {
-        first: Arc::new(WasmRuntime),
-        second: Arc::new(crate::mob_native::NativeRuntime::process()),
-    }))
+    #[cfg(not(feature = "yoake2-slice"))]
+    base
 }
 
-/// Installs the client runtime (once): the WASM client modules first, then the native mods.
+/// Installs the client runtime (once): the WASM client modules first, then native mods, then F client modules.
 pub(crate) fn install_client() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
-        crate::mobs::custom::script::set_client_runtime(Some(Arc::new(crate::mobs::custom::script::ClientChain {
-            first: Arc::new(WasmRuntime),
-            second: Arc::new(crate::mob_native::NativeClientRuntime::process()),
-        })));
+        let base: Arc<dyn crate::mobs::custom::script::ClientRuntime> =
+            Arc::new(crate::mobs::custom::script::ClientChain {
+                first: Arc::new(WasmRuntime),
+                second: Arc::new(crate::mob_native::NativeClientRuntime::process()),
+            });
+        #[cfg(feature = "yoake2-slice")]
+        let base: Arc<dyn crate::mobs::custom::script::ClientRuntime> =
+            Arc::new(crate::mobs::custom::script::ClientChain {
+                first: base,
+                second: crate::game::yoake2_custom_mobs_state::f_client_runtime(),
+            });
+        crate::mobs::custom::script::set_client_runtime(Some(base));
     });
 }
 

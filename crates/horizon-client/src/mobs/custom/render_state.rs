@@ -590,6 +590,86 @@ pub struct MobRender {
     pub evaluations: u64,
 }
 
+/// Mutable pose and bone-visibility snapshot passed to renderer stage hooks (`after_pose`).
+#[derive(Clone, Debug)]
+pub struct StagePose {
+    pose: Pose,
+    visibility: BoneVisibility,
+}
+
+impl StagePose {
+    pub fn len(&self) -> usize {
+        self.pose.bones.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.pose.bones.is_empty()
+    }
+
+    pub fn get(&self, bone: u32) -> Option<([f32; 3], [f32; 4], [f32; 3], bool)> {
+        let idx = bone as usize;
+        let t = self.pose.bones.get(idx)?;
+        Some((
+            t.translation.to_array(),
+            t.rotation.to_array(),
+            t.scale.to_array(),
+            self.visibility.is_visible(idx),
+        ))
+    }
+
+    pub fn get_all(&self) -> Vec<([f32; 3], [f32; 4], [f32; 3], bool)> {
+        self.pose
+            .bones
+            .iter()
+            .enumerate()
+            .map(|(i, t)| (t.translation.to_array(), t.rotation.to_array(), t.scale.to_array(), self.visibility.is_visible(i)))
+            .collect()
+    }
+
+    pub fn set(
+        &mut self,
+        bone: u32,
+        translation: [f32; 3],
+        rotation_xyzw: [f32; 4],
+        scale: [f32; 3],
+        visible: Option<bool>,
+    ) -> Result<(), String> {
+        let idx = bone as usize;
+        if idx >= self.pose.bones.len() {
+            return Err(format!("bone index {bone} out of range (0..{})", self.pose.bones.len()));
+        }
+        if !translation.iter().chain(&rotation_xyzw).chain(&scale).all(|v| v.is_finite()) {
+            return Err("pose transform numbers must be finite".into());
+        }
+        let q = glam::Quat::from_xyzw(rotation_xyzw[0], rotation_xyzw[1], rotation_xyzw[2], rotation_xyzw[3]);
+        let len_sq = q.length_squared();
+        if !len_sq.is_finite() || len_sq <= 1.0e-12 {
+            return Err("pose rotation quaternion must be non-zero".into());
+        }
+        self.pose.bones[idx] = horizon_mobmodel::skeleton::BoneTransform {
+            translation: Vec3::from(translation),
+            rotation: q / len_sq.sqrt(),
+            scale: Vec3::from(scale),
+        };
+        if let Some(vis) = visible {
+            self.visibility.set_visible(idx, vis);
+        }
+        Ok(())
+    }
+
+    pub fn apply_write(&mut self, write: &super::script::MobBoneWrite) -> Result<(), String> {
+        if (write.bone as usize) >= self.pose.bones.len() {
+            return Err(format!("bone index {} out of range (0..{})", write.bone, self.pose.bones.len()));
+        }
+        let converted = super::script::bone_writes(std::slice::from_ref(write), self.pose.bones.len());
+        if converted.is_empty() {
+            return Err("bone write contains non-finite numbers".into());
+        }
+        apply_bone_writes_with_visibility(&mut self.pose, &mut self.visibility, &converted);
+        Ok(())
+    }
+}
+
 impl MobRender {
     pub fn new(t: &TypeRender) -> Self {
         Self {
@@ -737,6 +817,26 @@ impl MobRender {
         }
         bone_matrices_into(&tr.skeleton, &self.pose, &mut self.matrices);
         true
+    }
+
+    /// Snapshots the evaluated pose and bone visibility for renderer stage hooks (F4M-11).
+    pub fn take_stage_pose(&self, tr: &TypeRender) -> StagePose {
+        let mut pose = self.pose.clone();
+        if pose.bones.len() != tr.skeleton.len() {
+            pose = Pose::rest(&tr.skeleton);
+        }
+        let mut visibility = self.visibility.clone();
+        if self.visibility.is_visible(0) && tr.skeleton.is_empty() {
+            visibility = BoneVisibility::new(0);
+        }
+        StagePose { pose, visibility }
+    }
+
+    /// Commits a stage-edited pose back onto this mob and recomputes model-space bone matrices.
+    pub fn commit_stage_pose(&mut self, tr: &TypeRender, stage: StagePose) {
+        self.pose = stage.pose;
+        self.visibility = stage.visibility;
+        bone_matrices_into(&tr.skeleton, &self.pose, &mut self.matrices);
     }
 
     fn evaluate_rig(&mut self, ta: &TypeAnim, anim: Option<&RemoteCustomMob>, ctx: &PoseCtx, dt: f32, fresh: bool, tr: &TypeRender) {

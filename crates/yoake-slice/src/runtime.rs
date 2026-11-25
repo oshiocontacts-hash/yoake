@@ -419,6 +419,52 @@ pub const HOOK_GPU_FRAME: u32 = SYNTHETIC_HOOK_BASE + 4;
 pub const HOOK_IME_PREEDIT: u32 = SYNTHETIC_HOOK_BASE + 5;
 /// REM-12: the input method committed text. Observe-only; the event is read with the `ime_event` service.
 pub const HOOK_IME_COMMIT: u32 = SYNTHETIC_HOOK_BASE + 6;
+/// F4M-11: custom mob renderer stage hook before pose evaluation (`custom_mob_draw`); cancellable.
+pub const HOOK_CUSTOM_MOB_BEFORE_POSE: u32 = SYNTHETIC_HOOK_BASE + 7;
+/// F4M-11: custom mob renderer stage hook after pose evaluation (`custom_mob_draw`); may read/edit pose and cancel.
+pub const HOOK_CUSTOM_MOB_AFTER_POSE: u32 = SYNTHETIC_HOOK_BASE + 8;
+/// F4M-11: custom mob renderer stage hook after vertices are emitted (`custom_mob_draw`). Observe-only.
+pub const HOOK_CUSTOM_MOB_AFTER_VERTICES: u32 = SYNTHETIC_HOOK_BASE + 9;
+/// F4M-11: custom mob `ScriptGoal` `can-use` hook.
+pub const HOOK_MOB_GOAL_CAN_USE: u32 = SYNTHETIC_HOOK_BASE + 10;
+/// F4M-11: custom mob `ScriptGoal` `can-continue` hook.
+pub const HOOK_MOB_GOAL_CAN_CONTINUE: u32 = SYNTHETIC_HOOK_BASE + 11;
+/// F4M-11: custom mob `ScriptGoal` `start` hook. Observe-only.
+pub const HOOK_MOB_GOAL_START: u32 = SYNTHETIC_HOOK_BASE + 12;
+/// F4M-11: custom mob `ScriptGoal` `tick` hook. Observe-only.
+pub const HOOK_MOB_GOAL_TICK: u32 = SYNTHETIC_HOOK_BASE + 13;
+/// F4M-11: custom mob `ScriptGoal` `stop` hook. Observe-only.
+pub const HOOK_MOB_GOAL_STOP: u32 = SYNTHETIC_HOOK_BASE + 14;
+/// F4M-11: custom mob server `mob-tick` hook. Observe-only.
+pub const HOOK_MOB_TICK: u32 = SYNTHETIC_HOOK_BASE + 15;
+/// F4M-11: custom mob server `mob-spawn-check` hook.
+pub const HOOK_MOB_SPAWN_CHECK: u32 = SYNTHETIC_HOOK_BASE + 16;
+/// F4M-11: custom mob server `mob-spawned` hook. Observe-only.
+pub const HOOK_MOB_SPAWNED: u32 = SYNTHETIC_HOOK_BASE + 17;
+/// F4M-11: custom mob server `mob-hurt` hook.
+pub const HOOK_MOB_HURT: u32 = SYNTHETIC_HOOK_BASE + 18;
+/// F4M-11: custom mob server `mob-died` hook. Observe-only.
+pub const HOOK_MOB_DIED: u32 = SYNTHETIC_HOOK_BASE + 19;
+/// F4M-11: custom mob server `mob-interact` hook.
+pub const HOOK_MOB_INTERACT: u32 = SYNTHETIC_HOOK_BASE + 20;
+/// F4M-11: custom mob server `mob-anim-event` hook. Observe-only.
+pub const HOOK_MOB_ANIM_EVENT: u32 = SYNTHETIC_HOOK_BASE + 21;
+/// F4M-11: custom mob server `mob-load` hook. Observe-only.
+pub const HOOK_MOB_LOAD: u32 = SYNTHETIC_HOOK_BASE + 22;
+/// F4M-11: custom mob server `mob-save` hook.
+pub const HOOK_MOB_SAVE: u32 = SYNTHETIC_HOOK_BASE + 23;
+/// F4M-11: custom mob server `mob-tamed` hook. Observe-only.
+pub const HOOK_MOB_TAMED: u32 = SYNTHETIC_HOOK_BASE + 24;
+/// F4M-11: custom mob server `mob-bred` hook. Observe-only.
+pub const HOOK_MOB_BRED: u32 = SYNTHETIC_HOOK_BASE + 25;
+/// F4M-11: custom mob server `synced-changed-server` hook. Observe-only.
+pub const HOOK_MOB_SYNCED_CHANGED_SERVER: u32 = SYNTHETIC_HOOK_BASE + 26;
+/// F4M-11: custom mob client `mob-pose` hook.
+pub const HOOK_MOB_POSE: u32 = SYNTHETIC_HOOK_BASE + 27;
+/// F4M-11: custom mob client `mob-anim-event-client` hook. Observe-only.
+pub const HOOK_MOB_ANIM_EVENT_CLIENT: u32 = SYNTHETIC_HOOK_BASE + 28;
+/// F4M-11: custom mob client `synced-changed-client` hook. Observe-only.
+pub const HOOK_MOB_SYNCED_CHANGED_CLIENT: u32 = SYNTHETIC_HOOK_BASE + 29;
 
 /// The unmetered store's starting fuel; every top-level activation must leave it unchanged.
 pub const INITIAL_FUEL: u64 = u64::MAX / 4;
@@ -775,9 +821,19 @@ pub type EngineDispatch = fn(u64, u32, &[u8], &mut Vec<u8>) -> Result<(), crate:
 
 static DISPATCH: std::sync::Mutex<Option<EngineDispatch>> = std::sync::Mutex::new(None);
 
+thread_local! {
+    static THREAD_DISPATCH: Cell<Option<EngineDispatch>> = const { Cell::new(None) };
+}
+
 /// Registers (or with `None` removes) the table `engine_call` dispatches through. Process-wide.
 pub fn set_engine_dispatch(dispatch: Option<EngineDispatch>) {
     *DISPATCH.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = dispatch;
+}
+
+/// Overrides the `engine_call` dispatcher for the calling thread only (taking precedence over
+/// [`set_engine_dispatch`]). Intended for parallel unit tests that install a test-specific dispatcher.
+pub fn set_thread_engine_dispatch(dispatch: Option<EngineDispatch>) {
+    THREAD_DISPATCH.with(|slot| slot.set(dispatch));
 }
 
 /// Results one activation may keep for `engine_take`, and their total size.
@@ -832,7 +888,10 @@ fn run_engine_call(handle: u64, id: u32, args: Result<Vec<u8>, i32>) -> CallOutc
         Ok(args) => args,
         Err(status) => return CallOutcome::Status(status),
     };
-    let Some(dispatch) = *DISPATCH.lock().unwrap_or_else(std::sync::PoisonError::into_inner) else {
+    let Some(dispatch) = THREAD_DISPATCH
+        .with(|slot| slot.get())
+        .or_else(|| *DISPATCH.lock().unwrap_or_else(std::sync::PoisonError::into_inner))
+    else {
         return CallOutcome::Status(call_status::NO_DISPATCHER);
     };
     let mut out = Vec::new();
@@ -1386,6 +1445,27 @@ mod tests {
         assert_eq!(call_status::ticket_of(status), Some(MAX_TICKET_ID));
         assert_eq!(call_status::ticket_of(-2), None);
         assert_eq!(call_status::ticket_of(0), None);
+    }
+
+    #[test]
+    fn thread_engine_dispatch_overrides_only_the_calling_thread() {
+        fn thread_only(_: u64, id: u32, _: &[u8], out: &mut Vec<u8>) -> Result<(), crate::codec::CallError> {
+            out.extend_from_slice(&(id + 1).to_le_bytes());
+            Ok(())
+        }
+        set_thread_engine_dispatch(Some(thread_only));
+        match run_engine_call(0, 41, Ok(Vec::new())) {
+            CallOutcome::Done(bytes) => assert_eq!(bytes, 42u32.to_le_bytes()),
+            CallOutcome::Status(s) => panic!("unexpected status {s}"),
+            CallOutcome::Panic(p) => panic!("unexpected panic {p}"),
+        }
+        let other = std::thread::spawn(|| {
+            matches!(run_engine_call(0, 41, Ok(Vec::new())), CallOutcome::Done(bytes) if bytes == 42u32.to_le_bytes())
+        })
+        .join()
+        .unwrap();
+        assert!(!other, "thread-local override must not leak to another thread");
+        set_thread_engine_dispatch(None);
     }
 }
 

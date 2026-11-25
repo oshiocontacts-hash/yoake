@@ -41,6 +41,27 @@ impl Game<'_> {
 impl Game<'_> {
     pub fn yoake2_server_tick(&mut self) {
         yoake_slice::runtime::dispatch_root_id(yoake_slice::runtime::HOOK_SERVER_TICK, self, &mut |_game| 0);
+        self.yoake2_flush_queued_spawns();
+    }
+
+    fn yoake2_flush_queued_spawns(&mut self) {
+        let spawns = super::yoake2_custom_mobs_state::take_queued_spawns();
+        if spawns.is_empty() {
+            return;
+        }
+        let defaults = super::native_mobs::NativeSpawn::default();
+        for req in spawns {
+            if let Some(id) = self.native_spawn_mob(&req.dimension, &req.type_id, req.position, &defaults)
+                && let Some(m) = self.mobs.iter_mut().find(|m| m.id == id)
+            {
+                m.yaw = req.options.yaw;
+                m.body_yaw = req.options.yaw;
+                m.head_yaw = req.options.yaw;
+                if req.options.baby {
+                    m.extra.age = -24000;
+                }
+            }
+        }
     }
 }
 
@@ -72,7 +93,10 @@ impl Game<'_> {
         }
         if let Some(root) = crate::yak_mods::game_root() {
             yoake2_install_dispatch();
+            super::yoake2_custom_mobs_state::reset_goals();
             crate::yoake2_mods::load_world_mods(&root.join("mods"), crate::yoake2_mods::launch_approved_list().as_ref());
+            crate::entry::wasm_mods::install_script_runtimes();
+            super::yoake2_custom_mobs_state::ensure_world_script_session(&mut self.native_lifecycle.script_session);
         }
     }
 }
@@ -89,7 +113,7 @@ impl Game<'_> {
 pub(crate) fn yoake2_dispatch(handle: u64, id: u32, args: &[u8], out: &mut Vec<u8>) -> Result<(), yoake_slice::codec::CallError> {
     use yoake_slice::codec::CallError;
     type Call = fn(u64, u32, &[u8], &mut Vec<u8>) -> Result<(), CallError>;
-    let modules: [Call; 9] = [
+    let modules: [Call; 10] = [
         yoake_glue::call,
         horizon_client_lib::entities::yoake_glue::call,
         horizon_client_lib::mobs::yoake_glue::call,
@@ -99,6 +123,7 @@ pub(crate) fn yoake2_dispatch(handle: u64, id: u32, args: &[u8], out: &mut Vec<u
         super::launch_options::yoake_glue::call,
         horizon_client_lib::mod_generator::yoake_glue::call,
         super::yoake2_f_services::yoake_glue::call,
+        super::yoake2_custom_mobs::yoake_glue::call,
     ];
     for call in modules {
         match call(handle, id, args, out) {

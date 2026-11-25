@@ -52,7 +52,7 @@ pub(super) struct NativeLifecycle {
     attempt: Option<OpenAttempt>,
     read_scope: bool,
     /// F4M-10: this server's hold on the script runtime of custom mobs, from its open to its close.
-    script_session: Option<horizon_client::mobs::custom::script::Session>,
+    pub(super) script_session: Option<horizon_client::mobs::custom::script::Session>,
 }
 
 impl NativeLifecycle {

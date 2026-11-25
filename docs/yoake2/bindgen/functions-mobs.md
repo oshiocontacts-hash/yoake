@@ -2,165 +2,165 @@
 
 | function | line | receiver | category | reasons |
 |---|---:|---|---|---|
-| `mobs::<Aim as Clone>::clone` | 681 | &self | derived (not counted) | - |
-| `mobs::<Aim as Debug>::fmt` | 681 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::<Aim as PartialEq>::eq` | 681 | &self | derived (not counted) | - |
-| `mobs::<Attrs as Clone>::clone` | 871 | &self | derived (not counted) | - |
-| `mobs::<Attrs as Debug>::fmt` | 871 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<Aim as Clone>::clone` | 684 | &self | derived (not counted) | - |
+| `mobs::<Aim as Debug>::fmt` | 684 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<Aim as PartialEq>::eq` | 684 | &self | derived (not counted) | - |
+| `mobs::<Attrs as Clone>::clone` | 874 | &self | derived (not counted) | - |
+| `mobs::<Attrs as Debug>::fmt` | 874 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
 | `mobs::<Brain as Clone>::clone` | 326 | &self | derived (not counted) | - |
 | `mobs::<Brain as Debug>::fmt` | 326 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
 | `mobs::<Brain as PartialEq>::eq` | 326 | &self | derived (not counted) | - |
-| `mobs::<CustomLevel as Clone>::clone` | 2706 | &self | derived (not counted) | - |
-| `mobs::<CustomLevel as Debug>::fmt` | 2706 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::<CustomLevel as PartialEq>::eq` | 2706 | &self | derived (not counted) | - |
-| `mobs::<Damage as Clone>::clone` | 688 | &self | derived (not counted) | - |
-| `mobs::<Damage as Debug>::fmt` | 688 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<CustomLevel as Clone>::clone` | 2709 | &self | derived (not counted) | - |
+| `mobs::<CustomLevel as Debug>::fmt` | 2709 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<CustomLevel as PartialEq>::eq` | 2709 | &self | derived (not counted) | - |
+| `mobs::<Damage as Clone>::clone` | 691 | &self | derived (not counted) | - |
+| `mobs::<Damage as Debug>::fmt` | 691 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
 | `mobs::<DamageKind as Clone>::clone` | 597 | &self | derived (not counted) | - |
 | `mobs::<DamageKind as Debug>::fmt` | 597 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
 | `mobs::<DamageKind as PartialEq>::eq` | 597 | &self | derived (not counted) | - |
-| `mobs::<ElytraAnimation as Clone>::clone` | 4052 | &self | derived (not counted) | - |
-| `mobs::<ElytraAnimation as Debug>::fmt` | 4052 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::<ElytraAnimation as Default>::default` | 4052 | - | derived (not counted) | - |
-| `mobs::<Extra as Clone>::clone` | 896 | &self | derived (not counted) | field `catalog` of `EntityAttributes` is private to another module [return value] |
-| `mobs::<Extra as Debug>::fmt` | 896 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::<Extra as Default>::default` | 896 | - | derived (not counted) | field `catalog` of `EntityAttributes` is private to another module [return value] |
+| `mobs::<ElytraAnimation as Clone>::clone` | 4055 | &self | derived (not counted) | - |
+| `mobs::<ElytraAnimation as Debug>::fmt` | 4055 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<ElytraAnimation as Default>::default` | 4055 | - | derived (not counted) | - |
+| `mobs::<Extra as Clone>::clone` | 899 | &self | derived (not counted) | field `catalog` of `EntityAttributes` is private to another module [return value] |
+| `mobs::<Extra as Debug>::fmt` | 899 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<Extra as Default>::default` | 899 | - | derived (not counted) | field `catalog` of `EntityAttributes` is private to another module [return value] |
 | `mobs::<Flags as Clone>::clone` | 340 | &self | derived (not counted) | - |
 | `mobs::<Flags as Debug>::fmt` | 340 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
 | `mobs::<Flags as Default>::default` | 340 | - | derived (not counted) | - |
-| `mobs::<MannequinDescription as Clone>::clone` | 1368 | &self | derived (not counted) | - |
-| `mobs::<MannequinDescription as Debug>::fmt` | 1368 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::<MannequinDescription as Default>::default` | 1368 | - | derived (not counted) | - |
-| `mobs::<MannequinDescription as PartialEq>::eq` | 1368 | &self | derived (not counted) | - |
-| `mobs::<Mob as Clone>::clone` | 1217 | &self | derived (not counted) | field `0` of `JoinSeq` is private to another module [return value] |
-| `mobs::<Mob as Debug>::fmt` | 1217 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::<Mob as EntityRules>::is_no_gravity` | 1355 | &self | bound (a) | - |
-| `mobs::<Mob as Joined>::join_seq` | 5124 | &self | handle-required | field `0` of `JoinSeq` is private to another module [return value] |
-| `mobs::<Mob as Joined>::set_join_seq` | 5124 | &mut self | handle-required | field `0` of `JoinSeq` is private to another module |
-| `mobs::<Mob as State>::fields` | 1216 | - | handle-required | external type `yoake_state::Field` (crate not loaded) |
-| `mobs::<Mob as State>::set` | 1216 | &mut self | handle-required | external type `yoake_state::Value` (crate not loaded) [&argument] |
-| `mobs::<Mob as State>::snapshot` | 1216 | &self | handle-required | external type `yoake_state::Value` (crate not loaded) [return value] |
-| `mobs::<Mob as State>::type_name` | 1216 | - | bound (b, mechanical) | - |
-| `mobs::<Mob as State>::validate_set` | 1216 | &self | handle-required | external type `yoake_state::Value` (crate not loaded) [&argument] |
-| `mobs::<MobEvent as Clone>::clone` | 1399 | &self | derived (not counted) | a reference nested inside another type needs a handle [return value] |
-| `mobs::<MobEvent as Debug>::fmt` | 1399 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<MannequinDescription as Clone>::clone` | 1371 | &self | derived (not counted) | - |
+| `mobs::<MannequinDescription as Debug>::fmt` | 1371 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<MannequinDescription as Default>::default` | 1371 | - | derived (not counted) | - |
+| `mobs::<MannequinDescription as PartialEq>::eq` | 1371 | &self | derived (not counted) | - |
+| `mobs::<Mob as Clone>::clone` | 1220 | &self | derived (not counted) | field `0` of `JoinSeq` is private to another module [return value] |
+| `mobs::<Mob as Debug>::fmt` | 1220 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<Mob as EntityRules>::is_no_gravity` | 1358 | &self | bound (a) | - |
+| `mobs::<Mob as Joined>::join_seq` | 5127 | &self | handle-required | field `0` of `JoinSeq` is private to another module [return value] |
+| `mobs::<Mob as Joined>::set_join_seq` | 5127 | &mut self | handle-required | field `0` of `JoinSeq` is private to another module |
+| `mobs::<Mob as State>::fields` | 1219 | - | handle-required | external type `yoake_state::Field` (crate not loaded) |
+| `mobs::<Mob as State>::set` | 1219 | &mut self | handle-required | external type `yoake_state::Value` (crate not loaded) [&argument] |
+| `mobs::<Mob as State>::snapshot` | 1219 | &self | handle-required | external type `yoake_state::Value` (crate not loaded) [return value] |
+| `mobs::<Mob as State>::type_name` | 1219 | - | bound (b, mechanical) | - |
+| `mobs::<Mob as State>::validate_set` | 1219 | &self | handle-required | external type `yoake_state::Value` (crate not loaded) [&argument] |
+| `mobs::<MobEvent as Clone>::clone` | 1402 | &self | derived (not counted) | a reference nested inside another type needs a handle [return value] |
+| `mobs::<MobEvent as Debug>::fmt` | 1402 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
 | `mobs::<MobType as Clone>::clone` | 365 | &self | derived (not counted) | a reference nested inside another type needs a handle [return value] |
 | `mobs::<MobType as Debug>::fmt` | 365 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::<MobWorld as Clone>::clone` | 2723 | &self | derived (not counted) | lifetime-carrying type `MobWorld`; receiver type carries a lifetime: it cannot be a hook-argument handle |
+| `mobs::<MobWorld as Clone>::clone` | 2726 | &self | derived (not counted) | lifetime-carrying type `MobWorld`; receiver type carries a lifetime: it cannot be a hook-argument handle |
 | `mobs::<ModelNormals as Clone>::clone` | 149 | &self | derived (not counted) | external type `glam::f32::mat3::Mat3` (crate not loaded) [return value] |
 | `mobs::<Part as Clone>::clone` | 232 | &self | derived (not counted) | - |
 | `mobs::<Part as Debug>::fmt` | 232 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::<PendingPushes as Default>::default` | 2485 | - | derived (not counted) | - |
-| `mobs::<PlayerView as Clone>::clone` | 2626 | &self | derived (not counted) | field `min` of `Aabb` is private to another module [return value] |
-| `mobs::<PlayerView as Debug>::fmt` | 2626 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<PendingPushes as Default>::default` | 2488 | - | derived (not counted) | - |
+| `mobs::<PlayerView as Clone>::clone` | 2629 | &self | derived (not counted) | field `min` of `Aabb` is private to another module [return value] |
+| `mobs::<PlayerView as Debug>::fmt` | 2629 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
 | `mobs::<Polygon as Clone>::clone` | 120 | &self | derived (not counted) | - |
 | `mobs::<Polygon as Debug>::fmt` | 120 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::<Seen as Clone>::clone` | 2135 | &self | derived (not counted) | field `min` of `Aabb` is private to another module [return value] |
-| `mobs::<Seen as Debug>::fmt` | 2135 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::<SpawnSetup as Clone>::clone` | 2118 | &self | derived (not counted) | - |
-| `mobs::<SpawnSetup as Debug>::fmt` | 2118 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::<SpawnSetup as Default>::default` | 2118 | - | derived (not counted) | - |
-| `mobs::<SwimAnimation as Clone>::clone` | 4099 | &self | derived (not counted) | - |
-| `mobs::<SwimAnimation as Debug>::fmt` | 4099 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::<SwimAnimation as Default>::default` | 4099 | - | derived (not counted) | - |
-| `mobs::<Teams as Clone>::clone` | 2802 | &self | derived (not counted) | lifetime-carrying type `Teams`; receiver type carries a lifetime: it cannot be a hook-argument handle |
-| `mobs::<Teams as Debug>::fmt` | 2802 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; receiver type carries a lifetime: it cannot be a hook-argument handle; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::<Teams as Default>::default` | 2802 | - | derived (not counted) | lifetime-carrying type `Teams` |
-| `mobs::<Vehicle as Clone>::clone` | 2678 | &self | derived (not counted) | field `min` of `Aabb` is private to another module [return value] |
-| `mobs::<Vehicle as Debug>::fmt` | 2678 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
-| `mobs::Damage::bypasses_armor` | 791 | &self | bound (a) | - |
-| `mobs::Damage::causes_panic` | 768 | &self | bound (a) | - |
-| `mobs::Damage::fall` | 695 | - | bound (b, mechanical) | - |
-| `mobs::Damage::fireworks` | 751 | - | bound (b, mechanical) | - |
-| `mobs::Damage::indirect_magic` | 740 | - | bound (b, mechanical) | - |
-| `mobs::Damage::is_fire` | 813 | &self | bound (a) | - |
-| `mobs::Damage::is_projectile` | 858 | &self | bound (a) | - |
-| `mobs::Damage::mace` | 720 | - | bound (b, mechanical) | - |
-| `mobs::Damage::mob` | 759 | - | bound (b, mechanical) | - |
-| `mobs::Damage::no_knockback` | 827 | &self | bound (a) | - |
-| `mobs::Damage::of` | 703 | - | bound (b, mechanical) | - |
-| `mobs::Damage::player` | 711 | - | bound (b, mechanical) | - |
-| `mobs::Damage::spear` | 729 | - | bound (b, mechanical) | - |
-| `mobs::DamageKind::bypasses_effects` | 671 | self | bound (b, mechanical) | - |
+| `mobs::<Seen as Clone>::clone` | 2138 | &self | derived (not counted) | field `min` of `Aabb` is private to another module [return value] |
+| `mobs::<Seen as Debug>::fmt` | 2138 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<SpawnSetup as Clone>::clone` | 2121 | &self | derived (not counted) | - |
+| `mobs::<SpawnSetup as Debug>::fmt` | 2121 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<SpawnSetup as Default>::default` | 2121 | - | derived (not counted) | - |
+| `mobs::<SwimAnimation as Clone>::clone` | 4102 | &self | derived (not counted) | - |
+| `mobs::<SwimAnimation as Debug>::fmt` | 4102 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<SwimAnimation as Default>::default` | 4102 | - | derived (not counted) | - |
+| `mobs::<Teams as Clone>::clone` | 2805 | &self | derived (not counted) | lifetime-carrying type `Teams`; receiver type carries a lifetime: it cannot be a hook-argument handle |
+| `mobs::<Teams as Debug>::fmt` | 2805 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; receiver type carries a lifetime: it cannot be a hook-argument handle; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::<Teams as Default>::default` | 2805 | - | derived (not counted) | lifetime-carrying type `Teams` |
+| `mobs::<Vehicle as Clone>::clone` | 2681 | &self | derived (not counted) | field `min` of `Aabb` is private to another module [return value] |
+| `mobs::<Vehicle as Debug>::fmt` | 2681 | &self | derived (not counted) | lifetime-carrying type `$crate::fmt::Formatter`; std type `core::fmt::Result` has no codec yet [return value] |
+| `mobs::Damage::bypasses_armor` | 794 | &self | bound (a) | - |
+| `mobs::Damage::causes_panic` | 771 | &self | bound (a) | - |
+| `mobs::Damage::fall` | 698 | - | bound (b, mechanical) | - |
+| `mobs::Damage::fireworks` | 754 | - | bound (b, mechanical) | - |
+| `mobs::Damage::indirect_magic` | 743 | - | bound (b, mechanical) | - |
+| `mobs::Damage::is_fire` | 816 | &self | bound (a) | - |
+| `mobs::Damage::is_projectile` | 861 | &self | bound (a) | - |
+| `mobs::Damage::mace` | 723 | - | bound (b, mechanical) | - |
+| `mobs::Damage::mob` | 762 | - | bound (b, mechanical) | - |
+| `mobs::Damage::no_knockback` | 830 | &self | bound (a) | - |
+| `mobs::Damage::of` | 706 | - | bound (b, mechanical) | - |
+| `mobs::Damage::player` | 714 | - | bound (b, mechanical) | - |
+| `mobs::Damage::spear` | 732 | - | bound (b, mechanical) | - |
+| `mobs::DamageKind::bypasses_effects` | 672 | self | bound (b, mechanical) | - |
 | `mobs::DamageKind::bypasses_invulnerability` | 667 | self | bound (b, mechanical) | - |
-| `mobs::DamageKind::bypasses_resistance` | 675 | self | bound (b, mechanical) | - |
-| `mobs::ElytraAnimation::angles` | 4091 | &self | bound (a) | - |
-| `mobs::ElytraAnimation::tick` | 4064 | &mut self | bound (b, mechanical) | - |
-| `mobs::EntityModelDocument::keys` | 3831 | &self | excluded | `impl Trait` requires a listed instantiation |
-| `mobs::EntityModelDocument::load` | 3819 | - | excluded | generic type alias `crate::Result`; std type `std::path::Path` has no codec yet [&argument] |
-| `mobs::EntityModelDocument::model` | 3826 | &self | bound (b, mechanical) | - |
-| `mobs::Extra::main_hand_stack` | 1204 | &self | handle-required | a reference nested inside another type needs a handle [return value] |
-| `mobs::Extra::set_main_hand` | 1194 | &mut self | bound (b, mechanical) | - |
-| `mobs::Extra::set_main_hand_stack` | 1199 | &mut self | bound (b, mechanical) | - |
-| `mobs::Extra::take_main_hand` | 1209 | &mut self | bound (b, mechanical) | - |
-| `mobs::MannequinDescription::component` | 1377 | &self | bound (b, mechanical) | - |
-| `mobs::MannequinDescription::from_component` | 1389 | - | bound (b, mechanical) | - |
-| `mobs::Mob::__yoake_trait_entity_rules_is_no_gravity` | 1360 | &self | excluded | hook machinery (`__yoake_*`): not an engine function |
-| `mobs::Mob::add_effect` | 3714 | &mut self | excluded | `&'static` argument: the engine keeps it, a value decoded for the call cannot be |
-| `mobs::Mob::add_effect_with` | 3602 | &mut self | excluded | `&'static` argument: the engine keeps it, a value decoded for the call cannot be |
-| `mobs::Mob::alive` | 2977 | &self | bound (a) | - |
-| `mobs::Mob::ambient_interval` | 3761 | &self | bound (a) | - |
-| `mobs::Mob::apply_heal_or_harm` | 3701 | &mut self | bound (a) | - |
-| `mobs::Mob::bounds` | 2948 | &self | handle-required | field `min` of `Aabb` is private to another module [return value] |
-| `mobs::Mob::bounds_at` | 2953 | &self | handle-required | field `min` of `Aabb` is private to another module [return value] |
-| `mobs::Mob::burning_time` | 2308 | &self | bound (a) | - |
-| `mobs::Mob::can_pick_up_loot` | 2940 | &self | bound (a) | - |
-| `mobs::Mob::category` | 2436 | &self | bound (b, mechanical) | - |
-| `mobs::Mob::center` | 3746 | &self | bound (a) | - |
-| `mobs::Mob::command_name` | 2238 | &self | handle-required | external type `serde_json::value::Value` (crate not loaded) [return value] |
-| `mobs::Mob::damage` | 3063 | &mut self | bound (b, mechanical) | - |
-| `mobs::Mob::damage_aimed` | 3035 | &mut self | bound (b, mechanical) | - |
-| `mobs::Mob::damage_projectile` | 3050 | &mut self | bound (b, mechanical) | - |
-| `mobs::Mob::damage_with` | 3078 | &mut self | handle-required | a reference nested inside another type needs a handle |
-| `mobs::Mob::distance_sqr` | 3555 | &self | bound (b, mechanical) | - |
-| `mobs::Mob::distance_to` | 3546 | &self | bound (a) | - |
-| `mobs::Mob::equipment_stacks` | 2259 | &self | bound (b, mechanical) | - |
-| `mobs::Mob::extinguish_fire` | 2334 | &mut self | bound (a) | - |
-| `mobs::Mob::has_effect` | 3582 | &self | bound (a) | - |
-| `mobs::Mob::heal` | 3690 | &mut self | bound (a) | - |
-| `mobs::Mob::hostile` | 2981 | &self | bound (a) | - |
-| `mobs::Mob::hurt` | 2996 | &mut self | handle-required | field `state` of `LegacyRandom` is private to another module [&mut argument] |
-| `mobs::Mob::hurt_wolf_armor` | 3399 | &mut self | bound (a) | - |
-| `mobs::Mob::ignite_for_ticks` | 2323 | &mut self | bound (a) | - |
-| `mobs::Mob::is_currently_glowing` | 3588 | &self | bound (a) | - |
-| `mobs::Mob::is_fully_frozen` | 2349 | &self | bound (a) | - |
-| `mobs::Mob::is_invisible` | 3594 | &self | bound (a) | - |
-| `mobs::Mob::is_on_fire` | 2319 | &self | bound (a) | - |
-| `mobs::Mob::knockback` | 3435 | &mut self | bound (b, mechanical) | - |
-| `mobs::Mob::knockback_by` | 3452 | &mut self | bound (b, mechanical) | - |
-| `mobs::Mob::knockback_effect` | 3442 | &mut self | bound (b, mechanical) | - |
-| `mobs::Mob::knockback_resistance` | 3447 | &self | bound (a) | - |
-| `mobs::Mob::main_arm_left` | 2991 | &self | bound (a) | - |
-| `mobs::Mob::movement_speed` | 3563 | &self | bound (a) | - |
-| `mobs::Mob::new` | 2816 | - | handle-required | a reference nested inside another type needs a handle; field `0` of `JoinSeq` is private to another module [return value] |
-| `mobs::Mob::potion_harm` | 3366 | &self | bound (a) | - |
-| `mobs::Mob::record_damage` | 2967 | &mut self | bound (b, mechanical) | - |
-| `mobs::Mob::refuses_damage` | 3069 | &self | bound (b, mechanical) | - |
-| `mobs::Mob::saddle_item` | 3917 | &self | bound (b, mechanical) | - |
-| `mobs::Mob::seen` | 2356 | &self | handle-required | field `min` of `Aabb` is private to another module [return value] |
-| `mobs::Mob::set_saddle` | 3927 | &mut self | bound (b, mechanical) | - |
-| `mobs::Mob::soak_absorption` | 3644 | &mut self | bound (a) | - |
-| `mobs::Mob::sound` | 3754 | &self | excluded | `&'static` argument: the engine keeps it, a value decoded for the call cannot be; a reference nested inside another type needs a handle [&mut argument] |
-| `mobs::Mob::species` | 2985 | &self | bound (b, mechanical) | - |
-| `mobs::Mob::speed_bonus` | 3742 | &self | bound (a) | - |
-| `mobs::Mob::tick` | 3503 | &mut self | excluded | a reference nested inside another type needs a handle [&mut argument]; field `state` of `LegacyRandom` is private to another module [&mut argument]; lifetime-carrying type `MobWorld` |
-| `mobs::Mob::tick_avatar_pose` | 4132 | &mut self | bound (a) | - |
-| `mobs::Mob::track_section` | 3533 | &mut self | bound (a) | - |
-| `mobs::Mob::use_death_protection` | 3653 | &mut self | bound (b, mechanical) | - |
-| `mobs::Mob::voice` | 3793 | &mut self | excluded | `&'static` argument: the engine keeps it, a value decoded for the call cannot be; a reference nested inside another type needs a handle [&mut argument] |
-| `mobs::Mob::voice_pitch` | 3771 | &mut self | bound (a) | - |
-| `mobs::Mob::wolf_armor_absorbs` | 3377 | &self | bound (b, mechanical) | - |
-| `mobs::Mob::worn_armor` | 3012 | &self | bound (b, mechanical) | - |
-| `mobs::Mob::yoake_state_absorption` | 1216 | &self | bound (a) | - |
-| `mobs::Mob::yoake_state_air` | 1216 | &self | bound (a) | - |
-| `mobs::Mob::yoake_state_fire_ticks` | 1216 | &self | bound (a) | - |
-| `mobs::Mob::yoake_state_glowing` | 1216 | &self | bound (a) | - |
-| `mobs::Mob::yoake_state_health` | 1216 | &self | bound (a) | - |
-| `mobs::Mob::yoake_state_invulnerable_flag` | 1216 | &self | bound (a) | - |
-| `mobs::Mob::yoake_state_no_ai` | 1216 | &self | bound (a) | - |
-| `mobs::Mob::yoake_state_no_gravity` | 1216 | &self | bound (a) | - |
-| `mobs::Mob::yoake_state_removed` | 1216 | &self | bound (a) | - |
-| `mobs::Mob::yoake_state_silent` | 1216 | &self | bound (a) | - |
-| `mobs::Mob::yoake_state_ticks_frozen` | 1216 | &self | bound (a) | - |
+| `mobs::DamageKind::bypasses_resistance` | 677 | self | bound (b, mechanical) | - |
+| `mobs::ElytraAnimation::angles` | 4094 | &self | bound (a) | - |
+| `mobs::ElytraAnimation::tick` | 4067 | &mut self | bound (b, mechanical) | - |
+| `mobs::EntityModelDocument::keys` | 3834 | &self | excluded | `impl Trait` requires a listed instantiation |
+| `mobs::EntityModelDocument::load` | 3822 | - | excluded | generic type alias `crate::Result`; std type `std::path::Path` has no codec yet [&argument] |
+| `mobs::EntityModelDocument::model` | 3829 | &self | bound (b, mechanical) | - |
+| `mobs::Extra::main_hand_stack` | 1207 | &self | handle-required | a reference nested inside another type needs a handle [return value] |
+| `mobs::Extra::set_main_hand` | 1197 | &mut self | bound (b, mechanical) | - |
+| `mobs::Extra::set_main_hand_stack` | 1202 | &mut self | bound (b, mechanical) | - |
+| `mobs::Extra::take_main_hand` | 1212 | &mut self | bound (b, mechanical) | - |
+| `mobs::MannequinDescription::component` | 1380 | &self | bound (b, mechanical) | - |
+| `mobs::MannequinDescription::from_component` | 1392 | - | bound (b, mechanical) | - |
+| `mobs::Mob::__yoake_trait_entity_rules_is_no_gravity` | 1363 | &self | excluded | hook machinery (`__yoake_*`): not an engine function |
+| `mobs::Mob::add_effect` | 3717 | &mut self | excluded | `&'static` argument: the engine keeps it, a value decoded for the call cannot be |
+| `mobs::Mob::add_effect_with` | 3605 | &mut self | excluded | `&'static` argument: the engine keeps it, a value decoded for the call cannot be |
+| `mobs::Mob::alive` | 2980 | &self | bound (a) | - |
+| `mobs::Mob::ambient_interval` | 3764 | &self | bound (a) | - |
+| `mobs::Mob::apply_heal_or_harm` | 3704 | &mut self | bound (a) | - |
+| `mobs::Mob::bounds` | 2951 | &self | handle-required | field `min` of `Aabb` is private to another module [return value] |
+| `mobs::Mob::bounds_at` | 2956 | &self | handle-required | field `min` of `Aabb` is private to another module [return value] |
+| `mobs::Mob::burning_time` | 2311 | &self | bound (a) | - |
+| `mobs::Mob::can_pick_up_loot` | 2943 | &self | bound (a) | - |
+| `mobs::Mob::category` | 2439 | &self | bound (b, mechanical) | - |
+| `mobs::Mob::center` | 3749 | &self | bound (a) | - |
+| `mobs::Mob::command_name` | 2241 | &self | handle-required | external type `serde_json::value::Value` (crate not loaded) [return value] |
+| `mobs::Mob::damage` | 3066 | &mut self | bound (b, mechanical) | - |
+| `mobs::Mob::damage_aimed` | 3038 | &mut self | bound (b, mechanical) | - |
+| `mobs::Mob::damage_projectile` | 3053 | &mut self | bound (b, mechanical) | - |
+| `mobs::Mob::damage_with` | 3081 | &mut self | handle-required | a reference nested inside another type needs a handle |
+| `mobs::Mob::distance_sqr` | 3558 | &self | bound (b, mechanical) | - |
+| `mobs::Mob::distance_to` | 3549 | &self | bound (a) | - |
+| `mobs::Mob::equipment_stacks` | 2262 | &self | bound (b, mechanical) | - |
+| `mobs::Mob::extinguish_fire` | 2337 | &mut self | bound (a) | - |
+| `mobs::Mob::has_effect` | 3585 | &self | bound (a) | - |
+| `mobs::Mob::heal` | 3693 | &mut self | bound (a) | - |
+| `mobs::Mob::hostile` | 2984 | &self | bound (a) | - |
+| `mobs::Mob::hurt` | 2999 | &mut self | handle-required | field `state` of `LegacyRandom` is private to another module [&mut argument] |
+| `mobs::Mob::hurt_wolf_armor` | 3402 | &mut self | bound (a) | - |
+| `mobs::Mob::ignite_for_ticks` | 2326 | &mut self | bound (a) | - |
+| `mobs::Mob::is_currently_glowing` | 3591 | &self | bound (a) | - |
+| `mobs::Mob::is_fully_frozen` | 2352 | &self | bound (a) | - |
+| `mobs::Mob::is_invisible` | 3597 | &self | bound (a) | - |
+| `mobs::Mob::is_on_fire` | 2322 | &self | bound (a) | - |
+| `mobs::Mob::knockback` | 3438 | &mut self | bound (b, mechanical) | - |
+| `mobs::Mob::knockback_by` | 3455 | &mut self | bound (b, mechanical) | - |
+| `mobs::Mob::knockback_effect` | 3445 | &mut self | bound (b, mechanical) | - |
+| `mobs::Mob::knockback_resistance` | 3450 | &self | bound (a) | - |
+| `mobs::Mob::main_arm_left` | 2994 | &self | bound (a) | - |
+| `mobs::Mob::movement_speed` | 3566 | &self | bound (a) | - |
+| `mobs::Mob::new` | 2819 | - | handle-required | a reference nested inside another type needs a handle; field `0` of `JoinSeq` is private to another module [return value] |
+| `mobs::Mob::potion_harm` | 3369 | &self | bound (a) | - |
+| `mobs::Mob::record_damage` | 2970 | &mut self | bound (b, mechanical) | - |
+| `mobs::Mob::refuses_damage` | 3072 | &self | bound (b, mechanical) | - |
+| `mobs::Mob::saddle_item` | 3920 | &self | bound (b, mechanical) | - |
+| `mobs::Mob::seen` | 2359 | &self | handle-required | field `min` of `Aabb` is private to another module [return value] |
+| `mobs::Mob::set_saddle` | 3930 | &mut self | bound (b, mechanical) | - |
+| `mobs::Mob::soak_absorption` | 3647 | &mut self | bound (a) | - |
+| `mobs::Mob::sound` | 3757 | &self | excluded | `&'static` argument: the engine keeps it, a value decoded for the call cannot be; a reference nested inside another type needs a handle [&mut argument] |
+| `mobs::Mob::species` | 2988 | &self | bound (b, mechanical) | - |
+| `mobs::Mob::speed_bonus` | 3745 | &self | bound (a) | - |
+| `mobs::Mob::tick` | 3506 | &mut self | excluded | a reference nested inside another type needs a handle [&mut argument]; field `state` of `LegacyRandom` is private to another module [&mut argument]; lifetime-carrying type `MobWorld` |
+| `mobs::Mob::tick_avatar_pose` | 4135 | &mut self | bound (a) | - |
+| `mobs::Mob::track_section` | 3536 | &mut self | bound (a) | - |
+| `mobs::Mob::use_death_protection` | 3656 | &mut self | bound (b, mechanical) | - |
+| `mobs::Mob::voice` | 3796 | &mut self | excluded | `&'static` argument: the engine keeps it, a value decoded for the call cannot be; a reference nested inside another type needs a handle [&mut argument] |
+| `mobs::Mob::voice_pitch` | 3774 | &mut self | bound (a) | - |
+| `mobs::Mob::wolf_armor_absorbs` | 3380 | &self | bound (b, mechanical) | - |
+| `mobs::Mob::worn_armor` | 3015 | &self | bound (b, mechanical) | - |
+| `mobs::Mob::yoake_state_absorption` | 1219 | &self | bound (a) | - |
+| `mobs::Mob::yoake_state_air` | 1219 | &self | bound (a) | - |
+| `mobs::Mob::yoake_state_fire_ticks` | 1219 | &self | bound (a) | - |
+| `mobs::Mob::yoake_state_glowing` | 1219 | &self | bound (a) | - |
+| `mobs::Mob::yoake_state_health` | 1219 | &self | bound (a) | - |
+| `mobs::Mob::yoake_state_invulnerable_flag` | 1219 | &self | bound (a) | - |
+| `mobs::Mob::yoake_state_no_ai` | 1219 | &self | bound (a) | - |
+| `mobs::Mob::yoake_state_no_gravity` | 1219 | &self | bound (a) | - |
+| `mobs::Mob::yoake_state_removed` | 1219 | &self | bound (a) | - |
+| `mobs::Mob::yoake_state_silent` | 1219 | &self | bound (a) | - |
+| `mobs::Mob::yoake_state_ticks_frozen` | 1219 | &self | bound (a) | - |
 | `mobs::MobType::layer` | 418 | &self | handle-required | a reference nested inside another type needs a handle [return value] |
 | `mobs::MobTypes::load` | 455 | - | excluded | generic type alias `crate::Result`; std type `std::path::Path` has no codec yet [&argument] |
 | `mobs::MobTypes::load_for_server` | 463 | - | excluded | generic type alias `crate::Result`; std type `std::path::Path` has no codec yet [&argument] |
@@ -170,26 +170,26 @@
 | `mobs::ModelNormals::rotation` | 171 | - | handle-required | external type `glam::f32::mat3::Mat3` (crate not loaded) [return value] |
 | `mobs::Part::parse` | 251 | - | handle-required | external type `serde_json::value::Value` (crate not loaded) [&argument] |
 | `mobs::Part::set_cull_back` | 242 | &mut self | bound (a) | - |
-| `mobs::PendingPushes::push` | 2492 | &mut self | bound (b, mechanical) | - |
-| `mobs::PlayerView::has_effect` | 2699 | &self | bound (a) | - |
-| `mobs::PlayerView::visibility_percent` | 2687 | &self | bound (a) | - |
+| `mobs::PendingPushes::push` | 2495 | &mut self | bound (b, mechanical) | - |
+| `mobs::PlayerView::has_effect` | 2702 | &self | bound (a) | - |
+| `mobs::PlayerView::visibility_percent` | 2690 | &self | bound (a) | - |
 | `mobs::Polygon::vertex_normal` | 129 | &self | handle-required | external type `glam::f32::mat3::Mat3` (crate not loaded) |
-| `mobs::Seen::has_effect` | 2231 | &self | bound (a) | - |
-| `mobs::SwimAnimation::amount` | 4122 | &self | bound (a) | - |
-| `mobs::SwimAnimation::tick` | 4110 | &mut self | bound (a) | - |
-| `mobs::Teams::of` | 2808 | &self | excluded | a reference nested inside another type needs a handle [return value]; receiver type carries a lifetime: it cannot be a hook-argument handle |
-| `mobs::anger_left` | 887 | - | bound (a) | - |
-| `mobs::apply_brain_events` | 2560 | - | handle-required | a reference nested inside another type needs a handle [&mut argument]; field `0` of `JoinSeq` is private to another module |
-| `mobs::apply_mob_pushes` | 2535 | - | handle-required | field `0` of `JoinSeq` is private to another module [&mut argument] |
-| `mobs::blocks_changed` | 2508 | - | handle-required | field `0` of `JoinSeq` is private to another module [&mut argument] |
-| `mobs::collision_changes` | 2522 | - | excluded | lifetime-carrying type `MobWorld` |
+| `mobs::Seen::has_effect` | 2234 | &self | bound (a) | - |
+| `mobs::SwimAnimation::amount` | 4125 | &self | bound (a) | - |
+| `mobs::SwimAnimation::tick` | 4113 | &mut self | bound (a) | - |
+| `mobs::Teams::of` | 2811 | &self | excluded | a reference nested inside another type needs a handle [return value]; receiver type carries a lifetime: it cannot be a hook-argument handle |
+| `mobs::anger_left` | 890 | - | bound (a) | - |
+| `mobs::apply_brain_events` | 2563 | - | handle-required | a reference nested inside another type needs a handle [&mut argument]; field `0` of `JoinSeq` is private to another module |
+| `mobs::apply_mob_pushes` | 2538 | - | handle-required | field `0` of `JoinSeq` is private to another module [&mut argument] |
+| `mobs::blocks_changed` | 2511 | - | handle-required | field `0` of `JoinSeq` is private to another module [&mut argument] |
+| `mobs::collision_changes` | 2525 | - | excluded | lifetime-carrying type `MobWorld` |
 | `mobs::culls_back_faces` | 446 | - | bound (a) | - |
 | `mobs::exact_attributes` | 424 | - | bound (b, mechanical) | - |
-| `mobs::load_model` | 3841 | - | handle-required | std type `std::path::Path` has no codec yet [&argument] |
-| `mobs::mob_can_use_portal` | 2459 | - | handle-required | field `0` of `JoinSeq` is private to another module [&argument] |
-| `mobs::render` | 3803 | - | handle-required | external type `glam::f64::dvec3::DVec3` (crate not loaded); field `0` of `JoinSeq` is private to another module [&argument] |
-| `mobs::render_model` | 3846 | - | excluded | `dyn Trait` values cannot cross the data ABI; external type `glam::f32::sse2::mat4::Mat4` (crate not loaded) |
-| `mobs::take_mob_pushes` | 2463 | - | handle-required | a reference nested inside another type needs a handle [&mut argument] |
+| `mobs::load_model` | 3844 | - | handle-required | std type `std::path::Path` has no codec yet [&argument] |
+| `mobs::mob_can_use_portal` | 2462 | - | handle-required | field `0` of `JoinSeq` is private to another module [&argument] |
+| `mobs::render` | 3806 | - | handle-required | external type `glam::f64::dvec3::DVec3` (crate not loaded); field `0` of `JoinSeq` is private to another module [&argument] |
+| `mobs::render_model` | 3849 | - | excluded | `dyn Trait` values cannot cross the data ABI; external type `glam::f32::sse2::mat4::Mat4` (crate not loaded) |
+| `mobs::take_mob_pushes` | 2466 | - | handle-required | a reference nested inside another type needs a handle [&mut argument] |
 
 ## Fields
 

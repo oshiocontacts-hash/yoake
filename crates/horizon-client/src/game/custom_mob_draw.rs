@@ -96,6 +96,25 @@ impl Game<'_> {
             let eye = DVec3::new(p.position.x, p.position.y + 1.62, p.position.z);
             ctx.owner = Some(rs::model_point_of((eye - feet).as_vec3(), scale, yaw, roll));
         }
+        // Stage hook `before_pose` (F4M-11): one thread-local bool check when no F client mod is loaded;
+        // may cancel drawing before `mob-pose` / `MobRender::update` run.
+        #[cfg(feature = "yoake2-slice")]
+        let f_stage = crate::yoake2_mods::client_mods_loaded();
+        #[cfg(feature = "yoake2-slice")]
+        if f_stage
+            && super::yoake2_custom_mobs_state::before_pose_stage(
+                mob.id,
+                &ct.id,
+                lod,
+                partial,
+                scale,
+                yaw,
+                roll,
+                tr.skeleton.len(),
+            )
+        {
+            return;
+        }
         // `mob-pose` (F4M-10): the script's bone writes, only for a `procedural_script` type and
         // only when this frame evaluates the pose (so inside the LOD range that does).
         if tr.script_pose
@@ -120,6 +139,22 @@ impl Game<'_> {
         let meter = self.custom_mob_debug.now();
         state.update(ct, tr, anim, &ctx);
         let posed = meter.map(|t| t.elapsed());
+        #[cfg(feature = "yoake2-slice")]
+        if f_stage
+            && super::yoake2_custom_mobs_state::after_pose_stage(
+                mob.id,
+                &ct.id,
+                lod,
+                partial,
+                scale,
+                yaw,
+                roll,
+                tr,
+                state,
+            )
+        {
+            return;
+        }
         if tr.script_pose {
             let at = [feet.x, feet.y, feet.z];
             let places = (0..tr.locators.len())
@@ -146,6 +181,8 @@ impl Game<'_> {
             atlas: lookup,
             texture_overrides: texture_overrides.as_ref(),
         };
+        #[cfg(feature = "yoake2-slice")]
+        let vertex_start = out.len();
         let drawn_at = meter.map(|_| std::time::Instant::now());
         tr.draw(state, &draw, out);
         if let (Some(pose), Some(at)) = (posed, drawn_at) {
@@ -153,6 +190,20 @@ impl Game<'_> {
         }
         if lod != rs::LodMode::Hidden && lod != rs::LodMode::Static {
             self.custom_mob_items(mob, tr, &state.matrices, rel, scale, yaw, roll, light, out);
+        }
+        #[cfg(feature = "yoake2-slice")]
+        if f_stage {
+            super::yoake2_custom_mobs_state::after_vertices_stage(
+                mob.id,
+                &ct.id,
+                lod,
+                partial,
+                scale,
+                yaw,
+                roll,
+                tr.skeleton.len(),
+                out.len().saturating_sub(vertex_start),
+            );
         }
     }
 
