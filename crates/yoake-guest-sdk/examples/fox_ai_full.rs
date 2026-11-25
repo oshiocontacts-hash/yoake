@@ -58,7 +58,7 @@ fn stop_pouncing(mob: u32) {
     }
 }
 
-fn dist_sq(a: FVec3, b: FVec3) -> f64 {
+fn dist_sq(a: &FVec3, b: &FVec3) -> f64 {
     let dx = a.x - b.x;
     let dy = a.y - b.y;
     let dz = a.z - b.z;
@@ -114,7 +114,7 @@ fn hook(id: u32, _arg0: Handle) -> i64 {
                         cm.memory(String::from("pounced")),
                         Ok(Some(custom_mobs::FMobMemoryValue::Bool(true)))
                     );
-                    let d2 = dist_sq(info.position, target);
+                    let d2 = dist_sq(&info.position, &target);
                     if !cooled && (9.0..=36.0).contains(&d2) {
                         let _ = custom_mobs::reply_bool(true);
                         report(SLOT_CAN_USE_TRUE, i64::from(mob));
@@ -175,7 +175,7 @@ fn hook(id: u32, _arg0: Handle) -> i64 {
                 if let Ok(Some(info)) = cm.info()
                     && let Some(target) = info.target_position
                 {
-                    let d = sqrt_f64(dist_sq(info.position, target)).max(0.1);
+                    let d = sqrt_f64(dist_sq(&info.position, &target)).max(0.1);
                     let dx = (target.x - info.position.x) / d;
                     let dz = (target.z - info.position.z) / d;
                     let _ = cm.impulse(FVec3 { x: dx * 0.6, y: 0.35, z: dz * 0.6 });
