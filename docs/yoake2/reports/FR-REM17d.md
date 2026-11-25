@@ -222,3 +222,12 @@ horizon-mods --features yak --test yak 43; launcher `yoake_mods` 65. Nothing wit
   slice). No custom profession/POI.
 * yak: sandboxed and full-access packages are resolved together at load (round 2); approval/origin/signature/ABI checks
   of full-access packages stay at execution.
+
+## Round 2 tests (LENOVO, merged branch e0fdd87f3)
+
+Claude's fixes: `wasm_mods::command_arguments` made `pub(crate)` (a test path); the YAK lane's full-access test
+manifests made server-only (`side.client = false`, as the manifest check requires without `wasm.client`).
+horizon-mod-api-gen 46; yoake-wasm 73 + 11 + 16; horizon-client-lib --lib 1977; horizon-client --lib --bins --tests
+1323 and the integration tests; --features yoake2-slice 1330; horizon-mods yak 43. No WIT change in round 2.
+Vanilla check for (b): `Villager.increaseMerchantCareer` -> `updateTrades` -> `addOffersFromItemListings` only appends
+the new level's offers, so passing only the appended slice matches vanilla. Nothing with the game.
