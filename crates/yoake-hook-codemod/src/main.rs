@@ -63,6 +63,12 @@ pub struct Config {
     pub private_types: bool,
     /// W7: `--overlay`: `--verify` stamps and builds through the overlay wrapper, the tree stays unstamped.
     pub overlay: bool,
+    /// REM-11b: module paths (e.g. `entities`, `game::item_use`) skipped by `callsite-patch` because
+    /// `modules.txt` (`callsites=true`) owns them in place.
+    pub skip_callsite_modules: Vec<String>,
+    /// REM-11b: `callsite-patch` keeps unmodified duplicate sites confirmed across re-runs without changing
+    /// the in-place committed-tree re-identification rules.
+    pub patch_reidentify: bool,
 }
 
 pub struct HistoryConfig {
@@ -117,7 +123,7 @@ fn usage() -> &'static str {
      yoake-hook-codemod bridge --crate-root <dir> --crate-name <name> \
      --ledger <dir> --module <mod> [--module <mod>...] [--shallow] [--glue <file>...] [--exclude-file <file>] [--check]\n  \
      yoake-hook-codemod sync-ledger --workspace-root <dir> [--crate NAME]... [--rename OLD=NEW]... [--tombstone KEY]... [--frozen]\n  \
-     yoake-hook-codemod callsite-patch --workspace-root <dir> --crate NAME --thir <calls.json> [--stamp-config F] [--ledger D] [--scratch DIR]\n  \
+     yoake-hook-codemod callsite-patch --workspace-root <dir> --crate NAME --thir <calls.json> [--stamp-config F] [--ledger D] [--scratch DIR] [--verify [--verify-arg A]... [--verify-dir D] [--verify-rounds N] [--verify-max-withdraw N] [--stamp-target DIR]]\n  \
      yoake-hook-codemod check-history --base <dir> --current <dir>\n  \
      yoake-hook-codemod track-caller-scan --workspace <dir> --out <file>\n  \
      yoake-hook-codemod verify-callsites --crate-name <name> --ledger <dir> --thir <calls.json>\n  \
@@ -374,6 +380,8 @@ fn parse_args() -> Result<Option<Command>, String> {
         frozen_ledger,
         private_types,
         overlay,
+        skip_callsite_modules: vec![],
+        patch_reidentify: false,
     })))
 }
 
@@ -421,10 +429,16 @@ pub(crate) fn apply_stamp_config(
     Err(format!("no line for crate '{crate_name}' in {}", path.display()))
 }
 
-/// REM-11: `callsite-patch --workspace-root W --crate NAME --thir calls.json [--stamp-config F] [--ledger D] [--scratch DIR]`.
+/// REM-11: `callsite-patch --workspace-root W --crate NAME --thir calls.json [--stamp-config F] [--ledger D] [--scratch DIR] [--verify ...]`.
 fn parse_callsite_patch_args(args: &mut std::env::Args) -> Result<Option<Command>, String> {
     let mut workspace_root = PathBuf::from(".");
     let (mut stamp_config, mut ledger, mut scratch, mut crate_name, mut thir) = (None, None, None, None, None);
+    let mut verify = false;
+    let mut verify_args: Vec<String> = Vec::new();
+    let mut verify_dir: Option<PathBuf> = None;
+    let mut verify_rounds: usize = 8;
+    let mut verify_max_withdraw: usize = 300;
+    let mut stamp_target: Option<PathBuf> = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-h" | "--help" => {
@@ -437,18 +451,33 @@ fn parse_callsite_patch_args(args: &mut std::env::Args) -> Result<Option<Command
             "--scratch" => scratch = Some(PathBuf::from(next_arg(args, "--scratch")?)),
             "--crate" => crate_name = Some(next_arg(args, "--crate")?),
             "--thir" => thir = Some(PathBuf::from(next_arg(args, "--thir")?)),
-            other => return Err(format!("unknown argument '{other}'
-{}", usage())),
+            "--verify" => verify = true,
+            "--verify-arg" => verify_args.push(next_arg(args, "--verify-arg")?),
+            "--verify-dir" => verify_dir = Some(PathBuf::from(next_arg(args, "--verify-dir")?)),
+            "--verify-rounds" => {
+                let raw = next_arg(args, "--verify-rounds")?;
+                verify_rounds = raw.parse().map_err(|_| format!("--verify-rounds expects a number, got '{raw}'"))?;
+            }
+            "--verify-max-withdraw" => {
+                let raw = next_arg(args, "--verify-max-withdraw")?;
+                verify_max_withdraw = raw.parse().map_err(|_| format!("--verify-max-withdraw expects a number, got '{raw}'"))?;
+            }
+            "--stamp-target" => stamp_target = Some(PathBuf::from(next_arg(args, "--stamp-target")?)),
+            other => return Err(format!("unknown argument '{other}'\n{}", usage())),
         }
     }
-    let crate_name = crate_name.ok_or_else(|| format!("missing --crate
-{}", usage()))?;
-    let thir = thir.ok_or_else(|| format!("missing --thir
-{}", usage()))?;
+    let crate_name = crate_name.ok_or_else(|| format!("missing --crate\n{}", usage()))?;
+    let thir = thir.ok_or_else(|| format!("missing --thir\n{}", usage()))?;
     Ok(Some(Command::CallsitePatch(callsite_patch::GenerateArgs {
         stamp_config: stamp_config.unwrap_or_else(|| workspace_root.join("hook-ledger").join("stamp-config.txt")),
         ledger: ledger.unwrap_or_else(|| workspace_root.join("hook-ledger")),
         scratch: scratch.unwrap_or_else(|| workspace_root.join("target").join("yoake-callsite").join(key::normalize_crate_name(&crate_name))),
+        verify,
+        verify_args,
+        verify_dir: verify_dir.unwrap_or_else(|| workspace_root.clone()),
+        verify_rounds,
+        verify_max_withdraw,
+        stamp_target,
         workspace_root,
         crate_name,
         thir,
@@ -711,7 +740,7 @@ fn main() -> ExitCode {
             verify::run(&config, &options)
         }
         Command::SyncLedger(config) => sync_ledger(&config),
-        Command::CallsitePatch(args) => callsite_patch::generate(&args).map(|(files, hunks)| {
+        Command::CallsitePatch(args) => callsite_patch::run_cli(&args).map(|(files, hunks)| {
             println!("callsite-patch: {files} file(s), {hunks} hunk(s) in {}", callsite_patch::patch_path(&args.ledger, &key::normalize_crate_name(&args.crate_name)).display());
             true
         }),

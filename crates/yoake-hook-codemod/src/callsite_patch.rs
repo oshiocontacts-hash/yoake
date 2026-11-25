@@ -11,9 +11,13 @@
 //! do not matter. A hunk whose lines changed no longer applies: it is skipped with a warning (that site is then
 //! simply not hooked in the build; the ledger entry stays), and the weekly `callsite-patch` run regenerates it.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
+
+use syn::spanned::Spanned as _;
+use syn::visit::{self, Visit};
+use yoake_hook_ledger::Kind;
 
 /// The patch of a crate lives next to its ledger shard; the overlay cache key hashes every file of that directory.
 pub fn patch_path(ledger: &Path, crate_ident: &str) -> PathBuf {
@@ -418,6 +422,177 @@ mod tests {
         assert_eq!(ops.iter().filter(|o| **o == Op::Delete).count(), 1);
         assert_eq!(ops.iter().filter(|o| **o == Op::Insert).count(), 2);
     }
+
+    #[test]
+    fn callsite_patch_verify_loop_excludes_failing_site_and_keeps_sibling() {
+        use yoake_hook_ledger::LedgerSet;
+        let ws = tmp("verify_loop");
+        let crate_dir = ws.join("crates/demo");
+        let ledger = ws.join("hook-ledger");
+        std::fs::create_dir_all(crate_dir.join("src")).unwrap();
+        std::fs::create_dir_all(&ledger).unwrap();
+        let bag_rs = "\
+pub struct Bag;
+
+impl Bag {
+    pub fn a(&self) -> u32 { 1 }
+    pub fn b(&self) -> u32 { 2 }
+    pub fn run(&self) -> u32 {
+        let x = self.a();
+        let y = self.b();
+        x + y
+    }
+}
+";
+        std::fs::write(crate_dir.join("Cargo.toml"), "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n").unwrap();
+        std::fs::write(crate_dir.join("src/lib.rs"), "pub mod bag;\n").unwrap();
+        std::fs::write(crate_dir.join("src/bag.rs"), bag_rs).unwrap();
+        std::fs::write(ledger.join("meta.json"), "{\n  \"version\": 2,\n  \"next_id\": 10\n}\n").unwrap();
+        std::fs::write(
+            ledger.join("demo.json"),
+            r#"{
+  "crate": "demo",
+  "entries": [
+    { "id": 1, "key": "demo::bag::Bag::a", "sig": "s1", "status": "live", "kind": "fn" },
+    { "id": 2, "key": "demo::bag::Bag::b", "sig": "s2", "status": "live", "kind": "fn" },
+    { "id": 3, "key": "demo::bag::Bag::run", "sig": "s3", "status": "live", "kind": "fn" }
+  ],
+  "excluded": []
+}
+"#,
+        )
+        .unwrap();
+        std::fs::write(ledger.join("stamp-config.txt"), "crates/demo demo *\n").unwrap();
+
+        let span_of = |needle: &str| {
+            let start = bag_rs.find(needle).unwrap();
+            let before = &bag_rs[..start];
+            let sl = before.matches('\n').count() + 1;
+            let sc = before.rsplit('\n').next().unwrap().chars().count() + 1;
+            let end = start + needle.len();
+            let b_end = &bag_rs[..end];
+            let el = b_end.matches('\n').count() + 1;
+            let ec = b_end.rsplit('\n').next().unwrap().chars().count() + 1;
+            [sl, sc, el, ec]
+        };
+        let bytes = bag_rs.as_bytes();
+        let sha = yoake_callsite_match::format_hash(yoake_callsite_match::fnv1a_64(bytes));
+        let thir_json = serde_json::json!({
+            "crate": "demo",
+            "files": {
+                "src/bag.rs": { "len": bytes.len(), "sha": sha }
+            },
+            "calls": [
+                {
+                    "file": "src/bag.rs",
+                    "span": span_of("self.a()"),
+                    "ctxt": 0,
+                    "kind": "method",
+                    "callee": "demo::bag::Bag::a",
+                    "callee_def": "bag::{impl#0}::a",
+                    "ret_ty": "u32",
+                    "args": [{ "ty": "&'_ crate::bag::Bag" }],
+                    "recv_adjust": { "borrow": "none", "derefs": 0 },
+                    "resolution": "concrete"
+                },
+                {
+                    "file": "src/bag.rs",
+                    "span": span_of("self.b()"),
+                    "ctxt": 0,
+                    "kind": "method",
+                    "callee": "demo::bag::Bag::b",
+                    "callee_def": "bag::{impl#0}::b",
+                    "ret_ty": "u32",
+                    "args": [{ "ty": "&'_ crate::bag::Bag" }],
+                    "recv_adjust": { "borrow": "none", "derefs": 0 },
+                    "resolution": "concrete"
+                }
+            ]
+        });
+        let thir = ws.join("calls.json");
+        std::fs::write(&thir, serde_json::to_string(&thir_json).unwrap()).unwrap();
+
+        let scratch = ws.join("scratch");
+        let args = GenerateArgs {
+            workspace_root: ws.clone(),
+            ledger: ledger.clone(),
+            stamp_config: ledger.join("stamp-config.txt"),
+            crate_name: "demo".to_string(),
+            thir,
+            scratch: scratch.clone(),
+            verify: true,
+            verify_args: vec![],
+            verify_dir: ws.clone(),
+            verify_rounds: 4,
+            verify_max_withdraw: 50,
+            stamp_target: None,
+        };
+        let options = crate::verify::VerifyOptions {
+            overlay: None,
+            cargo_args: vec![],
+            dir: ws.clone(),
+            rounds: 4,
+            max_withdraw_per_round: 50,
+        };
+
+        let mut round = 0usize;
+        let result = generate_and_verify_with(&args, &options, || {
+            round += 1;
+            let scratched = std::fs::read_to_string(scratch.join("crates/demo/src/bag.rs")).unwrap();
+            if round == 1 {
+                let err_line = scratched
+                    .lines()
+                    .position(|l| l.contains("crate::bag::Bag::b("))
+                    .unwrap()
+                    + 1;
+                Ok(crate::verify::BuildOutcome {
+                    success: false,
+                    errors: vec![crate::verify::BuildError {
+                        code: "E0502".to_string(),
+                        locations: vec![(PathBuf::from("crates/demo/src/bag.rs"), err_line)],
+                        spans: vec![crate::verify::ErrorSpan {
+                            file: PathBuf::from("crates/demo/src/bag.rs"),
+                            line_start: err_line,
+                            col_start: 5,
+                            line_end: err_line,
+                            col_end: 25,
+                            is_primary: true,
+                        }],
+                        message: "cannot borrow as mutable".to_string(),
+                    }],
+                    tail: String::new(),
+                    stderr: String::new(),
+                })
+            } else {
+                assert!(!scratched.contains("crate::bag::Bag::b(recv)"), "rejected shim must be gone:\n{scratched}");
+                assert!(scratched.contains("crate::bag::Bag::a(recv)"), "sibling shim must remain:\n{scratched}");
+                Ok(crate::verify::BuildOutcome {
+                    success: true,
+                    errors: vec![],
+                    tail: String::new(),
+                    stderr: String::new(),
+                })
+            }
+        });
+        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(round, 2);
+
+        let ls = LedgerSet::load(&ledger).unwrap();
+        let shard = ls.shard("demo").unwrap();
+        assert_eq!(shard.live().filter(|e| e.kind == Kind::Callsite).count(), 1);
+        assert!(shard.live().any(|e| e.key == "fn:3@call:fn:1"));
+        assert!(
+            shard.excluded().iter().any(|ex| {
+                ex.key == "fn:3@call:fn:2" && ex.manual && ex.reason.contains("E0502")
+            }),
+            "{:?}",
+            shard.excluded()
+        );
+        let patch = std::fs::read_to_string(patch_path(&ledger, "demo")).unwrap();
+        assert!(patch.contains("crate::bag::Bag::a"), "{patch}");
+        assert!(!patch.contains("crate::bag::Bag::b"), "{patch}");
+        let _ = std::fs::remove_dir_all(&ws);
+    }
 }
 
 /// `callsite-patch` arguments (see [`generate`]).
@@ -430,13 +605,72 @@ pub struct GenerateArgs {
     pub thir: PathBuf,
     /// Where the scratch copy of the crate's sources goes (rewritten there, never in the tree).
     pub scratch: PathBuf,
+    pub verify: bool,
+    pub verify_args: Vec<String>,
+    pub verify_dir: PathBuf,
+    pub verify_rounds: usize,
+    pub verify_max_withdraw: usize,
+    pub stamp_target: Option<PathBuf>,
+}
+
+fn read_skip_callsite_modules(ledger: &Path, crate_ident: &str) -> Result<Vec<String>, String> {
+    let path = ledger.join("modules.txt");
+    if !path.is_file() {
+        return Ok(Vec::new());
+    }
+    let text = std::fs::read_to_string(&path)
+        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+    let mut out = Vec::new();
+    for raw in text.lines() {
+        let line = raw.split('#').next().unwrap_or("").trim();
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        // Every module of `modules.txt` is stamped in place (`callsites=true`: call sites too; the others: fn hooks
+        // whose wrapper bodies the overlay's fn stamper must still recognise), so the patch leaves all of them alone.
+        if parts.len() >= 3 && crate::key::normalize_crate_name(parts[1]) == crate_ident {
+            out.push(parts[2].to_string());
+        }
+    }
+    Ok(out)
+}
+
+fn read_pkg_name(crate_root: &Path) -> Result<String, String> {
+    let cargo_toml = crate_root.join("Cargo.toml");
+    let text = std::fs::read_to_string(&cargo_toml)
+        .map_err(|e| format!("failed to read {}: {e}", cargo_toml.display()))?;
+    let mut in_pkg = false;
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.starts_with('[') {
+            in_pkg = line == "[package]";
+            continue;
+        }
+        if in_pkg
+            && let Some(rest) = line.strip_prefix("name")
+            && let Some(val) = rest.trim_start().strip_prefix('=')
+        {
+            let name = val.trim().trim_matches('"').to_string();
+            if !name.is_empty() {
+                return Ok(name);
+            }
+        }
+    }
+    Err(format!("missing [package] name in {}", cargo_toml.display()))
+}
+
+/// Runs `generate` or, when `--verify` is set, `generate_and_verify`.
+pub fn run_cli(args: &GenerateArgs) -> Result<(usize, usize), String> {
+    if args.verify {
+        generate_and_verify(args)
+    } else {
+        generate(args)
+    }
 }
 
 /// Runs the call-site `apply` on a scratch copy of the crate named in the stamp config (the ledger gets the sites,
 /// the tree is untouched) and writes `<ledger>/<crate>.callsites.patch` from the difference. Returns
 /// `(files changed, hunks)`; with no change the patch file is removed.
 pub fn generate(args: &GenerateArgs) -> Result<(usize, usize), String> {
-    let workspace = args.workspace_root.canonicalize().map_err(|e| format!("{}: {e}", args.workspace_root.display()))?;
+    let workspace = crate::overlay::canon(&args.workspace_root)?;
     let ident = crate::key::normalize_crate_name(&args.crate_name);
     let text = std::fs::read_to_string(&args.stamp_config).map_err(|e| format!("failed to read {}: {e}", args.stamp_config.display()))?;
     let crate_rel = text
@@ -445,12 +679,12 @@ pub fn generate(args: &GenerateArgs) -> Result<(usize, usize), String> {
         .find(|p| p.len() >= 3 && crate::key::normalize_crate_name(p[1]) == ident)
         .map(|p| PathBuf::from(p[0]))
         .ok_or_else(|| format!("no line for crate '{}' in {}", args.crate_name, args.stamp_config.display()))?;
-    let crate_root = workspace.join(&crate_rel).canonicalize().map_err(|e| format!("{}: {e}", crate_rel.display()))?;
+    let crate_root = crate::overlay::canon(&workspace.join(&crate_rel))?;
     let (_, files) = crate::overlay::source_closure(&crate_root, &args.crate_name)?;
     let _ = std::fs::remove_dir_all(&args.scratch);
     let mut rels = Vec::new();
     for file in &files {
-        let file = file.canonicalize().map_err(|e| format!("{}: {e}", file.display()))?;
+        let file = crate::overlay::canon(file)?;
         let rel = file.strip_prefix(&workspace).map_err(|_| format!("{} is outside the workspace", file.display()))?.to_path_buf();
         let dest = args.scratch.join(&rel);
         std::fs::create_dir_all(dest.parent().unwrap()).map_err(|e| format!("{}: {e}", dest.display()))?;
@@ -461,6 +695,7 @@ pub fn generate(args: &GenerateArgs) -> Result<(usize, usize), String> {
     let mut exclude = Vec::new();
     let (mut min_stmts, mut private_types, mut bridges) = (0usize, false, false);
     crate::apply_stamp_config(&args.stamp_config, &args.crate_name, &mut modules, &mut exclude, &mut min_stmts, &mut private_types, &mut bridges)?;
+    let skip_callsite_modules = read_skip_callsite_modules(&args.ledger, &ident)?;
     let scratch_root = args.scratch.join(&crate_rel);
     let modules = crate::modules::expand_star_modules(&scratch_root, &args.crate_name, &modules, &exclude)?;
     let config = crate::Config {
@@ -478,7 +713,7 @@ pub fn generate(args: &GenerateArgs) -> Result<(usize, usize), String> {
         rename_sites: vec![],
         tombstone_sites: vec![],
         engine_crates: None,
-        retire_ineligible: false,
+        retire_ineligible: true,
         rustfmt: false,
         exclude_modules: exclude,
         min_stmts,
@@ -490,6 +725,8 @@ pub fn generate(args: &GenerateArgs) -> Result<(usize, usize), String> {
         frozen_ledger: false,
         private_types,
         overlay: false,
+        skip_callsite_modules,
+        patch_reidentify: true,
     };
     crate::callsite::execute(&config)?;
 
@@ -498,7 +735,8 @@ pub fn generate(args: &GenerateArgs) -> Result<(usize, usize), String> {
     let mut sorted = rels;
     sorted.sort_by(|a, b| a.1.cmp(&b.1));
     for (original, rel) in &sorted {
-        let old = std::fs::read_to_string(original).map_err(|e| format!("{}: {e}", original.display()))?;
+        // Binary files of the source closure (`include_bytes!` assets) are never rewritten: skip them.
+        let Ok(old) = std::fs::read_to_string(original) else { continue };
         let new = std::fs::read_to_string(args.scratch.join(rel)).map_err(|e| format!("{}: {e}", rel.display()))?;
         let rel_text = rel.to_string_lossy().replace('\\', "/");
         if let Some(text) = make_patch(&rel_text, &old, &new)? {
@@ -514,4 +752,524 @@ pub fn generate(args: &GenerateArgs) -> Result<(usize, usize), String> {
         std::fs::write(&path, patch).map_err(|e| format!("cannot write {}: {e}", path.display()))?;
     }
     Ok((changed, hunks))
+}
+
+#[derive(Clone, Copy)]
+struct CallExprSpan {
+    id: u32,
+    line_start: usize,
+    col_start: usize,
+    line_end: usize,
+    col_end: usize,
+}
+
+struct FileCallsiteMap {
+    shims: Vec<(u32, usize, usize)>,
+    calls: Vec<CallExprSpan>,
+}
+
+fn parse_cs_id(name: &str) -> Option<u32> {
+    name.strip_prefix("__yoake_cs_").and_then(|s| s.parse::<u32>().ok())
+}
+
+struct CallsiteSpanCollector {
+    shims: Vec<(u32, usize, usize)>,
+    calls: Vec<CallExprSpan>,
+}
+
+impl CallsiteSpanCollector {
+    fn record_shim(&mut self, id: u32, attrs: &[syn::Attribute], span: proc_macro2::Span) {
+        let start_line = attrs
+            .first()
+            .map_or_else(|| span.start().line, |a| a.span().start().line);
+        self.shims.push((id, start_line, span.end().line));
+    }
+
+    fn scan_macro_tokens(&mut self, tokens: proc_macro2::TokenStream) {
+        for tt in tokens {
+            match tt {
+                proc_macro2::TokenTree::Group(g) => self.scan_macro_tokens(g.stream()),
+                proc_macro2::TokenTree::Ident(ident) => {
+                    if let Some(id) = parse_cs_id(&ident.to_string()) {
+                        let sp = ident.span();
+                        self.calls.push(CallExprSpan {
+                            id,
+                            line_start: sp.start().line,
+                            col_start: sp.start().column + 1,
+                            line_end: sp.end().line,
+                            col_end: sp.end().column + 1,
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for CallsiteSpanCollector {
+    fn visit_item_fn(&mut self, node: &'ast syn::ItemFn) {
+        if let Some(id) = parse_cs_id(&node.sig.ident.to_string()) {
+            self.record_shim(id, &node.attrs, node.span());
+        }
+        visit::visit_item_fn(self, node);
+    }
+
+    fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
+        if let syn::Expr::Path(ep) = &*node.func
+            && ep.qself.is_none()
+            && ep.path.segments.len() == 1
+            && let Some(id) = parse_cs_id(&ep.path.segments[0].ident.to_string())
+        {
+            let sp = node.span();
+            self.calls.push(CallExprSpan {
+                id,
+                line_start: sp.start().line,
+                col_start: sp.start().column + 1,
+                line_end: sp.end().line,
+                col_end: sp.end().column + 1,
+            });
+        }
+        visit::visit_expr_call(self, node);
+    }
+
+    fn visit_expr_macro(&mut self, node: &'ast syn::ExprMacro) {
+        self.scan_macro_tokens(node.mac.tokens.clone());
+        visit::visit_expr_macro(self, node);
+    }
+
+    fn visit_stmt_macro(&mut self, node: &'ast syn::StmtMacro) {
+        self.scan_macro_tokens(node.mac.tokens.clone());
+        visit::visit_stmt_macro(self, node);
+    }
+}
+
+fn parse_file_callsite_map(text: &str) -> Option<FileCallsiteMap> {
+    let parsed = syn::parse_file(text).ok()?;
+    let mut collector = CallsiteSpanCollector {
+        shims: Vec::new(),
+        calls: Vec::new(),
+    };
+    collector.visit_file(&parsed);
+    Some(FileCallsiteMap {
+        shims: collector.shims,
+        calls: collector.calls,
+    })
+}
+
+fn span_contains_pos(outer_ls: usize, outer_cs: usize, outer_le: usize, outer_ce: usize, ls: usize, cs: usize, le: usize, ce: usize) -> bool {
+    (outer_ls < ls || (outer_ls == ls && outer_cs <= cs))
+        && (le < outer_le || (le == outer_le && ce <= outer_ce))
+}
+
+fn attribute_span_to_callsite(map: &FileCallsiteMap, span: &crate::verify::ErrorSpan) -> Option<u32> {
+    if let Some(&(id, _, _)) = map
+        .shims
+        .iter()
+        .filter(|&&(_, s, e)| span.line_start <= e && span.line_end >= s)
+        .min_by_key(|&&(_, s, e)| e.saturating_sub(s))
+    {
+        return Some(id);
+    }
+    if let Some(best) = map
+        .calls
+        .iter()
+        .filter(|c| {
+            span_contains_pos(
+                c.line_start,
+                c.col_start,
+                c.line_end,
+                c.col_end,
+                span.line_start,
+                span.col_start,
+                span.line_end,
+                span.col_end,
+            )
+        })
+        .min_by_key(|c| (c.line_end.saturating_sub(c.line_start), c.col_end.saturating_sub(c.col_start)))
+    {
+        return Some(best.id);
+    }
+    let mut on_line: Vec<&CallExprSpan> = map
+        .calls
+        .iter()
+        .filter(|c| c.line_start <= span.line_end && c.line_end >= span.line_start)
+        .collect();
+    if on_line.is_empty() {
+        return None;
+    }
+    on_line.sort_by_key(|c| (c.line_start, c.col_start));
+    if let Some(best) = on_line.iter().rfind(|c| c.col_start <= span.col_start) {
+        return Some(best.id);
+    }
+    Some(on_line[0].id)
+}
+
+fn collect_patched_ids(ledger: &Path, crate_ident: &str) -> BTreeSet<u32> {
+    let mut ids = BTreeSet::new();
+    let Ok(text) = std::fs::read_to_string(patch_path(ledger, crate_ident)) else {
+        return ids;
+    };
+    for line in text.lines() {
+        if let Some(rest) = line.strip_prefix('+')
+            && !rest.starts_with("++")
+            && let Some(pos) = rest.find("__yoake_cs_")
+        {
+            let after = &rest[pos + "__yoake_cs_".len()..];
+            let digits: String = after.chars().take_while(|c| c.is_ascii_digit()).collect();
+            if let Ok(id) = digits.parse::<u32>() {
+                ids.insert(id);
+            }
+        }
+    }
+    ids
+}
+
+fn build_overlay_callsite_maps(
+    workspace: &Path,
+    crate_root: &Path,
+    crate_name: &str,
+    overlay_root: Option<&Path>,
+    scratch: &Path,
+) -> Result<BTreeMap<PathBuf, FileCallsiteMap>, String> {
+    let (_, files) = crate::overlay::source_closure(crate_root, crate_name)?;
+    let mut out = BTreeMap::new();
+    for file in files {
+        if file.extension().and_then(|s| s.to_str()) != Some("rs") {
+            continue;
+        }
+        let canon_file = crate::overlay::canon(&file)?;
+        let Ok(rel) = canon_file.strip_prefix(workspace) else {
+            continue;
+        };
+        let overlay_file = overlay_root
+            .map(|r| r.join(rel))
+            .filter(|p| p.is_file())
+            .unwrap_or_else(|| {
+                let s = scratch.join(rel);
+                if s.is_file() { s } else { canon_file.clone() }
+            });
+        let Ok(text) = std::fs::read_to_string(&overlay_file) else {
+            continue;
+        };
+        let Some(map) = parse_file_callsite_map(&text) else {
+            continue;
+        };
+        out.insert(crate::verify::normalize(rel), map);
+    }
+    Ok(out)
+}
+
+fn lookup_map<'a>(
+    maps: &'a BTreeMap<PathBuf, FileCallsiteMap>,
+    span_file: &Path,
+    workspace: &Path,
+    overlay_root: Option<&Path>,
+) -> Option<&'a FileCallsiteMap> {
+    let direct = crate::verify::normalize(span_file);
+    if let Some(m) = maps.get(&direct) {
+        return Some(m);
+    }
+    if let Ok(abs) = crate::overlay::canon(span_file) {
+        if let Some(oroot) = overlay_root
+            && let Ok(rel) = abs.strip_prefix(oroot)
+            && let Some(m) = maps.get(&crate::verify::normalize(rel))
+        {
+            return Some(m);
+        }
+        if let Ok(rel) = abs.strip_prefix(workspace)
+            && let Some(m) = maps.get(&crate::verify::normalize(rel))
+        {
+            return Some(m);
+        }
+    }
+    if let Some(oroot) = overlay_root
+        && let Ok(rel) = span_file.strip_prefix(oroot)
+        && let Some(m) = maps.get(&crate::verify::normalize(rel))
+    {
+        return Some(m);
+    }
+    None
+}
+
+fn attribute_build_error(
+    err: &crate::verify::BuildError,
+    maps: &BTreeMap<PathBuf, FileCallsiteMap>,
+    workspace: &Path,
+    overlay_root: Option<&Path>,
+    patched_ids: &BTreeSet<u32>,
+) -> Option<u32> {
+    for primary_pass in [true, false] {
+        for span in err.spans.iter().filter(|s| s.is_primary == primary_pass) {
+            if let Some(map) = lookup_map(maps, &span.file, workspace, overlay_root)
+                && let Some(id) = attribute_span_to_callsite(map, span)
+                && (patched_ids.is_empty() || patched_ids.contains(&id))
+            {
+                return Some(id);
+            }
+        }
+    }
+    if !err.locations.is_empty() {
+        for (file, line) in &err.locations {
+            if let Some(map) = lookup_map(maps, file, workspace, overlay_root) {
+                let synthetic = crate::verify::ErrorSpan {
+                    file: file.clone(),
+                    line_start: *line,
+                    col_start: 1,
+                    line_end: *line,
+                    col_end: 1,
+                    is_primary: true,
+                };
+                if let Some(id) = attribute_span_to_callsite(map, &synthetic)
+                    && (patched_ids.is_empty() || patched_ids.contains(&id))
+                {
+                    return Some(id);
+                }
+            }
+        }
+    }
+    let mut from = 0usize;
+    while let Some(rel) = err.message[from..].find("__yoake_cs_") {
+        let start = from + rel + "__yoake_cs_".len();
+        from = start;
+        let digits: String = err.message[start..].chars().take_while(|c| c.is_ascii_digit()).collect();
+        if let Ok(id) = digits.parse::<u32>()
+            && (patched_ids.is_empty() || patched_ids.contains(&id))
+        {
+            return Some(id);
+        }
+    }
+    None
+}
+
+fn print_callsite_verify_summary(ledger: &Path, crate_ident: &str, withdrawn_rounds: usize) -> Result<(), String> {
+    let ledger_set = crate::ledger_io::load_ledger_set(ledger)?;
+    let Some(shard) = ledger_set.shard(crate_ident) else {
+        return Ok(());
+    };
+    let live_count = shard.live().filter(|e| e.kind == Kind::Callsite).count();
+    let mut by_reason: BTreeMap<&str, usize> = BTreeMap::new();
+    let mut total_excl = 0usize;
+    for ex in shard.excluded() {
+        if ex.kind == Kind::Callsite {
+            *by_reason.entry(ex.reason.as_str()).or_default() += 1;
+            total_excl += 1;
+        }
+    }
+    println!("callsite-patch verify ({crate_ident}): {live_count} live callsite(s), {total_excl} excluded ({withdrawn_rounds} verify round(s)):");
+    for (reason, count) in by_reason {
+        println!("  {count:5}  {reason}");
+    }
+    Ok(())
+}
+
+/// Runs `callsite-patch` with a compile/exclude verification loop against the stamped overlay.
+pub fn generate_and_verify(args: &GenerateArgs) -> Result<(usize, usize), String> {
+    let workspace = crate::overlay::canon(&args.workspace_root)?;
+    let verify_dir = crate::overlay::canon(&args.verify_dir)?;
+    let ident = crate::key::normalize_crate_name(&args.crate_name);
+    let text = std::fs::read_to_string(&args.stamp_config)
+        .map_err(|e| format!("failed to read {}: {e}", args.stamp_config.display()))?;
+    let crate_rel = text
+        .lines()
+        .map(|l| l.split('#').next().unwrap_or("").split_whitespace().collect::<Vec<_>>())
+        .find(|p| p.len() >= 3 && crate::key::normalize_crate_name(p[1]) == ident)
+        .map(|p| PathBuf::from(p[0]))
+        .ok_or_else(|| format!("no line for crate '{}' in {}", args.crate_name, args.stamp_config.display()))?;
+    let crate_root = crate::overlay::canon(&workspace.join(&crate_rel))?;
+    let pkg = read_pkg_name(&crate_root)?;
+
+    let cargo_args = if args.verify_args.is_empty() {
+        let features = if pkg == "horizon-client" || pkg == "horizon-client-lib" {
+            "yoake2-slice"
+        } else {
+            "yoake2-slice,yoake-slice/wasm"
+        };
+        vec![
+            "check".into(),
+            "-p".into(),
+            pkg,
+            "--lib".into(),
+            "--features".into(),
+            features.into(),
+        ]
+    } else {
+        args.verify_args.clone()
+    };
+
+    let stamp_target = args
+        .stamp_target
+        .clone()
+        .unwrap_or_else(|| verify_dir.join("target-stamped"));
+    let options = crate::verify::VerifyOptions {
+        overlay: Some(crate::verify::OverlayVerify {
+            workspace_root: workspace,
+            stamp_dir: stamp_target.join("yoake-stamp"),
+            stamp_config: args.stamp_config.clone(),
+        }),
+        cargo_args,
+        dir: verify_dir,
+        rounds: args.verify_rounds.max(1),
+        max_withdraw_per_round: args.verify_max_withdraw,
+    };
+    generate_and_verify_with(args, &options, || crate::verify::run_cargo(&options))
+}
+
+pub fn generate_and_verify_with<F>(
+    args: &GenerateArgs,
+    options: &crate::verify::VerifyOptions,
+    mut run_build: F,
+) -> Result<(usize, usize), String>
+where
+    F: FnMut() -> Result<crate::verify::BuildOutcome, String>,
+{
+    let workspace = crate::overlay::canon(&args.workspace_root)?;
+    let ident = crate::key::normalize_crate_name(&args.crate_name);
+    let text = std::fs::read_to_string(&args.stamp_config)
+        .map_err(|e| format!("failed to read {}: {e}", args.stamp_config.display()))?;
+    let crate_rel = text
+        .lines()
+        .map(|l| l.split('#').next().unwrap_or("").split_whitespace().collect::<Vec<_>>())
+        .find(|p| p.len() >= 3 && crate::key::normalize_crate_name(p[1]) == ident)
+        .map(|p| PathBuf::from(p[0]))
+        .ok_or_else(|| format!("no line for crate '{}' in {}", args.crate_name, args.stamp_config.display()))?;
+    let crate_root = crate::overlay::canon(&workspace.join(&crate_rel))?;
+    let overlay_root = options.overlay.as_ref().map(|o| o.stamp_dir.join("root"));
+
+    let mut total_withdrawn = 0usize;
+    let rounds = options.rounds.max(1);
+    for round in 1..=rounds {
+        let (changed, hunks) = generate(args)?;
+        let outcome = run_build()?;
+        if outcome.stderr.contains("is built UNSTAMPED") {
+            return Err(format!(
+                "stamped build emitted UNSTAMPED warning on round {round}:\n{}",
+                outcome.tail
+            ));
+        }
+        if outcome.success {
+            print_callsite_verify_summary(&args.ledger, &ident, round)?;
+            println!(
+                "callsite-patch verify: clean in {round} round(s), withdrew {total_withdrawn} site(s)"
+            );
+            return Ok((changed, hunks));
+        }
+
+        let patched_ids = collect_patched_ids(&args.ledger, &ident);
+        let maps = build_overlay_callsite_maps(
+            &workspace,
+            &crate_root,
+            &args.crate_name,
+            overlay_root.as_deref(),
+            &args.scratch,
+        )?;
+        let mut to_withdraw: BTreeMap<u32, String> = BTreeMap::new();
+        let mut unmapped: Vec<String> = Vec::new();
+        for err in &outcome.errors {
+            match attribute_build_error(
+                err,
+                &maps,
+                &workspace,
+                overlay_root.as_deref(),
+                &patched_ids,
+            ) {
+                Some(id) => {
+                    to_withdraw
+                        .entry(id)
+                        .or_insert_with(|| format!("compile error {}: {}", err.code, crate::verify::short(&err.message)));
+                }
+                None => {
+                    let loc = err
+                        .locations
+                        .first()
+                        .map(|(f, l)| format!("{}:{l}", f.display()))
+                        .unwrap_or_else(|| "<unknown>".to_string());
+                    unmapped.push(format!("{loc}: {}: {}", err.code, crate::verify::short(&err.message)));
+                }
+            }
+        }
+
+        if to_withdraw.is_empty() {
+            let detail = if unmapped.is_empty() {
+                outcome.tail.clone()
+            } else {
+                unmapped.into_iter().take(12).collect::<Vec<_>>().join("\n  ")
+            };
+            return Err(format!(
+                "callsite-patch verify round {round}: build failed with no attributable callsite errors:\n  {detail}"
+            ));
+        }
+        if options.max_withdraw_per_round > 0 && to_withdraw.len() > options.max_withdraw_per_round {
+            return Err(format!(
+                "callsite-patch verify round {round}: refusing to withdraw {} callsite(s) (cap {}) — likely systematic error:\n  {}",
+                to_withdraw.len(),
+                options.max_withdraw_per_round,
+                to_withdraw
+                    .iter()
+                    .take(10)
+                    .map(|(id, r)| format!("__yoake_cs_{id}: {r}"))
+                    .collect::<Vec<_>>()
+                    .join("\n  ")
+            ));
+        }
+
+        let mut ledger_set = crate::ledger_io::load_ledger_set(&args.ledger)?;
+        let existing_sites = crate::ledger_io::read_callsite_sites(&args.ledger, &ident)?;
+        let existing_manual = crate::ledger_io::read_manual_exclusions(&args.ledger, &ident)?;
+        let mut manual_set: BTreeSet<String> = existing_manual.keys().cloned().collect();
+        let live_keys_by_id: BTreeMap<u32, String> = ledger_set
+            .shard(&ident)
+            .map(|s| {
+                s.live()
+                    .filter(|e| e.kind == Kind::Callsite)
+                    .map(|e| (e.id, e.key.clone()))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let mut excluded_this_round = 0usize;
+        {
+            let shard = ledger_set.shard_mut(&ident);
+            for (id, reason) in &to_withdraw {
+                let Some(key) = live_keys_by_id.get(id) else {
+                    continue;
+                };
+                shard
+                    .tombstone(key)
+                    .map_err(|e| format!("failed to tombstone callsite '{key}': {e}"))?;
+                shard
+                    .exclude_manual(Kind::Callsite, key, reason)
+                    .map_err(|e| format!("failed to exclude callsite '{key}': {e}"))?;
+                manual_set.insert(key.clone());
+                excluded_this_round += 1;
+            }
+        }
+        if excluded_this_round == 0 {
+            return Err(format!(
+                "callsite-patch verify round {round}: mapped error IDs {:?} are not live callsites in {ident}.json",
+                to_withdraw.keys().collect::<Vec<_>>()
+            ));
+        }
+
+        let staging = crate::ledger_io::stage_ledger_set_with_sites(
+            &ledger_set,
+            &ident,
+            &manual_set,
+            &existing_sites,
+        )?;
+        let changed_ledger = crate::ledger_io::diff_ledger_dirs(staging.path(), &args.ledger)?;
+        if !changed_ledger.is_empty() {
+            crate::ledger_io::atomic_apply(&[], staging.path(), &changed_ledger, &args.ledger, None)?;
+        }
+        total_withdrawn += excluded_this_round;
+        println!(
+            "callsite-patch verify round {round}: {} compile error(s) ({} unmapped), excluded {excluded_this_round} callsite(s) (total withdrawn {total_withdrawn})",
+            outcome.errors.len(),
+            unmapped.len()
+        );
+    }
+
+    Err(format!(
+        "callsite-patch verify exceeded {rounds} round(s) (total withdrawn {total_withdrawn})"
+    ))
 }

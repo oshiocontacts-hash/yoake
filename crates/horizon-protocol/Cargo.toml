@@ -9,6 +9,7 @@ description = "Horizon's Minecraft Java Edition 26.3 network protocol (version 7
 [features]
 # W10: the generated hook bridges (the stamping overlay adds them) need the slice runtime
 yoake2-slice = ["dep:yoake-slice"]
+yoake-callsite-baseline = []
 dev-capture = []
 
 [dependencies]

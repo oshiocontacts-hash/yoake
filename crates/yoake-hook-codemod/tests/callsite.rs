@@ -2745,3 +2745,389 @@ impl Bag {
     let text = run(&["sync-ledger", "--overlay-root", ws.join("ov2").to_str().unwrap()]);
     assert!(text.contains("no longer fits"), "{text}");
 }
+
+#[test]
+fn free_function_path_call_rewrites_as_path_call_not_method() {
+    let dir = TestDir::new("path_call_rewrite");
+    let src = "\
+pub fn partial(msg: String) -> usize {
+    msg.len()
+}
+
+pub fn run(n: usize) -> usize {
+    partial(format!(\"x={n}\"))
+}
+";
+    let ledger_json = serde_json::to_string_pretty(&serde_json::json!({
+        "crate": "demo",
+        "entries": [
+            { "id": 1, "key": "demo::bag::run", "sig": "s1", "status": "live", "kind": "fn" },
+            { "id": 2, "key": "demo::bag::partial", "sig": "s2", "status": "live", "kind": "fn" }
+        ],
+        "excluded": []
+    }))
+    .unwrap();
+    write_fixture_crate(dir.path(), src, &ledger_json, 10);
+
+    let thir_path = dir.path().join("calls.json");
+    let calls = thir_with_file(
+        src,
+        serde_json::json!([
+            {
+                "file": "src/bag.rs",
+                "span": span_of(src, "partial(format!(\"x={n}\"))"),
+                "ctxt": 0,
+                "kind": "method",
+                "callee": "<Self as demo::bag>::partial",
+                "callee_def": "bag::partial",
+                "ret_ty": "usize",
+                "args": [{ "ty": "alloc::string::String" }],
+                "resolution": "concrete"
+            }
+        ]),
+    );
+    fs::write(&thir_path, serde_json::to_string(&calls).unwrap()).unwrap();
+
+    let apply = Command::new(codemod_bin())
+        .args(["apply", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag", "--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(
+        apply.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&apply.stdout),
+        String::from_utf8_lossy(&apply.stderr)
+    );
+
+    let rewritten = fs::read_to_string(dir.path().join("src/bag.rs")).unwrap();
+    assert!(
+        rewritten.contains("__yoake_cs_10(format!(\"x={n}\"))"),
+        "expected path call rewrite:\n{rewritten}"
+    );
+    assert!(
+        rewritten.contains("fn __yoake_cs_10(a0: alloc::string::String) -> usize {\n    crate::bag::partial(a0)\n}"),
+        "expected path call shim without <Self as ...> or recv:\n{rewritten}"
+    );
+}
+
+#[test]
+fn static_str_parameter_preserves_static_lifetime_in_shim() {
+    let dir = TestDir::new("static_str_param");
+    let src = "\
+pub struct Dispatcher;
+
+impl Dispatcher {
+    pub fn executes(&mut self, _node: usize, _command: &'static str) {}
+}
+
+pub fn reg(d: &mut Dispatcher) {
+    d.executes(1, \"hello\");
+}
+";
+    let ledger_json = serde_json::to_string_pretty(&serde_json::json!({
+        "crate": "demo",
+        "entries": [
+            { "id": 1, "key": "demo::bag::reg", "sig": "s1", "status": "live", "kind": "fn" },
+            { "id": 2, "key": "demo::bag::Dispatcher::executes", "sig": "s2", "status": "live", "kind": "fn" }
+        ],
+        "excluded": []
+    }))
+    .unwrap();
+    write_fixture_crate(dir.path(), src, &ledger_json, 10);
+
+    let thir_path = dir.path().join("calls.json");
+    let calls = thir_with_file(
+        src,
+        serde_json::json!([
+            {
+                "file": "src/bag.rs",
+                "span": span_of(src, "d.executes(1, \"hello\")"),
+                "ctxt": 0,
+                "kind": "method",
+                "callee": "demo::bag::Dispatcher::executes",
+                "callee_def": "bag::{impl#0}::executes",
+                "ret_ty": "()",
+                "args": [
+                    { "ty": "&'_ mut crate::bag::Dispatcher" },
+                    { "ty": "usize" },
+                    { "ty": "&'_ str" }
+                ],
+                "recv_adjust": { "borrow": "none", "derefs": 0 },
+                "resolution": "concrete"
+            }
+        ]),
+    );
+    fs::write(&thir_path, serde_json::to_string(&calls).unwrap()).unwrap();
+
+    let apply = Command::new(codemod_bin())
+        .args(["apply", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag", "--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(
+        apply.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&apply.stdout),
+        String::from_utf8_lossy(&apply.stderr)
+    );
+
+    let rewritten = fs::read_to_string(dir.path().join("src/bag.rs")).unwrap();
+    assert!(
+        rewritten.contains("fn __yoake_cs_10(recv: &mut crate::bag::Dispatcher, a0: usize, a1: &'static str)"),
+        "expected &'static str in shim signature:\n{rewritten}"
+    );
+}
+
+#[test]
+fn verify_callsites_skips_patched_ids_absent_from_unpatched_thir() {
+    let dir = TestDir::new("verify_patched_skip");
+    let src = "\
+pub struct Bag;
+impl Bag {
+    pub fn a(&self) {}
+    pub fn b(&self) {}
+}
+pub fn run(b: &Bag) {
+    __yoake_cs_10(b);
+}
+#[inline(always)]
+fn __yoake_cs_10(recv: &Bag) {
+    crate::bag::Bag::a(recv)
+}
+";
+    let ledger_json = serde_json::to_string_pretty(&serde_json::json!({
+        "crate": "demo",
+        "entries": [
+            {
+                "id": 10,
+                "key": "fn:1@call:fn:2",
+                "sig": "x",
+                "status": "live",
+                "kind": "callsite",
+                "site": {
+                    "caller": 1,
+                    "callee_fn": 2,
+                    "callee_path": "demo::bag::Bag::a",
+                    "anchor": "0000000000000001",
+                    "stmt_path": [],
+                    "context": ["0000000000000000", "0000000000000000"],
+                    "dup_rank": 0,
+                    "shim": "__yoake_cs_10"
+                }
+            },
+            {
+                "id": 11,
+                "key": "fn:1@call:fn:3",
+                "sig": "y",
+                "status": "live",
+                "kind": "callsite",
+                "site": {
+                    "caller": 1,
+                    "callee_fn": 3,
+                    "callee_path": "demo::bag::Bag::b",
+                    "anchor": "0000000000000002",
+                    "stmt_path": [],
+                    "context": ["0000000000000000", "0000000000000000"],
+                    "dup_rank": 0,
+                    "shim": "__yoake_cs_11"
+                }
+            }
+        ],
+        "excluded": []
+    }))
+    .unwrap();
+    write_fixture_crate(dir.path(), src, &ledger_json, 20);
+    let ledger = dir.path().join("ledger");
+    fs::write(
+        ledger.join("demo.callsites.patch"),
+        "--- a/crates/demo/src/bag.rs\n+++ b/crates/demo/src/bag.rs\n@@ -1,1 +1,4 @@\n+fn __yoake_cs_11(recv: &Bag) {\n+    crate::bag::Bag::b(recv)\n+}\n",
+    )
+    .unwrap();
+
+    let thir_path = dir.path().join("calls.json");
+    let calls = thir_with_file(
+        src,
+        serde_json::json!([
+            {
+                "file": "src/bag.rs",
+                "span": [1, 1, 1, 1],
+                "ctxt": 0,
+                "kind": "path",
+                "caller_def": "__yoake_cs_10",
+                "callee": "demo::bag::Bag::a",
+                "ret_ty": "()",
+                "args": [],
+                "resolution": "concrete"
+            }
+        ]),
+    );
+    fs::write(&thir_path, serde_json::to_string(&calls).unwrap()).unwrap();
+
+    let verify = Command::new(codemod_bin())
+        .args(["verify-callsites", "--crate-name", "demo", "--ledger"])
+        .arg(&ledger)
+        .args(["--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(
+        verify.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&verify.stdout),
+        String::from_utf8_lossy(&verify.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&verify.stdout);
+    assert!(stdout.contains("verified 1 of 1"), "{stdout}");
+}
+
+#[test]
+fn static_return_type_is_kept_in_the_shim() {
+    let dir = TestDir::new("static_ret");
+    let src = "\
+pub struct Data {
+    reg: &'static str,
+}
+
+impl Data {
+    pub fn registry(&self) -> &'static str {
+        self.reg
+    }
+}
+
+pub fn reg(d: &Data) -> &'static str {
+    d.registry()
+}
+";
+    let ledger_json = serde_json::to_string_pretty(&serde_json::json!({
+        "crate": "demo",
+        "entries": [
+            { "id": 1, "key": "demo::bag::reg", "sig": "s1", "status": "live", "kind": "fn" },
+            { "id": 2, "key": "demo::bag::Data::registry", "sig": "s2", "status": "live", "kind": "fn" }
+        ],
+        "excluded": []
+    }))
+    .unwrap();
+    write_fixture_crate(dir.path(), src, &ledger_json, 10);
+
+    let thir_path = dir.path().join("calls.json");
+    let calls = thir_with_file(
+        src,
+        serde_json::json!([
+            {
+                "file": "src/bag.rs",
+                "span": span_of(src, "d.registry()"),
+                "ctxt": 0,
+                "kind": "method",
+                "callee": "demo::bag::Data::registry",
+                "callee_def": "bag::{impl#0}::registry",
+                "ret_ty": "&'_ str",
+                "args": [ { "ty": "&'_ crate::bag::Data" } ],
+                "recv_adjust": { "borrow": "none", "derefs": 0 },
+                "resolution": "concrete"
+            }
+        ]),
+    );
+    fs::write(&thir_path, serde_json::to_string(&calls).unwrap()).unwrap();
+
+    let apply = Command::new(codemod_bin())
+        .args(["apply", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag", "--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(
+        apply.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&apply.stdout),
+        String::from_utf8_lossy(&apply.stderr)
+    );
+    let rewritten = fs::read_to_string(dir.path().join("src/bag.rs")).unwrap();
+    assert!(
+        rewritten.contains("fn __yoake_cs_10(recv: &crate::bag::Data) -> &'static str"),
+        "expected a 'static return in the shim:\n{rewritten}"
+    );
+}
+
+#[test]
+fn named_lifetime_in_callee_return_is_excluded() {
+    let dir = TestDir::new("named_ret");
+    let src = "\
+pub struct Data<'a> {
+    reg: &'a str,
+}
+
+impl<'a> Data<'a> {
+    pub fn registry(&self) -> &'a str {
+        self.reg
+    }
+}
+
+pub fn reg<'a>(d: &Data<'a>) -> &'a str {
+    d.registry()
+}
+";
+    let ledger_json = serde_json::to_string_pretty(&serde_json::json!({
+        "crate": "demo",
+        "entries": [
+            { "id": 1, "key": "demo::bag::reg", "sig": "s1", "status": "live", "kind": "fn" },
+            { "id": 2, "key": "demo::bag::Data::registry", "sig": "s2", "status": "live", "kind": "fn" }
+        ],
+        "excluded": []
+    }))
+    .unwrap();
+    write_fixture_crate(dir.path(), src, &ledger_json, 10);
+
+    let thir_path = dir.path().join("calls.json");
+    let calls = thir_with_file(
+        src,
+        serde_json::json!([
+            {
+                "file": "src/bag.rs",
+                "span": span_of(src, "d.registry()"),
+                "ctxt": 0,
+                "kind": "method",
+                "callee": "demo::bag::Data::registry",
+                "callee_def": "bag::{impl#0}::registry",
+                "ret_ty": "&'_ str",
+                "args": [ { "ty": "&'_ crate::bag::Data" } ],
+                "recv_adjust": { "borrow": "none", "derefs": 0 },
+                "resolution": "concrete"
+            }
+        ]),
+    );
+    fs::write(&thir_path, serde_json::to_string(&calls).unwrap()).unwrap();
+
+    let apply = Command::new(codemod_bin())
+        .args(["apply", "--callsites", "--crate-root"])
+        .arg(dir.path())
+        .args(["--crate-name", "demo", "--ledger"])
+        .arg(dir.path().join("ledger"))
+        .args(["--module", "bag", "--thir"])
+        .arg(&thir_path)
+        .output()
+        .unwrap();
+    assert!(
+        apply.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&apply.stdout),
+        String::from_utf8_lossy(&apply.stderr)
+    );
+    let rewritten = fs::read_to_string(dir.path().join("src/bag.rs")).unwrap();
+    assert!(
+        !rewritten.contains("fn __yoake_cs_"),
+        "a named callee lifetime must not get a shim:
+{rewritten}"
+    );
+}

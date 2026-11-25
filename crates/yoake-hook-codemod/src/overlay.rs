@@ -239,6 +239,8 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
         frozen_ledger: args.frozen,
         private_types,
         overlay: false,
+        skip_callsite_modules: vec![],
+        patch_reidentify: false,
     };
     crate::run::execute(&config)?;
     if bridges {

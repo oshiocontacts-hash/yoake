@@ -169,6 +169,7 @@ fn callsite_site_round_trips_and_is_omitted_for_other_entries() {
         context: ["77d0".into(), "0000".into()],
         dup_rank: 0,
         shim: "__yoake_cs_1".into(),
+        orig: None,
     };
     ledger.entries[0].site = Some(site.clone());
     let json = ledger.to_json();

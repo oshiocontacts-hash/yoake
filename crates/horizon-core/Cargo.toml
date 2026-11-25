@@ -9,6 +9,7 @@ description = "Horizon simulation foundations for the pinned vanilla Java Editio
 [features]
 # W10: the generated hook bridges (the stamping overlay adds them) need the slice runtime
 yoake2-slice = ["dep:yoake-slice"]
+yoake-callsite-baseline = []
 # Records the call sites of LegacyRandom draws (mob AI parity debugging).
 rng-trace = []
 

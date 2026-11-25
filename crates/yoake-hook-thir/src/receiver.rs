@@ -66,6 +66,9 @@ impl ReceiverTree {
                     current = node.children.first().copied();
                 }
                 NodeKind::Deref => {
+                    if self.is_index_deref(node.children.first().copied()) {
+                        break;
+                    }
                     result.derefs += 1;
                     through_deref = true;
                     current = node.children.first().copied();
@@ -85,8 +88,29 @@ impl ReceiverTree {
         }
         result
     }
+
+    fn is_index_deref(&self, mut child: Option<usize>) -> bool {
+        while let Some(index) = child {
+            let node = &self.nodes[index];
+            match node.kind {
+                NodeKind::Scope | NodeKind::Pointer => {
+                    child = node.children.first().copied();
+                }
+                NodeKind::Call => {
+                    return !node.from_hir_call
+                        && node.callee.as_deref().is_some_and(is_overloaded_index);
+                }
+                _ => return false,
+            }
+        }
+        false
+    }
 }
 
 fn is_overloaded_deref(path: &str) -> bool {
     path.ends_with("::Deref::deref") || path.ends_with("::DerefMut::deref_mut")
+}
+
+fn is_overloaded_index(path: &str) -> bool {
+    path.ends_with("::Index::index") || path.ends_with("::IndexMut::index_mut")
 }

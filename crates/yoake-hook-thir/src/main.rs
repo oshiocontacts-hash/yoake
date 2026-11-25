@@ -35,6 +35,14 @@ fn run() -> Result<()> {
                     "--workspace" => options.workspace = value.into(),
                     "--out" => options.out = value.into(),
                     "--file" => options.files.push(value),
+                    // A response file with one path per line (a command line cannot carry 1,000+ paths on Windows).
+                    "--files-from" => {
+                        let text = std::fs::read_to_string(&value)
+                            .map_err(|e| Error::new(format!("failed to read {value}: {e}")))?;
+                        options
+                            .files
+                            .extend(text.lines().map(str::trim).filter(|l| !l.is_empty()).map(String::from));
+                    }
                     _ => return Err(Error::new(format!("unknown dump option {name}"))),
                 }
             }
@@ -86,7 +94,7 @@ fn run() -> Result<()> {
 }
 
 fn usage() -> &'static str {
-    "usage:\n  yoake-hook-thir dump --crate-pkg PKG --crate-name CRATE --workspace DIR --out JSON --file PATH... [--allow-shared-target]\n  yoake-hook-thir parse --thir FILE --out JSON --file PATH... [--workspace DIR] [--extern NAME]..."
+    "usage:\n  yoake-hook-thir dump --crate-pkg PKG --crate-name CRATE --workspace DIR --out JSON (--file PATH... | --files-from LIST) [--allow-shared-target]\n  yoake-hook-thir parse --thir FILE --out JSON --file PATH... [--workspace DIR] [--extern NAME]..."
 }
 
 #[allow(dead_code)]

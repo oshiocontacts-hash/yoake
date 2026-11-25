@@ -116,7 +116,7 @@ wgpu = { version = "30.0.1", default-features = false, features = ["gles"] }
 [features]
 yoake-hook-baseline = []
 # Turns only the call-site hooks off (fn hooks stay): the baseline of the call-site bench gate.
-yoake-callsite-baseline = []
+yoake-callsite-baseline = ["horizon-items/yoake-callsite-baseline", "horizon-world/yoake-callsite-baseline", "horizon-client-render/yoake-callsite-baseline", "horizon-core/yoake-callsite-baseline", "horizon-protocol/yoake-callsite-baseline", "horizon-command/yoake-callsite-baseline"]
 yoake-hook-bench = []
 # MX3V1 vertical slice: a WASM core module hooks ArmorStand::tick_settle (docs/yoake2/reports/MX3V1.md). Off by default.
 # It does not turn on `yoake-hook-bench`: that feature exposes typed hook registration (`entities::hook_bench`) and is
