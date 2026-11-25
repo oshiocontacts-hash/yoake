@@ -588,25 +588,61 @@ pub fn game_dispatcher() -> &'static Dispatcher {
         DEDICATED_COMMANDS.load(std::sync::atomic::Ordering::Relaxed),
     )
 }
+struct CachedTrees {
+    epoch: u64,
+    trees: [Option<&'static Dispatcher>; 16],
+}
+
+static TREES: std::sync::RwLock<CachedTrees> = std::sync::RwLock::new(CachedTrees {
+    epoch: 0,
+    trees: [None; 16],
+});
+
+fn cached_tree(
+    dev: bool,
+    horizon: bool,
+    dedicated: bool,
+    minecart_improvements: bool,
+) -> &'static Dispatcher {
+    let slot = usize::from(dev)
+        | (usize::from(horizon) << 1)
+        | (usize::from(dedicated) << 2)
+        | (usize::from(minecart_improvements) << 3);
+    let epoch = horizon_client_core::gamerules::mod_rules_epoch();
+    if let Some(tree) = {
+        let cache = TREES.read().unwrap_or_else(|e| e.into_inner());
+        (cache.epoch == epoch).then_some(cache.trees[slot]).flatten()
+    } {
+        return tree;
+    }
+    let mut cache = TREES.write().unwrap_or_else(|e| e.into_inner());
+    let epoch = horizon_client_core::gamerules::mod_rules_epoch();
+    if cache.epoch != epoch {
+        cache.epoch = epoch;
+        cache.trees = [None; 16];
+    }
+    if let Some(tree) = cache.trees[slot] {
+        return tree;
+    }
+    let mut d = build_for_features(dev, dedicated, minecart_improvements);
+    if horizon {
+        horizon_commands(&mut d, 0);
+    }
+    let tree: &'static Dispatcher = Box::leak(Box::new(d));
+    cache.trees[slot] = Some(tree);
+    tree
+}
+
 /// The server's tree for this world's enabled features. Cache entries are
 /// separate from vanilla-only worlds and from each server/command selection.
 pub fn game_dispatcher_with_features(features: &[String]) -> &'static Dispatcher {
     if !features.iter().any(|f| f == MINECART_IMPROVEMENTS) {
         return game_dispatcher();
     }
-    static TREES: [std::sync::OnceLock<Dispatcher>; 8] = [const { std::sync::OnceLock::new() }; 8];
     let dev = std::env::var_os("HORIZON_DEV_COMMANDS").is_some();
     let horizon = HORIZON_COMMANDS.load(std::sync::atomic::Ordering::Relaxed);
     let dedicated = DEDICATED_COMMANDS.load(std::sync::atomic::Ordering::Relaxed);
-    TREES[usize::from(dev) | usize::from(horizon) << 1 | usize::from(dedicated) << 2].get_or_init(
-        || {
-            let mut d = build_for_features(dev, dedicated, true);
-            if horizon {
-                horizon_commands(&mut d, 0);
-            }
-            d
-        },
-    )
+    cached_tree(dev, horizon, dedicated, true)
 }
 /// Whether this process is a dedicated server, whose tree has the dedicated
 /// commands (`/op`, `/ban`, `/whitelist`...). Single player's server thread
@@ -635,19 +671,7 @@ pub const CUSTOM_MOB_REGISTRY: &str = "yoake:custom_mob";
 /// ignores keys it doesn't know).
 pub const PREGEN_PROPERTY: &str = "horizon-pregen";
 pub(crate) fn game_tree(dev: bool, horizon: bool, dedicated: bool) -> &'static Dispatcher {
-    static TREES: [std::sync::OnceLock<Dispatcher>; 8] = [const { std::sync::OnceLock::new() }; 8];
-    match (dev, horizon, dedicated) {
-        (true, false, false) => dispatcher(),
-        (false, false, false) => release_dispatcher(),
-        _ => TREES[usize::from(dev) | usize::from(horizon) << 1 | usize::from(dedicated) << 2]
-            .get_or_init(|| {
-                let mut d = build_for(dev, dedicated);
-                if horizon {
-                    horizon_commands(&mut d, 0);
-                }
-                d
-            }),
-    }
+    cached_tree(dev, horizon, dedicated, false)
 }
 /// Commands vanilla doesn't have, after its own: `/pregen`
 /// (docs/pregeneration.md).
@@ -711,11 +735,9 @@ fn horizon_commands(d: &mut Dispatcher, root: usize) {
     }
 }
 pub fn dispatcher() -> &'static Dispatcher {
-    static TREE: std::sync::OnceLock<Dispatcher> = std::sync::OnceLock::new();
-    TREE.get_or_init(build)
+    cached_tree(true, false, false, false)
 }
 /// The tree of a release integrated server (no development commands).
 pub fn release_dispatcher() -> &'static Dispatcher {
-    static TREE: std::sync::OnceLock<Dispatcher> = std::sync::OnceLock::new();
-    TREE.get_or_init(|| build_with(false))
+    cached_tree(false, false, false, false)
 }

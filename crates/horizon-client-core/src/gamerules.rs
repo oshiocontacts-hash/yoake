@@ -150,12 +150,18 @@ pub fn rule(name: &str) -> Option<&'static Rule> {
 /// `<mod id>:<path>`. Rules are leaked so values and open screens can safely keep their names
 /// across a registry replacement.
 static MOD_RULES: RwLock<Vec<&'static Rule>> = RwLock::new(Vec::new());
+static MOD_RULES_EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 pub fn mod_rules() -> Vec<&'static Rule> {
     MOD_RULES
         .read()
         .unwrap_or_else(|e| e.into_inner())
         .clone()
+}
+
+/// Monotonically increases each time [`register_mod_rules`] replaces the mod rule list.
+pub fn mod_rules_epoch() -> u64 {
+    MOD_RULES_EPOCH.load(std::sync::atomic::Ordering::Acquire)
 }
 
 /// One mod rule as a file declares it: its `<mod id>:<path>` name, default, bounds (for an
@@ -190,6 +196,7 @@ pub fn register_mod_rules(rules: Vec<ModRule>) {
         .collect();
     list.sort_by_key(|r| r.name);
     *MOD_RULES.write().unwrap_or_else(|e| e.into_inner()) = list;
+    MOD_RULES_EPOCH.fetch_add(1, std::sync::atomic::Ordering::Release);
 }
 
 /// The names of the registered mod rules, sorted.

@@ -111,6 +111,16 @@ pub(super) fn content_root(
     enabled: &std::collections::BTreeSet<String>,
     dev: &[std::path::PathBuf],
 ) -> ContentRoot {
+    let here = std::env::current_dir().unwrap_or_default();
+    content_root_in(root, enabled, dev, &here.join(".horizon-cache"))
+}
+
+pub(super) fn content_root_in(
+    root: &std::path::Path,
+    enabled: &std::collections::BTreeSet<String>,
+    dev: &[std::path::PathBuf],
+    cache_dir: &std::path::Path,
+) -> ContentRoot {
     use horizon_client::mod_content::{self, ContentMod};
     use horizon_mods::{Capability, Content};
     let here = std::env::current_dir().unwrap_or_default();
@@ -204,7 +214,7 @@ pub(super) fn content_root(
             }
         }
     }
-    match mod_content::resource_root(root, &mods, &here.join(".horizon-cache")) {
+    match mod_content::resource_root(root, &mods, cache_dir) {
         Ok(out) => {
             if announce {
                 horizon_protocol::mod_list::set_local(announced);
@@ -241,6 +251,11 @@ pub(super) fn content_root(
 
 /// Rebuild the mod overlay for `/reload`, then let the normal world-table reload use it.
 pub(super) fn reload_content_root(game: &mut Game<'_>) {
+    let here = std::env::current_dir().unwrap_or_default();
+    reload_content_root_in(game, &here.join(".horizon-cache"));
+}
+
+pub(super) fn reload_content_root_in(game: &mut Game<'_>, cache_dir: &std::path::Path) {
     let root = match super::packs::startup_root(
         &game.vanilla_root(),
         &game.settings.resource_packs,
@@ -252,7 +267,12 @@ pub(super) fn reload_content_root(game: &mut Game<'_>) {
             return;
         }
     };
-    let content = content_root(&root, &game.settings.mods.enabled, &game.options.dev_mods);
+    let content = content_root_in(
+        &root,
+        &game.settings.mods.enabled,
+        &game.options.dev_mods,
+        cache_dir,
+    );
     game.options.resources = content.path;
     game.pack.mod_owners = content.owners;
 }

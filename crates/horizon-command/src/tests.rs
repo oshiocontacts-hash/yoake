@@ -1171,3 +1171,46 @@ fn local_coordinate_missing_after_space_expects_a_coordinate() {
     assert_eq!(parse("^1 ^2 "), ("argument.pos.missing.double".into(), 6));
     assert_eq!(parse("^1 ~"), ("argument.pos.mixed".into(), 0));
 }
+
+#[test]
+fn mod_game_rule_reload_refreshes_cached_dispatcher() {
+    use horizon_client_core::gamerules::{MINECART_IMPROVEMENTS, ModRule, Value, register_mod_rules};
+
+    let rule = |name: &str, default: i32, max: i32| ModRule {
+        name: name.to_owned(),
+        default: Value::Int(default),
+        min: 0,
+        max,
+        category: "misc".to_owned(),
+    };
+    let ops = Registries {
+        permission: 2,
+        ..reg()
+    };
+
+    register_mod_rules(vec![rule("ruby:gem_limit", 4, 20)]);
+    let before = vanilla::game_dispatcher();
+    assert_eq!(
+        before.parse("gamerule ruby:gem_limit 4", &ops).executable().map(|(_, id)| id),
+        Ok("gamerule")
+    );
+    assert!(before.parse("gamerule ruby:gem_bonus 9", &ops).executable().is_err());
+
+    register_mod_rules(vec![
+        rule("ruby:gem_limit", 12, 10),
+        rule("ruby:gem_bonus", 9, 20),
+    ]);
+    let after = vanilla::game_dispatcher();
+    assert_eq!(
+        after.parse("gamerule ruby:gem_bonus 9", &ops).executable().map(|(_, id)| id),
+        Ok("gamerule")
+    );
+    assert!(after.parse("gamerule ruby:gem_limit 15", &ops).executable().is_err());
+    let minecart = vanilla::game_dispatcher_with_features(&[MINECART_IMPROVEMENTS.to_owned()]);
+    assert_eq!(
+        minecart.parse("gamerule ruby:gem_bonus 9", &ops).executable().map(|(_, id)| id),
+        Ok("gamerule")
+    );
+
+    register_mod_rules(Vec::new());
+}

@@ -31,6 +31,7 @@ use horizon_protocol::{crypto::offline_uuid, text::translatable};
 use std::{
     cell::RefCell,
     net::TcpListener,
+    path::PathBuf,
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, AtomicI32, AtomicU16, AtomicU32, Ordering},
@@ -852,6 +853,7 @@ impl Game<'_> {
             &enabled_features,
         ));
         self.world_biomes_base = self.world_biomes.clone();
+        let vanilla_root = self.vanilla_root();
         let (res, pack, settings) = (self.res.clone(), self.pack.clone(), self.settings.clone());
         let flags = Arc::new(Flags::default());
         flags
@@ -880,6 +882,7 @@ impl Game<'_> {
                     options,
                     settings,
                     launch,
+                    vanilla_root,
                     server_flags.clone(),
                     deferred,
                     server_tasks,
@@ -1672,6 +1675,7 @@ fn serve(
     options: Options,
     settings: Settings,
     launch: Launch,
+    vanilla_root: PathBuf,
     flags: Arc<Flags>,
     deferred: super::native_deferred::DeferredRequests,
     tasks: Receiver<Task>,
@@ -1702,7 +1706,7 @@ fn serve(
         sync: preload_sync_data(&options.resources),
     };
     let mut server = match startup::time("server.game_new", || {
-        server_game(res, pack, options, settings)
+        server_game(res, pack, options, settings, vanilla_root)
     }) {
         Ok(server) => server,
         Err(e) => {
@@ -1733,6 +1737,7 @@ pub(super) enum ComponentHarness {
 impl Game<'_> {
     pub(super) fn run_component_harness(&self, fixture: ComponentHarness) -> Result<()> {
         let (res, pack, settings) = (self.res.clone(), self.pack.clone(), self.settings.clone());
+        let vanilla_root = self.vanilla_root();
         let mut options = self.options.clone();
         options.execution_role = ExecutionRole::IntegratedServer;
         options.dedicated = Some(Vec::new());
@@ -1740,7 +1745,7 @@ impl Game<'_> {
             .name("Server thread".into())
             .spawn(move || {
                 let run = || -> Result<()> {
-                    let mut server = server_game(&res, pack, options, settings)?;
+                    let mut server = server_game(&res, pack, options, settings, vanilla_root)?;
                     match fixture {
                         ComponentHarness::Dispenser(spec) => server.dispense_fixture(&spec),
                         ComponentHarness::Sculk(spec) => server.sculk_fixture(&spec),
@@ -1759,10 +1764,13 @@ fn server_game(
     pack: PackResources,
     options: Options,
     settings: Settings,
+    vanilla_root: PathBuf,
 ) -> Result<Game<'_>> {
     let gui = UiResources::server(&options.resources)?;
     let audio = Audio::silent(&options.resources);
-    Game::new(res, pack, gui, options, settings, audio, None)
+    let mut game = Game::new(res, pack, gui, options, settings, audio, None)?;
+    game.ui.vanilla_root = vanilla_root;
+    Ok(game)
 }
 
 /// The owner and splitscreen seats join only through memory. Other players need
@@ -2001,5 +2009,86 @@ mod tests {
             world_name: String::new(),
         };
         assert_eq!(server.stop().unwrap_err().to_string(), "disk write failed");
+    }
+
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn server_game_keeps_vanilla_root_for_mod_reload() {
+        let vanilla_root = PathBuf::from(
+            std::env::var_os("HORIZON_TEST_RESOURCES").expect("set HORIZON_TEST_RESOURCES"),
+        );
+        let scratch = std::env::temp_dir().join(format!("horizon-int-reload-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&scratch);
+        let dev_mod = scratch.join("ruby");
+        let rules_dir = dev_mod.join("data/ruby/horizon/game_rule");
+        let blocks_dir = dev_mod.join("data/ruby/horizon/block");
+        std::fs::create_dir_all(&rules_dir).unwrap();
+        std::fs::create_dir_all(&blocks_dir).unwrap();
+        std::fs::write(
+            dev_mod.join("horizon-mod.toml"),
+            "id = \"ruby\"\nname = \"Ruby\"\nversion = \"0.1.0\"\napi = \"0.2\"\ncapabilities = [\"registries\"]\n",
+        )
+        .unwrap();
+        std::fs::write(
+            blocks_dir.join("crop.json"),
+            r#"{"template":"minecraft:stone"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            rules_dir.join("gem_limit.json"),
+            r#"{"type":"int","default":4,"min":0,"max":20,"category":"misc"}"#,
+        )
+        .unwrap();
+        let cache = scratch.join("cache");
+        let dev = vec![dev_mod];
+        let enabled = Default::default();
+        let content = super::super::mods::content_root_in(&vanilla_root, &enabled, &dev, &cache);
+        let settings = Settings::default();
+        let mut options = Options::parse(std::iter::empty()).unwrap().unwrap();
+        options.resources = content.path.clone();
+        options.dev_mods = dev;
+        let loaded = super::super::load_resources(
+            content,
+            None,
+            &vanilla_root,
+            &settings,
+            Instant::now(),
+            false,
+            true,
+            &super::super::Progress::new(),
+            &mut |_, _| unreachable!("no menu handoff"),
+        )
+        .unwrap();
+        let mut server = server_game(
+            &loaded.resources,
+            loaded.pack,
+            options,
+            settings,
+            vanilla_root.clone(),
+        )
+        .unwrap();
+        assert_eq!(server.vanilla_root(), vanilla_root);
+        std::fs::write(
+            rules_dir.join("gem_limit.json"),
+            r#"{"type":"int","default":12,"min":0,"max":20,"category":"misc"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            rules_dir.join("gem_bonus.json"),
+            r#"{"type":"int","default":9,"min":0,"max":20,"category":"misc"}"#,
+        )
+        .unwrap();
+        super::super::mods::reload_content_root_in(&mut server, &cache);
+        assert_eq!(
+            horizon_client::gamerules::rule("ruby:gem_limit").map(|r| r.default),
+            Some(horizon_client::gamerules::Value::Int(12))
+        );
+        assert_eq!(
+            horizon_client::gamerules::rule("ruby:gem_bonus").map(|r| r.default),
+            Some(horizon_client::gamerules::Value::Int(9))
+        );
+        horizon_client::gamerules::register_mod_rules(Vec::new());
+        let _ = horizon_world::fluid::custom::reload(Vec::new());
+        let _ = std::fs::remove_dir_all(&scratch);
     }
 }
