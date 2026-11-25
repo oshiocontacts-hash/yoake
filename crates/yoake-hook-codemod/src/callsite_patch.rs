@@ -624,10 +624,9 @@ fn read_skip_callsite_modules(ledger: &Path, crate_ident: &str) -> Result<Vec<St
     for raw in text.lines() {
         let line = raw.split('#').next().unwrap_or("").trim();
         let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() >= 4
-            && crate::key::normalize_crate_name(parts[1]) == crate_ident
-            && parts[3..].contains(&"callsites=true")
-        {
+        // Every module of `modules.txt` is stamped in place (`callsites=true`: call sites too; the others: fn hooks
+        // whose wrapper bodies the overlay's fn stamper must still recognise), so the patch leaves all of them alone.
+        if parts.len() >= 3 && crate::key::normalize_crate_name(parts[1]) == crate_ident {
             out.push(parts[2].to_string());
         }
     }
@@ -736,7 +735,8 @@ pub fn generate(args: &GenerateArgs) -> Result<(usize, usize), String> {
     let mut sorted = rels;
     sorted.sort_by(|a, b| a.1.cmp(&b.1));
     for (original, rel) in &sorted {
-        let old = std::fs::read_to_string(original).map_err(|e| format!("{}: {e}", original.display()))?;
+        // Binary files of the source closure (`include_bytes!` assets) are never rewritten: skip them.
+        let Ok(old) = std::fs::read_to_string(original) else { continue };
         let new = std::fs::read_to_string(args.scratch.join(rel)).map_err(|e| format!("{}: {e}", rel.display()))?;
         let rel_text = rel.to_string_lossy().replace('\\', "/");
         if let Some(text) = make_patch(&rel_text, &old, &new)? {
