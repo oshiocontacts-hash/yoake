@@ -6,7 +6,7 @@
 //!
 //! It prints the `minecraft:dimension_type` registry entries it was sent, the login packet's level keys and level,
 //! then runs the command (a guest's chat command, as a stock client would send it) and prints the respawn it is
-//! sent (the level and the type index) and what the chunks of that level look like (how many sections each holds). It never answers anything but keep-alives and the player-loaded packet; it exits non-zero when the
+//! sent (the level and the type index) and what the chunks of that level look like (how many sections each holds). It answers keep-alives, player-loaded, teleport confirmations and chunk-batch acknowledgements as a stock client does; it exits non-zero when the
 //! server disconnects it.
 use horizon_client::net::{Event, Session, load_language};
 use horizon_protocol::packets::{configuration::ClientInformation, play};
@@ -111,12 +111,33 @@ fn main() {
                             }
                         }
                     }
-                    play::Clientbound::PlayerPosition(_) if !sent => {
-                        sent = true;
-                        session.send(play::Serverbound::ChatCommand(play::ChatCommand {
-                            command: command.clone(),
-                        }));
-                        say(json!({"sent": command}));
+                    play::Clientbound::ChunkBatchFinished(_) => {
+                        session.send(play::Serverbound::ChunkBatchReceived(
+                            play::ChunkBatchReceived {
+                                chunks_per_tick: 64.0,
+                            },
+                        ));
+                    }
+                    play::Clientbound::PlayerPosition(p) => {
+                        if p.relatives == 0 {
+                            session.send(play::Serverbound::AcceptTeleportation(
+                                play::AcceptTeleportation {
+                                    id: p.teleport,
+                                    x: p.position[0],
+                                    y: p.position[1],
+                                    z: p.position[2],
+                                    yaw: p.yaw,
+                                    pitch: p.pitch,
+                                },
+                            ));
+                        }
+                        if !sent {
+                            sent = true;
+                            session.send(play::Serverbound::ChatCommand(play::ChatCommand {
+                                command: command.clone(),
+                            }));
+                            say(json!({"sent": command}));
+                        }
                     }
                     _ => {}
                 },
@@ -128,7 +149,10 @@ fn main() {
             }
         }
         std::thread::sleep(Duration::from_millis(20));
-        if respawn_at.is_some_and(|t| t.elapsed() > Duration::from_secs(8)) {
+        if respawn_at.is_some_and(|t| {
+            (chunks_after > 0 && t.elapsed() > Duration::from_secs(3))
+                || t.elapsed() > Duration::from_secs(20)
+        }) {
             break;
         }
     }
