@@ -2191,6 +2191,13 @@ fn mod_function(
 pub fn bucket_contents(
     item: &str,
 ) -> Option<(horizon_world::level::BucketContent, &str, Option<&str>)> {
+    bucket_contents_with_custom(item, horizon_world::fluid::custom::bucket(item))
+}
+
+fn bucket_contents_with_custom(
+    item: &str,
+    custom: Option<horizon_world::fluid::FluidKind>,
+) -> Option<(horizon_world::level::BucketContent, &str, Option<&str>)> {
     use horizon_world::{fluid::FluidKind, level::BucketContent as C};
     Some(match item {
         "minecraft:water_bucket" => (
@@ -2237,11 +2244,7 @@ pub fn bucket_contents(
             "minecraft:item.bucket.empty_sulfur_cube",
             Some("sulfur_cube"),
         ),
-        _ if horizon_world::fluid::custom::bucket(item).is_some() => (
-            C::Fluid(horizon_world::fluid::custom::bucket(item)?),
-            "minecraft:item.bucket.empty",
-            None,
-        ),
+        _ if custom.is_some() => (C::Fluid(custom?), "minecraft:item.bucket.empty", None),
         _ => return None,
     })
 }
@@ -2277,6 +2280,20 @@ mod bucket_use_tests {
         }
         assert!(bucket_contents("minecraft:bucket").is_none());
         assert!(bucket_contents("minecraft:milk_bucket").is_none());
+    }
+
+    #[test]
+    fn a_custom_bucket_places_its_own_source_family() {
+        use horizon_world::{fluid::FluidKind, level::BucketContent as C};
+        assert_eq!(
+            bucket_contents_with_custom("test:oil_bucket", Some(FluidKind::Custom(0))),
+            Some((
+                C::Fluid(FluidKind::Custom(0)),
+                "minecraft:item.bucket.empty",
+                None
+            ))
+        );
+        assert_eq!(bucket_contents_with_custom("test:oil_bucket", None), None);
     }
 }
 

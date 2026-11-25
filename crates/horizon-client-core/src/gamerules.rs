@@ -6,7 +6,12 @@ use horizon_world::{
     compression::Compression,
     nbt::{self, Limits, NamedTag, Tag},
 };
-use std::{collections::BTreeMap, fs, path::Path, sync::OnceLock};
+use std::{
+    collections::BTreeMap,
+    fs,
+    path::Path,
+    sync::RwLock,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Value {
@@ -133,7 +138,7 @@ pub fn available_rules(minecart_improvements: bool) -> impl Iterator<Item = &'st
     RULES
         .iter()
         .chain(minecart_improvements.then_some(&MAX_MINECART_SPEED))
-        .chain(mod_rules().iter().copied())
+        .chain(mod_rules())
 }
 
 pub fn rule(name: &str) -> Option<&'static Rule> {
@@ -142,11 +147,15 @@ pub fn rule(name: &str) -> Option<&'static Rule> {
 }
 
 /// The game rules content mods declare (`data/<mod>/horizon/game_rule/`), under the name
-/// `<mod id>:<path>`; set once from the startup content root, like the mods' mob effects.
-static MOD_RULES: OnceLock<Vec<&'static Rule>> = OnceLock::new();
+/// `<mod id>:<path>`. Rules are leaked so values and open screens can safely keep their names
+/// across a registry replacement.
+static MOD_RULES: RwLock<Vec<&'static Rule>> = RwLock::new(Vec::new());
 
-fn mod_rules() -> &'static [&'static Rule] {
-    MOD_RULES.get().map_or(&[], Vec::as_slice)
+pub fn mod_rules() -> Vec<&'static Rule> {
+    MOD_RULES
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
 }
 
 /// One mod rule as a file declares it: its `<mod id>:<path>` name, default, bounds (for an
@@ -159,10 +168,8 @@ pub struct ModRule {
     pub category: String,
 }
 
-/// Registers the content mods' game rules, once: what a second call gives is the first's.
-/// Returns false when they were already set (the caller warns if the lists differ).
-pub fn register_mod_rules(rules: Vec<ModRule>) -> bool {
-    // Categories are vanilla's, so a leaked name is the only allocation a rule needs.
+/// Replaces the content mods' game rules after the content root is built or reloaded.
+pub fn register_mod_rules(rules: Vec<ModRule>) {
     let leak = |s: String| -> &'static str { Box::leak(s.into_boxed_str()) };
     let mut list: Vec<&'static Rule> = rules
         .into_iter()
@@ -182,10 +189,10 @@ pub fn register_mod_rules(rules: Vec<ModRule>) -> bool {
         })
         .collect();
     list.sort_by_key(|r| r.name);
-    MOD_RULES.set(list).is_ok()
+    *MOD_RULES.write().unwrap_or_else(|e| e.into_inner()) = list;
 }
 
-/// The names of the registered mod rules, sorted (for comparing a second registration).
+/// The names of the registered mod rules, sorted.
 pub fn mod_rule_names() -> Vec<&'static str> {
     mod_rules().iter().map(|r| r.name).collect()
 }
@@ -236,7 +243,12 @@ impl GameRules {
         if r.name == MAX_MINECART_SPEED.name && !self.minecart_improvements {
             return None;
         }
-        Some(self.values.get(r.name).copied().unwrap_or(r.default))
+        let value = self.values.get(r.name).copied().unwrap_or(r.default);
+        Some(match (r.default, value) {
+            (Value::Int(_), Value::Int(v)) => Value::Int(v.clamp(r.min, r.max)),
+            (Value::Bool(_), Value::Bool(_)) => value,
+            _ => r.default,
+        })
     }
     pub fn bool(&self, name: &str) -> bool {
         matches!(self.get(name), Some(Value::Bool(true)))
@@ -278,7 +290,7 @@ impl GameRules {
     pub fn by_name(&self) -> BTreeMap<String, i32> {
         self.available_rules()
             .map(|r| {
-                let v = match self.values.get(r.name).copied().unwrap_or(r.default) {
+                let v = match self.get(r.name).unwrap_or(r.default) {
                     Value::Bool(b) => i32::from(b),
                     Value::Int(i) => i,
                 };
@@ -287,25 +299,31 @@ impl GameRules {
             .collect()
     }
     /// GameRuleMap codec: `{data: {"minecraft:<rule>": value...}, DataVersion}`.
+    /// Removed mod rules' explicit values stay in the map, but not in `available_rules`.
     pub fn to_nbt(&self) -> NamedTag {
-        let data: Vec<(horizon_world::nbt::JavaString, Tag)> = self
-            .available_rules()
-            .map(|r| {
-                let v = self.values.get(r.name).copied().unwrap_or(r.default);
-                let tag = match v {
-                    Value::Bool(b) => Tag::Byte(i8::from(b)),
-                    Value::Int(i) => Tag::Int(i),
-                };
-                (
-                    horizon_world::nbt::JavaString::from(r.id().as_str()),
-                    tag,
-                )
-            })
-            .collect();
+        let tag = |v| match v {
+            Value::Bool(b) => Tag::Byte(i8::from(b)),
+            Value::Int(i) => Tag::Int(i),
+        };
+        let mut data = BTreeMap::new();
+        for (&name, &value) in &self.values {
+            let id = if name.contains(':') {
+                name.to_owned()
+            } else {
+                format!("minecraft:{name}")
+            };
+            data.insert(horizon_world::nbt::JavaString::from(id.as_str()), tag(value));
+        }
+        for r in self.available_rules() {
+            data.insert(
+                horizon_world::nbt::JavaString::from(r.id().as_str()),
+                tag(self.get(r.name).unwrap_or(r.default)),
+            );
+        }
         NamedTag {
             name: "".into(),
             tag: Tag::compound([
-                ("data", Tag::compound(data)),
+                ("data", Tag::Compound(data)),
                 ("DataVersion", Tag::Int(DATA_VERSION)),
             ]),
         }
@@ -326,9 +344,28 @@ impl GameRules {
                     rules.set(r.name, Value::Bool(*v != 0));
                 }
                 (Value::Int(_), Some(Tag::Int(v))) => {
-                    rules.set(r.name, Value::Int(*v));
+                    let value = if r.name.contains(':') {
+                        (*v).clamp(r.min, r.max)
+                    } else {
+                        *v
+                    };
+                    rules.set(r.name, Value::Int(value));
                 }
                 _ => {}
+            }
+        }
+        if let Tag::Compound(entries) = data {
+            for (key, value) in entries {
+                let name = key.to_string_lossy();
+                if !name.contains(':') || name.starts_with("minecraft:") || rule(&name).is_some() {
+                    continue;
+                }
+                let value = match value {
+                    Tag::Byte(v) => Value::Bool(*v != 0),
+                    Tag::Int(v) => Value::Int(*v),
+                    _ => continue,
+                };
+                rules.values.insert(Box::leak(name.into_boxed_str()), value);
             }
         }
         rules
@@ -363,10 +400,13 @@ impl GameRules {
 
 #[cfg(test)]
 mod tests {
+    /// The mod-rule registry is process-wide: the tests that read or replace it take turns.
+    static REGISTRY: std::sync::Mutex<()> = std::sync::Mutex::new(());
     use super::*;
 
     #[test]
     fn network_values_validate_rule_names_types_and_bounds() {
+        let _registry = REGISTRY.lock().unwrap_or_else(|e| e.into_inner());
         let mut rules = GameRules::default();
         assert!(rules.set_string("minecraft:keep_inventory", "true"));
         assert!(rules.bool("keep_inventory"));
@@ -382,6 +422,7 @@ mod tests {
     }
     #[test]
     fn defaults_bounds_and_round_trip() {
+        let _registry = REGISTRY.lock().unwrap_or_else(|e| e.into_inner());
         let mut rules = GameRules::default();
         assert!(rules.bool("advance_time"));
         assert_eq!(rules.int("random_tick_speed"), 3);
@@ -399,14 +440,15 @@ mod tests {
     }
 
     #[test]
-    fn mod_rules_register_once_and_work_like_vanilla_ones() {
+    fn mod_rules_reload_without_changing_vanilla_rules() {
+        let _registry = REGISTRY.lock().unwrap_or_else(|e| e.into_inner());
         // No mod: only vanilla's, unchanged.
         let before: Vec<&str> = available_rules(false).map(|r| r.name).collect();
         assert!(before.iter().all(|n| !n.contains(':')));
         assert!(rule("ruby:fast_mining").is_none());
         assert!(!GameRules::default().set("ruby:fast_mining", Value::Bool(true)));
         // Mods' rules are `<mod id>:<path>`; a name without a namespace is refused.
-        assert!(register_mod_rules(vec![
+        register_mod_rules(vec![
             ModRule {
                 name: "ruby:fast_mining".into(),
                 default: Value::Bool(false),
@@ -428,8 +470,7 @@ mod tests {
                 max: 0,
                 category: "misc".into(),
             },
-        ]));
-        assert!(!register_mod_rules(Vec::new()), "set once");
+        ]);
         assert_eq!(mod_rule_names(), ["ruby:fast_mining", "ruby:gem_rate"]);
         // Vanilla's rules come first and are the same.
         let after: Vec<&str> = available_rules(false).map(|r| r.name).collect();
@@ -455,5 +496,44 @@ mod tests {
         let back = GameRules::from_nbt(&tag);
         assert_eq!(back, rules);
         assert_eq!(back.int("ruby:gem_rate"), 9);
+
+        register_mod_rules(vec![
+            ModRule {
+                name: "ruby:gem_rate".into(),
+                default: Value::Int(4),
+                min: 0,
+                max: 5,
+                category: "chat".into(),
+            },
+            ModRule {
+                name: "ruby:new_rule".into(),
+                default: Value::Bool(true),
+                min: 0,
+                max: 0,
+                category: "misc".into(),
+            },
+        ]);
+        assert_eq!(mod_rule_names(), ["ruby:gem_rate", "ruby:new_rule"]);
+        assert_eq!(rules.int("ruby:gem_rate"), 5, "existing value is clamped");
+        assert_eq!(rule("ruby:gem_rate").unwrap().category, "chat");
+        assert!(rules.bool("ruby:new_rule"), "added rule is available");
+        assert_eq!(rules.get("ruby:fast_mining"), None, "removed rule is hidden");
+        assert!(!rules.by_name().contains_key("ruby:fast_mining"));
+        let hidden = GameRules::from_nbt(&rules.to_nbt().tag);
+        assert_eq!(hidden.int("ruby:gem_rate"), 5);
+        assert_eq!(hidden.get("ruby:fast_mining"), None);
+
+        register_mod_rules(vec![ModRule {
+            name: "ruby:fast_mining".into(),
+            default: Value::Bool(false),
+            min: 0,
+            max: 0,
+            category: "player".into(),
+        }]);
+        assert!(hidden.bool("ruby:fast_mining"), "re-adding restores its value");
+        let after_reload: Vec<&str> = available_rules(false).map(|r| r.name).collect();
+        assert_eq!(&after_reload[..before.len()], before.as_slice());
+        assert_eq!(rules.int("random_tick_speed"), 3);
+        register_mod_rules(Vec::new());
     }
 }

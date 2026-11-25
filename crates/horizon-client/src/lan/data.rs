@@ -1,7 +1,7 @@
 //! What the configuration phase sends: the synchronized registries (names in
 //! network order, with their data for clients that do not know the vanilla
-//! pack) and the tags of every registry, loaded from the prepared resources
-//! (`data/minecraft/...`) and the registries report.
+//! pack) and the tags of every registry, loaded from the prepared resources'
+//! merged vanilla and content-mod namespaces and the registries report.
 use crate::chunk::LevelShapes;
 use horizon_protocol::{
     packets::configuration::{RegistryData, RegistryEntry, RegistryTags, TagEntry, UpdateTags},
@@ -438,11 +438,7 @@ impl SyncData {
     /// Every level past the vanilla three, the world's first, then the created ones.
     pub fn all_levels(&self) -> Vec<NetLevel> {
         let runtime = self.runtime.lock().unwrap_or_else(|e| e.into_inner());
-        self.levels
-            .iter()
-            .chain(&runtime.levels)
-            .cloned()
-            .collect()
+        self.levels.iter().chain(&runtime.levels).cloned().collect()
     }
     /// How many `minecraft:dimension_type` entries a client joining now is sent.
     pub fn dimension_type_count(&self) -> usize {
@@ -453,7 +449,9 @@ impl SyncData {
     /// joiners are sent when no entry has it; a client that joined earlier does not have it
     /// (`dimension_type_count` tells), and can enter the level after it reconnects.
     pub fn announce_level(&self, level: NetLevel) {
-        let known = self.id("minecraft:dimension_type", &level.type_name).is_some();
+        let known = self
+            .id("minecraft:dimension_type", &level.type_name)
+            .is_some();
         let mut runtime = self.runtime.lock().unwrap_or_else(|e| e.into_inner());
         runtime.levels.retain(|l| l.id != level.id);
         if !known && !runtime.types.iter().any(|(n, _)| *n == level.type_name) {
@@ -486,7 +484,9 @@ impl SyncData {
             .types
             .iter()
             .position(|(n, _)| n == name)
-            .map_or(0, |i| (self.dynamic.len("minecraft:dimension_type") + i) as i32)
+            .map_or(0, |i| {
+                (self.dynamic.len("minecraft:dimension_type") + i) as i32
+            })
     }
 
     /// MinecraftServer.reloadResources: `/reload` keeps the synchronized
@@ -538,7 +538,12 @@ impl SyncData {
     /// world's data packs changed (`levels`) even when it knows the vanilla
     /// pack.
     pub fn registry_packets(&self, known_pack: bool, levels: &LevelShapes) -> Vec<RegistryData> {
-        let runtime = self.runtime.lock().unwrap_or_else(|e| e.into_inner()).types.clone();
+        let runtime = self
+            .runtime
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .types
+            .clone();
         self.registries
             .iter()
             .map(|(key, e)| RegistryData {
@@ -681,9 +686,9 @@ impl SyncData {
         })
     }
 
-    /// TagNetworkSerialization.serializeTagsToNetwork from the tag files.
+    /// TagNetworkSerialization.serializeTagsToNetwork from the merged tag files.
     fn load_tags(root: &Path, builtin: &Builtin, dynamic: &Dynamic) -> UpdateTags {
-        let tag_root = root.join("tags");
+        let resources = root.parent().and_then(Path::parent).unwrap_or(root);
         let mut registries = Vec::new();
         let mut keys: Vec<String> = builtin
             .registries
@@ -693,12 +698,22 @@ impl SyncData {
             .collect();
         keys.sort();
         for key in keys {
-            let dir = tag_root.join(key.trim_start_matches("minecraft:"));
-            if !dir.is_dir() {
-                continue;
-            }
             let mut files = BTreeMap::new();
-            walk(&dir, &mut files);
+            for namespace in horizon_items::content_namespaces::tag_namespaces(resources) {
+                let dir = resources
+                    .join("data")
+                    .join(&namespace)
+                    .join("tags")
+                    .join(key.trim_start_matches("minecraft:"));
+                if !dir.is_dir() {
+                    continue;
+                }
+                let mut found = BTreeMap::new();
+                walk(&dir, &mut found);
+                for (name, value) in found {
+                    files.insert(format!("{namespace}:{name}"), value);
+                }
+            }
             if files.is_empty() {
                 continue;
             }
@@ -711,7 +726,7 @@ impl SyncData {
                 let mut seen = HashSet::new();
                 Self::expand(&files, name, &names, &mut ids, &mut seen);
                 tags.push(TagEntry {
-                    name: format!("minecraft:{name}"),
+                    name: name.clone(),
                     ids,
                 });
             }
@@ -742,8 +757,7 @@ impl SyncData {
                 .or_else(|| value["id"].as_str())
                 .unwrap_or_default();
             if let Some(reference) = id.strip_prefix('#') {
-                let reference = reference.trim_start_matches("minecraft:");
-                Self::expand(files, reference, names, out, seen);
+                Self::expand(files, &qualified(reference), names, out, seen);
             } else if let Some(&n) = names.get(id)
                 && !out.contains(&n)
             {
@@ -897,7 +911,8 @@ mod tests {
     #[test]
     fn a_level_type_is_added_after_the_vanilla_ones() {
         let mut sync = SyncData::with_vanilla_dimension_types();
-        let wire = |sync: &SyncData| format!("{:?}", sync.registry_packets(true, &LevelShapes::VANILLA));
+        let wire =
+            |sync: &SyncData| format!("{:?}", sync.registry_packets(true, &LevelShapes::VANILLA));
         let before = wire(&sync);
         let vanilla_ids: Vec<i32> = [
             "minecraft:overworld",
@@ -909,7 +924,11 @@ mod tests {
         .collect();
         assert_eq!(vanilla_ids, [0, 3, 2]);
         sync.add_levels(Vec::new());
-        assert_eq!(wire(&sync), before, "no level past the vanilla three: the same registry");
+        assert_eq!(
+            wire(&sync),
+            before,
+            "no level past the vanilla three: the same registry"
+        );
 
         let shape = crate::chunk::LevelShape::new(0, 128, 128, true, false).unwrap();
         sync.add_levels(vec![NetLevel {
@@ -924,13 +943,26 @@ mod tests {
         let types = &packets[0].entries;
         assert_eq!(types.len(), 5);
         assert_eq!(types[4].id, "mypack:moon_type");
-        assert!(types[4].data.is_some(), "a type no client knows carries its data");
-        assert!(types[..4].iter().all(|e| e.data.is_none()), "the vanilla ones are known");
+        assert!(
+            types[4].data.is_some(),
+            "a type no client knows carries its data"
+        );
+        assert!(
+            types[..4].iter().all(|e| e.data.is_none()),
+            "the vanilla ones are known"
+        );
         assert_eq!(sync.level_type_id("mypack:moon"), 4);
-        assert_eq!(sync.level_shape("mypack:moon", &LevelShapes::VANILLA), shape);
-        for (i, level) in ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"]
-            .iter()
-            .enumerate()
+        assert_eq!(
+            sync.level_shape("mypack:moon", &LevelShapes::VANILLA),
+            shape
+        );
+        for (i, level) in [
+            "minecraft:overworld",
+            "minecraft:the_nether",
+            "minecraft:the_end",
+        ]
+        .iter()
+        .enumerate()
         {
             assert_eq!(sync.level_type_id(level), vanilla_ids[i]);
             assert_eq!(
@@ -969,8 +1001,17 @@ mod tests {
         assert_eq!(types.len(), before + 1);
         assert_eq!(types[before].id, "x:b_type");
         assert!(types[before].data.is_some());
-        assert!(types[..before].iter().all(|e| e.data.is_none()), "the vanilla ones stay known");
-        assert_eq!(sync.all_levels().iter().map(|l| l.id.as_str()).collect::<Vec<_>>(), ["x:a", "x:b"]);
+        assert!(
+            types[..before].iter().all(|e| e.data.is_none()),
+            "the vanilla ones stay known"
+        );
+        assert_eq!(
+            sync.all_levels()
+                .iter()
+                .map(|l| l.id.as_str())
+                .collect::<Vec<_>>(),
+            ["x:a", "x:b"]
+        );
         // Announcing again does not add the type twice; withdrawing keeps the index meaning.
         sync.announce_level(level("x:c", "x:b_type"));
         assert_eq!(sync.dimension_type_count(), before + 1);
@@ -1005,6 +1046,58 @@ mod tests {
             changed_dimension_type("minecraft:overworld_caves", &vanilla, &levels),
             None
         );
+    }
+
+    #[test]
+    fn content_namespaces_supply_merged_registry_tags() {
+        let root = std::env::temp_dir().join(format!("horizon-sync-tags-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let write = |name: &str, text: &str| {
+            let path = root.join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        };
+        write(
+            "data/minecraft/tags/damage_type/bypasses_armor.json",
+            r#"{"values": ["minecraft:arrow"]}"#,
+        );
+        let dynamic = Dynamic {
+            registries: HashMap::from([(
+                "minecraft:damage_type".into(),
+                vec![
+                    ("minecraft:arrow".into(), None),
+                    ("ruby:shatter".into(), None),
+                ],
+            )]),
+            ..Default::default()
+        };
+        let load =
+            || SyncData::load_tags(&root.join("data/minecraft"), &Builtin::default(), &dynamic);
+        let plain = load();
+        assert_eq!(plain.registries.len(), 1);
+        assert_eq!(plain.registries[0].tags.len(), 1);
+        assert_eq!(plain.registries[0].tags[0].name, "minecraft:bypasses_armor");
+        assert_eq!(plain.registries[0].tags[0].ids, [0]);
+
+        write(
+            "data/minecraft/tags/damage_type/bypasses_armor.json",
+            r##"{"values": ["#ruby:shards", {"id": "ruby:absent", "required": false}]}"##,
+        );
+        write(
+            "data/ruby/tags/damage_type/shards.json",
+            r#"{"values": ["ruby:shatter"]}"#,
+        );
+        write(horizon_items::content_namespaces::MARKER, r#"["ruby"]"#);
+        let merged = load();
+        let tags = &merged.registries[0].tags;
+        let bypasses = tags
+            .iter()
+            .find(|tag| tag.name == "minecraft:bypasses_armor")
+            .unwrap();
+        let shards = tags.iter().find(|tag| tag.name == "ruby:shards").unwrap();
+        assert_eq!(bypasses.ids, [1]);
+        assert_eq!(shards.ids, [1]);
+        let _ = std::fs::remove_dir_all(root);
     }
 }
 
