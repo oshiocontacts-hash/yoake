@@ -156,3 +156,31 @@ Kimi did not run builds or tests because this lane forbids shell commands. Comma
 
 * Run `YOAKE_UPDATE_WIT=1 cargo test -p horizon-mod-api-gen` to regenerate committed WIT, coverage JSON, WASM adapters, and guest SDK files.
 * Build & run tests (`horizon-mod-api-gen`, `yoake-wasm`, `yoake-wasm-sdk`, `horizon-client-lib`, `horizon-client --lib --bins --tests`) and run hook-API stamping if desired for `@API:...@` doc comments.
+
+## Claude's changes after the lanes
+
+* WIT/adapters/SDK regenerated (`YOAKE_UPDATE_WIT=1 cargo test -p horizon-mod-api-gen`): server service 301
+  `register-command-argument-types` (server interface 1.8.0 -> 1.9.0, record `command-argument-type`) and server hook
+  `villager-trades` (collect, from the pending fragment `tools/native-hook-fragments/rem17d_trade.json`; it gets its API
+  number when GALLERIA stamps fragments). Line-ending-only rewrites of other generated files are not committed.
+* CMD test fix: `NativeCommand::new(..).level(2)` (no such method) -> struct literal.
+* `crates/yoake-wasm-sdk/examples/full-demo` feature `peer` did not compile since FR-REM17c (9c4ee2ed1 put the client
+  input hooks on the server `Peer` impl too; `ClientPeer` already has them): removed the server copies. The test guest
+  loader had silently used a stale `full_demo_peer.wasm`; with the new server hook export it failed to load.
+* YAK: `launcher` test fixture `yak::Wasm` lacked `worker` / `host_filesystem` (the launcher tests did not compile on the
+  base); added. `yak::resolve` now breaks ready ties in input order (launcher plan tests still pass).
+
+## Tests (LENOVO, merged branch)
+
+horizon-mod-api-gen 46 passed (incl. `abi_1_0_is_additive`); yoake-wasm 73 + 11 + 16; horizon-client-lib --lib 1976;
+horizon-client --lib --bins --tests 1315 and the integration tests; horizon-client --lib --features yoake2-slice 1322;
+horizon-mods --features yak --test yak 43; launcher `yoake_mods` 65. Nothing with the game.
+
+## Left (all lanes)
+
+* Custom argument types: the active index (`ACTIVE_CUSTOM_COMMANDS`) is process-wide like other server statics, not
+  per server session; parse/suggest go through `handle-call` with reserved method names instead of dedicated hooks
+  (the hook generator has no single-owner routing or `result<string,string>` hooks).
+* Villager trades: on level-up the whole session offer list is passed (not only the new offers); fires on the
+  authoritative server only. No custom profession/POI.
+* yak: full-access packages stay on their approved-loader path, outside this resolver pass.
