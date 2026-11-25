@@ -157,6 +157,26 @@ Kimi did not run builds or tests because this lane forbids shell commands. Comma
 * Run `YOAKE_UPDATE_WIT=1 cargo test -p horizon-mod-api-gen` to regenerate committed WIT, coverage JSON, WASM adapters, and guest SDK files.
 * Build & run tests (`horizon-mod-api-gen`, `yoake-wasm`, `yoake-wasm-sdk`, `horizon-client-lib`, `horizon-client --lib --bins --tests`) and run hook-API stamping if desired for `@API:...@` doc comments.
 
+### Round 2: only new offers on level-up (lane TRADE)
+
+* **Vanilla / engine check**:
+  * Decompiled vanilla Java sources (`.local/`) are not present in this worktree, so `Villager.java` could not be inspected directly here.
+  * In Horizon's port (`crates/horizon-client/src/merchant.rs`, `Session::notify_trade`), villager level-up mirrors `Villager.increaseMerchantCareer` / `updateTrades`: it increments `level`, generates only the new tier's offers via `offers_from_set` (`Trades::set_for(&self.profession, self.level)`), extends `self.offers`, and calls `self.update_special_prices()`.
+  * Engine note: nothing in `villager_trades` requires passing earlier tiers' offers on level-up (they already fired on initial open or prior level-ups and carry player `uses`/`demand`). Note that `Session::notify_trade` runs `update_special_prices()` before `Game::merchant_apply` dispatches `villager_trades` (whereas `Game::ensure_offers` runs `dispatch_villager_trades` before `interact_trader` calls `update_special_prices()`), so on level-up newly generated offers already reflect reputation/Hero discounts and mod edits to `special_price_diff` or newly added offers stay intact. Because `Menu` runs `notify_trade` synchronously before `merchant_apply`, multiple level-ups in one click batch emit distinct appended ranges that `merchant_apply` tracks with `offer_shift`.
+* **What changed**:
+  * `crates/horizon-client/src/merchant.rs`:
+    * Changed `merchant::Event::LevelUp` from `LevelUp(i32)` to `LevelUp { level: i32, added_from: usize, added_len: usize }`, recording the pre-extend `offers.len()` and count of appended offers in `Session::notify_trade`.
+    * Added `merchant::edit_offer_range` to drain only `offers[start..start + len]`, run an edit closure on that slice, splice the result back in place, and return the length delta.
+  * `crates/horizon-client/src/game/trading.rs`:
+    * Updated `Game::merchant_apply` on `Event::LevelUp` to track `offer_shift` and pass only the newly appended slice through `merchant::edit_offer_range` into `dispatch_villager_trades`, keeping earlier (and later) offers untouched and keeping the generated new offers on invalid edits, while retaining the `mods().is_empty()` fast path.
+    * Initial offers, profession change (`unset = true`), and wandering traders in `Game::ensure_offers` keep passing their whole new list.
+* **Tests added (no Minecraft resources required)**:
+  * `crates/horizon-client/src/merchant.rs`:
+    * `level_up_records_only_the_newly_appended_offer_range`
+  * `crates/horizon-client/src/mod_api.rs`:
+    * `villager_trades_level_up_passes_only_new_offers_and_preserves_earlier_offers`
+    * `villager_trades_level_up_invalid_edit_keeps_new_and_earlier_offers`
+
 ## Claude's changes after the lanes
 
 * WIT/adapters/SDK regenerated (`YOAKE_UPDATE_WIT=1 cargo test -p horizon-mod-api-gen`): server service 301
@@ -181,6 +201,6 @@ horizon-mods --features yak --test yak 43; launcher `yoake_mods` 65. Nothing wit
 * Custom argument types: the active index (`ACTIVE_CUSTOM_COMMANDS`) is process-wide like other server statics, not
   per server session; parse/suggest go through `handle-call` with reserved method names instead of dedicated hooks
   (the hook generator has no single-owner routing or `result<string,string>` hooks).
-* Villager trades: on level-up the whole session offer list is passed (not only the new offers); fires on the
-  authoritative server only. No custom profession/POI.
+* Villager trades: fires on the authoritative server only (on level-up, Round 2 passes only the newly appended offers
+  slice). No custom profession/POI.
 * yak: full-access packages stay on their approved-loader path, outside this resolver pass.

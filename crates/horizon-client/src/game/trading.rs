@@ -468,14 +468,20 @@ impl Game<'_> {
                 m.extra.variant3 = session.level.clamp(1, 5) as u8;
             }
         }
+        let mut offer_shift: isize = 0;
         for e in events {
             match e {
                 merchant::Event::Orb(v) => {
                     self.add_orb([origin[0], origin[1] + 0.5, origin[2]], v as u32)
                 }
-                merchant::Event::LevelUp(level) => {
+                merchant::Event::LevelUp {
+                    level,
+                    added_from,
+                    added_len,
+                } => {
                     if let Some(id) = mob
                         && self.remote.is_none()
+                        && !horizon_client::mod_api::mods().is_empty()
                     {
                         let kind = self
                             .mobs
@@ -483,13 +489,22 @@ impl Game<'_> {
                             .find(|m| m.id == id)
                             .map(super::native_hooks::mob_kind)
                             .unwrap_or_else(|| "minecraft:villager".to_owned());
-                        self.dispatch_villager_trades(
-                            id,
-                            &kind,
-                            &session.profession,
-                            level,
-                            &mut session.offers,
-                        );
+                        if let Some(start) = added_from.checked_add_signed(offer_shift) {
+                            offer_shift += merchant::edit_offer_range(
+                                &mut session.offers,
+                                start,
+                                added_len,
+                                |new_offers| {
+                                    self.dispatch_villager_trades(
+                                        id,
+                                        &kind,
+                                        &session.profession,
+                                        level,
+                                        new_offers,
+                                    );
+                                },
+                            );
+                        }
                     }
                     if let Some(m) = mob.and_then(|id| self.mobs.iter_mut().find(|m| m.id == id)) {
                         m.add_effect("minecraft:regeneration", 200, 0);
