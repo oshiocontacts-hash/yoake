@@ -485,6 +485,7 @@ pub const FULL_HOOKS: &[(&str, HookSide)] = &[
     ("player_xp_change", HookSide::Server),
     ("recipe_book_categories", HookSide::Both),
     ("recipe_types", HookSide::Both),
+    ("villager_trades", HookSide::Server),
     ("render_device_lost", HookSide::Client),
     ("render_device_ready", HookSide::Client),
     ("render_hand_pose", HookSide::Client),

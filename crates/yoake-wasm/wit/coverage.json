@@ -1,11 +1,11 @@
 {
   "generated_by": "horizon-mod-api-gen",
-  "hook_count": 500,
-  "fully_typed": 472,
+  "hook_count": 501,
+  "fully_typed": 473,
   "partial": 13,
   "with_handles": 15,
   "client_hooks": 218,
-  "server_hooks": 395,
+  "server_hooks": 396,
   "named_types": 228,
   "handle_types": [
     {
@@ -4953,6 +4953,16 @@
           ]
         }
       ]
+    },
+    {
+      "name": "villager_trades",
+      "side": "server",
+      "side_source": "explicit",
+      "contract": "collect",
+      "fully_typed": true,
+      "partial": false,
+      "partial_notes": [],
+      "handle_params": []
     },
     {
       "name": "render_device_lost",

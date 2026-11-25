@@ -1817,7 +1817,7 @@ mod tests {
         let cmds = [
             NativeCommand::new("paint <target:player> <shade:demo:color>"),
             NativeCommand::new("paint clear"),
-            NativeCommand::new("memo <body:demo:note>").level(2),
+            NativeCommand { usage: "memo <body:demo:note>".to_owned(), level: 2 },
         ];
         let (_, _, index, problems) = command_tree_with(&cmds, |_| false, custom);
         assert!(problems.is_empty(), "{problems:?}");
@@ -1873,7 +1873,7 @@ mod tests {
         };
         let cmds = [
             NativeCommand::new("paint <target:player> <shade:demo:color>"),
-            NativeCommand::new("memo <body:demo:note>").level(2),
+            NativeCommand { usage: "memo <body:demo:note>".to_owned(), level: 2 },
         ];
         let (_, _, index, problems) = command_tree_with(&cmds, |_| false, custom);
         assert!(problems.is_empty(), "{problems:?}");

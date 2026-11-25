@@ -477,6 +477,7 @@ pub const PLAYER_PERMISSION_LEVEL: &str = "player_permission_level";
 pub const PLAYER_XP_CHANGE: &str = "player_xp_change";
 pub const RECIPE_BOOK_CATEGORIES: &str = "recipe_book_categories";
 pub const RECIPE_TYPES: &str = "recipe_types";
+pub const VILLAGER_TRADES: &str = "villager_trades";
 pub const RENDER_DEVICE_LOST: &str = "render_device_lost";
 pub const RENDER_DEVICE_READY: &str = "render_device_ready";
 pub const RENDER_HAND_POSE: &str = "render_hand_pose";

@@ -1892,6 +1892,11 @@ interface server-types {
         only: list<string>,
     }
 
+    record command-argument-type {
+        greedy: bool,
+        name: string,
+    }
+
     record command-usage {
         level: u8,
         usage: string,
@@ -2107,7 +2112,7 @@ interface server-types {
 
 /// Services listed in `abi-subset-server.json`.
 interface server-services {
-    use server-types.{attribute-operation, config-value-kind, damage-kind, inventory-operation, mob-memory-kind, mob-value-kind, storage-scope, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-data, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-usage, config-value, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, mob-info, mob-memory-value, mob-spawn-options, mob-value, particle-request, player, player-inventory-slot, player-motion, ray-hit, recipe-data, recipe-match, team-change, tool-requirement, vec3, world-border-state, world-control-change};
+    use server-types.{attribute-operation, config-value-kind, damage-kind, inventory-operation, mob-memory-kind, mob-value-kind, storage-scope, team-operation, world-control-operation, advancement-state, attribute-value, block-edit, block-entity-create, block-entity-data, block-entity-patch, block-entity-state, block-pos, block-run, bounds, chat-decision, chat-recipients, command-argument-type, command-usage, config-value, container-ref, damage-decision, entity-snapshot, entity-vitals, inventory-change, item-entity, item-stack, knockback-decision, mob-info, mob-memory-value, mob-spawn-options, mob-value, particle-request, player, player-inventory-slot, player-motion, ray-hit, recipe-data, recipe-match, team-change, tool-requirement, vec3, world-border-state, world-control-change};
 
     acting-player: func() -> option<player>;
     held: func() -> option<item-stack>;
@@ -2251,6 +2256,7 @@ interface server-services {
     level-list: func() -> result<list<string>, string>;
     generator-register: func(id: string) -> result<_, string>;
     current-level: func(player: string) -> result<string, string>;
+    register-command-argument-types: func(types: list<command-argument-type>) -> result<_, string>;
 }
 
 interface client-types {
@@ -7357,6 +7363,14 @@ interface server-hooks {
     ///
     /// Collect: `types` is the aggregate so far; return the aggregate you want.
     recipe-types: func(types: list<native-recipe-type>) -> list<native-recipe-type>;
+    /// The server generated initial or leveled-up trade `offers` for trader
+    /// `entity` of `kind` (`minecraft:villager` or `minecraft:wandering_trader`),
+    /// `profession` and `level`. Mods may add, remove, reorder or edit `offers`;
+    /// invalid offers are rejected by the host, keeping the original list.
+    /// Server-side.
+    ///
+    /// Collect: `offers` is the aggregate so far; return the aggregate you want.
+    villager-trades: func(entity: u32, kind: string, profession: string, level: s32, offers: list<merchant-offer>) -> list<merchant-offer>;
     /// Check for server chat listeners. API @API:server_chat@.
     ///
     /// Collect: `listened` is the current value; return Some to change it (None keeps it).
