@@ -529,6 +529,7 @@ server_services! {
     attachment_get(holder: String, id: String, kind: String) -> Result<Option<Vec<u8>>, String> = unsupported();
     attachment_set(data: Vec<u8>, holder: String, id: String, kind: String) -> Result<(), String> = unsupported();
     attachment_remove(holder: String, id: String, kind: String) -> Result<bool, String> = unsupported();
+    register_command_argument_types(types: Vec<st::CommandArgumentType>) -> Result<(), String> = unsupported();
 }
 
 pub struct ServerContext {

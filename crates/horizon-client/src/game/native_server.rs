@@ -54,6 +54,18 @@ const LEVELS: [&str; 5] = ["", "moderators", "gamemasters", "admins", "owners"];
 /// One parsed word of a usage: its key in the tree and its node, without
 /// children.
 fn usage_nodes(usage: &str) -> Result<Vec<(String, Value, bool)>, String> {
+    usage_nodes_with(usage, &|_| None).map(|nodes| {
+        nodes
+            .into_iter()
+            .map(|n| (n.name, n.node, n.optional))
+            .collect()
+    })
+}
+
+fn usage_nodes_with(
+    usage: &str,
+    custom: &impl Fn(&str) -> Option<bool>,
+) -> Result<Vec<UsageNode>, String> {
     let mut out = Vec::new();
     let mut optional_seen = false;
     let mut greedy_seen = false;
@@ -76,30 +88,425 @@ fn usage_nodes(usage: &str) -> Result<Vec<(String, Value, bool)>, String> {
             if !literal {
                 return Err(format!("`{usage}`: `{word}` is not a command word"));
             }
-            out.push((word.to_owned(), json!({"type": "literal"}), false));
+            out.push(UsageNode {
+                name: word.to_owned(),
+                node: json!({"type": "literal"}),
+                optional: false,
+                step: UsageStep {
+                    text: word.to_owned(),
+                    kind: UsageStepKind::Literal,
+                    optional: false,
+                },
+            });
             continue;
         };
         let Some((name, kind)) = inner.and_then(|w| w.split_once(':')) else {
             return Err(format!("`{usage}`: `{word}` is not `<name:kind>`"));
         };
+        if name.is_empty() {
+            return Err(format!("`{usage}`: `{word}` has an empty argument name"));
+        }
         if optional_seen && !optional {
             return Err(format!("`{usage}`: `{word}` follows an optional argument"));
         }
-        let Some((parser, properties)) = parser(kind) else {
-            return Err(format!("`{usage}`: unknown kind `{kind}`"));
-        };
+        let spec = resolve_arg_kind(usage, kind, custom)?;
         optional_seen |= optional;
-        greedy_seen |= kind == "text";
-        let mut node = json!({"type": "argument", "parser": parser});
-        if !properties.is_null() {
-            node["properties"] = properties;
+        greedy_seen |= spec.greedy;
+        let mut node = json!({"type": "argument", "parser": spec.parser});
+        if !spec.properties.is_null() {
+            node["properties"] = spec.properties;
         }
-        out.push((name.to_owned(), node, optional));
+        if let Some(provider) = spec.suggestions {
+            node["suggestions"] = provider.into();
+        }
+        out.push(UsageNode {
+            name: name.to_owned(),
+            node,
+            optional,
+            step: UsageStep {
+                text: name.to_owned(),
+                kind: spec.step_kind,
+                optional,
+            },
+        });
     }
-    if out.first().is_none_or(|n| n.1["type"] != "literal") {
+    if out.first().is_none_or(|n| n.node["type"] != "literal") {
         return Err(format!("`{usage}`: a command starts with its name"));
     }
     Ok(out)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum UsageStepKind {
+    Literal,
+    Word,
+    BlockPos,
+    Greedy,
+    Custom { type_id: String, greedy: bool },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct UsageStep {
+    pub(super) text: String,
+    pub(super) kind: UsageStepKind,
+    pub(super) optional: bool,
+}
+
+#[derive(Clone, Debug)]
+struct UsageNode {
+    name: String,
+    node: Value,
+    optional: bool,
+    step: UsageStep,
+}
+
+struct ArgSpec {
+    parser: &'static str,
+    properties: Value,
+    greedy: bool,
+    step_kind: UsageStepKind,
+    suggestions: Option<&'static str>,
+}
+
+fn valid_custom_arg_type(kind: &str) -> bool {
+    let valid_owner = |s: &str| {
+        !s.is_empty()
+            && s.len() <= 64
+            && s.bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-' | b'.'))
+    };
+    let valid_name = |s: &str| {
+        !s.is_empty()
+            && s.len() <= 64
+            && s.bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-'))
+    };
+    kind.split_once(':')
+        .is_some_and(|(owner, name)| valid_owner(owner) && valid_name(name))
+}
+
+fn resolve_arg_kind(
+    usage: &str,
+    kind: &str,
+    custom: &impl Fn(&str) -> Option<bool>,
+) -> Result<ArgSpec, String> {
+    if let Some((parser_id, properties)) = parser(kind) {
+        let step_kind = match kind {
+            "text" => UsageStepKind::Greedy,
+            "block_pos" => UsageStepKind::BlockPos,
+            _ => UsageStepKind::Word,
+        };
+        return Ok(ArgSpec {
+            parser: parser_id,
+            properties,
+            greedy: kind == "text",
+            step_kind,
+            suggestions: None,
+        });
+    }
+    if kind.contains(':') {
+        if !valid_custom_arg_type(kind) {
+            return Err(format!("`{usage}`: invalid custom argument type `{kind}`"));
+        }
+        let Some(greedy) = custom(kind) else {
+            return Err(format!("`{usage}`: unknown custom argument type `{kind}`"));
+        };
+        let properties = json!({"type": if greedy { "greedy" } else { "word" }});
+        return Ok(ArgSpec {
+            parser: "brigadier:string",
+            properties,
+            greedy,
+            step_kind: UsageStepKind::Custom {
+                type_id: kind.to_owned(),
+                greedy,
+            },
+            suggestions: Some("minecraft:ask_server"),
+        });
+    }
+    Err(format!("`{usage}`: unknown kind `{kind}`"))
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct CompiledUsage {
+    pub(super) level: u8,
+    pub(super) steps: Vec<UsageStep>,
+    pub(super) has_custom: bool,
+}
+
+#[derive(Clone, Debug, Default)]
+pub(super) struct CustomCommandIndex {
+    pub(super) by_root: HashMap<String, Vec<CompiledUsage>>,
+}
+
+impl CustomCommandIndex {
+    pub(super) fn is_empty(&self) -> bool {
+        self.by_root.is_empty()
+    }
+}
+
+static ACTIVE_CUSTOM_COMMANDS: std::sync::OnceLock<std::sync::Mutex<CustomCommandIndex>> =
+    std::sync::OnceLock::new();
+static HAS_ACTIVE_CUSTOM_COMMANDS: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+fn active_custom_commands() -> &'static std::sync::Mutex<CustomCommandIndex> {
+    ACTIVE_CUSTOM_COMMANDS.get_or_init(|| std::sync::Mutex::new(CustomCommandIndex::default()))
+}
+
+fn set_active_custom_commands(index: CustomCommandIndex) {
+    let empty = index.is_empty();
+    *active_custom_commands()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = index;
+    HAS_ACTIVE_CUSTOM_COMMANDS.store(!empty, std::sync::atomic::Ordering::Release);
+}
+
+fn snapshot_custom_commands(root: &str) -> Option<Vec<CompiledUsage>> {
+    if !HAS_ACTIVE_CUSTOM_COMMANDS.load(std::sync::atomic::Ordering::Relaxed) {
+        return None;
+    }
+    active_custom_commands()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .by_root
+        .get(root)
+        .cloned()
+}
+
+fn skip_ws(s: &str, mut pos: usize) -> usize {
+    let bytes = s.as_bytes();
+    while pos < bytes.len() && bytes[pos].is_ascii_whitespace() {
+        pos += 1;
+    }
+    pos
+}
+
+fn next_word(s: &str, pos: usize) -> Option<(usize, usize)> {
+    let start = skip_ws(s, pos);
+    if start >= s.len() {
+        return None;
+    }
+    let rel_end = s[start..]
+        .find(|c: char| c.is_ascii_whitespace())
+        .unwrap_or(s.len() - start);
+    Some((start, start + rel_end))
+}
+
+struct UsageMatch {
+    literals: usize,
+    captures: Vec<(usize, usize, String)>,
+}
+
+fn match_usage(line: &str, steps: &[UsageStep]) -> Option<UsageMatch> {
+    let mut cursor = 0usize;
+    let mut literals = 0usize;
+    let mut captures = Vec::new();
+    for step in steps {
+        match &step.kind {
+            UsageStepKind::Literal => {
+                let (start, end) = next_word(line, cursor)?;
+                if &line[start..end] != step.text {
+                    return None;
+                }
+                literals += 1;
+                cursor = end;
+            }
+            UsageStepKind::Word => {
+                let Some((_, end)) = next_word(line, cursor) else {
+                    if step.optional {
+                        break;
+                    }
+                    return None;
+                };
+                cursor = end;
+            }
+            UsageStepKind::BlockPos => {
+                let Some((_, e1)) = next_word(line, cursor) else {
+                    if step.optional {
+                        break;
+                    }
+                    return None;
+                };
+                let (_, e2) = next_word(line, e1)?;
+                let (_, e3) = next_word(line, e2)?;
+                cursor = e3;
+            }
+            UsageStepKind::Greedy => {
+                let start = skip_ws(line, cursor);
+                if start >= line.len() {
+                    if step.optional {
+                        break;
+                    }
+                    return None;
+                }
+                cursor = line.len();
+            }
+            UsageStepKind::Custom { type_id, greedy } => {
+                if *greedy {
+                    let start = skip_ws(line, cursor);
+                    if start >= line.len() {
+                        if step.optional {
+                            break;
+                        }
+                        return None;
+                    }
+                    captures.push((start, line.len(), type_id.clone()));
+                    cursor = line.len();
+                } else {
+                    let Some((start, end)) = next_word(line, cursor) else {
+                        if step.optional {
+                            break;
+                        }
+                        return None;
+                    };
+                    captures.push((start, end, type_id.clone()));
+                    cursor = end;
+                }
+            }
+        }
+    }
+    if skip_ws(line, cursor) != line.len() {
+        return None;
+    }
+    Some(UsageMatch { literals, captures })
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum CustomPrepare {
+    PassThrough,
+    Rewritten(String),
+    Error(String),
+}
+
+/// Validates and normalizes any custom `<modid>:<name>` arguments in `line` before
+/// `perform-command` runs.
+pub(super) fn prepare_custom_command(
+    usages: &[CompiledUsage],
+    permission: u8,
+    line: &str,
+    mut parse_arg: impl FnMut(&str, &str) -> Result<String, String>,
+) -> CustomPrepare {
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return CustomPrepare::PassThrough;
+    }
+    let best = usages
+        .iter()
+        .filter(|usage| usage.level <= permission)
+        .filter_map(|usage| match_usage(trimmed, &usage.steps))
+        .max_by_key(|m| (m.literals, m.captures.is_empty()));
+    let Some(matched) = best else {
+        return CustomPrepare::PassThrough;
+    };
+    if matched.captures.is_empty() {
+        return CustomPrepare::PassThrough;
+    }
+    let mut out = String::with_capacity(trimmed.len());
+    let mut prev = 0usize;
+    for (start, end, type_id) in matched.captures {
+        out.push_str(&trimmed[prev..start]);
+        match parse_arg(&type_id, &trimmed[start..end]) {
+            Ok(normalized) => out.push_str(&normalized),
+            Err(message) => return CustomPrepare::Error(message),
+        }
+        prev = end;
+    }
+    out.push_str(&trimmed[prev..]);
+    CustomPrepare::Rewritten(out)
+}
+
+/// Finds custom argument sites at the end of `command` for tab-completion.
+pub(super) fn plan_custom_suggestions(
+    usages: &[CompiledUsage],
+    permission: u8,
+    command: &str,
+) -> Vec<(usize, String, String)> {
+    let mut out: Vec<(usize, String, String)> = Vec::new();
+    for usage in usages.iter().filter(|u| u.has_custom && u.level <= permission) {
+        let mut cursor = 0usize;
+        for step in &usage.steps {
+            let start = skip_ws(command, cursor);
+            match &step.kind {
+                UsageStepKind::Greedy => {
+                    break;
+                }
+                UsageStepKind::Custom {
+                    type_id,
+                    greedy: true,
+                } => {
+                    if start <= command.len() {
+                        let candidate = (start, type_id.clone(), command[start..].to_owned());
+                        if !out.contains(&candidate) {
+                            out.push(candidate);
+                        }
+                    }
+                    break;
+                }
+                UsageStepKind::Custom {
+                    type_id,
+                    greedy: false,
+                } => {
+                    if start == command.len() {
+                        let candidate = (start, type_id.clone(), String::new());
+                        if !out.contains(&candidate) {
+                            out.push(candidate);
+                        }
+                        break;
+                    }
+                    let (_, end) = next_word(command, start).expect("start < command.len()");
+                    if end == command.len() {
+                        let candidate =
+                            (start, type_id.clone(), command[start..end].to_owned());
+                        if !out.contains(&candidate) {
+                            out.push(candidate);
+                        }
+                        break;
+                    }
+                    cursor = end;
+                }
+                UsageStepKind::Literal => {
+                    let Some((_, end)) = next_word(command, start) else {
+                        break;
+                    };
+                    if end == command.len() || &command[start..end] != step.text {
+                        break;
+                    }
+                    cursor = end;
+                }
+                UsageStepKind::Word => {
+                    let Some((_, end)) = next_word(command, start) else {
+                        break;
+                    };
+                    if end == command.len() {
+                        break;
+                    }
+                    cursor = end;
+                }
+                UsageStepKind::BlockPos => {
+                    let Some((_, e1)) = next_word(command, start) else {
+                        break;
+                    };
+                    if e1 == command.len() {
+                        break;
+                    }
+                    let Some((_, e2)) = next_word(command, e1) else {
+                        break;
+                    };
+                    if e2 == command.len() {
+                        break;
+                    }
+                    let Some((_, e3)) = next_word(command, e2) else {
+                        break;
+                    };
+                    if e3 == command.len() {
+                        break;
+                    }
+                    cursor = e3;
+                }
+            }
+        }
+    }
+    out
 }
 
 /// Native mods' commands as a root in the commands report's format
@@ -111,36 +518,53 @@ pub(super) fn command_tree(
     commands: &[NativeCommand],
     vanilla: impl Fn(&str) -> bool,
 ) -> (Value, HashMap<String, u8>, Vec<String>) {
+    let (tree, levels, _, problems) = command_tree_with(commands, vanilla, |_| None);
+    (tree, levels, problems)
+}
+
+/// Like [`command_tree`], also resolving custom `<modid>:<name>` argument types and returning an
+/// index of commands that use them.
+pub(super) fn command_tree_with(
+    commands: &[NativeCommand],
+    vanilla: impl Fn(&str) -> bool,
+    custom: impl Fn(&str) -> Option<bool>,
+) -> (Value, HashMap<String, u8>, CustomCommandIndex, Vec<String>) {
     let mut root = Map::new();
     let mut levels: HashMap<String, u8> = HashMap::new();
     let mut problems = Vec::new();
+    let mut all_usages: HashMap<String, Vec<CompiledUsage>> = HashMap::new();
     for command in commands {
-        let nodes = match usage_nodes(&command.usage) {
+        let nodes = match usage_nodes_with(&command.usage, &custom) {
             Ok(n) => n,
             Err(e) => {
                 problems.push(e);
                 continue;
             }
         };
-        if vanilla(&nodes[0].0) {
-            problems.push(format!("`{}`: vanilla has /{}", command.usage, nodes[0].0));
+        if vanilla(&nodes[0].name) {
+            problems.push(format!("`{}`: vanilla has /{}", command.usage, nodes[0].name));
             continue;
         }
+        let mut conflict = false;
         let mut children = &mut root;
-        for (i, (name, node, _)) in nodes.iter().enumerate() {
-            let runnable = nodes.get(i + 1).is_none_or(|n| n.2);
-            let entry = children.entry(name.clone()).or_insert_with(|| {
-                let mut n = node.clone();
+        for (i, item) in nodes.iter().enumerate() {
+            let runnable = nodes.get(i + 1).is_none_or(|n| n.optional);
+            let entry = children.entry(item.name.clone()).or_insert_with(|| {
+                let mut n = item.node.clone();
                 n["executable"] = false.into();
                 n["level"] = 4.into();
                 n
             });
-            if entry["type"] != node["type"] || entry["parser"] != node["parser"] {
+            if entry["type"] != item.node["type"] || entry["parser"] != item.node["parser"] {
                 problems.push(format!(
-                    "`{}`: `{name}` is another kind in an earlier usage",
-                    command.usage
+                    "`{}`: `{}` is another kind in an earlier usage",
+                    command.usage, item.name
                 ));
+                conflict = true;
                 break;
+            }
+            if item.node["suggestions"].is_string() && !entry["suggestions"].is_string() {
+                entry["suggestions"] = item.node["suggestions"].clone();
             }
             if runnable {
                 entry["executable"] = true.into();
@@ -155,9 +579,26 @@ pub(super) fn command_tree(
             }
             children = entry["children"].as_object_mut().expect("made above");
         }
-        let level = levels.entry(nodes[0].0.clone()).or_insert(4);
+        let level = levels.entry(nodes[0].name.clone()).or_insert(4);
         *level = (*level).min(command.level);
+        if !conflict {
+            let has_custom = nodes
+                .iter()
+                .any(|n| matches!(n.step.kind, UsageStepKind::Custom { .. }));
+            all_usages
+                .entry(nodes[0].name.clone())
+                .or_default()
+                .push(CompiledUsage {
+                    level: command.level,
+                    steps: nodes.into_iter().map(|n| n.step).collect(),
+                    has_custom,
+                });
+        }
     }
+    let by_root: HashMap<String, Vec<CompiledUsage>> = all_usages
+        .into_iter()
+        .filter(|(_, usages)| usages.iter().any(|u| u.has_custom))
+        .collect();
     let mut root = Value::Object(root);
     finish(&mut root);
     let tree = if levels.is_empty() {
@@ -165,7 +606,7 @@ pub(super) fn command_tree(
     } else {
         json!({"type": "root", "children": root})
     };
-    (tree, levels, problems)
+    (tree, levels, CustomCommandIndex { by_root }, problems)
 }
 
 /// Turns the working `level` into the report's `permissions`, and drops
@@ -910,13 +1351,79 @@ impl Game<'_> {
         }
         let mut commands = Vec::new();
         self.native_register_commands(&mut commands);
-        let (tree, levels, problems) =
-            command_tree(&commands, |name| host.hub.vanilla_command(name));
+        let (tree, levels, custom_index, problems) = command_tree_with(
+            &commands,
+            |name| host.hub.vanilla_command(name),
+            crate::entry::wasm_mods::custom_command_argument_greedy,
+        );
         for p in problems {
             log::warn!("Horizon: a native mod's command was left out: {p}");
         }
+        set_active_custom_commands(custom_index);
         host.hub.set_mod_commands(0, tree);
         host.native_commands = Some(levels);
+    }
+
+    fn prepare_native_custom_command(&self, permission: u8, line: &str) -> CustomPrepare {
+        let trimmed = line.trim();
+        let Some(root) = trimmed.split_whitespace().next() else {
+            return CustomPrepare::PassThrough;
+        };
+        let Some(usages) = snapshot_custom_commands(root) else {
+            return CustomPrepare::PassThrough;
+        };
+        prepare_custom_command(&usages, permission, trimmed, |type_id, input| {
+            crate::entry::wasm_mods::parse_custom_command_argument(self, type_id, input)
+        })
+    }
+
+    /// Appends bounded tab-completion suggestions from owning server mods when `command`
+    /// completes a registered custom `<modid>:<name>` argument.
+    pub(super) fn add_custom_command_suggestions(
+        &self,
+        permission: u8,
+        command: &str,
+        start: &mut usize,
+        end: &mut usize,
+        suggestions: &mut Vec<horizon_client::command::Suggestion>,
+    ) {
+        if !HAS_ACTIVE_CUSTOM_COMMANDS.load(std::sync::atomic::Ordering::Relaxed) {
+            return;
+        }
+        let Some(root) = command.split_whitespace().next() else {
+            return;
+        };
+        if command.len() == root.len() && !command.ends_with(char::is_whitespace) {
+            return;
+        }
+        let Some(usages) = snapshot_custom_commands(root) else {
+            return;
+        };
+        let targets = plan_custom_suggestions(&usages, permission, command);
+        if targets.is_empty() {
+            return;
+        }
+        let mut added = false;
+        for (arg_start, type_id, partial) in targets {
+            for text in
+                crate::entry::wasm_mods::suggest_custom_command_argument(self, &type_id, &partial)
+            {
+                suggestions.push(horizon_client::command::Suggestion {
+                    range: (arg_start, command.len()),
+                    text,
+                    tooltip: None,
+                    int_value: None,
+                });
+                added = true;
+            }
+        }
+        if added {
+            let (range, merged) =
+                horizon_client::command::merge_suggestions(command, std::mem::take(suggestions));
+            *start = range.0;
+            *end = range.1;
+            *suggestions = merged;
+        }
     }
 
     /// Asks the mods what root commands each player's tree keeps
@@ -994,8 +1501,18 @@ impl Game<'_> {
             yaw: g.yaw,
             pitch: g.pitch,
         };
+        let effective = match self.prepare_native_custom_command(permission, line) {
+            CustomPrepare::PassThrough => None,
+            CustomPrepare::Rewritten(rewritten) => Some(rewritten),
+            CustomPrepare::Error(message) => {
+                self.native_feedback(
+                    Text::literal(message).with_color(horizon_client::text::RED),
+                );
+                return true;
+            }
+        };
         let mut ran = false;
-        self.native_perform_command(&player, line, &mut ran);
+        self.native_perform_command(&player, effective.as_deref().unwrap_or(line), &mut ran);
         if !ran {
             // Registered, but no mod took it: vanilla's unknown command.
             self.native_feedback(
@@ -1019,8 +1536,18 @@ impl Game<'_> {
         if Self::native_command_level(host, line).is_none() {
             return false;
         }
+        let effective = match self.prepare_native_custom_command(4, line) {
+            CustomPrepare::PassThrough => None,
+            CustomPrepare::Rewritten(rewritten) => Some(rewritten),
+            CustomPrepare::Error(message) => {
+                self.native_feedback(
+                    Text::literal(message).with_color(horizon_client::text::RED),
+                );
+                return true;
+            }
+        };
         let mut ran = false;
-        self.native_perform_console_command(line, &mut ran);
+        self.native_perform_console_command(effective.as_deref().unwrap_or(line), &mut ran);
         if !ran {
             self.native_feedback(
                 Text::translate("command.unknown.command", &[])
@@ -1236,5 +1763,137 @@ mod tests {
             "cookingduel create|regenerate [seed]|delete",
         )]);
         assert_eq!(problems.len(), 1, "{problems:?}");
+    }
+
+    #[test]
+    fn custom_command_argument_types_register_in_tree_and_reject_unknown_or_greedy_middle() {
+        let custom = |kind: &str| match kind {
+            "demo:color" => Some(false),
+            "demo:note" => Some(true),
+            _ => None,
+        };
+        let cmds = [
+            NativeCommand::new("ping <target:word> [count:integer]"),
+            NativeCommand::new("paint <target:player> <shade:demo:color>"),
+            NativeCommand::new("memo [body:demo:note]"),
+            NativeCommand::new("badtype <x:missing:color>"),
+            NativeCommand::new("badgreedy <body:demo:note> <extra:word>"),
+        ];
+        let (t, levels, index, problems) = command_tree_with(&cmds, |name| name == "give", custom);
+        assert_eq!(problems.len(), 2, "{problems:?}");
+        assert!(problems[0].contains("unknown custom argument type"));
+        assert!(problems[1].contains("must be last"));
+        assert!(!levels.contains_key("badtype"));
+        assert!(!levels.contains_key("badgreedy"));
+
+        // Existing non-custom usages stay unchanged.
+        let (plain_t, _, _) = command_tree(&cmds[..1], |name| name == "give");
+        assert_eq!(t["children"]["ping"], plain_t["children"]["ping"]);
+        assert!(!index.by_root.contains_key("ping"));
+
+        // Custom argument nodes serialize as brigadier:string with ask_server suggestions.
+        let shade = &t["children"]["paint"]["children"]["target"]["children"]["shade"];
+        assert_eq!(shade["parser"], "brigadier:string");
+        assert_eq!(shade["properties"]["type"], "word");
+        assert_eq!(shade["suggestions"], "minecraft:ask_server");
+        assert_eq!(shade["executable"], true);
+
+        let memo = &t["children"]["memo"];
+        assert_eq!(memo["executable"], true);
+        let body = &memo["children"]["body"];
+        assert_eq!(body["parser"], "brigadier:string");
+        assert_eq!(body["properties"]["type"], "greedy");
+        assert_eq!(body["suggestions"], "minecraft:ask_server");
+        assert_eq!(body["executable"], true);
+    }
+
+    #[test]
+    fn custom_command_argument_parse_accepts_normalizes_and_refuses() {
+        let custom = |kind: &str| match kind {
+            "demo:color" => Some(false),
+            "demo:note" => Some(true),
+            _ => None,
+        };
+        let cmds = [
+            NativeCommand::new("paint <target:player> <shade:demo:color>"),
+            NativeCommand::new("paint clear"),
+            NativeCommand::new("memo <body:demo:note>").level(2),
+        ];
+        let (_, _, index, problems) = command_tree_with(&cmds, |_| false, custom);
+        assert!(problems.is_empty(), "{problems:?}");
+
+        let paint = index.by_root.get("paint").unwrap();
+        let memo = index.by_root.get("memo").unwrap();
+
+        let mut parse = |kind: &str, input: &str| -> Result<String, String> {
+            match (kind, input) {
+                ("demo:color", "Red") => Ok("#ff0000".into()),
+                ("demo:color", "blue") => Ok("#0000ff".into()),
+                ("demo:color", other) => Err(format!("unknown color: {other}")),
+                ("demo:note", text) if text.len() >= 3 => Ok(format!("[ok] {text}")),
+                ("demo:note", _) => Err("note too short".into()),
+                _ => Err("unknown".into()),
+            }
+        };
+
+        assert_eq!(
+            prepare_custom_command(paint, 0, "paint Steve Red", &mut parse),
+            CustomPrepare::Rewritten("paint Steve #ff0000".into())
+        );
+        assert_eq!(
+            prepare_custom_command(paint, 0, "paint Steve invalid", &mut parse),
+            CustomPrepare::Error("unknown color: invalid".into())
+        );
+        // Literal overload does not invoke the custom parser.
+        assert_eq!(
+            prepare_custom_command(paint, 0, "paint clear", &mut parse),
+            CustomPrepare::PassThrough
+        );
+        // Greedy custom arg consumes the remainder; permission level gates access.
+        assert_eq!(
+            prepare_custom_command(memo, 0, "memo hi there", &mut parse),
+            CustomPrepare::PassThrough
+        );
+        assert_eq!(
+            prepare_custom_command(memo, 2, "memo hello world", &mut parse),
+            CustomPrepare::Rewritten("memo [ok] hello world".into())
+        );
+        assert_eq!(
+            prepare_custom_command(memo, 2, "memo ok", &mut parse),
+            CustomPrepare::Error("note too short".into())
+        );
+    }
+
+    #[test]
+    fn custom_command_argument_suggestions_match_partial_and_greedy() {
+        let custom = |kind: &str| match kind {
+            "demo:color" => Some(false),
+            "demo:note" => Some(true),
+            _ => None,
+        };
+        let cmds = [
+            NativeCommand::new("paint <target:player> <shade:demo:color>"),
+            NativeCommand::new("memo <body:demo:note>").level(2),
+        ];
+        let (_, _, index, problems) = command_tree_with(&cmds, |_| false, custom);
+        assert!(problems.is_empty(), "{problems:?}");
+
+        let paint = index.by_root.get("paint").unwrap();
+        let memo = index.by_root.get("memo").unwrap();
+
+        assert_eq!(
+            plan_custom_suggestions(paint, 0, "paint Steve "),
+            vec![(12, "demo:color".into(), String::new())]
+        );
+        assert_eq!(
+            plan_custom_suggestions(paint, 0, "paint Steve re"),
+            vec![(12, "demo:color".into(), "re".into())]
+        );
+        assert!(plan_custom_suggestions(paint, 0, "paint Steve red ").is_empty());
+        assert!(plan_custom_suggestions(memo, 0, "memo ").is_empty());
+        assert_eq!(
+            plan_custom_suggestions(memo, 2, "memo hello w"),
+            vec![(5, "demo:note".into(), "hello w".into())]
+        );
     }
 }
