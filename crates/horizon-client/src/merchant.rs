@@ -130,6 +130,92 @@ impl ItemCost {
         s.item == self.stack.item && (self.stack.extra.is_none() || s.data() == self.stack.data())
     }
 }
+pub const MAX_MOD_OFFERS: usize = 64;
+/// Highest stack count accepted in a mod offer when no item table is loaded.
+pub const MAX_OFFER_STACK: u32 = 99;
+const MAX_OFFER_ITEM_ID: usize = 256;
+
+/// Whether `id` is a syntactically valid non-air `namespace:path` item identifier.
+pub fn valid_offer_item_id(id: &str) -> bool {
+    if id == "minecraft:air" || id.len() > MAX_OFFER_ITEM_ID {
+        return false;
+    }
+    let Some((namespace, path)) = id.split_once(':') else {
+        return false;
+    };
+    !namespace.is_empty()
+        && !path.is_empty()
+        && namespace.bytes().all(|b| {
+            b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-' | b'.')
+        })
+        && path.bytes().all(|b| {
+            b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-' | b'.' | b'/')
+        })
+}
+
+/// Looks up the maximum stack size of `id` for offer validation:
+/// `Some(None)` when the item is definitely unknown or invalid (`minecraft:air` / bad syntax /
+/// missing from a loaded registry), `Some(Some(max))` when known, and `None` when no item
+/// registry is loaded yet.
+pub fn item_stack_limit(items: Option<&Items>, id: &str) -> Option<Option<u32>> {
+    if !valid_offer_item_id(id) {
+        return Some(None);
+    }
+    if let Some(items) = items
+        && !items.items.is_empty()
+    {
+        return Some(items.get(id).map(|info| info.max_stack.max(1)));
+    }
+    if let Some(limit) = crate::items::published_stack_limit(id) {
+        return Some(limit.map(|n| n.max(1)));
+    }
+    None
+}
+
+fn valid_offer_stack(
+    stack: &ItemStack,
+    lookup: &impl Fn(&str) -> Option<Option<u32>>,
+) -> bool {
+    if !valid_offer_item_id(&stack.item) || stack.count == 0 {
+        return false;
+    }
+    match lookup(&stack.item) {
+        Some(None) => false,
+        Some(Some(limit)) => stack.count <= limit.max(1),
+        None => stack.count <= MAX_OFFER_STACK,
+    }
+}
+
+/// Validates a mod-edited merchant offer list against item registry limits, stack count ranges,
+/// offer bounds and list length limit.
+pub fn validate_offers_with(
+    offers: &[MerchantOffer],
+    lookup: impl Fn(&str) -> Option<Option<u32>>,
+) -> bool {
+    if offers.len() > MAX_MOD_OFFERS {
+        return false;
+    }
+    offers.iter().all(|offer| {
+        valid_offer_stack(&offer.base_cost_a.stack, &lookup)
+            && offer
+                .cost_b
+                .as_ref()
+                .is_none_or(|b| valid_offer_stack(&b.stack, &lookup))
+            && valid_offer_stack(&offer.result, &lookup)
+            && offer.max_uses >= 1
+            && offer.uses >= 0
+            && offer.xp >= 0
+            && offer.price_multiplier.is_finite()
+            && offer.price_multiplier >= 0.0
+    })
+}
+
+/// Validates a mod-edited merchant offer list using `items` (when populated) or the published
+/// item table, falling back to syntax and [`MAX_OFFER_STACK`] when no resource table is loaded.
+pub fn validate_offers(offers: &[MerchantOffer], items: Option<&Items>) -> bool {
+    validate_offers_with(offers, |id| item_stack_limit(items, id))
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct MerchantOffer {
     pub base_cost_a: ItemCost,
@@ -1184,5 +1270,65 @@ mod tests {
                 .iter()
                 .all(|o| o.max_uses == 12 && (o.price_multiplier - 0.2).abs() < 1e-6)
         );
+    }
+
+    #[test]
+    fn offer_validation_checks_items_counts_bounds_and_list_limit() {
+        let known = |id: &str| -> Option<Option<u32>> {
+            Some(match id {
+                "minecraft:emerald" | "minecraft:book" | "minecraft:bread" => Some(64),
+                "minecraft:iron_boots" => Some(1),
+                _ => None,
+            })
+        };
+        let valid = vec![offer(5, Some(1))];
+        assert!(validate_offers_with(&valid, known));
+        assert!(validate_offers_with(&[], known));
+        assert!(validate_offers(&valid, None));
+
+        // Unknown item, air, or malformed id.
+        let mut bad_item = valid.clone();
+        bad_item[0].result = ItemStack::new("minecraft:no_such_item", 1);
+        assert!(!validate_offers_with(&bad_item, known));
+
+        let mut air_cost = valid.clone();
+        air_cost[0].base_cost_a.stack = ItemStack::new("minecraft:air", 1);
+        assert!(!validate_offers_with(&air_cost, known));
+        assert!(!validate_offers(&air_cost, None));
+
+        let mut bad_id = valid.clone();
+        bad_id[0].result = ItemStack::new("Bad:Item", 1);
+        assert!(!validate_offers_with(&bad_id, known));
+        assert!(!validate_offers(&bad_id, None));
+
+        // Count out of range (0, above item max_stack, above fallback limit).
+        let mut zero_count = valid.clone();
+        zero_count[0].base_cost_a.stack.count = 0;
+        assert!(!validate_offers_with(&zero_count, known));
+
+        let mut over_boot_stack = valid.clone();
+        over_boot_stack[0].result.count = 2;
+        assert!(!validate_offers_with(&over_boot_stack, known));
+
+        let mut over_fallback_stack = valid.clone();
+        over_fallback_stack[0].base_cost_a.stack.count = MAX_OFFER_STACK + 1;
+        assert!(!validate_offers(&over_fallback_stack, None));
+
+        // Bad offer numeric fields.
+        let mut zero_uses = valid.clone();
+        zero_uses[0].max_uses = 0;
+        assert!(!validate_offers_with(&zero_uses, known));
+
+        let mut neg_xp = valid.clone();
+        neg_xp[0].xp = -1;
+        assert!(!validate_offers_with(&neg_xp, known));
+
+        let mut nan_mult = valid.clone();
+        nan_mult[0].price_multiplier = f32::NAN;
+        assert!(!validate_offers_with(&nan_mult, known));
+
+        // List length bound.
+        let too_many = vec![offer(1, None); MAX_MOD_OFFERS + 1];
+        assert!(!validate_offers_with(&too_many, known));
     }
 }

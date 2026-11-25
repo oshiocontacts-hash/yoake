@@ -182,6 +182,28 @@ impl Game<'_> {
         self.register_exploration_maps(made);
         offers
     }
+    /// Dispatches `villager_trades` when at least one mod is active and validates the resulting
+    /// offers, falling back to the original list on any error.
+    pub(super) fn dispatch_villager_trades(
+        &mut self,
+        entity: u32,
+        kind: &str,
+        profession: &str,
+        level: i32,
+        offers: &mut Vec<MerchantOffer>,
+    ) {
+        if horizon_client::mod_api::mods().is_empty() {
+            return;
+        }
+        let original = offers.clone();
+        self.native_villager_trades(entity, kind, profession, level, offers);
+        if !merchant::validate_offers(offers, Some(self.items())) {
+            log::warn!(
+                "villager_trades: mod produced invalid offers for {kind} ({profession}, level {level}); keeping original offers"
+            );
+            *offers = original;
+        }
+    }
     /// `AbstractVillager.getOffers`: generated on first use.
     pub(super) fn ensure_offers(&mut self, index: usize) {
         let species = self.mobs[index].species();
@@ -192,12 +214,16 @@ impl Game<'_> {
             .is_none_or(|t| t.unset);
         if unset {
             let m = &self.mobs[index];
+            let entity = m.id;
             let variant = format!(
                 "minecraft:{}",
                 VILLAGER_TYPES[m.extra.variant as usize % VILLAGER_TYPES.len()]
             );
             let origin = [m.position.x, m.position.y, m.position.z];
-            let offers = if species == Species::WanderingTrader {
+            let prof_idx = m.extra.variant2 as usize;
+            let raw_level = m.extra.variant3;
+            let (kind, profession, event_level, mut offers) = if species == Species::WanderingTrader
+            {
                 let mut v = Vec::new();
                 for set in ["buying", "uncommon", "common"] {
                     v.extend(self.offers_from_set(
@@ -206,20 +232,30 @@ impl Game<'_> {
                         origin,
                     ));
                 }
-                v
+                (
+                    "minecraft:wandering_trader",
+                    "minecraft:wandering_trader".to_owned(),
+                    1,
+                    v,
+                )
             } else {
-                let profession = PROFESSIONS[m.extra.variant2 as usize % PROFESSIONS.len()];
-                let level = i32::from(m.extra.variant3.max(1));
-                let set = merchant::Trades::set_for(profession, level);
-                if self.stations().trades.sets.contains_key(&set) {
+                let profession_name = PROFESSIONS[prof_idx % PROFESSIONS.len()];
+                let level = i32::from(raw_level.max(1));
+                let set = merchant::Trades::set_for(profession_name, level);
+                let profession = format!("minecraft:{profession_name}");
+                let v = if self.stations().trades.sets.contains_key(&set) {
                     self.offers_from_set(&set, &variant, origin)
                 } else {
                     Vec::new()
-                }
+                };
+                ("minecraft:villager", profession, level.min(5), v)
             };
-            let trade = self.mobs[index].extra.trade.get_or_insert_default();
-            trade.offers = offers;
-            trade.unset = false;
+            self.dispatch_villager_trades(entity, kind, &profession, event_level, &mut offers);
+            if let Some(m) = self.mobs.iter_mut().find(|m| m.id == entity) {
+                let trade = m.extra.trade.get_or_insert_default();
+                trade.offers = offers;
+                trade.unset = false;
+            }
         }
     }
     /// `Villager.mobInteract` / `WanderingTrader.mobInteract`: shake the
@@ -437,7 +473,24 @@ impl Game<'_> {
                 merchant::Event::Orb(v) => {
                     self.add_orb([origin[0], origin[1] + 0.5, origin[2]], v as u32)
                 }
-                merchant::Event::LevelUp(_) => {
+                merchant::Event::LevelUp(level) => {
+                    if let Some(id) = mob
+                        && self.remote.is_none()
+                    {
+                        let kind = self
+                            .mobs
+                            .iter()
+                            .find(|m| m.id == id)
+                            .map(super::native_hooks::mob_kind)
+                            .unwrap_or_else(|| "minecraft:villager".to_owned());
+                        self.dispatch_villager_trades(
+                            id,
+                            &kind,
+                            &session.profession,
+                            level,
+                            &mut session.offers,
+                        );
+                    }
                     if let Some(m) = mob.and_then(|id| self.mobs.iter_mut().find(|m| m.id == id)) {
                         m.add_effect("minecraft:regeneration", 200, 0);
                     }
