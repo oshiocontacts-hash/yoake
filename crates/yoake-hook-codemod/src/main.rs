@@ -66,6 +66,9 @@ pub struct Config {
     /// REM-11b: module paths (e.g. `entities`, `game::item_use`) skipped by `callsite-patch` because
     /// `modules.txt` (`callsites=true`) owns them in place.
     pub skip_callsite_modules: Vec<String>,
+    /// REM-11b: `callsite-patch` keeps unmodified duplicate sites confirmed across re-runs without changing
+    /// the in-place committed-tree re-identification rules.
+    pub patch_reidentify: bool,
 }
 
 pub struct HistoryConfig {
@@ -378,6 +381,7 @@ fn parse_args() -> Result<Option<Command>, String> {
         private_types,
         overlay,
         skip_callsite_modules: vec![],
+        patch_reidentify: false,
     })))
 }
 

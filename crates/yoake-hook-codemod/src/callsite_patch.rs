@@ -727,6 +727,7 @@ pub fn generate(args: &GenerateArgs) -> Result<(usize, usize), String> {
         private_types,
         overlay: false,
         skip_callsite_modules,
+        patch_reidentify: true,
     };
     crate::callsite::execute(&config)?;
 
@@ -1088,6 +1089,7 @@ pub fn generate_and_verify(args: &GenerateArgs) -> Result<(usize, usize), String
             "check".into(),
             "-p".into(),
             pkg,
+            "--lib".into(),
             "--features".into(),
             features.into(),
         ]

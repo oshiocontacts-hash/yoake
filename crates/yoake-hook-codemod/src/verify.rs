@@ -574,6 +574,7 @@ pub fn bad(x: u32) -> u32 {
             private_types: false,
             overlay: false,
             skip_callsite_modules: vec![],
+            patch_reidentify: false,
         };
         let options = VerifyOptions { overlay: None, cargo_args: vec![], dir: dir.clone(), rounds: 4, max_withdraw_per_round: 300 };
         let alpha = dir.join("src/alpha.rs");
@@ -644,6 +645,7 @@ pub fn bad(x: u32) -> u32 {
             private_types: false,
             overlay: false,
             skip_callsite_modules: vec![],
+            patch_reidentify: false,
         }
     }
 
@@ -717,6 +719,7 @@ pub fn b(x: u32) -> u32 {
             private_types: false,
             overlay: false,
             skip_callsite_modules: vec![],
+            patch_reidentify: false,
         }
     }
 }

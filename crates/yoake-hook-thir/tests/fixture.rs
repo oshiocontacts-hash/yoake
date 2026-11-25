@@ -218,3 +218,87 @@ body:
     assert_eq!(dump.calls[0].callee, "demo::component::partial");
     assert_eq!(dump.calls[0].recv_adjust, None);
 }
+
+#[test]
+fn overloaded_index_receiver_does_not_add_extra_deref() {
+    let thir = "\
+DefId(0:1 ~ demo[abcd]::caller):
+body:
+    Expr {
+        ty: bool
+        span: src/a.rs:10:5: 10:21 (#0)
+        kind:
+            Call {
+                ty: FnDef(DefId(0:2 ~ demo[abcd]::{impl#0}::ok), [])
+                from_hir_call: true
+                fn_span: src/a.rs:10:17: 10:21 (#0)
+                fun:
+                    Expr {
+                        ty: FnDef(DefId(0:2 ~ demo[abcd]::{impl#0}::ok), [])
+                        span: src/a.rs:10:17: 10:19 (#0)
+                    }
+                args: [
+                    Expr {
+                        ty: &'_ demo::Item
+                        span: src/a.rs:10:5: 10:16 (#0)
+                        kind:
+                            Borrow (
+                                borrow_kind: Shared
+                                arg:
+                                    Expr {
+                                        ty: demo::Item
+                                        span: src/a.rs:10:5: 10:16 (#0)
+                                        kind:
+                                            Deref {
+                                                arg:
+                                                    Expr {
+                                                        ty: &'_ demo::Item
+                                                        span: src/a.rs:10:5: 10:16 (#0)
+                                                        kind:
+                                                            Call {
+                                                                ty: FnDef(DefId(2:1 ~ core[abcd]::ops::index::Index::index), [])
+                                                                from_hir_call: false
+                                                                fn_span: src/a.rs:10:11: 10:16 (#0)
+                                                                fun:
+                                                                    Expr {
+                                                                        ty: FnDef(DefId(2:1 ~ core[abcd]::ops::index::Index::index), [])
+                                                                        span: src/a.rs:10:11: 10:16 (#0)
+                                                                    }
+                                                                args: [
+                                                                    Expr {
+                                                                        ty: &'_ demo::Map
+                                                                        span: src/a.rs:10:5: 10:11 (#0)
+                                                                    },
+                                                                ]
+                                                            }
+                                                    }
+                                            }
+                                    }
+                            )
+                    },
+                ]
+            }
+    }
+";
+    let dump = parse_str(
+        thir,
+        &ParseOptions {
+            files: vec!["src/a.rs".into()],
+            externs: BTreeSet::new(),
+            crate_name: Some("demo".into()),
+            rustc: "fixture".into(),
+            cargo_lock_sha: String::new(),
+            workspace: None,
+            file_digests: Default::default(),
+        },
+    )
+    .unwrap();
+    let call = dump
+        .calls
+        .iter()
+        .find(|c| c.callee == "demo::Item::ok")
+        .unwrap();
+    let adj = call.recv_adjust.unwrap();
+    assert_eq!(adj.borrow, Borrow::Shared);
+    assert_eq!(adj.derefs, 0);
+}

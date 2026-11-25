@@ -80,6 +80,8 @@ pub struct CallSite {
     pub context: [String; 2],
     pub dup_rank: u32,
     pub shim: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orig: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

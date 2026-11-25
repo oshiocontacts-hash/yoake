@@ -3775,13 +3775,44 @@ fn reconcile_and_plan(
         .collect();
 
     let mut dummy_next_id = ledger_set.next_id().max(1);
-    let outcome = reidentify_with_snapshots(
+    let mut outcome = reidentify_with_snapshots(
         &unmatched_old,
         &[],
         &unmatched_sites,
         new_snapshots,
         &mut dummy_next_id,
     );
+    if config.patch_reidentify {
+        let is_exact_unchanged = |id: u32, ui: usize| {
+            let cand = &candidates[unmatched_cand_indices[ui]];
+            existing_sites.get(&id).is_some_and(|meta| {
+                cand.caller_id == meta.caller
+                    && cand.callee_fn == meta.callee_fn
+                    && cand.callee_path == meta.callee_path
+                    && format_hash(cand.site.anchor) == meta.anchor
+                    && cand.site.dup_rank == meta.dup_rank
+                    && meta.context
+                        == [
+                            format_hash(cand.site.context.0),
+                            format_hash(cand.site.context.1),
+                        ]
+            })
+        };
+        let mut promote = |vec: &mut Vec<(u32, usize)>| {
+            let mut rest = Vec::new();
+            for (id, ui) in vec.drain(..) {
+                if is_exact_unchanged(id, ui) {
+                    outcome.confirmed.push((id, ui));
+                } else {
+                    rest.push((id, ui));
+                }
+            }
+            *vec = rest;
+        };
+        promote(&mut outcome.fragile);
+        promote(&mut outcome.moved);
+        promote(&mut outcome.changed);
+    }
 
     let match_errors = format_match_errors(
         &config.crate_root,

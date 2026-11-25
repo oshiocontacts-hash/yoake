@@ -240,6 +240,7 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
         private_types,
         overlay: false,
         skip_callsite_modules: vec![],
+        patch_reidentify: false,
     };
     crate::run::execute(&config)?;
     if bridges {
