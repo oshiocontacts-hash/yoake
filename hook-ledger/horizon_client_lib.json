@@ -44097,7 +44097,7 @@
         "callee_path": "horizon_world::nbt::Tag::get",
         "anchor": "36330b1d804f54bf",
         "stmt_path": [
-          "c155a8317c7d5ee0",
+          "0402308a67bde51a",
           "56847a9881d4e0d2"
         ],
         "context": [
@@ -66156,7 +66156,7 @@
       "id": 22292,
       "key": "fn:2138@call:horizon_client_lib::lan::entity::Riding::passengers",
       "sig": "54d62a5dc4baf65d",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 2138,
@@ -66179,7 +66179,7 @@
       "id": 22293,
       "key": "fn:2138@call:horizon_client_lib::lan::entity::Riding::set_passengers",
       "sig": "f6a1f5eca367edd7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 2138,
@@ -66203,7 +66203,7 @@
       "id": 22294,
       "key": "fn:2138@call:horizon_client_lib::lan::entity::Riding::set_passengers#1",
       "sig": "f6a1f5eca367edd7",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 2138,
@@ -67068,7 +67068,7 @@
       "id": 22331,
       "key": "fn:2157@call:horizon_protocol::registry::Builtin::get",
       "sig": "cabee236bb21f238",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 2157,
@@ -67091,7 +67091,7 @@
       "id": 22332,
       "key": "fn:2157@call:horizon_protocol::registry::Ids::id",
       "sig": "397e5f58a8ec7a48",
-      "status": "live",
+      "status": "tombstone",
       "kind": "callsite",
       "site": {
         "caller": 2157,
@@ -70567,7 +70567,7 @@
         "callee_path": "horizon_client_lib::lan::guest::Guest::spectator",
         "anchor": "c903761609315c6a",
         "stmt_path": [
-          "c3d77db7595d67de"
+          "f7f752adbe40f0b1"
         ],
         "context": [
           "3000d13afbb605dc",
@@ -87867,7 +87867,7 @@
         "callee_path": "<Self as horizon_core::random::RandomSource>::next_int_bound",
         "anchor": "82766e2a4d3bb579",
         "stmt_path": [
-          "669de9bf309375b7",
+          "63169395a67bad9c",
           "583321b88c03f311"
         ],
         "context": [
@@ -87891,8 +87891,8 @@
         "callee_path": "horizon_client_lib::merchant::Session::offers_from_set",
         "anchor": "80ec796f89afb0b0",
         "stmt_path": [
-          "669de9bf309375b7",
-          "c53f027d70a1e167",
+          "63169395a67bad9c",
+          "420507ce7764cf7a",
           "d92e804e43282247",
           "25d9917e7efe71b2",
           "c15558185bfc4334"
@@ -87918,8 +87918,8 @@
         "callee_path": "horizon_client_lib::merchant::Session::update_special_prices",
         "anchor": "c2d4b480312bdfe2",
         "stmt_path": [
-          "669de9bf309375b7",
-          "c53f027d70a1e167",
+          "63169395a67bad9c",
+          "420507ce7764cf7a",
           "d92e804e43282247",
           "25d9917e7efe71b2",
           "3b4e8ed38d8d5dbb"
@@ -87945,7 +87945,7 @@
         "callee_path": "<Self as horizon_core::random::RandomSource>::next_int_bound",
         "anchor": "82766e2a4d3bb579",
         "stmt_path": [
-          "669de9bf309375b7",
+          "63169395a67bad9c",
           "d2a0cfdae5c2fc47"
         ],
         "context": [
@@ -123255,6 +123255,29 @@
         "shim": "__yoake_cs_24676",
         "orig": "batch.clip_since(start, 0.0, 0.0, w, h)"
       }
+    },
+    {
+      "id": 24677,
+      "key": "fn:2138@call:horizon_client_lib::lan::entity::ServerEntity::pairing_with",
+      "sig": "73aaa5ad2b8809fc",
+      "status": "live",
+      "kind": "callsite",
+      "site": {
+        "caller": 2138,
+        "callee_fn": null,
+        "callee_path": "horizon_client_lib::lan::entity::ServerEntity::pairing_with",
+        "anchor": "8ac3ca023a9710ac",
+        "stmt_path": [
+          "61c0d8c98eb13095"
+        ],
+        "context": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "dup_rank": 0,
+        "shim": "__yoake_cs_24677",
+        "orig": "self.pairing_with(e, kind, &self.meta, true, riding, out)"
+      }
     }
   ],
   "excluded": [
@@ -125593,7 +125616,7 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:12045@call:horizon_client_lib::Closure(DefId(0:25402 ~ horizon_client_lib[cb8c]::mod_generator::{impl#2}::terrain::{closure#1}), [i8, Binder { value: extern \"RustCall\" fn((&'^0.Named(DefId(0:85906 ~ horizon_client_lib[cb8c]::mod_generator::{impl#2}::terrain::'_)) str,)) -> std::option::Option::new",
+      "key": "fn:12045@call:horizon_client_lib::Closure(DefId(0:25645 ~ horizon_client_lib[cb8c]::mod_generator::{impl#2}::terrain::{closure#1}), [i8, Binder { value: extern \"RustCall\" fn((&'^0.Named(DefId(0:86399 ~ horizon_client_lib[cb8c]::mod_generator::{impl#2}::terrain::'_)) str,)) -> std::option::Option::new",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -142623,11 +142646,6 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:1824@call:fn:2860",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
       "key": "fn:1824@call:fn:2950",
       "reason": "path call",
       "kind": "callsite"
@@ -143299,6 +143317,11 @@
     },
     {
       "key": "fn:1824@call:horizon_client_lib::mobs::equine::is_equine#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:1824@call:horizon_client_lib::mobs::finalize::add_modifier",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -158615,6 +158638,11 @@
       "kind": "callsite"
     },
     {
+      "key": "fn:2103@call:horizon_client_lib::lan::conn::brand_gate_reason",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
       "key": "fn:2103@call:horizon_client_lib::lan::conn::decode_config",
       "reason": "path call",
       "kind": "callsite"
@@ -158666,6 +158694,11 @@
     },
     {
       "key": "fn:2103@call:horizon_client_lib::lan::conn::lost#4",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:2103@call:horizon_client_lib::lan::mob_proxy::any_without_proxy",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -161480,96 +161513,6 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:2138@call:<Self as core::clone::Clone>::clone",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:<Self as core::clone::Clone>::clone#1",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:<Self as core::clone::Clone>::clone#2",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:[i32]::is_empty",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:horizon_protocol::buf::pack_degrees",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:horizon_protocol::buf::pack_degrees#1",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:horizon_protocol::buf::pack_degrees#2",
-      "reason": "path call",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:std::collections::HashMap::get",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:std::vec::Vec::is_empty",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:std::vec::Vec::is_empty#1",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:std::vec::Vec::is_empty#2",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:std::vec::Vec::push",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:std::vec::Vec::push#1",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:std::vec::Vec::push#2",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:std::vec::Vec::push#3",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:std::vec::Vec::push#4",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:std::vec::Vec::push#5",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
-      "key": "fn:2138@call:std::vec::Vec::push#6",
-      "reason": "non-engine callee",
-      "kind": "callsite"
-    },
-    {
       "key": "fn:2140@call:<Self as core::iter::traits::iterator::Iterator>::map",
       "reason": "non-engine callee",
       "kind": "callsite"
@@ -162636,18 +162579,18 @@
       "kind": "callsite"
     },
     {
-      "key": "fn:2157@call:<Self as alloc::borrow::ToOwned>::to_owned",
+      "key": "fn:2157@call:<Self as core::convert::AsRef>::as_ref",
       "reason": "non-engine callee",
       "kind": "callsite"
     },
     {
-      "key": "fn:2157@call:std::collections::HashMap::get",
-      "reason": "non-engine callee",
+      "key": "fn:2157@call:horizon_client_lib::lan::hub::resolve_entity_type",
+      "reason": "path call",
       "kind": "callsite"
     },
     {
-      "key": "fn:2157@call:std::collections::HashMap::insert",
-      "reason": "non-engine callee",
+      "key": "fn:2157@call:horizon_client_lib::lan::mob_proxy::wire_kind",
+      "reason": "path call",
       "kind": "callsite"
     },
     {
@@ -174608,6 +174551,16 @@
     },
     {
       "key": "fn:2382@call:std::result::Result::unwrap_or#1",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:2382@call:std::vec::Vec::len",
+      "reason": "non-engine callee",
+      "kind": "callsite"
+    },
+    {
+      "key": "fn:2382@call:std::vec::Vec::len#1",
       "reason": "non-engine callee",
       "kind": "callsite"
     },
@@ -252807,6 +252760,11 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::commands::fill@call:serde_json::Value::as_str#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::commands::fill@call:std::collections::HashMap::get",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
@@ -256243,6 +256201,11 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:<Self as core::iter::traits::iterator::Iterator>::collect#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::entity::Entities::tick@call:<Self as core::iter::traits::iterator::Iterator>::enumerate",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
@@ -256259,6 +256222,11 @@
     },
     {
       "key": "horizon_client_lib::lan::entity::Entities::tick@call:<Self as core::iter::traits::iterator::Iterator>::map#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:<Self as core::iter::traits::iterator::Iterator>::map#2",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
@@ -256303,6 +256271,11 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:Self::new#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::entity::Entities::tick@call:[&'{erased} lan::entity::EntityState]::iter",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
@@ -256339,6 +256312,11 @@
     },
     {
       "key": "horizon_client_lib::lan::entity::Entities::tick@call:[horizon_protocol::packets::play::Clientbound]::iter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:[horizon_protocol::packets::play::Clientbound]::iter#1",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
@@ -256398,6 +256376,21 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:core::ops::function::FnMut::call_mut#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:core::ops::function::FnMut::call_mut#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:core::ops::function::FnMut::call_mut#3",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::entity::Entities::tick@call:f64::floor",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
@@ -256433,6 +256426,11 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:horizon_client_lib::lan::entity::ServerEntity::pairing_stock",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::entity::Entities::tick@call:horizon_client_lib::lan::entity::ServerEntity::send_changes",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
@@ -256443,7 +256441,7 @@
       "kind": "callsite"
     },
     {
-      "key": "horizon_client_lib::lan::entity::Entities::tick@call:horizon_client_lib::lan::entity::encode_all#1",
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:horizon_client_lib::lan::entity::encode_stock_changes",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -256464,6 +256462,11 @@
     },
     {
       "key": "horizon_client_lib::lan::entity::Entities::tick@call:horizon_client_lib::lan::entity::sees#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:horizon_client_lib::lan::mob_proxy::is_living",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -256578,7 +256581,17 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::option::Option::as_deref",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::option::Option::as_deref_mut",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::option::Option::as_ref",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
@@ -256603,12 +256616,42 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::option::Option::get_or_insert_with#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::option::Option::get_or_insert_with#2",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::option::Option::is_none",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::option::Option::is_none#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::option::Option::is_none#2",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::option::Option::is_none_or",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::option::Option::is_some",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::option::Option::is_some#1",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
@@ -256619,6 +256662,11 @@
     },
     {
       "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::option::Option::map_or#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::option::Option::unwrap",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
@@ -256689,6 +256737,11 @@
     },
     {
       "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::vec::Vec::is_empty#3",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::Entities::tick@call:std::vec::Vec::is_empty#4",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
@@ -256994,6 +257047,16 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::new@call:horizon_client_lib::lan::mob_proxy::proxy_for",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::new@call:horizon_client_lib::lan::mob_proxy::stock_meta",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::entity::ServerEntity::new@call:horizon_client_lib::lan::tracking::settings",
       "reason": "path call",
       "kind": "callsite"
@@ -257014,12 +257077,147 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::new@call:std::option::Option::as_ref",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::new@call:std::option::Option::map",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::entity::ServerEntity::new@call:std::option::Option::unwrap_or_default",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::new@call:std::option::Option::unwrap_or_default#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::entity::ServerEntity::new@call:std::string::String::as_str",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_stock@call:fn:2138",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_stock@call:horizon_client_lib::lan::entity::ServerEntity::pairing_with",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_stock@call:horizon_client_lib::lan::mob_proxy::is_living",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:<Self as core::clone::Clone>::clone",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:<Self as core::clone::Clone>::clone#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:[(u8, i32, horizon_protocol::entity_data::Value)]::is_empty",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:[(u8, i32, horizon_protocol::entity_data::Value)]::to_vec",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:[i32]::is_empty",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:horizon_client_lib::lan::entity::Riding::passengers",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:horizon_client_lib::lan::entity::Riding::set_passengers",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:horizon_client_lib::lan::entity::Riding::set_passengers#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:horizon_protocol::buf::pack_degrees",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:horizon_protocol::buf::pack_degrees#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:horizon_protocol::buf::pack_degrees#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:std::collections::HashMap::get",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:std::vec::Vec::is_empty",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:std::vec::Vec::is_empty#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:std::vec::Vec::push",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:std::vec::Vec::push#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:std::vec::Vec::push#2",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:std::vec::Vec::push#3",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:std::vec::Vec::push#4",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:std::vec::Vec::push#5",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::pairing_with@call:std::vec::Vec::push#6",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
@@ -257300,11 +257498,6 @@
       "kind": "fn"
     },
     {
-      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:<Self as core::clone::Clone>::clone",
-      "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
       "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:<Self as core::clone::Clone>::clone_from",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
@@ -257315,52 +257508,27 @@
       "kind": "callsite"
     },
     {
-      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:<Self as core::iter::traits::iterator::Iterator>::any",
-      "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:<Self as core::iter::traits::iterator::Iterator>::cloned",
-      "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:<Self as core::iter::traits::iterator::Iterator>::collect",
-      "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:<Self as core::iter::traits::iterator::Iterator>::filter",
-      "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:<Self as core::iter::traits::iterator::Iterator>::find",
-      "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:[(u8, i32, horizon_protocol::entity_data::Value)]::contains",
-      "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:[(u8, i32, horizon_protocol::entity_data::Value)]::iter",
-      "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:[(u8, i32, horizon_protocol::entity_data::Value)]::iter#1",
-      "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:[(u8, i32, horizon_protocol::entity_data::Value)]::iter#2",
-      "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
       "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:horizon_client_lib::lan::entity::changed_attributes",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:horizon_client_lib::lan::entity::dirty_meta",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:horizon_client_lib::lan::entity::dirty_meta#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:horizon_client_lib::lan::mob_proxy::stock_defaults",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:horizon_client_lib::lan::mob_proxy::stock_meta",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -257375,17 +257543,17 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:std::vec::Vec::is_empty#2",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:std::vec::Vec::push",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
     {
       "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:std::vec::Vec::push#1",
-      "reason": "caller not in fn ledger",
-      "kind": "callsite"
-    },
-    {
-      "key": "horizon_client_lib::lan::entity::ServerEntity::send_dirty@call:std::vec::Vec::push#2",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
@@ -257690,6 +257858,61 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::entity::dirty_meta@call:<Self as core::clone::Clone>::clone",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::dirty_meta@call:<Self as core::iter::traits::iterator::Iterator>::any",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::dirty_meta@call:<Self as core::iter::traits::iterator::Iterator>::cloned",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::dirty_meta@call:<Self as core::iter::traits::iterator::Iterator>::collect",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::dirty_meta@call:<Self as core::iter::traits::iterator::Iterator>::filter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::dirty_meta@call:<Self as core::iter::traits::iterator::Iterator>::find",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::dirty_meta@call:[(u8, i32, horizon_protocol::entity_data::Value)]::contains",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::dirty_meta@call:[(u8, i32, horizon_protocol::entity_data::Value)]::iter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::dirty_meta@call:[(u8, i32, horizon_protocol::entity_data::Value)]::iter#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::dirty_meta@call:[(u8, i32, horizon_protocol::entity_data::Value)]::iter#2",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::dirty_meta@call:std::vec::Vec::push",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::entity::encode",
       "reason": "small body",
       "kind": "fn"
@@ -257721,6 +257944,71 @@
     },
     {
       "key": "horizon_client_lib::lan::entity::encode_all@call:std::vec::Vec::clear",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::encode_stock_changes@call:Self::new",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::encode_stock_changes@call:[(u8, i32, horizon_protocol::entity_data::Value)]::is_empty",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::encode_stock_changes@call:[(u8, i32, horizon_protocol::entity_data::Value)]::is_empty#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::encode_stock_changes@call:[(u8, i32, horizon_protocol::entity_data::Value)]::to_vec",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::encode_stock_changes@call:[(u8, i32, horizon_protocol::entity_data::Value)]::to_vec#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::encode_stock_changes@call:horizon_protocol::packets::play::Clientbound::encode",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::encode_stock_changes@call:horizon_protocol::packets::play::Clientbound::encode#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::encode_stock_changes@call:horizon_protocol::packets::play::Clientbound::encode#2",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::encode_stock_changes@call:std::option::Option::filter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::encode_stock_changes@call:std::option::Option::filter#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::encode_stock_changes@call:std::vec::Vec::push",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::encode_stock_changes@call:std::vec::Vec::push#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::entity::encode_stock_changes@call:std::vec::Vec::push#2",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
@@ -257971,7 +258259,7 @@
       "kind": "callsite"
     },
     {
-      "key": "horizon_client_lib::lan::far::Far::new@call:horizon_client_lib::Closure(DefId(0:6794 ~ horizon_client_lib[cb8c]::lan::far::{impl#0}::new::{closure#0}), [i8, Binder { value: extern \"RustCall\" fn((&'^0 lan::far::Source, i32, i32)) -> std::option::Option::new",
+      "key": "horizon_client_lib::lan::far::Far::new@call:horizon_client_lib::Closure(DefId(0:6850 ~ horizon_client_lib[cb8c]::lan::far::{impl#0}::new::{closure#0}), [i8, Binder { value: extern \"RustCall\" fn((&'^0 lan::far::Source, i32, i32)) -> std::option::Option::new",
       "reason": "path call",
       "kind": "callsite"
     },
@@ -263429,6 +263717,31 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::lan::hub::resolve_entity_type@call:<Self as alloc::borrow::ToOwned>::to_owned",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::hub::resolve_entity_type@call:horizon_protocol::registry::Builtin::get",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::hub::resolve_entity_type@call:horizon_protocol::registry::Ids::id",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::hub::resolve_entity_type@call:std::collections::HashMap::get",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::hub::resolve_entity_type@call:std::collections::HashMap::insert",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::lan::hub::send_recipe_content",
       "reason": "small body",
       "kind": "fn"
@@ -264225,6 +264538,316 @@
     },
     {
       "key": "horizon_client_lib::lan::menu::shown@call:std::option::Option::map_or",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::any_without_proxy@call:horizon_client_lib::lan::mob_proxy::any_without_proxy_in",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::any_without_proxy@call:horizon_client_lib::mobs::custom::registry::registry",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::any_without_proxy@call:std::result::Result::is_ok_and",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::any_without_proxy@call:std::sync::RwLock::read",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::any_without_proxy_in@call:<Self as core::iter::traits::iterator::Iterator>::any",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::any_without_proxy_in@call:horizon_client_lib::mobs::custom::registry::CustomRegistry::iter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::any_without_proxy_in@call:std::option::Option::is_none",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::classify@call:<Self as core::iter::traits::iterator::Iterator>::find",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::classify@call:[mobs::species::Def]::iter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::classify@call:horizon_client_lib::lan::mob_proxy::is_ageable_mob",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::classify@call:str::strip_prefix",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::is_ageable_mob@call:horizon_client_lib::mobs::finalize::ageable",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::is_living@call:horizon_client_lib::lan::mob_proxy::classify",
+      "reason": "inside macro invocation",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::proxy_for@call:horizon_client_lib::lan::mob_proxy::proxy_in",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::proxy_for@call:horizon_client_lib::mobs::custom::registry::registry",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::proxy_for@call:std::option::Option::and_then",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::proxy_for@call:std::result::Result::ok",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::proxy_for@call:std::sync::RwLock::read",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::proxy_in@call:<Self as core::clone::Clone>::clone",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::proxy_in@call:<Self as core::clone::Clone>::clone#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::proxy_in@call:horizon_client_lib::mobs::custom::registry::CustomRegistry::get",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::proxy_in@call:std::option::Option::as_ref",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_defaults@call:<Self as core::iter::traits::iterator::Iterator>::cloned",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_defaults@call:<Self as core::iter::traits::iterator::Iterator>::collect",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_defaults@call:<Self as core::iter::traits::iterator::Iterator>::filter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_defaults@call:[(u8, i32, horizon_protocol::entity_data::Value)]::iter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_defaults@call:horizon_client_lib::lan::mob_proxy::classify",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_defaults@call:horizon_client_lib::lan::mob_proxy::valid_meta_entry",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_defaults@call:horizon_protocol::text::literal",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_defaults@call:std::option::Option::as_deref",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_defaults@call:std::option::Option::filter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_defaults@call:std::vec::Vec::push",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_defaults@call:std::vec::Vec::push#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_defaults@call:std::vec::Vec::retain",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_defaults@call:str::is_empty",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:<Self as core::iter::traits::iterator::Iterator>::any",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:<Self as core::iter::traits::iterator::Iterator>::any#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:<Self as core::iter::traits::iterator::Iterator>::cloned",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:<Self as core::iter::traits::iterator::Iterator>::collect",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:<Self as core::iter::traits::iterator::Iterator>::filter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:[(u8, i32, horizon_protocol::entity_data::Value)]::iter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:[(u8, i32, horizon_protocol::entity_data::Value)]::iter#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:[(u8, i32, horizon_protocol::entity_data::Value)]::iter#2",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:horizon_client_lib::lan::mob_proxy::classify",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:horizon_client_lib::lan::mob_proxy::valid_meta_entry",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:horizon_protocol::text::literal",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:std::option::Option::as_deref",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:std::option::Option::filter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:std::vec::Vec::push",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:std::vec::Vec::push#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::stock_meta@call:str::is_empty",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::wire_kind@call:horizon_client_lib::lan::mob_proxy::wire_kind_in",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::wire_kind@call:horizon_client_lib::mobs::custom::registry::CustomRegistry::is_empty",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::wire_kind@call:horizon_client_lib::mobs::custom::registry::registry",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::wire_kind@call:std::borrow::Cow::into_owned",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::wire_kind@call:std::option::Option::map",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::wire_kind@call:std::result::Result::ok",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::wire_kind@call:std::sync::RwLock::read",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::wire_kind_in@call:<Self as alloc::borrow::ToOwned>::to_owned",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::wire_kind_in@call:horizon_client_lib::mobs::custom::registry::CustomRegistry::get",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::wire_kind_in@call:std::option::Option::as_deref",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::lan::mob_proxy::wire_kind_in@call:std::option::Option::map",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
@@ -272070,6 +272693,41 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::merchant::edit_offer_range@call:<Self as core::iter::traits::iterator::Iterator>::collect",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::edit_offer_range@call:core::ops::function::FnOnce::call_once",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::edit_offer_range@call:std::vec::Vec::drain",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::edit_offer_range@call:std::vec::Vec::len",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::edit_offer_range@call:std::vec::Vec::len#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::edit_offer_range@call:std::vec::Vec::splice",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::edit_offer_range@call:usize::checked_add",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::merchant::float_provider",
       "reason": "generic type params",
       "kind": "fn"
@@ -272285,6 +272943,46 @@
       "kind": "callsite"
     },
     {
+      "key": "horizon_client_lib::merchant::item_stack_limit@call:<Self as core::cmp::Ord>::max",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::item_stack_limit@call:<Self as core::cmp::Ord>::max#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::item_stack_limit@call:horizon_client_lib::merchant::valid_offer_item_id",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::item_stack_limit@call:horizon_client_render::items::Items::get",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::item_stack_limit@call:horizon_items::items::published_stack_limit",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::item_stack_limit@call:std::collections::HashMap::is_empty",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::item_stack_limit@call:std::option::Option::map",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::item_stack_limit@call:std::option::Option::map#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
       "key": "horizon_client_lib::merchant::max_xp",
       "reason": "small body",
       "kind": "fn"
@@ -272371,6 +273069,136 @@
     },
     {
       "key": "horizon_client_lib::merchant::update_special_prices@call:std::option::Option::map_or",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_item_id@call:<Self as core::iter::traits::iterator::Iterator>::all",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_item_id@call:<Self as core::iter::traits::iterator::Iterator>::all#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_item_id@call:str::bytes",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_item_id@call:str::bytes#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_item_id@call:str::is_empty",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_item_id@call:str::is_empty#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_item_id@call:str::len",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_item_id@call:str::split_once",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_item_id@call:u8::is_ascii_digit",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_item_id@call:u8::is_ascii_digit#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_item_id@call:u8::is_ascii_lowercase",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_item_id@call:u8::is_ascii_lowercase#1",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_stack@call:<Self as core::cmp::Ord>::max",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_stack@call:core::ops::function::Fn::call",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::valid_offer_stack@call:horizon_client_lib::merchant::valid_offer_item_id",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::validate_offers@call:horizon_client_lib::merchant::item_stack_limit",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::validate_offers@call:horizon_client_lib::merchant::validate_offers_with",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::validate_offers_with@call:<Self as core::iter::traits::iterator::Iterator>::all",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::validate_offers_with@call:[merchant::MerchantOffer]::iter",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::validate_offers_with@call:[merchant::MerchantOffer]::len",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::validate_offers_with@call:f32::is_finite",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::validate_offers_with@call:horizon_client_lib::merchant::valid_offer_stack",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::validate_offers_with@call:horizon_client_lib::merchant::valid_offer_stack#1",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::validate_offers_with@call:horizon_client_lib::merchant::valid_offer_stack#2",
+      "reason": "path call",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::validate_offers_with@call:std::option::Option::as_ref",
+      "reason": "caller not in fn ledger",
+      "kind": "callsite"
+    },
+    {
+      "key": "horizon_client_lib::merchant::validate_offers_with@call:std::option::Option::is_none_or",
       "reason": "caller not in fn ledger",
       "kind": "callsite"
     },
@@ -290934,7 +291762,7 @@
       "kind": "callsite"
     },
     {
-      "key": "horizon_client_lib::mod_generator::ModGeneratorContext::block_lookup@call:horizon_client_lib::Closure(DefId(0:25389 ~ horizon_client_lib[cb8c]::mod_generator::{impl#1}::block_lookup::{closure#0}), [i8, Binder { value: extern \"RustCall\" fn((&'^0 str,)) -> std::option::Option::new",
+      "key": "horizon_client_lib::mod_generator::ModGeneratorContext::block_lookup@call:horizon_client_lib::Closure(DefId(0:25632 ~ horizon_client_lib[cb8c]::mod_generator::{impl#1}::block_lookup::{closure#0}), [i8, Binder { value: extern \"RustCall\" fn((&'^0 str,)) -> std::option::Option::new",
       "reason": "path call",
       "kind": "callsite"
     },

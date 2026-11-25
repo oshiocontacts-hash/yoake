@@ -13297,7 +13297,7 @@
                          (id, properties(parser, props))
                      }),
                      suggestions: node.suggestions.map(str::to_owned),
-@@ -557 @@
+@@ -560 @@
          );
      }
  }
@@ -13579,7 +13579,7 @@
              }
              cfg::Serverbound::SelectKnownPacks(p) => break p.packs == vec![core.clone()],
              _ => {}
-@@ -1061 @@
+@@ -1059 @@
              c,
              cfg::Clientbound::CustomPayload(cfg::CustomPayload {
                  channel: crate::lod_net::CHANNEL.into(),
@@ -13588,7 +13588,7 @@
              }),
          )?;
      }
-@@ -1069 @@
+@@ -1067 @@
      // Horizon client over the network, after both sides advertised the channel. A host with nothing to offer, a
      // memory connection and a client that never answers see no change at all.
      if brand == "horizon"
@@ -13597,7 +13597,7 @@
          && let Some((offer, source)) = crate::join_mods::host_offer()
      {
          offer_mods(c, offer, source, &mut info)?;
-@@ -1081 @@
+@@ -1079 @@
      let mut native_checked = false;
      if brand == "horizon"
          && (horizon_protocol::mod_list::native::has_shared(server_native)
@@ -13606,7 +13606,7 @@
      {
          send(
              c,
-@@ -1090 @@
+@@ -1088 @@
                  data: horizon_protocol::mod_list::native::CAPABILITIES.to_vec(),
              }),
          )?;
@@ -13625,7 +13625,7 @@
                      }
                      cfg::Serverbound::Pong(p) if p.id == 2 => break,
                      cfg::Serverbound::ClientInformation(i) => info = i,
-@@ -1106 @@
+@@ -1104 @@
                  }
              }
          }
@@ -13634,7 +13634,7 @@
              let snapshot =
                  horizon_protocol::mod_list::native::Snapshot::new(&server_mods, server_native)
                      .map_err(e)?;
-@@ -1114 @@
+@@ -1112 @@
                  c,
                  cfg::Clientbound::CustomPayload(cfg::CustomPayload {
                      channel: horizon_protocol::mod_list::native::CHANNEL.into(),
@@ -13657,7 +13657,7 @@
                              match horizon_protocol::mod_list::native::decode(&p.data) {
                                  Ok(snapshot) => client_snapshot = Some(snapshot),
                                  Err(_) => invalid_reply = true,
-@@ -1143 @@
+@@ -1141 @@
              } else if let Some(client_snapshot) = client_snapshot {
                  let difference =
                      horizon_protocol::mod_list::native::compare(&snapshot, &client_snapshot);
@@ -13666,7 +13666,7 @@
              } else {
                  Some("Native mod check failed: missing reply.".to_string())
              };
-@@ -1173 @@
+@@ -1171 @@
          // A client that does not answer has no mods to offer.
          let mut client_mods = Vec::new();
          loop {
@@ -13675,7 +13675,7 @@
              match decode_config(id, &payload).map_err(e)? {
                  cfg::Serverbound::CustomPayload(p)
                      if p.channel == horizon_protocol::mod_list::CHANNEL =>
-@@ -1186 @@
+@@ -1184 @@
              }
          }
          let difference = horizon_protocol::mod_list::compare(&server_mods, &client_mods);
@@ -13686,7 +13686,7 @@
              let reason = horizon_world::nbt::Tag::String(horizon_world::nbt::JavaString::from(
                  text.as_str(),
              ));
-@@ -1209 @@
+@@ -1207 @@
          send(c, cfg::Clientbound::Ping(cfg::Ping { id: 0 }))?;
          let mut content_match = false;
          loop {
@@ -13695,7 +13695,7 @@
              match decode_config(id, &payload).map_err(e)? {
                  cfg::Serverbound::CustomPayload(p)
                      if p.channel == crate::content_identity::CHANNEL =>
-@@ -1234 @@
+@@ -1232 @@
              return Ok(None);
          }
      }
@@ -13704,7 +13704,7 @@
          send(c, cfg::Clientbound::RegistryData(packet))?;
      }
      send(c, cfg::Clientbound::UpdateTags(sync.tags.clone()))?;
-@@ -1254 @@
+@@ -1252 @@
      }
      send(c, cfg::Clientbound::FinishConfiguration(Empty))?;
      loop {
@@ -13713,7 +13713,7 @@
          match decode_config(id, &payload).map_err(e)? {
              cfg::Serverbound::FinishConfiguration(_) => break,
              cfg::Serverbound::ClientInformation(i) => info = i,
-@@ -1325 @@
+@@ -1342 @@
          required: pack.required,
          prompt: pack.prompt.as_ref().map(component_tag),
      };
@@ -13722,7 +13722,7 @@
          .map_err(e)?;
      wait_alive(c, |packet| match packet {
          Ok(cfg::Serverbound::ResourcePack(r)) if !matches!(r.action, 3 | 4) => {
-@@ -1403 @@
+@@ -1420 @@
  }
  
  fn play(c: Connection, shared: &Arc<Shared>, parts: Parts, address: std::net::SocketAddr) {
@@ -13740,7 +13740,7 @@
      let (tx, rx) = channel();
      let pending = Arc::new(AtomicUsize::new(0));
      let latency = Arc::new(AtomicI32::new(0));
-@@ -1420 @@
+@@ -1437 @@
      {
          sender.capture_fences = capture_fences;
      }
@@ -13749,7 +13749,7 @@
          sender.watch = Some(Arc::new(KeepAliveWatch {
              start,
              alive: alive.clone(),
-@@ -1486 @@
+@@ -1503 @@
          let _ = t.join();
      }
      shared.closing.fetch_sub(1, Ordering::AcqRel);
@@ -13758,7 +13758,7 @@
  }
  
  /// RateKickingConnection: the packets a second a connection averages, as
-@@ -1632 @@
+@@ -1649 @@
      use horizon_protocol::mod_transfer::{self as transfer, HostEvent, HostSession};
      let e = |e: horizon_protocol::Error| e.to_string();
      let payload = |data: Vec<u8>| {
@@ -13823,7 +13823,7 @@
                          }
                      }
                      HostEvent::Finished => break,
-@@ -1821 @@
+@@ -1838 @@
                  }
              }
              Ok(Out::Disconnect(reason)) => {
@@ -13833,7 +13833,7 @@
                  std::thread::sleep(Duration::from_millis(50));
                  break;
              }
-@@ -1842 @@
+@@ -1859 @@
          // this thread may be blocked on a client that stopped reading.
          if sent_at.is_none() && now >= next {
              let id = i64::try_from(start.elapsed().as_millis()).unwrap_or(0);
@@ -13843,7 +13843,7 @@
                  .is_err()
              {
                  break;
-@@ -1852 @@
+@@ -1869 @@
              next = now + KEEP_ALIVE_EVERY;
          }
      }
@@ -13852,7 +13852,7 @@
  }
  
  #[cfg(test)]
-@@ -2147 @@
+@@ -2182 @@
          assert!(rate.next > t0 + Duration::from_secs(10));
      }
  }
@@ -15093,41 +15093,25 @@
 +}
 --- a/crates/horizon-client/src/lan/entity.rs
 +++ b/crates/horizon-client/src/lan/entity.rs
-@@ -379 @@
-                 slots: self.equipment.clone(),
-             }));
-         }
--        if !riding.passengers(e.id).is_empty() {
--            out.push(riding.set_passengers(e.id));
-+        if !__yoake_cs_22292(&*riding, e.id).is_empty() {
-+            out.push(__yoake_cs_22293(&*riding, e.id));
-         }
-         if let Some(&vehicle) = riding.vehicle.get(&e.id) {
--            out.push(riding.set_passengers(vehicle));
-+            out.push(__yoake_cs_22294(&*riding, vehicle));
-         }
-         // A leashed entity: who holds its lead.
-         if let Some(dest) = e.leash {
-@@ -2136 @@
+@@ -369 @@
+         riding: &Riding,
+         out: &mut Vec<play::Clientbound>,
+     ) {
+-        self.pairing_with(e, kind, &self.meta, true, riding, out);
++        __yoake_cs_24677(&*self, e, kind, &self.meta, true, riding, out);
+     }
+ 
+     fn pairing_stock(
+@@ -2286 @@
          );
      }
  }
 +
 +// Generated by yoake-hook-codemod: call-site shims (hook-ledger). Do not edit by hand.
-+#[cfg_attr(not(feature = "yoake-callsite-baseline"), yoake_hook_macro::yoake_hook(id = 22292, key = "fn:2138@call:horizon_client_lib::lan::entity::Riding::passengers", kind = callsite))]
++#[cfg_attr(not(feature = "yoake-callsite-baseline"), yoake_hook_macro::yoake_hook(id = 24677, key = "fn:2138@call:horizon_client_lib::lan::entity::ServerEntity::pairing_with", kind = callsite))]
 +#[inline(always)]
-+fn __yoake_cs_22292<'r>(recv: &'r crate::lan::entity::Riding, a0: i32) -> &'r [i32] {
-+    crate::lan::entity::Riding::passengers(recv, a0)
-+}
-+#[cfg_attr(not(feature = "yoake-callsite-baseline"), yoake_hook_macro::yoake_hook(id = 22293, key = "fn:2138@call:horizon_client_lib::lan::entity::Riding::set_passengers", kind = callsite))]
-+#[inline(always)]
-+fn __yoake_cs_22293(recv: &crate::lan::entity::Riding, a0: i32) -> horizon_protocol::packets::play::Clientbound {
-+    crate::lan::entity::Riding::set_passengers(recv, a0)
-+}
-+#[cfg_attr(not(feature = "yoake-callsite-baseline"), yoake_hook_macro::yoake_hook(id = 22294, key = "fn:2138@call:horizon_client_lib::lan::entity::Riding::set_passengers#1", kind = callsite))]
-+#[inline(always)]
-+fn __yoake_cs_22294(recv: &crate::lan::entity::Riding, a0: i32) -> horizon_protocol::packets::play::Clientbound {
-+    crate::lan::entity::Riding::set_passengers(recv, a0)
++fn __yoake_cs_24677(recv: &crate::lan::entity::ServerEntity, a0: &crate::lan::entity::EntityState, a1: i32, a2: &[(u8, i32, horizon_protocol::entity_data::Value)], a3: bool, a4: &crate::lan::entity::Riding, a5: &mut std::vec::Vec<horizon_protocol::packets::play::Clientbound>) {
++    crate::lan::entity::ServerEntity::pairing_with(recv, a0, a1, a2, a3, a4, a5)
 +}
 --- a/crates/horizon-client/src/lan/far.rs
 +++ b/crates/horizon-client/src/lan/far.rs
@@ -15971,16 +15955,7 @@
              None => serde_json::json!({ "text": shown }),
          };
          c["click_event"] =
-@@ -512 @@
-     if let Some(id) = types.get(kind) {
-         return Some(*id);
-     }
--    let id = sync.builtin.get("minecraft:entity_type")?.id(kind)?;
-+    let id = __yoake_cs_22332(&*__yoake_cs_22331(&sync.builtin, "minecraft:entity_type")?, kind)?;
-     types.insert(kind.to_owned(), id);
-     Some(id)
- }
-@@ -620 @@
+@@ -642 @@
  
  impl Hub {
      pub fn new(lan: Lan, sync: Arc<SyncData>, encoder: ChunkEncoder, config: HubConfig) -> Self {
@@ -15998,7 +15973,7 @@
          let world_allow_commands = !config.integrated;
          Self {
              lan,
-@@ -755 @@
+@@ -777 @@
      /// (ChunkMap.getPlayerViewDistance).
      pub fn set_view_distance(&mut self, distance: i32) {
          self.config.view_distance = distance;
@@ -16009,7 +15984,7 @@
          for g in &mut self.guests {
              g.view_distance = i32::from(g.info.view_distance).clamp(2, self.config.view_distance);
              g.center = None;
-@@ -1139 @@
+@@ -1161 @@
          let mut guest = Guest::new(j, entity_id, ctx.spawn, self.config.view_distance);
          guest.last_action_tick = self.ticks;
          guest.game_mode = self.config.default_game_mode;
@@ -16018,7 +15993,7 @@
          guest.joined_tick = self.ticks;
          guest.position = ctx.spawn;
          guest.previous_position = ctx.spawn;
-@@ -1237 @@
+@@ -1259 @@
          let Some(i) = self.guests.iter().position(|g| g.conn == conn) else {
              return;
          };
@@ -16107,7 +16082,7 @@
              icon: self.lan.shared.config.favicon.clone(),
          }));
          // The player list: everyone already here, then the newcomer to all.
-@@ -1308 @@
+@@ -1330 @@
          let permission = self.guests[i].permission;
          let mut hidden = Vec::new();
          for o in self.guests.iter().filter(|o| o.conn != conn && o.placed) {
@@ -16121,7 +16096,7 @@
                  o.uuid,
                  &o.name,
                  o.game_mode,
-@@ -1320 @@
+@@ -1342 @@
              ));
          }
          self.guests[i].tab_hidden.extend(hidden);
@@ -16169,7 +16144,7 @@
      }
  
      /// `ServerPlayer.sendPostEffects`: the player's `/posteffect` chains.
-@@ -1358 @@
+@@ -1380 @@
          let g = &mut self.guests[i];
          g.post_effects_dirty = false;
          let effects = g.post_effects.clone();
@@ -16191,7 +16166,7 @@
              id: g.entity_id,
              effect,
              amplifier: e.amplifier,
-@@ -1443 @@
+@@ -1465 @@
          let removed: Vec<&'static str> = g
              .sent_effects
              .iter()
@@ -16221,7 +16196,7 @@
          }
          self.guests[i].sent_effects = sent;
      }
-@@ -1552 @@
+@@ -1574 @@
      /// Commands.sendCommands: the command tree for this player.
      fn send_commands(&self, i: usize) {
          let g = &self.guests[i];
@@ -16230,7 +16205,7 @@
          // What the mods took out is not in the tree the client gets.
          if !g.hidden_commands.is_empty() {
              let hidden: Vec<i32> = packet
-@@ -1567 @@
+@@ -1589 @@
                  root.children.retain(|c| !hidden.contains(c));
              }
          }
@@ -16239,7 +16214,7 @@
      }
  
      /// The command tree a player of this permission level gets.
-@@ -1618 @@
+@@ -1640 @@
          self.guests[i].above_ground_ticks = 0;
          use play::relative::{DELTA_X, DELTA_Y, DELTA_Z, ROTATE_DELTA, X_ROT, Y_ROT};
          let relatives = Y_ROT | X_ROT | DELTA_X | DELTA_Y | DELTA_Z | ROTATE_DELTA;
@@ -16248,7 +16223,7 @@
      }
  
      /// ServerGamePacketListenerImpl.teleport with `relatives`: the rotation
-@@ -1637 @@
+@@ -1659 @@
          use play::relative::{DELTA_X, DELTA_Y, DELTA_Z};
          g.awaiting_keeps_motion = relatives & (DELTA_X | DELTA_Y | DELTA_Z) != 0;
          let turn = relatives & (play::relative::Y_ROT | play::relative::X_ROT) != 0;
@@ -16257,7 +16232,7 @@
              teleport: id,
              position: g.position,
              delta: [0.0; 3],
-@@ -1677 @@
+@@ -1699 @@
                  [Holder::Level, Holder::Player(g.uuid)],
              );
          }
@@ -16284,7 +16259,7 @@
                  event: game_event::THUNDER_LEVEL,
                  param: w.thunder_level.1,
              }));
-@@ -1702 @@
+@@ -1724 @@
                  (game_event::RAIN_LEVEL, 0.0),
                  (game_event::THUNDER_LEVEL, 0.0),
              ] {
@@ -16307,7 +16282,7 @@
              steps: ctx.tick_steps.remaining,
          }));
      }
-@@ -1724 @@
+@@ -1746 @@
      fn time_packet(&self, ctx: &TickCtx) -> C {
          let world = &*ctx.world;
          let rate = ctx.clock_rate;
@@ -16325,7 +16300,7 @@
          let shared_overworld = active == Some(overworld);
          C::SetTime(play::SetTime {
              game_time: world.game_time,
-@@ -1752 @@
+@@ -1774 @@
                              total_ticks: if shared_overworld || ctx.clock.is_none() {
                                  world.day_time
                              } else {
@@ -16335,7 +16310,7 @@
                                      .unwrap_or(world.day_time)
                              },
                              partial_tick: 0.0,
-@@ -1788 @@
+@@ -1810 @@
          );
      }
      pub fn send_inventory(&mut self, i: usize) {
@@ -16353,7 +16328,7 @@
              container: 0,
              state: g.menu_state,
              items: net,
-@@ -1809 @@
+@@ -1831 @@
      /// A whole tick with one level: the network, the level, then the
      /// players' latencies.
      pub fn tick(&mut self, ctx: &mut TickCtx) -> Vec<HostEvent> {
@@ -16368,7 +16343,7 @@
          events
      }
  
-@@ -1942 @@
+@@ -1964 @@
      /// earlier (`drain_packets`) so scheduled ticks see what they placed.
      pub fn tick_level(&mut self, ctx: &mut TickCtx) -> Vec<HostEvent> {
          let events = Vec::new();
@@ -16377,7 +16352,7 @@
              // ServerTickRateManager broadcasts a change to the players there
              // are; one who joins later is sent the state as it is then
              // (`updateJoiningPlayer`).
-@@ -1958 @@
+@@ -1980 @@
                  let _ = ctx.world.block_log.take();
                  let _ = ctx.world.light_log.take();
                  if let Some(far) = self.far.as_mut() {
@@ -16386,7 +16361,7 @@
                  }
                  ctx.world.bulk_log.clear();
              }
-@@ -1970 @@
+@@ -1992 @@
          if ctx.world.light_log.is_none() {
              ctx.world.light_log = Some(Default::default());
          }
@@ -16425,7 +16400,7 @@
              }
          }
          events
-@@ -2055 @@
+@@ -2077 @@
          if !g.placed {
              return g;
          }
@@ -16467,7 +16442,7 @@
          }
          g
      }
-@@ -2109 @@
+@@ -2131 @@
          // MinecraftServer.tickServer: the game time every 20 ticks
          // (forceGameTimeSynchronization, no clocks).
          if self.ticks.is_multiple_of(20) {
@@ -16476,7 +16451,7 @@
                  game_time: world.game_time,
                  clocks: Vec::new(),
              }));
-@@ -2121 @@
+@@ -2143 @@
          let clock = ctx
              .clock
              .as_deref()
@@ -16491,7 +16466,7 @@
                  game_time: world.game_time,
                  clocks: vec![play::ClockState {
                      clock,
-@@ -2138 @@
+@@ -2160 @@
          }
          self.last_clock = day;
          self.last_rate = rate;
@@ -16505,7 +16480,7 @@
                  event: if w.raining {
                      game_event::START_RAINING
                  } else {
-@@ -2152 @@
+@@ -2174 @@
              }));
          }
          if (w.rain_level.1 - rain).abs() > f32::EPSILON {
@@ -16521,7 +16496,7 @@
                  event: game_event::THUNDER_LEVEL,
                  param: w.thunder_level.1,
              }));
-@@ -2177 @@
+@@ -2199 @@
      fn update_chunks(&mut self, ctx: &TickCtx) {
          let world = &*ctx.world;
          if let Some(far) = self.far.as_mut() {
@@ -16537,7 +16512,7 @@
                  if let Some(batch) = self.next_batch(i, world, ctx.streaming) {
                      batches.push((i, batch));
                  }
-@@ -2214 @@
+@@ -2236 @@
                  (i, taken, far, bodies)
              })
              .collect();
@@ -16553,7 +16528,7 @@
                  })
              })
              .collect();
-@@ -2233 @@
+@@ -2255 @@
              let memory = g.address == super::conn::MEMORY_ADDRESS;
              if size > 0 {
                  g.batch_quota -= size as f32;
@@ -16562,7 +16537,7 @@
                  g.sender.send_many(batch.into_iter().map(|body| match body {
                      Body::Level(j) => {
                          if memory {
-@@ -2248 @@
+@@ -2270 @@
                      }
                      Body::Saved(body) => body.to_vec(),
                  }));
@@ -16571,7 +16546,7 @@
                      size: size as i32,
                  }));
                  g.unacknowledged += 1;
-@@ -2281 @@
+@@ -2303 @@
      /// the view forgotten and the ones that entered it queued, closest first;
      /// past the view, the far ring's.
      fn update_view(&mut self, i: usize) {
@@ -16591,7 +16566,7 @@
                  x: cx,
                  z: cz,
              }));
-@@ -2305 @@
+@@ -2327 @@
          for (x, z) in forget {
              g.sent_chunks.remove(&(x, z));
              g.far_sent_chunks.remove(&(x, z));
@@ -16600,7 +16575,7 @@
          }
          // Far columns have no attachment snapshots. Resend them as near chunks
          // after they enter the view, once the level has loaded them.
-@@ -2433 @@
+@@ -2455 @@
          changes.sort_unstable_by_key(|&(column, _)| column);
          for ((x, z), sections) in changes {
              if let Some(far) = self.far.as_mut() {
@@ -16616,7 +16591,7 @@
                          && tracked(g, x, z)
                          && (-1..=1).any(|dz| (-1..=1).any(|dx| !tracked(g, x + dx, z + dz)))
                  })
-@@ -2450 @@
+@@ -2472 @@
              let Some(chunk) = world.chunks.get(&(x, z)) else {
                  continue;
              };
@@ -16628,7 +16603,7 @@
              }
          }
      }
-@@ -2468 @@
+@@ -2490 @@
              keys
          };
          if !bulk.is_empty() {
@@ -16663,7 +16638,7 @@
                  }
                  if recording {
                      // The prediction's replay excuses a client near the column: any of its blocks may have
-@@ -2510 @@
+@@ -2532 @@
                              column(g.position[2], key.1),
                          ];
                          if super::prediction::near(g.position, at, slack) {
@@ -16672,7 +16647,7 @@
                          }
                      }
                  }
-@@ -2530 @@
+@@ -2552 @@
          changes.sort_unstable();
          changes.dedup();
          // The prediction's replay excuses a client that hadn't seen a change near it.
@@ -16681,7 +16656,7 @@
          // Group by section.
          let mut sections: std::collections::BTreeMap<(i32, i32, i32), Vec<(i32, i32, i32)>> =
              Default::default();
-@@ -2542 @@
+@@ -2564 @@
          }
          for ((sx, sy, sz), positions) in sections {
              if let Some(far) = self.far.as_mut() {
@@ -16695,7 +16670,7 @@
                  })
                  .collect();
              if viewers.is_empty() {
-@@ -2556 @@
+@@ -2578 @@
                  let (x, y, z) = positions[0];
                  C::BlockUpdate(play::BlockUpdate {
                      pos: [x, y, z],
@@ -16704,7 +16679,7 @@
                  })
              } else {
                  C::SectionBlocksUpdate(play::SectionBlocksUpdate {
-@@ -2564 @@
+@@ -2586 @@
                      changes: positions
                          .iter()
                          .map(|&(x, y, z)| {
@@ -16713,7 +16688,7 @@
                              state << 12
                                  | i64::from(x & 15) << 8
                                  | i64::from(z & 15) << 4
-@@ -2573 @@
+@@ -2595 @@
                          .collect(),
                  })
              };
@@ -16725,7 +16700,7 @@
              }
              if recording {
                  for &i in &viewers {
-@@ -2588 @@
+@@ -2610 @@
                      }));
                      for &(x, y, z) in &positions {
                          if super::prediction::near(g.position, [x, y, z], slack) {
@@ -16734,7 +16709,7 @@
                          }
                      }
                  }
-@@ -2596 @@
+@@ -2618 @@
              // Block entities with data the client shows.
              for &(x, y, z) in &positions {
                  // A decorated pot is no block entity: its tag is the chunk's saved one.
@@ -16745,7 +16720,7 @@
                      None => world
                          .chunks
                          .get(&(x >> 4, z >> 4))
-@@ -2606 @@
+@@ -2628 @@
                  let Some(tag) = tag else {
                      continue;
                  };
@@ -16769,7 +16744,7 @@
                  }
              }
          }
-@@ -2780 @@
+@@ -2802 @@
          ];
          for (slot, item) in slots {
              if item.is_some() {
@@ -16778,7 +16753,7 @@
              }
          }
          out
-@@ -2806 @@
+@@ -2828 @@
      fn track_entities(&mut self, ctx: &mut TickCtx) {
          let mut all: Vec<EntityState> = Vec::with_capacity(ctx.entities.len() + self.guests.len());
          let placed: Vec<usize> = (0..self.guests.len())
@@ -16787,7 +16762,7 @@
              .collect();
          let guest_states: Vec<_> = placed
              .into_iter()
-@@ -2820 @@
+@@ -2842 @@
                      )
                  };
                  let equipment =
@@ -16799,7 +16774,7 @@
                      g.entity_id,
                      g.uuid,
                      g.position,
-@@ -2841 @@
+@@ -2863 @@
                          .unwrap_or_default(),
                      &g.effects.list,
                  );
@@ -16808,7 +16783,7 @@
                  state.watching = g.watching;
                  state.hidden = self.hidden.get(&g.uuid).copied();
                  stuck_meta(&mut state, g.stuck);
-@@ -2856 @@
+@@ -2878 @@
              .entities
              .remove(&self.config.dimension)
              .unwrap_or_default();
@@ -16817,7 +16792,7 @@
              &entities,
              noted_last_tick(self.joined.remove(&self.config.dimension), self.ticks),
          );
-@@ -2867 @@
+@@ -2889 @@
          let here = |g: &Guest| g.placed && g.dimension == *dimension;
          outs.resize_with(self.guests.iter().filter(|g| here(g)).count(), Vec::new);
          // The prediction's replay excuses a client that may still have an entity that left it.
@@ -16826,16 +16801,16 @@
          let mut gone = std::mem::take(&mut self.entity_gone);
          gone.resize_with(outs.len(), Vec::new);
          let mut viewers: Vec<Viewer> = self
-@@ -2877 @@
+@@ -2899 @@
              .zip(outs.iter_mut().zip(gone.iter_mut()))
              .map(|(g, (out, gone))| Viewer {
                  entity_id: g.entity_id,
 -                spectator: g.spectator(),
 +                spectator: __yoake_cs_22478(&*g),
                  permission: g.permission,
+                 stock: g.brand != "horizon",
                  moved: std::mem::take(&mut g.moved),
-                 position: g.position,
-@@ -2895 @@
+@@ -2918 @@
          });
          drop(viewers);
          for (g, out) in self.guests.iter().filter(|g| here(g)).zip(outs.iter_mut()) {
@@ -16844,7 +16819,7 @@
          }
          let ticks = self.ticks;
          for (g, gone) in self
-@@ -2912 @@
+@@ -2935 @@
                  if let Some(record) = g.anticheat.record.as_deref_mut()
                      && super::prediction::near(g.position, block, slack)
                  {
@@ -16853,7 +16828,7 @@
                  }
              }
          }
-@@ -2936 @@
+@@ -2959 @@
          g.sleeping = false;
          g.sleep_timer = 100;
          if g.sent_bed.take().is_some() {
@@ -16862,7 +16837,7 @@
                  id: g.entity_id,
                  values: vec![
                      (6, serializer::POSE, Value::Id(0)),
-@@ -2946 @@
+@@ -2969 @@
          }
          let (id, at) = (g.entity_id, g.position);
          // ClientboundAnimatePacket.WAKE_UP.
@@ -16871,7 +16846,7 @@
              at,
              128.0,
              &C::Animate(play::Animate { id, action: 0 }),
-@@ -2964 @@
+@@ -2987 @@
          if g.bed != g.sent_bed {
              g.sent_bed = g.bed;
              let pose = if g.bed.is_some() { 2 } else { 0 };
@@ -16880,7 +16855,7 @@
                  id: g.entity_id,
                  values: vec![
                      (6, serializer::POSE, Value::Id(pose)),
-@@ -2977 @@
+@@ -3000 @@
          let first_tick = self.guests[i].sent_health.is_none();
          if first_tick {
              let g = &self.guests[i];
@@ -16889,7 +16864,7 @@
                  id: g.entity_id,
                  values: vec![(9, serializer::FLOAT, Value::Float(g.health))],
              }));
-@@ -2989 @@
+@@ -3012 @@
                      .map_or(0, |d| d.as_millis() as i64);
                  let sync = self.sync.clone();
                  let g = &mut self.guests[i];
@@ -16920,7 +16895,7 @@
              }
          }
          // ServerEntity.sendDirtyEntityData: the player's changed attribute
-@@ -3027 @@
+@@ -3050 @@
          {
              let values = super::attributes::take_dirty(&mut m.attributes);
              if !values.is_empty() {
@@ -16929,7 +16904,7 @@
                      id: g.entity_id,
                      values,
                  }));
-@@ -3038 @@
+@@ -3061 @@
          // them (bubbles, golden hearts).
          let g = &mut self.guests[i];
          if let Some(m) = g.motion.as_ref() {
@@ -16938,7 +16913,7 @@
              let mut values = Vec::new();
              if now.0 != g.sent_air.0 {
                  values.push((1, serializer::INT, Value::Int(now.0)));
-@@ -3048 @@
+@@ -3071 @@
              }
              if !values.is_empty() {
                  g.sent_air = now;
@@ -16947,7 +16922,7 @@
                      id: g.entity_id,
                      values,
                  }));
-@@ -3061 @@
+@@ -3084 @@
          let shared = shared_flags(g.sneaking, g.sprinting, &guest_body(g));
          if shared != g.sent_shared {
              g.sent_shared = shared;
@@ -16956,7 +16931,7 @@
                  id: g.entity_id,
                  values: vec![(0, serializer::BYTE, Value::Byte(shared))],
              }));
-@@ -3072 @@
+@@ -3095 @@
          if g.shoulders != g.sent_shoulders {
              let values = shoulder_changes(g.shoulders, g.sent_shoulders);
              g.sent_shoulders = g.shoulders;
@@ -16965,7 +16940,7 @@
                  id: g.entity_id,
                  values,
              }));
-@@ -3082 @@
+@@ -3105 @@
          let g = &mut self.guests[i];
          let health = (g.health, g.food, g.saturation == 0.0);
          if g.sent_health != Some(health) {
@@ -16974,7 +16949,7 @@
                  health: g.health,
                  food: g.food,
                  saturation: g.saturation,
-@@ -3095 @@
+@@ -3118 @@
          };
          if self.guests[i].sent_xp != Some(xp) {
              let g = &mut self.guests[i];
@@ -16983,7 +16958,7 @@
                  progress: xp.0,
                  level: xp.1,
                  total: xp.2,
-@@ -3105 @@
+@@ -3128 @@
          // AbstractContainerMenu.broadcastChanges for the inventory menu.
          let mut changes = Vec::new();
          for slot in 0..46 {
@@ -17003,7 +16978,7 @@
                  container: 0,
                  state: g.menu_state,
                  slot: slot as i16,
-@@ -3132 @@
+@@ -3155 @@
          let settings = (0..4)
              .flat_map(|b| [u8::from(book.open[b]), u8::from(book.filtering[b])])
              .collect();
@@ -17017,7 +16992,7 @@
          ));
      }
  
-@@ -3143 @@
+@@ -3166 @@
      /// reload against the new data, then everyone gets the tags, and each
      /// player the recipes and their recipe book again.
      pub fn reload_resources(&mut self, sync: Arc<SyncData>) {
@@ -17026,7 +17001,7 @@
          self.sync = sync.clone();
          let now = std::time::SystemTime::now()
              .duration_since(std::time::UNIX_EPOCH)
-@@ -3158 @@
+@@ -3181 @@
              }
              g.advancements_visible.clear();
              g.advancements_changed.clear();
@@ -17043,7 +17018,7 @@
              }
              self.native_advancement_grants.push(TickGrants {
                  player: g.uuid,
-@@ -3174 @@
+@@ -3197 @@
              });
          }
          // broadcastAll(ClientboundUpdateTagsPacket).
@@ -17065,7 +17040,7 @@
          }
      }
  
-@@ -3208 @@
+@@ -3231 @@
          let g = &mut self.guests[i];
          let mut unlocked = std::mem::take(&mut g.recipes_unlocked);
          // A recipe given and taken before this flush must not reappear.
@@ -17090,7 +17065,7 @@
          }
      }
  
-@@ -3238 @@
+@@ -3261 @@
                      _ => "minecraft:item",
                  };
                  Some((
@@ -17118,7 +17093,7 @@
      }
  
      // ---- incoming ------------------------------------------------------
-@@ -3637 @@
+@@ -3660 @@
              || !yaw.is_finite()
              || !pitch.is_finite()
          {
@@ -17160,7 +17135,7 @@
      }
  
      /// ServerGamePacketListenerImpl.handlePlayerPositionChange.
-@@ -3697 @@
+@@ -3720 @@
          if g.sleeping {
              if moved > 1.0 {
                  (g.yaw, g.pitch) = (yaw, pitch);
@@ -17169,7 +17144,7 @@
              }
              return;
          }
-@@ -3727 @@
+@@ -3750 @@
                          crate::java_text::double_to_string(d[1]),
                          crate::java_text::double_to_string(d[2])
                      )));
@@ -17185,7 +17160,7 @@
          if wrongly {
              let line = format!("{} moved wrongly!", self.guests[i].name);
              events.push(HostEvent::Warn(line));
-@@ -3741 @@
+@@ -3764 @@
          if refused {
              let g = &mut self.guests[i];
              (g.yaw, g.pitch) = (yaw, pitch);
@@ -17202,7 +17177,7 @@
                  Some(true) => {
                      let g = &mut self.guests[i];
                      (g.yaw, g.pitch) = (yaw, pitch);
-@@ -3767 @@
+@@ -3790 @@
              let g = &self.guests[i];
              to[1] - g.position[1] >= -0.03125
                  && !stands
@@ -17223,7 +17198,7 @@
          };
          let g = &mut self.guests[i];
          g.client_is_floating = floating;
-@@ -3793 @@
+@@ -3816 @@
          g.yaw = yaw;
          g.pitch = pitch.clamp(-90.0, 90.0);
          g.head_yaw = g.yaw;
@@ -17232,7 +17207,7 @@
          g.ticks = g.ticks.max(1);
      }
  
-@@ -3803 @@
+@@ -3826 @@
      /// move after joining, before the spawn chunks are generated) is not
      /// known to be air, so it never makes the player float.
      fn no_blocks_around(&self, i: usize, at: [f64; 3], world: &World) -> bool {
@@ -17241,7 +17216,7 @@
          let half = f64::from(d.width) / 2.0 + 0.0625;
          let lo = [at[0] - half, at[1] - 0.0625 - 0.55, at[2] - half];
          let hi = [
-@@ -3825 @@
+@@ -3848 @@
                  let line = format!("{} was kicked for floating too long!", g.name);
                  let conn = g.conn;
                  events.push(HostEvent::Warn(line));
@@ -17250,7 +17225,7 @@
              }
          } else {
              g.client_is_floating = false;
-@@ -3839 @@
+@@ -3862 @@
                  let line = format!("{} was kicked for floating a vehicle too long!", g.name);
                  let conn = g.conn;
                  events.push(HostEvent::Warn(line));
@@ -17259,7 +17234,7 @@
              }
          } else {
              g.vehicle_floating = false;
-@@ -3856 @@
+@@ -3879 @@
          let Some(binding) = ctx.collision else {
              return (false, false, false);
          };
@@ -17274,7 +17249,7 @@
          let (half, height) = (f64::from(d.width) / 2.0, f64::from(d.height));
          let at = |p: [f64; 3]| {
              Aabb::new(
-@@ -3890 @@
+@@ -3913 @@
                  g.on_ground,
                  // The mover's own sneaking, as CollisionContext.of(player):
                  // a sneaking player descends through scaffolding.
@@ -17287,7 +17262,7 @@
              && done.is_some_and(|done| {
                  let (dx, dz) = (movement.x - done.x, movement.z - done.z);
                  dx * dx + dz * dz > 0.0625
-@@ -3907 @@
+@@ -3930 @@
          // already touch.
          let shrink = f64::from(1.0E-5_f32);
          let shrink = Vec3::new(shrink, shrink, shrink);
@@ -17313,7 +17288,7 @@
                  .unwrap_or(true)
              {
                  return (fail, true, stands);
-@@ -3948 @@
+@@ -3971 @@
          world: &World,
          collision: Option<&BlockCollisionRegistry<'_>>,
      ) {
@@ -17338,7 +17313,7 @@
              && g.flying
              && let Some(binding) = collision
          {
-@@ -3970 @@
+@@ -3993 @@
                  binding,
                  subject: None,
              };
@@ -17360,7 +17335,7 @@
              actions: 4,
              entries: vec![play::PlayerInfo {
                  uuid,
-@@ -4012 @@
+@@ -4035 @@
      /// `onUpdateAbilities`). The abilities packets after carry it too, so a
      /// respawn or a game mode change keeps it.
      pub fn set_flying_speed(&mut self, conn: u32, speed: f32) {
@@ -17369,7 +17344,7 @@
              return;
          };
          g.flying_speed = speed;
-@@ -4020 @@
+@@ -4043 @@
          if let Some(motion) = g.motion.as_mut() {
              motion.flying_speed = speed;
          }
@@ -17378,7 +17353,7 @@
      }
  
      pub fn disconnect_all(&mut self) {
-@@ -4080 @@
+@@ -4103 @@
      /// level loading screen from the Respawn packet until the level info's "level chunks load
      /// start" event and the chunk under the player, so the packets follow vanilla's order.
      pub fn respawn(&mut self, i: usize, at: [f64; 3], ctx: &TickCtx) {
@@ -17389,7 +17364,7 @@
          let g = &mut self.guests[i];
          // PlayerList.respawn: into the level in place (the respawn level).
          g.dimension = self.config.dimension.clone();
-@@ -4092 @@
+@@ -4115 @@
          // ServerLevel.removePlayerImmediately: the dead player's
          // Entity.setRemoved (KILLED) stops its riding; the new player rides
          // nothing.
@@ -17427,7 +17402,7 @@
              spawn: info,
              keep: 0,
          }));
-@@ -4132 @@
+@@ -4155 @@
          g.far_sent_chunks.clear();
          g.chunk_queue.clear();
          g.far_queue.clear();
@@ -17451,7 +17426,7 @@
              progress: xp.0,
              level: xp.1,
              total: xp.2,
-@@ -4151 @@
+@@ -4174 @@
          // ServerPlayer.sendPostEffects.
          let list = g.post_effects.clone();
          g.post_effects_dirty = false;
@@ -17478,7 +17453,7 @@
      }
  
      /// The level the players are in: the server holds one at a time, and the
-@@ -4185 @@
+@@ -4208 @@
          (self.last_clock, self.last_rate, self.weather) =
              (entering.last_clock, entering.last_rate, entering.weather);
          self.config.dimension = dimension.to_owned();
@@ -17490,7 +17465,7 @@
      }
  
      /// ServerPlayer.teleport(TeleportTransition) into the level the hub now
-@@ -4210 @@
+@@ -4233 @@
          portal_cooldown: i32,
          ctx: &TickCtx,
      ) {
@@ -17507,7 +17482,7 @@
          g.sent_chunks.clear();
          g.far_sent_chunks.clear();
          g.chunk_queue.clear();
-@@ -4228 @@
+@@ -4251 @@
          }
          g.position = at;
          g.previous_position = at;
@@ -17527,7 +17502,7 @@
          if portal {
              // A teleport still pending from the old level is void: its late
              // acceptance must not move the player back there.
-@@ -4245 @@
+@@ -4268 @@
              g.landing = true;
              g.awaiting_teleport = None;
          } else {
@@ -17558,7 +17533,7 @@
          // lastSentExp, lastSentHealth and lastSentFood; the client's new
          // player starts with the default air and no absorption.
          g.sent_health = None;
-@@ -4269 @@
+@@ -4292 @@
          g.sent_air = (300, 0.0);
          g.sent_shared = 0;
          g.sent_shoulders = [None; 2];
@@ -17569,7 +17544,7 @@
              x: cx,
              z: cz,
          }));
-@@ -4282 @@
+@@ -4305 @@
      /// closes once its chunk is in) and TeleportTransition.PLAY_PORTAL_SOUND.
      pub fn land(&mut self, i: usize, at: [f64; 3]) {
          self.guests[i].landing = false;
@@ -17586,7 +17561,7 @@
              kind: 1032,
              pos: [0, 0, 0],
              data: 0,
-@@ -4392 @@
+@@ -4415 @@
  /// ClientboundTickingStatePacket: the tick rate and whether the game is frozen.
  fn ticking_state(rate: f32, frozen: bool) -> C {
      let mut w = horizon_protocol::buf::Writer::new();
@@ -17597,7 +17572,7 @@
      raw(ids::TICKING_STATE, w.data)
  }
  
-@@ -5294 @@
+@@ -5317 @@
          }
      }
  }
@@ -17612,16 +17587,6 @@
 +#[inline(always)]
 +fn __yoake_cs_22330(recv: &horizon_client_render::scoreboard::Team, a0: &serde_json::Value) -> serde_json::Value {
 +    horizon_client_render::scoreboard::Team::formatted_name_comp(recv, a0)
-+}
-+#[cfg_attr(not(feature = "yoake-callsite-baseline"), yoake_hook_macro::yoake_hook(id = 22331, key = "fn:2157@call:horizon_protocol::registry::Builtin::get", kind = callsite))]
-+#[inline(always)]
-+fn __yoake_cs_22331<'r>(recv: &'r horizon_protocol::registry::Builtin, a0: &str) -> std::option::Option<&'r horizon_protocol::registry::Ids> {
-+    horizon_protocol::registry::Builtin::get(recv, a0)
-+}
-+#[cfg_attr(not(feature = "yoake-callsite-baseline"), yoake_hook_macro::yoake_hook(id = 22332, key = "fn:2157@call:horizon_protocol::registry::Ids::id", kind = callsite))]
-+#[inline(always)]
-+fn __yoake_cs_22332(recv: &horizon_protocol::registry::Ids, a0: &str) -> std::option::Option<i32> {
-+    horizon_protocol::registry::Ids::id(recv, a0)
 +}
 +#[cfg_attr(not(feature = "yoake-callsite-baseline"), yoake_hook_macro::yoake_hook(id = 22333, key = "fn:2160@call:horizon_client_lib::lan::data::SyncData::id", kind = callsite))]
 +#[inline(always)]
@@ -19865,7 +19830,7 @@
 +}
 --- a/crates/horizon-client/src/lan/mod.rs
 +++ b/crates/horizon-client/src/lan/mod.rs
-@@ -389 @@
+@@ -390 @@
              }
              let bypass = self.config.bypasses_limit.as_ref().is_some_and(|b| b(uuid));
              let taken = online.len();
@@ -19874,7 +19839,7 @@
                  return Some(translatable("multiplayer.disconnect.server_full", &[]));
              }
              if social {
-@@ -397 @@
+@@ -398 @@
                  return None;
              }
          }
@@ -19887,7 +19852,7 @@
                  if std::time::Instant::now() > deadline {
                      return Some(translatable("multiplayer.disconnect.slow_login", &[]));
                  }
-@@ -446 @@
+@@ -447 @@
          use crate::server::json::Json;
          let motd = self.motd.lock().unwrap().clone();
          let online: Vec<(u128, String)> = self.online.lock().unwrap().clone();
@@ -19896,7 +19861,7 @@
          let mut players = vec![
              (
                  "max".to_owned(),
-@@ -456 @@
+@@ -457 @@
          ];
          if !self.config.hide_online_players && !online.is_empty() {
              let size = online.len().min(12);
@@ -19909,7 +19874,7 @@
                  sample.swap(i, j);
              }
              players.push((
-@@ -497 @@
+@@ -498 @@
                  Json::String(format!("data:image/png;base64,{}", base64(icon))),
              ));
          }
@@ -19922,7 +19887,7 @@
      }
  }
  
-@@ -582 @@
+@@ -583 @@
              _pinger: None,
          };
          if listen {
@@ -19931,7 +19896,7 @@
          }
          Ok(lan)
      }
-@@ -622 @@
+@@ -623 @@
              .name("horizon-lan-accept".into())
              .spawn(move || accept_loop(listener, accept_shared, &accept_stop))?;
          self._pinger = if announce {
@@ -19940,7 +19905,7 @@
          } else {
              None
          };
-@@ -684 @@
+@@ -685 @@
  }
  impl Drop for Lan {
      fn drop(&mut self) {
@@ -19949,7 +19914,7 @@
      }
  }
  
-@@ -814 @@
+@@ -815 @@
          let _ = oldest.stream.shutdown(std::net::Shutdown::Both);
          waiting.remove(0);
          drop(waiting);
@@ -19958,7 +19923,7 @@
          true
      }
  
-@@ -833 @@
+@@ -834 @@
          let Some(log) = &self.config.log else {
              return;
          };
@@ -19967,7 +19932,7 @@
          let before_play = self.waiting.lock().unwrap_or_else(|e| e.into_inner()).len();
          let closing = self.closing.load(Ordering::Acquire);
          let mut held: Vec<(IpAddr, usize)> = self
-@@ -1066 @@
+@@ -1067 @@
          assert_eq!(shared.connections.load(Ordering::Acquire), 0);
      }
  }
@@ -25280,7 +25245,7 @@
          for o in &mut self.offers {
              o.uses = 0;
          }
-@@ -196 @@
+@@ -304 @@
          a: &mut Option<ItemStack>,
          b: &mut Option<ItemStack>,
      ) -> bool {
@@ -25293,7 +25258,7 @@
          if let Some(s) = a.as_mut() {
              s.count -= n;
              if s.count == 0 {
-@@ -246 @@
+@@ -354 @@
      }
      let mut found = recipe_for(offers, items, a, b, hint);
      let mut active = found;
@@ -25308,7 +25273,7 @@
          _ => (active, None),
      }
  }
-@@ -378 @@
+@@ -491 @@
              .push(Event::Traded(index, Box::new(offer.clone())));
          let mut prices = false;
          if self.villager {
@@ -25317,7 +25282,7 @@
              self.xp += offer.xp;
              self.last_traded = true;
              if can_level_up(self.level) && self.xp >= max_xp(self.level) {
-@@ -386 @@
+@@ -500 @@
                  if let Some(env) = env {
                      let set = Trades::set_for(&self.profession, self.level);
                      if env.trades.sets.contains_key(&set) {
@@ -25329,7 +25294,7 @@
                          prices = true;
                      }
                  }
-@@ -399 @@
+@@ -518 @@
                  self.events.push(Event::Orb(pop));
              }
          } else if offer.reward_exp {
@@ -25338,7 +25303,7 @@
              self.events.push(Event::Orb(pop));
          }
          prices
-@@ -410 @@
+@@ -529 @@
          items: &Items,
          set: &str,
      ) -> Vec<MerchantOffer> {
@@ -25347,7 +25312,7 @@
              return Vec::new();
          };
          let Some(mut random) = self.sequences.remove(&sequence) else {
-@@ -423 @@
+@@ -542 @@
              origin: self.origin,
              maps: env.maps,
          };
@@ -25356,7 +25321,7 @@
          self.sequences.insert(sequence, random);
          out
      }
-@@ -715 @@
+@@ -834 @@
  }
  fn cost(items: &Items, v: &Value, additional: i32) -> ItemCost {
      let id = v["id"].as_str().unwrap_or("minecraft:air");
@@ -25370,8 +25335,8 @@
      }
      ItemCost { stack }
  }
-@@ -1186 @@
-         );
+@@ -1492 @@
+         }));
      }
  }
 +
