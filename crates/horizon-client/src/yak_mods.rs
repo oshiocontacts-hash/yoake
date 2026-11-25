@@ -98,6 +98,7 @@ impl Installed {
 struct Runtime {
     game_root: PathBuf,
     entries: Vec<Installed>,
+    sandbox_manifests: Vec<Manifest>,
     notices: Mutex<VecDeque<Notice>>,
     problems: Mutex<BTreeMap<String, String>>,
     startup_log: Vec<String>,
@@ -277,62 +278,59 @@ impl Runtime {
     }
 }
 
-fn resolve_runtime(runtime: &mut Runtime, build: &Build) {
-    if runtime.entries.is_empty() {
-        return;
-    }
-    let manifests: Vec<_> = runtime
-        .entries
-        .iter()
-        .map(|entry| entry.manifest.clone())
-        .collect();
-    let mut resolution = yak::resolve(&manifests);
-    let mut rejected = BTreeMap::<String, String>::new();
+#[derive(Debug, Default)]
+pub(crate) struct PackageResolution {
+    pub(crate) order: Vec<String>,
+    pub(crate) refused: BTreeMap<String, String>,
+}
+
+pub(crate) fn resolve_packages(manifests: &[Manifest]) -> PackageResolution {
+    let mut resolution = yak::resolve(manifests);
+    let mut result = PackageResolution::default();
     for issue in &resolution.issues {
         use yak::ResolutionIssue;
         match issue {
             ResolutionIssue::Duplicate { id } => {
-                rejected.entry(id.clone()).or_insert_with(|| format!("duplicate package id {id}"));
+                result.refused.entry(id.clone()).or_insert_with(|| format!("duplicate package id {id}"));
             }
             ResolutionIssue::Missing { dependent, dependency, required } => {
-                rejected.entry(dependent.clone()).or_insert_with(|| {
+                result.refused.entry(dependent.clone()).or_insert_with(|| {
                     format!("missing required dependency {dependency} {required}")
                 });
             }
             ResolutionIssue::Version { dependent, dependency, required, actual } => {
-                rejected.entry(dependent.clone()).or_insert_with(|| {
+                result.refused.entry(dependent.clone()).or_insert_with(|| {
                     format!("dependency {dependency} requires version {required}, installed version is {actual}")
                 });
             }
             ResolutionIssue::Conflict { first, second, required, actual } => {
                 let reason = format!("{first} conflicts with {second} {required}, installed version is {actual}");
-                rejected.entry(first.clone()).or_insert_with(|| reason.clone());
-                rejected.entry(second.clone()).or_insert(reason);
+                result.refused.entry(first.clone()).or_insert_with(|| reason.clone());
+                result.refused.entry(second.clone()).or_insert(reason);
             }
             ResolutionIssue::Cycle { ids } => {
                 for id in ids {
-                    rejected.entry(id.clone()).or_insert_with(|| {
+                    result.refused.entry(id.clone()).or_insert_with(|| {
                         format!("dependency cycle: {}", ids.join(", "))
                     });
                 }
             }
         }
     }
-    if !rejected.is_empty() {
+    if !result.refused.is_empty() {
         loop {
             let mut dependents = Vec::new();
-            for entry in &runtime.entries {
-                if rejected.contains_key(&entry.manifest.id) {
+            for manifest in manifests {
+                if result.refused.contains_key(&manifest.id) {
                     continue;
                 }
-                if let Some(dependency) = entry
-                    .manifest
+                if let Some(dependency) = manifest
                     .dependencies
                     .keys()
-                    .find(|dependency| rejected.contains_key(*dependency))
+                    .find(|dependency| result.refused.contains_key(*dependency))
                 {
                     dependents.push((
-                        entry.manifest.id.clone(),
+                        manifest.id.clone(),
                         format!("required dependency {dependency} was not loaded"),
                     ));
                 }
@@ -341,45 +339,63 @@ fn resolve_runtime(runtime: &mut Runtime, build: &Build) {
                 break;
             }
             for (id, reason) in dependents {
-                rejected.entry(id).or_insert(reason);
+                result.refused.entry(id).or_insert(reason);
             }
         }
-        let notices: Vec<_> = runtime
-            .entries
+        let retained: Vec<_> = manifests
             .iter()
-            .filter_map(|entry| {
-                rejected.get(&entry.manifest.id).map(|reason| {
-                    (
-                        entry
-                            .manifest
-                            .name_ja
-                            .as_ref()
-                            .unwrap_or(&entry.manifest.name)
-                            .clone(),
-                        format!("dependency resolution: {reason}"),
-                    )
-                })
-            })
+            .filter(|manifest| !result.refused.contains_key(&manifest.id))
+            .cloned()
             .collect();
-        for (name, reason) in notices {
-            runtime.reject(&name, &build.version.to_string(), &reason);
-        }
-        runtime.entries.retain(|entry| !rejected.contains_key(&entry.manifest.id));
-        let manifests: Vec<_> = runtime
-            .entries
-            .iter()
-            .map(|entry| entry.manifest.clone())
-            .collect();
-        resolution = yak::resolve(&manifests);
+        resolution = yak::resolve(&retained);
     }
     if !resolution.is_compatible() {
         let reason = format!("dependency resolution failed: {:?}", resolution.issues);
-        for entry in std::mem::take(&mut runtime.entries) {
-            let name = entry.manifest.name_ja.as_ref().unwrap_or(&entry.manifest.name);
-            runtime.reject(name, &build.version.to_string(), &reason);
+        for manifest in manifests {
+            result.refused.entry(manifest.id.clone()).or_insert_with(|| reason.clone());
         }
-        return;
+        result.order.clear();
+        return result;
     }
+    result.order = resolution.order;
+    result
+}
+
+fn resolve_runtime(runtime: &mut Runtime, build: &Build) {
+    #[cfg(feature = "yoake2-slice")]
+    let full = crate::yoake2_mods::discover_manifests(
+        &runtime.game_root.join("mods"),
+        horizon_client::join_mods::remote_key().as_deref(),
+    );
+    #[cfg(not(feature = "yoake2-slice"))]
+    let full = Vec::new();
+    resolve_runtime_with_full(runtime, build, &full);
+}
+
+fn resolve_runtime_with_full(
+    runtime: &mut Runtime,
+    build: &Build,
+    full: &[Manifest],
+) -> PackageResolution {
+    runtime.sandbox_manifests = runtime
+        .entries
+        .iter()
+        .map(|entry| entry.manifest.clone())
+        .collect();
+    let mut manifests = runtime.sandbox_manifests.clone();
+    manifests.extend(full.iter().cloned());
+    let resolution = resolve_packages(&manifests);
+    for manifest in &manifests {
+        if let Some(reason) = resolution.refused.get(&manifest.id) {
+            let name = manifest.name_ja.as_ref().unwrap_or(&manifest.name);
+            runtime.reject(
+                name,
+                &build.version.to_string(),
+                &format!("dependency resolution: {reason}"),
+            );
+        }
+    }
+    runtime.entries.retain(|entry| !resolution.refused.contains_key(&entry.manifest.id));
     let mut entries: BTreeMap<_, _> = runtime
         .entries
         .drain(..)
@@ -387,9 +403,10 @@ fn resolve_runtime(runtime: &mut Runtime, build: &Build) {
         .collect();
     runtime.entries = resolution
         .order
-        .into_iter()
-        .filter_map(|id| entries.remove(&id))
+        .iter()
+        .filter_map(|id| entries.remove(id))
         .collect();
+    resolution
 }
 
 /// Whether this process is a dedicated server (`--dedicated`): no client, no DLL mods.
@@ -437,13 +454,9 @@ fn installed_files(root: &Path) -> Result<Vec<String>, String> {
     Ok(names)
 }
 
-/// The runtime of a start in `game`. R1: the game root is known whenever a game dir is, **also without** `yoake-mods.txt`
-/// (a full-access-only install has none): the full-access loader finds `<root>/mods` through it. The sandboxed list is
-/// read only when there is a `yoake-mods.txt` or a remote host key.
-fn startup_runtime(game: &Path, has_remote_key: bool) -> Runtime {
-    if std::fs::symlink_metadata(game.join("yoake-mods.txt")).is_err_and(|error| error.kind() == ErrorKind::NotFound) && !has_remote_key {
-        return Runtime { game_root: game.to_path_buf(), ..Runtime::default() };
-    }
+/// The runtime of a start in `game`. Full-access manifests join dependency resolution even when a
+/// full-access-only install has no `yoake-mods.txt`; no package module executes during discovery.
+fn startup_runtime(game: &Path, _has_remote_key: bool) -> Runtime {
     match Build::current() {
         Ok(build) => Runtime::read(game, &build, &yak::trusted_keys()),
         Err(reason) => {
@@ -501,6 +514,14 @@ pub(crate) fn entries() -> &'static [Installed] {
     RUNTIME
         .get()
         .map(|runtime| runtime.entries.as_slice())
+        .unwrap_or_default()
+}
+
+#[cfg(feature = "yoake2-slice")]
+pub(crate) fn sandbox_manifests() -> &'static [Manifest] {
+    RUNTIME
+        .get()
+        .map(|runtime| runtime.sandbox_manifests.as_slice())
         .unwrap_or_default()
 }
 

@@ -288,6 +288,73 @@ fn dependencies_load_before_their_dependents() {
     assert!(runtime.startup_log.is_empty());
 }
 
+fn full_manifest(source: String) -> Manifest {
+    // A server-only full-access package: `side.client` must match the absent `wasm.client`.
+    Manifest::parse(&(source.replace("[side]\nclient = true", "[side]\nclient = false") + r#"
+[wasm]
+interface = "1.0"
+server = "bin/wasm/server.wasm"
+world = "full-access"
+"#)).unwrap()
+}
+
+fn test_runtime(sources: &[String]) -> Runtime {
+    Runtime {
+        entries: sources.iter().map(|source| {
+            Installed::new_for_test(PathBuf::new(), Manifest::parse(source).unwrap())
+        }).collect(),
+        ..Runtime::default()
+    }
+}
+
+#[test]
+fn a_full_access_package_with_a_missing_dependency_and_its_dependents_are_skipped() {
+    let full = full_manifest(dependent("full_addon", "absent_mod", "^1"));
+    let mut runtime = test_runtime(&[
+        dependent("sandbox_dependent", "full_addon", "^1"),
+        data("healthy_mod"),
+    ]);
+    let resolution = resolve_runtime_with_full(&mut runtime, &build(), &[full]);
+    assert!(resolution.refused["full_addon"].contains("missing required dependency absent_mod"));
+    assert!(resolution.refused["sandbox_dependent"].contains("full_addon was not loaded"));
+    assert_eq!(runtime.entries.iter().map(|entry| entry.manifest.id.as_str()).collect::<Vec<_>>(), ["healthy_mod"]);
+    assert_eq!(runtime.notices.lock().unwrap().len(), 2);
+}
+
+#[test]
+fn a_sandboxed_dependent_follows_a_full_access_dependency_in_the_shared_order() {
+    let full = full_manifest(data("full_base"));
+    let mut runtime = test_runtime(&[dependent("sandbox_addon", "full_base", "^1")]);
+    let resolution = resolve_runtime_with_full(&mut runtime, &build(), &[full]);
+    assert!(resolution.refused.is_empty());
+    assert_eq!(resolution.order, ["full_base", "sandbox_addon"]);
+    assert_eq!(runtime.entries.iter().map(|entry| entry.manifest.id.as_str()).collect::<Vec<_>>(), ["sandbox_addon"]);
+    assert!(runtime.notices.lock().unwrap().is_empty());
+}
+
+#[test]
+fn a_conflict_between_full_access_and_sandboxed_packages_refuses_both() {
+    let sandbox = data("sandbox_mod") + "\n[conflicts]\nfull_mod = \"^1\"\n";
+    let full = full_manifest(data("full_mod"));
+    let mut runtime = test_runtime(&[sandbox]);
+    let resolution = resolve_runtime_with_full(&mut runtime, &build(), &[full]);
+    assert!(resolution.refused.contains_key("sandbox_mod"));
+    assert!(resolution.refused.contains_key("full_mod"));
+    assert!(resolution.order.is_empty());
+    assert!(runtime.entries.is_empty());
+    assert_eq!(runtime.notices.lock().unwrap().len(), 2);
+}
+
+#[test]
+fn combined_sets_without_dependencies_keep_each_sets_discovery_order() {
+    let full = [full_manifest(data("full_second")), full_manifest(data("full_first"))];
+    let mut runtime = test_runtime(&[data("sandbox_second"), data("sandbox_first")]);
+    let resolution = resolve_runtime_with_full(&mut runtime, &build(), &full);
+    assert_eq!(resolution.order, ["sandbox_second", "sandbox_first", "full_second", "full_first"]);
+    assert_eq!(runtime.entries.iter().map(|entry| entry.manifest.id.as_str()).collect::<Vec<_>>(), ["sandbox_second", "sandbox_first"]);
+    assert!(runtime.notices.lock().unwrap().is_empty());
+}
+
 #[test]
 fn incompatible_entries_are_skipped_with_individual_consumable_notices() {
     let fixture = Fixture::new();

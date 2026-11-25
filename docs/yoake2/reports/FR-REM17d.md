@@ -80,6 +80,7 @@ No ABI ids, interface versions, WIT items, generated adapters or stubs changed. 
 - `crates/horizon-mods/src/yak/compatibility.rs`: stable discovery-order topological resolution.
 - `crates/horizon-client/src/yak_mods.rs`: startup resolution, selective refusal, notices and resolved load order.
 - `crates/horizon-client/src/yak_mods/tests.rs`: host-side dependency fixtures and tests.
+- `crates/horizon-client/src/yoake2_mods.rs`: full-access manifest discovery and approved loading in combined resolution order.
 - `docs/yoake2/reports/FR-REM17d.md`: this report.
 - `.lane/TASK.md`: findings and verification commands.
 
@@ -89,9 +90,16 @@ Added host tests for a missing dependency with a message, an incompatible depend
 
 Kimi did not run builds or tests because this lane forbids shell commands. Commands for Claude are in `.lane/TASK.md`.
 
+### Round 2: combined full-access and sandboxed resolution
+
+- Startup discovers local and host-scoped full-access manifests without executing modules and resolves them in one `yak::resolve()` pass with the original sandboxed set. The existing warning/toast path now reports dependency refusals for either kind, including transitively skipped required dependents.
+- The shared plan retains the original sandboxed manifests for the later approved-loader pass, so removing a refused sandboxed entry cannot make the other member of a cross-kind conflict load. The full-access loader projects the same global order onto its approved packages and reports resolver refusals as `Refusal::Dependency` without running those packages.
+- Local and host-scoped remote full-access folders are scanned together before any `yoake_init`; the existing local-wins rule for a repeated remote id is preserved. Approval, origin, signature, ABI, other-side and per-thread runtime checks still happen in the approved loader. Independent packages retain their previous discovery/file order.
+- Added resource-free host tests for an F package with a missing dependency and a skipped sandboxed dependent, a sandboxed package ordered after its F dependency, a cross-kind conflict refusing both, and unchanged order for independent combined sets. No builds or tests were run in this lane.
+
 ### Left / boundaries
 
-- Full-access packages remain on the separate approved-loader path in `yoake2_mods.rs`; the launcher intentionally splits them out before sandboxed resolution. This lane does not resolve dependencies among full-access packages or between full-access and sandboxed packages. Supporting that requires a follow-up that resolves the approved local and host-scoped full-access sets before any module executes.
+- Module initialization remains on the existing sandboxed startup and approved server/client lifecycle paths; those paths consume their respective order/refusal projections of the combined resolution rather than sharing a thread or runtime.
 - `GAP3*` was not present under `docs/` in this worktree; `GAP2.md` records dependency enforcement as unverified.
 
 ## 3. Villager trade-list event (lane TRADE)
@@ -183,4 +191,5 @@ horizon-mods --features yak --test yak 43; launcher `yoake_mods` 65. Nothing wit
   (the hook generator has no single-owner routing or `result<string,string>` hooks).
 * Villager trades: on level-up the whole session offer list is passed (not only the new offers); fires on the
   authoritative server only. No custom profession/POI.
-* yak: full-access packages stay on their approved-loader path, outside this resolver pass.
+* yak: no dependency-resolver follow-up remains from round 2. Builds, focused host tests and the existing approved-loader
+  integration tests still need Claude's shell run; nothing in this lane was run in a game.
