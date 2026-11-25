@@ -94,6 +94,43 @@ pub mod yoake_glue_tables {
         },
     };
 
+    /// Scalar fields of `crate::mobs::custom::render_state::LocalAnimPlay` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
+    pub static FIELDS_crate__mobs__custom__render_state__LocalAnimPlay: FieldTable<crate::mobs::custom::render_state::LocalAnimPlay> = FieldTable {
+        get: |t, f| match f {
+            0 => Some(t.animation as i64),
+            1 => Some(i64::from(t.length.to_bits())),
+            2 => Some(i64::from(t.elapsed.to_bits())),
+            3 => Some(i64::from(t.speed.to_bits())),
+            _ => None,
+        },
+        set: |t, f, v| match f {
+            0 => {
+                t.animation = v as usize;
+                true
+            }
+            2 => {
+                t.elapsed = f32::from_bits(v as u32);
+                true
+            }
+            3 => {
+                t.speed = f32::from_bits(v as u32);
+                true
+            }
+            _ => false,
+        },
+    };
+
+    /// The getters of `FIELDS_crate__mobs__custom__render_state__LocalAnimPlay` over a shared `&crate::mobs::custom::render_state::LocalAnimPlay` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__mobs__custom__render_state__LocalAnimPlay: RefFieldTable<crate::mobs::custom::render_state::LocalAnimPlay> = RefFieldTable {
+        get: |t, f| match f {
+            0 => Some(t.animation as i64),
+            1 => Some(i64::from(t.length.to_bits())),
+            2 => Some(i64::from(t.elapsed.to_bits())),
+            3 => Some(i64::from(t.speed.to_bits())),
+            _ => None,
+        },
+    };
+
     /// Scalar fields of `crate::mobs::custom::render_state::Memo` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__mobs__custom__render_state__Memo: FieldTable<crate::mobs::custom::render_state::Memo> = FieldTable {
         get: |t, f| match f {
@@ -239,16 +276,16 @@ pub mod yoake_glue_tables {
     /// Scalar fields of `crate::mobs::custom::render_state::MobRender` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__mobs__custom__render_state__MobRender: FieldTable<crate::mobs::custom::render_state::MobRender> = FieldTable {
         get: |t, f| match f {
-            11 => Some(t.used_frame as i64),
-            12 => Some(t.evaluations as i64),
+            12 => Some(t.used_frame as i64),
+            13 => Some(t.evaluations as i64),
             _ => None,
         },
         set: |t, f, v| match f {
-            11 => {
+            12 => {
                 t.used_frame = v as u64;
                 true
             }
-            12 => {
+            13 => {
                 t.evaluations = v as u64;
                 true
             }
@@ -259,8 +296,8 @@ pub mod yoake_glue_tables {
     /// The getters of `FIELDS_crate__mobs__custom__render_state__MobRender` over a shared `&crate::mobs::custom::render_state::MobRender` (read-only hook arguments, `RefFieldTable`).
     pub static REF_FIELDS_crate__mobs__custom__render_state__MobRender: RefFieldTable<crate::mobs::custom::render_state::MobRender> = RefFieldTable {
         get: |t, f| match f {
-            11 => Some(t.used_frame as i64),
-            12 => Some(t.evaluations as i64),
+            12 => Some(t.used_frame as i64),
+            13 => Some(t.evaluations as i64),
             _ => None,
         },
     };

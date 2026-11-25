@@ -62,11 +62,11 @@ pub mod yoake_glue_tables {
     /// Scalar fields of `crate::yak_mods::Runtime` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__yak_mods__Runtime: FieldTable<crate::yak_mods::Runtime> = FieldTable {
         get: |t, f| match f {
-            5 => Some(i64::from(t.synced_config)),
+            6 => Some(i64::from(t.synced_config)),
             _ => None,
         },
         set: |t, f, v| match f {
-            5 => {
+            6 => {
                 t.synced_config = v != 0;
                 true
             }
@@ -77,7 +77,7 @@ pub mod yoake_glue_tables {
     /// The getters of `FIELDS_crate__yak_mods__Runtime` over a shared `&crate::yak_mods::Runtime` (read-only hook arguments, `RefFieldTable`).
     pub static REF_FIELDS_crate__yak_mods__Runtime: RefFieldTable<crate::yak_mods::Runtime> = RefFieldTable {
         get: |t, f| match f {
-            5 => Some(i64::from(t.synced_config)),
+            6 => Some(i64::from(t.synced_config)),
             _ => None,
         },
     };

@@ -173,72 +173,72 @@ pub mod yoake_glue_tables {
     /// Scalar fields of `crate::lan::entity::ServerEntity` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__lan__entity__ServerEntity: FieldTable<crate::lan::entity::ServerEntity> = FieldTable {
         get: |t, f| match f {
-            2 => Some(i64::from(t.range)),
-            3 => Some(i64::from(t.interval)),
-            4 => Some(i64::from(t.track_deltas)),
-            5 => Some(i64::from(t.arrow)),
-            9 => Some(i64::from(t.head)),
-            15 => Some(i64::from(t.was_on_ground)),
-            16 => Some(i64::from(t.tick)),
-            17 => Some(i64::from(t.teleport_delay)),
-            19 => Some(i64::from(t.was_riding)),
-            21 => Some(i64::from(t.seen)),
-            22 => Some(t.index as i64),
-            23 => Some(i64::from(t.added)),
-            25 => Some(i64::from(t.spectator)),
-            26 => Some(i64::from(t.watching)),
+            5 => Some(i64::from(t.range)),
+            6 => Some(i64::from(t.interval)),
+            7 => Some(i64::from(t.track_deltas)),
+            8 => Some(i64::from(t.arrow)),
+            12 => Some(i64::from(t.head)),
+            18 => Some(i64::from(t.was_on_ground)),
+            19 => Some(i64::from(t.tick)),
+            20 => Some(i64::from(t.teleport_delay)),
+            22 => Some(i64::from(t.was_riding)),
+            24 => Some(i64::from(t.seen)),
+            25 => Some(t.index as i64),
+            26 => Some(i64::from(t.added)),
+            28 => Some(i64::from(t.spectator)),
+            29 => Some(i64::from(t.watching)),
             _ => None,
         },
         set: |t, f, v| match f {
-            2 => {
+            5 => {
                 t.range = v as i32;
                 true
             }
-            3 => {
+            6 => {
                 t.interval = v as u32;
                 true
             }
-            4 => {
+            7 => {
                 t.track_deltas = v != 0;
                 true
             }
-            5 => {
+            8 => {
                 t.arrow = v != 0;
                 true
             }
-            9 => {
+            12 => {
                 t.head = v as i8;
                 true
             }
-            15 => {
+            18 => {
                 t.was_on_ground = v != 0;
                 true
             }
-            16 => {
+            19 => {
                 t.tick = v as u32;
                 true
             }
-            17 => {
+            20 => {
                 t.teleport_delay = v as u32;
                 true
             }
-            19 => {
+            22 => {
                 t.was_riding = v != 0;
                 true
             }
-            21 => {
+            24 => {
                 t.seen = v as u32;
                 true
             }
-            23 => {
+            26 => {
                 t.added = v != 0;
                 true
             }
-            25 => {
+            28 => {
                 t.spectator = v != 0;
                 true
             }
-            26 => {
+            29 => {
                 t.watching = v != 0;
                 true
             }
@@ -249,20 +249,20 @@ pub mod yoake_glue_tables {
     /// The getters of `FIELDS_crate__lan__entity__ServerEntity` over a shared `&crate::lan::entity::ServerEntity` (read-only hook arguments, `RefFieldTable`).
     pub static REF_FIELDS_crate__lan__entity__ServerEntity: RefFieldTable<crate::lan::entity::ServerEntity> = RefFieldTable {
         get: |t, f| match f {
-            2 => Some(i64::from(t.range)),
-            3 => Some(i64::from(t.interval)),
-            4 => Some(i64::from(t.track_deltas)),
-            5 => Some(i64::from(t.arrow)),
-            9 => Some(i64::from(t.head)),
-            15 => Some(i64::from(t.was_on_ground)),
-            16 => Some(i64::from(t.tick)),
-            17 => Some(i64::from(t.teleport_delay)),
-            19 => Some(i64::from(t.was_riding)),
-            21 => Some(i64::from(t.seen)),
-            22 => Some(t.index as i64),
-            23 => Some(i64::from(t.added)),
-            25 => Some(i64::from(t.spectator)),
-            26 => Some(i64::from(t.watching)),
+            5 => Some(i64::from(t.range)),
+            6 => Some(i64::from(t.interval)),
+            7 => Some(i64::from(t.track_deltas)),
+            8 => Some(i64::from(t.arrow)),
+            12 => Some(i64::from(t.head)),
+            18 => Some(i64::from(t.was_on_ground)),
+            19 => Some(i64::from(t.tick)),
+            20 => Some(i64::from(t.teleport_delay)),
+            22 => Some(i64::from(t.was_riding)),
+            24 => Some(i64::from(t.seen)),
+            25 => Some(t.index as i64),
+            26 => Some(i64::from(t.added)),
+            28 => Some(i64::from(t.spectator)),
+            29 => Some(i64::from(t.watching)),
             _ => None,
         },
     };

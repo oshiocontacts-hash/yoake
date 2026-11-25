@@ -59,6 +59,29 @@ pub mod yoake_glue_tables {
         },
     };
 
+    /// Scalar fields of `crate::mobs::custom::script::LocalAnimRequest` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
+    pub static FIELDS_crate__mobs__custom__script__LocalAnimRequest: FieldTable<crate::mobs::custom::script::LocalAnimRequest> = FieldTable {
+        get: |t, f| match f {
+            1 => Some(i64::from(t.speed.to_bits())),
+            _ => None,
+        },
+        set: |t, f, v| match f {
+            1 => {
+                t.speed = f32::from_bits(v as u32);
+                true
+            }
+            _ => false,
+        },
+    };
+
+    /// The getters of `FIELDS_crate__mobs__custom__script__LocalAnimRequest` over a shared `&crate::mobs::custom::script::LocalAnimRequest` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__mobs__custom__script__LocalAnimRequest: RefFieldTable<crate::mobs::custom::script::LocalAnimRequest> = RefFieldTable {
+        get: |t, f| match f {
+            1 => Some(i64::from(t.speed.to_bits())),
+            _ => None,
+        },
+    };
+
     /// Scalar fields of `crate::mobs::custom::script::LocatorPlace` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__mobs__custom__script__LocatorPlace: FieldTable<crate::mobs::custom::script::LocatorPlace> = FieldTable {
         get: |t, f| match f {
@@ -384,8 +407,8 @@ pub mod yoake_glue_tables {
         },
     };
 
-    /// Scalar fields of `crate::mobs::custom::script::Session` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
-    pub static FIELDS_crate__mobs__custom__script__Session: FieldTable<crate::mobs::custom::script::Session> = FieldTable {
+    /// Scalar fields of `crate::mobs::custom::script::SessionInner` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
+    pub static FIELDS_crate__mobs__custom__script__SessionInner: FieldTable<crate::mobs::custom::script::SessionInner> = FieldTable {
         get: |t, f| match f {
             0 => Some(t.id as i64),
             _ => None,
@@ -395,8 +418,8 @@ pub mod yoake_glue_tables {
         },
     };
 
-    /// The getters of `FIELDS_crate__mobs__custom__script__Session` over a shared `&crate::mobs::custom::script::Session` (read-only hook arguments, `RefFieldTable`).
-    pub static REF_FIELDS_crate__mobs__custom__script__Session: RefFieldTable<crate::mobs::custom::script::Session> = RefFieldTable {
+    /// The getters of `FIELDS_crate__mobs__custom__script__SessionInner` over a shared `&crate::mobs::custom::script::SessionInner` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__mobs__custom__script__SessionInner: RefFieldTable<crate::mobs::custom::script::SessionInner> = RefFieldTable {
         get: |t, f| match f {
             0 => Some(t.id as i64),
             _ => None,

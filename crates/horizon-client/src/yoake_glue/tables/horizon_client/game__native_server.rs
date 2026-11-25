@@ -7,6 +7,58 @@ pub mod yoake_glue_tables {
     #![forbid(unsafe_code)]
     use yoake_slice::activation::{FieldTable, RefFieldTable};
 
+    /// Scalar fields of `crate::game::native_server::ArgSpec` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
+    pub static FIELDS_crate__game__native_server__ArgSpec: FieldTable<crate::game::native_server::ArgSpec> = FieldTable {
+        get: |t, f| match f {
+            2 => Some(i64::from(t.greedy)),
+            _ => None,
+        },
+        set: |t, f, v| match f {
+            2 => {
+                t.greedy = v != 0;
+                true
+            }
+            _ => false,
+        },
+    };
+
+    /// The getters of `FIELDS_crate__game__native_server__ArgSpec` over a shared `&crate::game::native_server::ArgSpec` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__game__native_server__ArgSpec: RefFieldTable<crate::game::native_server::ArgSpec> = RefFieldTable {
+        get: |t, f| match f {
+            2 => Some(i64::from(t.greedy)),
+            _ => None,
+        },
+    };
+
+    /// Scalar fields of `crate::game::native_server::CompiledUsage` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
+    pub static FIELDS_crate__game__native_server__CompiledUsage: FieldTable<crate::game::native_server::CompiledUsage> = FieldTable {
+        get: |t, f| match f {
+            0 => Some(i64::from(t.level)),
+            2 => Some(i64::from(t.has_custom)),
+            _ => None,
+        },
+        set: |t, f, v| match f {
+            0 => {
+                t.level = v as u8;
+                true
+            }
+            2 => {
+                t.has_custom = v != 0;
+                true
+            }
+            _ => false,
+        },
+    };
+
+    /// The getters of `FIELDS_crate__game__native_server__CompiledUsage` over a shared `&crate::game::native_server::CompiledUsage` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__game__native_server__CompiledUsage: RefFieldTable<crate::game::native_server::CompiledUsage> = RefFieldTable {
+        get: |t, f| match f {
+            0 => Some(i64::from(t.level)),
+            2 => Some(i64::from(t.has_custom)),
+            _ => None,
+        },
+    };
+
     /// Scalar fields of `crate::game::native_server::NativeExperienceOrb` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__game__native_server__NativeExperienceOrb: FieldTable<crate::game::native_server::NativeExperienceOrb> = FieldTable {
         get: |t, f| match f {
@@ -34,6 +86,75 @@ pub mod yoake_glue_tables {
             0 => Some(i64::from(t.id)),
             2 => Some(i64::from(t.value)),
             3 => Some(i64::from(t.count)),
+            _ => None,
+        },
+    };
+
+    /// Scalar fields of `crate::game::native_server::UsageMatch` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
+    pub static FIELDS_crate__game__native_server__UsageMatch: FieldTable<crate::game::native_server::UsageMatch> = FieldTable {
+        get: |t, f| match f {
+            0 => Some(t.literals as i64),
+            _ => None,
+        },
+        set: |t, f, v| match f {
+            0 => {
+                t.literals = v as usize;
+                true
+            }
+            _ => false,
+        },
+    };
+
+    /// The getters of `FIELDS_crate__game__native_server__UsageMatch` over a shared `&crate::game::native_server::UsageMatch` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__game__native_server__UsageMatch: RefFieldTable<crate::game::native_server::UsageMatch> = RefFieldTable {
+        get: |t, f| match f {
+            0 => Some(t.literals as i64),
+            _ => None,
+        },
+    };
+
+    /// Scalar fields of `crate::game::native_server::UsageNode` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
+    pub static FIELDS_crate__game__native_server__UsageNode: FieldTable<crate::game::native_server::UsageNode> = FieldTable {
+        get: |t, f| match f {
+            2 => Some(i64::from(t.optional)),
+            _ => None,
+        },
+        set: |t, f, v| match f {
+            2 => {
+                t.optional = v != 0;
+                true
+            }
+            _ => false,
+        },
+    };
+
+    /// The getters of `FIELDS_crate__game__native_server__UsageNode` over a shared `&crate::game::native_server::UsageNode` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__game__native_server__UsageNode: RefFieldTable<crate::game::native_server::UsageNode> = RefFieldTable {
+        get: |t, f| match f {
+            2 => Some(i64::from(t.optional)),
+            _ => None,
+        },
+    };
+
+    /// Scalar fields of `crate::game::native_server::UsageStep` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
+    pub static FIELDS_crate__game__native_server__UsageStep: FieldTable<crate::game::native_server::UsageStep> = FieldTable {
+        get: |t, f| match f {
+            2 => Some(i64::from(t.optional)),
+            _ => None,
+        },
+        set: |t, f, v| match f {
+            2 => {
+                t.optional = v != 0;
+                true
+            }
+            _ => false,
+        },
+    };
+
+    /// The getters of `FIELDS_crate__game__native_server__UsageStep` over a shared `&crate::game::native_server::UsageStep` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__game__native_server__UsageStep: RefFieldTable<crate::game::native_server::UsageStep> = RefFieldTable {
+        get: |t, f| match f {
+            2 => Some(i64::from(t.optional)),
             _ => None,
         },
     };

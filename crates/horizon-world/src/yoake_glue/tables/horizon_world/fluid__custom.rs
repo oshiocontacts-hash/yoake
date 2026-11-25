@@ -7,6 +7,29 @@ pub mod yoake_glue_tables {
     #![forbid(unsafe_code)]
     use yoake_slice::activation::{FieldTable, RefFieldTable};
 
+    /// Scalar fields of `crate::fluid::custom::Catalog` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
+    pub static FIELDS_crate__fluid__custom__Catalog: FieldTable<crate::fluid::custom::Catalog> = FieldTable {
+        get: |t, f| match f {
+            5 => Some(i64::from(t.content_loaded)),
+            _ => None,
+        },
+        set: |t, f, v| match f {
+            5 => {
+                t.content_loaded = v != 0;
+                true
+            }
+            _ => false,
+        },
+    };
+
+    /// The getters of `FIELDS_crate__fluid__custom__Catalog` over a shared `&crate::fluid::custom::Catalog` (read-only hook arguments, `RefFieldTable`).
+    pub static REF_FIELDS_crate__fluid__custom__Catalog: RefFieldTable<crate::fluid::custom::Catalog> = RefFieldTable {
+        get: |t, f| match f {
+            5 => Some(i64::from(t.content_loaded)),
+            _ => None,
+        },
+    };
+
     /// Scalar fields of `crate::fluid::custom::FluidDefinition` as `i64` bit patterns, by declaration index (the slice runtime's `FieldTable`).
     pub static FIELDS_crate__fluid__custom__FluidDefinition: FieldTable<crate::fluid::custom::FluidDefinition> = FieldTable {
         get: |t, f| match f {
