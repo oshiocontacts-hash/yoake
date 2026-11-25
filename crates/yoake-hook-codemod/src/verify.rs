@@ -18,11 +18,23 @@ use crate::Config;
 
 pub const EXCLUDE_FILE: &str = "stamp-exclude.txt";
 
+/// One source span of a compiler error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ErrorSpan {
+    pub file: PathBuf,
+    pub line_start: usize,
+    pub col_start: usize,
+    pub line_end: usize,
+    pub col_end: usize,
+    pub is_primary: bool,
+}
+
 /// One compiler error reduced to what the loop needs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BuildError {
     pub code: String,
     pub locations: Vec<(PathBuf, usize)>,
+    pub spans: Vec<ErrorSpan>,
     pub message: String,
 }
 
@@ -31,6 +43,8 @@ pub struct BuildOutcome {
     pub errors: Vec<BuildError>,
     /// stderr tail for failures without a compiler message (linker, disk, rustc crash).
     pub tail: String,
+    /// Full stderr for checking wrapper warnings (e.g. `is built UNSTAMPED`).
+    pub stderr: String,
 }
 
 /// Parses `cargo --message-format=json` stdout. Primary spans and their macro-expansion call sites count.
@@ -50,11 +64,10 @@ pub fn parse_build_output(stdout: &str) -> Vec<BuildError> {
             continue;
         }
         let mut locations = Vec::new();
+        let mut spans = Vec::new();
         for span in message.get("spans").and_then(Value::as_array).into_iter().flatten() {
-            if span.get("is_primary").and_then(Value::as_bool) != Some(true) {
-                continue;
-            }
-            collect_span(span, &mut locations);
+            let is_primary = span.get("is_primary").and_then(Value::as_bool) == Some(true);
+            collect_span_details(span, is_primary, &mut locations, &mut spans);
         }
         errors.push(BuildError {
             code: message
@@ -63,24 +76,43 @@ pub fn parse_build_output(stdout: &str) -> Vec<BuildError> {
                 .unwrap_or("error")
                 .to_string(),
             locations,
+            spans,
             message: message.get("message").and_then(Value::as_str).unwrap_or("").to_string(),
         });
     }
     errors
 }
 
-fn collect_span(span: &Value, out: &mut Vec<(PathBuf, usize)>) {
-    if let (Some(file), Some(line)) = (
+fn collect_span_details(
+    span: &Value,
+    is_primary: bool,
+    locations: &mut Vec<(PathBuf, usize)>,
+    spans: &mut Vec<ErrorSpan>,
+) {
+    if let (Some(file), Some(line_start)) = (
         span.get("file_name").and_then(Value::as_str),
         span.get("line_start").and_then(Value::as_u64),
     ) {
-        out.push((PathBuf::from(file), line as usize));
+        let col_start = span.get("column_start").and_then(Value::as_u64).unwrap_or(1) as usize;
+        let line_end = span.get("line_end").and_then(Value::as_u64).unwrap_or(line_start) as usize;
+        let col_end = span.get("column_end").and_then(Value::as_u64).unwrap_or(col_start as u64) as usize;
+        if is_primary {
+            locations.push((PathBuf::from(file), line_start as usize));
+        }
+        spans.push(ErrorSpan {
+            file: PathBuf::from(file),
+            line_start: line_start as usize,
+            col_start,
+            line_end,
+            col_end,
+            is_primary,
+        });
     }
     // the call site of the attribute macro that produced the span
     if let Some(expansion) = span.get("expansion").filter(|e| !e.is_null())
         && let Some(inner) = expansion.get("span")
     {
-        collect_span(inner, out);
+        collect_span_details(inner, is_primary, locations, spans);
     }
 }
 
@@ -204,12 +236,12 @@ pub fn keys_for_errors(
     out
 }
 
-fn short(message: &str) -> String {
+pub(crate) fn short(message: &str) -> String {
     let one: String = message.chars().take(80).collect();
     one.replace(['\n', '\r', '#'], " ")
 }
 
-fn normalize(path: &Path) -> PathBuf {
+pub(crate) fn normalize(path: &Path) -> PathBuf {
     PathBuf::from(path.to_string_lossy().trim_start_matches("\\\\?\\").replace('\\', "/").to_lowercase())
 }
 
@@ -232,7 +264,7 @@ pub struct VerifyOptions {
     pub max_withdraw_per_round: usize,
 }
 
-fn run_cargo(options: &VerifyOptions) -> Result<BuildOutcome, String> {
+pub fn run_cargo(options: &VerifyOptions) -> Result<BuildOutcome, String> {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
     let mut args: Vec<String> = if options.cargo_args.is_empty() {
         vec!["check".into(), "--offline".into()]
@@ -254,9 +286,9 @@ fn run_cargo(options: &VerifyOptions) -> Result<BuildOutcome, String> {
         .output()
         .map_err(|e| format!("failed to run cargo: {e}"))?;
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
     let tail: String = stderr.lines().rev().take(25).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
-    Ok(BuildOutcome { success: output.status.success(), errors: parse_build_output(&stdout), tail })
+    Ok(BuildOutcome { success: output.status.success(), errors: parse_build_output(&stdout), tail, stderr })
 }
 
 /// The files of the scanned modules, as the compiler will name them (normalized for comparison).
@@ -541,6 +573,7 @@ pub fn bad(x: u32) -> u32 {
             frozen_ledger: false,
             private_types: false,
             overlay: false,
+            skip_callsite_modules: vec![],
         };
         let options = VerifyOptions { overlay: None, cargo_args: vec![], dir: dir.clone(), rounds: 4, max_withdraw_per_round: 300 };
         let alpha = dir.join("src/alpha.rs");
@@ -553,11 +586,12 @@ pub fn bad(x: u32) -> u32 {
                 let line = text.lines().position(|l| l.contains("x + 2")).unwrap() + 1;
                 Ok(BuildOutcome {
                     success: false,
-                    errors: vec![BuildError { code: "E0581".into(), locations: vec![(alpha.clone(), line)], message: "boom".into() }],
+                    errors: vec![BuildError { code: "E0581".into(), locations: vec![(alpha.clone(), line)], spans: vec![], message: "boom".into() }],
                     tail: String::new(),
+                    stderr: String::new(),
                 })
             } else {
-                Ok(BuildOutcome { success: true, errors: vec![], tail: String::new() })
+                Ok(BuildOutcome { success: true, errors: vec![], tail: String::new(), stderr: String::new() })
             }
         });
         assert_eq!(result, Ok(true));
@@ -609,6 +643,7 @@ pub fn bad(x: u32) -> u32 {
             frozen_ledger: false,
             private_types: false,
             overlay: false,
+            skip_callsite_modules: vec![],
         }
     }
 
@@ -640,10 +675,11 @@ pub fn b(x: u32) -> u32 {
             Ok(BuildOutcome {
                 success: false,
                 errors: vec![
-                    BuildError { code: "E0433".into(), locations: vec![(alpha.clone(), 2)], message: "no crate".into() },
-                    BuildError { code: "E0433".into(), locations: vec![(alpha.clone(), 6)], message: "no crate".into() },
+                    BuildError { code: "E0433".into(), locations: vec![(alpha.clone(), 2)], spans: vec![], message: "no crate".into() },
+                    BuildError { code: "E0433".into(), locations: vec![(alpha.clone(), 6)], spans: vec![], message: "no crate".into() },
                 ],
                 tail: String::new(),
+                stderr: String::new(),
             })
         });
         let err = result.unwrap_err();
@@ -680,6 +716,7 @@ pub fn b(x: u32) -> u32 {
             frozen_ledger: false,
             private_types: false,
             overlay: false,
+            skip_callsite_modules: vec![],
         }
     }
 }

@@ -136,6 +136,38 @@ pub fn read_callsite_sites(
     Ok(out)
 }
 
+pub fn read_tombstoned_callsite_keys(
+    dir: &Path,
+    crate_ident: &str,
+) -> Result<BTreeMap<String, SiteMeta>, String> {
+    let shard_path = dir.join(format!("{crate_ident}.json"));
+    if !shard_path.is_file() {
+        return Ok(BTreeMap::new());
+    }
+    let text = std::fs::read_to_string(&shard_path)
+        .map_err(|e| format!("failed to read {}: {e}", shard_path.display()))?;
+    let val: Value = serde_json::from_str(&text)
+        .map_err(|e| format!("invalid JSON in {}: {e}", shard_path.display()))?;
+
+    let mut out = BTreeMap::new();
+    if let Some(arr) = val.get("entries").and_then(Value::as_array) {
+        for item in arr {
+            if item.get("status").and_then(Value::as_str) == Some("tombstone")
+                && let (Some(key), Some(site_val)) = (
+                    item.get("key").and_then(Value::as_str),
+                    item.get("site").filter(|v| !v.is_null()),
+                )
+            {
+                let site: SiteMeta = serde_json::from_value(site_val.clone()).map_err(|e| {
+                    format!("invalid callsite site metadata for '{key}' in {}: {e}", shard_path.display())
+                })?;
+                out.insert(key.to_string(), site);
+            }
+        }
+    }
+    Ok(out)
+}
+
 pub fn read_all_fn_keys(dir: &Path) -> Result<Vec<(String, u32)>, String> {
     if !dir.is_dir() {
         return Ok(Vec::new());

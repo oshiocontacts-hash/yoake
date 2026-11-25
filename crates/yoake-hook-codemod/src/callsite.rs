@@ -230,6 +230,510 @@ fn strip_cfg_suffix(mut key: &str) -> &str {
     key
 }
 
+fn extract_sig_param_tys(sig: &syn::Signature) -> Vec<Type> {
+    sig.inputs
+        .iter()
+        .map(|arg| match arg {
+            syn::FnArg::Receiver(r) => {
+                if let Some((_, lt)) = &r.reference {
+                    let lt_str = lt
+                        .as_ref()
+                        .map_or_else(String::new, |l| format!("{} ", quote!(#l)));
+                    let mut_str = if r.mutability.is_some() { "mut " } else { "" };
+                    syn::parse_str(&format!("&{lt_str}{mut_str}Self"))
+                        .unwrap_or_else(|_| syn::parse_quote!(Self))
+                } else {
+                    syn::parse_quote!(Self)
+                }
+            }
+            syn::FnArg::Typed(pt) => (*pt.ty).clone(),
+        })
+        .collect()
+}
+
+fn strip_impl_generics(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'<' {
+            let mut depth = 1usize;
+            let mut j = i + 1;
+            while j < bytes.len() && depth > 0 {
+                match bytes[j] {
+                    b'<' => depth += 1,
+                    b'>' => depth -= 1,
+                    _ => {}
+                }
+                j += 1;
+            }
+            let inner = &s[i + 1..j.saturating_sub(1)];
+            if let Some((left, right)) = inner.split_once(" as ") {
+                out.push('<');
+                out.push_str(&strip_impl_generics(left));
+                out.push_str(" as ");
+                out.push_str(&strip_impl_generics(right));
+                out.push('>');
+            }
+            i = j;
+        } else {
+            let ch = s[i..].chars().next().unwrap();
+            out.push(ch);
+            i += ch.len_utf8();
+        }
+    }
+    out
+}
+
+fn type_path_key(tp: &syn::TypePath) -> Option<String> {
+    if tp.qself.is_some() {
+        return None;
+    }
+    let segs: Vec<String> = tp.path.segments.iter().map(|s| s.ident.to_string()).collect();
+    (!segs.is_empty()).then(|| segs.join("::"))
+}
+
+fn apply_static_from_param_ty(
+    raw_ty: &Type,
+    param_ty: &Type,
+    aliases: &BTreeMap<String, Option<Type>>,
+    depth: usize,
+) -> (Type, bool) {
+    if depth < 5
+        && let Type::Path(tp) = param_ty
+        && let Some(path_str) = type_path_key(tp)
+        && let Some(Some(aliased)) = aliases
+            .get(&path_str)
+            .or_else(|| tp.path.segments.last().and_then(|s| aliases.get(&s.ident.to_string())))
+    {
+        return apply_static_from_param_ty(raw_ty, aliased, aliases, depth + 1);
+    }
+
+    match (raw_ty, param_ty) {
+        (Type::Reference(r_raw), Type::Reference(r_param)) => {
+            let (new_elem, elem_changed) =
+                apply_static_from_param_ty(&r_raw.elem, &r_param.elem, aliases, depth);
+            let param_is_static = r_param
+                .lifetime
+                .as_ref()
+                .is_some_and(|l| l.ident == "static");
+            let mut out = r_raw.clone();
+            let mut changed = elem_changed;
+            if elem_changed {
+                out.elem = Box::new(new_elem);
+            }
+            if param_is_static && !out.lifetime.as_ref().is_some_and(|l| l.ident == "static") {
+                out.lifetime = Some(syn::Lifetime::new("'static", proc_macro2::Span::call_site()));
+                changed = true;
+            }
+            (Type::Reference(out), changed)
+        }
+        (Type::Slice(s_raw), Type::Slice(s_param)) => {
+            let (new_elem, changed) =
+                apply_static_from_param_ty(&s_raw.elem, &s_param.elem, aliases, depth);
+            if !changed {
+                return (raw_ty.clone(), false);
+            }
+            let mut out = s_raw.clone();
+            out.elem = Box::new(new_elem);
+            (Type::Slice(out), true)
+        }
+        (Type::Array(a_raw), Type::Array(a_param)) => {
+            let (new_elem, changed) =
+                apply_static_from_param_ty(&a_raw.elem, &a_param.elem, aliases, depth);
+            if !changed {
+                return (raw_ty.clone(), false);
+            }
+            let mut out = a_raw.clone();
+            out.elem = Box::new(new_elem);
+            (Type::Array(out), true)
+        }
+        (Type::Tuple(t_raw), Type::Tuple(t_param)) if t_raw.elems.len() == t_param.elems.len() => {
+            let mut out = t_raw.clone();
+            let mut changed = false;
+            for (re, pe) in out.elems.iter_mut().zip(t_param.elems.iter()) {
+                let (mapped, c) = apply_static_from_param_ty(re, pe, aliases, depth);
+                if c {
+                    *re = mapped;
+                    changed = true;
+                }
+            }
+            (if changed { Type::Tuple(out) } else { raw_ty.clone() }, changed)
+        }
+        (Type::Path(p_raw), Type::Path(p_param))
+            if p_raw.path.segments.last().map(|s| &s.ident)
+                == p_param.path.segments.last().map(|s| &s.ident) =>
+        {
+            let Some(last_raw) = p_raw.path.segments.last() else {
+                return (raw_ty.clone(), false);
+            };
+            let Some(last_param) = p_param.path.segments.last() else {
+                return (raw_ty.clone(), false);
+            };
+            let (
+                PathArguments::AngleBracketed(ab_raw),
+                PathArguments::AngleBracketed(ab_param),
+            ) = (&last_raw.arguments, &last_param.arguments)
+            else {
+                return (raw_ty.clone(), false);
+            };
+            let mut new_ab = ab_raw.clone();
+            let raw_ty_args: Vec<usize> = new_ab
+                .args
+                .iter()
+                .enumerate()
+                .filter_map(|(i, a)| matches!(a, syn::GenericArgument::Type(_)).then_some(i))
+                .collect();
+            let param_ty_args: Vec<&Type> = ab_param
+                .args
+                .iter()
+                .filter_map(|a| match a {
+                    syn::GenericArgument::Type(t) => Some(t),
+                    _ => None,
+                })
+                .collect();
+            if raw_ty_args.len() != param_ty_args.len() {
+                return (raw_ty.clone(), false);
+            }
+            let mut changed = false;
+            for (ri, p_arg) in raw_ty_args.into_iter().zip(param_ty_args) {
+                if let syn::GenericArgument::Type(r_arg) = &mut new_ab.args[ri] {
+                    let (mapped, c) = apply_static_from_param_ty(r_arg, p_arg, aliases, depth);
+                    if c {
+                        *r_arg = mapped;
+                        changed = true;
+                    }
+                }
+            }
+            if !changed {
+                return (raw_ty.clone(), false);
+            }
+            let mut out = p_raw.clone();
+            out.path.segments.last_mut().unwrap().arguments =
+                PathArguments::AngleBracketed(new_ab);
+            (Type::Path(out), true)
+        }
+        _ => (raw_ty.clone(), false),
+    }
+}
+
+struct StaticParamIndex {
+    exact: BTreeMap<String, Vec<Type>>,
+    no_cfg: BTreeMap<String, Option<Vec<Type>>>,
+    aliases: BTreeMap<String, Option<Type>>,
+    loaded_crates: BTreeSet<String>,
+    crate_dirs: BTreeMap<String, (PathBuf, String)>,
+}
+
+impl StaticParamIndex {
+    fn find_workspace_crates(start: &Path) -> BTreeMap<String, (PathBuf, String)> {
+        let mut dir = Some(start);
+        let mut ws_root = None;
+        while let Some(d) = dir {
+            if d.join("hook-ledger").join("stamp-config.txt").is_file() {
+                ws_root = Some(d.to_path_buf());
+                break;
+            }
+            dir = d.parent();
+        }
+        let Some(ws) = ws_root else {
+            return BTreeMap::new();
+        };
+        let mut out = BTreeMap::new();
+        let Ok(entries) = std::fs::read_dir(ws.join("crates")) else {
+            return out;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let cargo_toml = path.join("Cargo.toml");
+            if let Ok(text) = std::fs::read_to_string(&cargo_toml) {
+                for line in text.lines() {
+                    let trimmed = line.trim();
+                    if let Some(rest) = trimmed.strip_prefix("name")
+                        && let Some(val) = rest.trim_start().strip_prefix('=')
+                    {
+                        let pkg = val.trim().trim_matches('"').to_string();
+                        if !pkg.is_empty() {
+                            out.insert(key::normalize_crate_name(&pkg), (path.clone(), pkg));
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    fn new(
+        crate_root: &Path,
+        crate_name: &str,
+        crate_ident: &str,
+        scanned_files: &[modules::ScannedFile],
+        colliding_short_keys: &BTreeSet<String>,
+    ) -> Self {
+        let mut index = Self {
+            exact: BTreeMap::new(),
+            no_cfg: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+            loaded_crates: BTreeSet::new(),
+            crate_dirs: Self::find_workspace_crates(crate_root),
+        };
+        index.insert_crate_files(
+            crate_root,
+            crate_name,
+            crate_ident,
+            scanned_files,
+            colliding_short_keys,
+        );
+        index.loaded_crates.insert(crate_ident.to_string());
+        index
+    }
+
+    fn insert_alias(&mut self, key: String, ty: Type) {
+        self.aliases
+            .entry(key)
+            .and_modify(|existing| {
+                if existing.as_ref().is_some_and(|e| quote!(#e).to_string() != quote!(#ty).to_string()) {
+                    *existing = None;
+                }
+            })
+            .or_insert_with(|| Some(ty));
+    }
+
+    fn insert_one_key(&mut self, fn_key: String, params: Vec<Type>) {
+        let stripped = strip_cfg_suffix(&fn_key).to_string();
+        self.no_cfg
+            .entry(stripped)
+            .and_modify(|existing| {
+                if existing.as_ref().is_some_and(|e| e.len() != params.len()) {
+                    *existing = None;
+                }
+            })
+            .or_insert_with(|| Some(params.clone()));
+        self.exact.insert(fn_key, params);
+    }
+
+    fn insert(&mut self, fn_key: String, params: Vec<Type>) {
+        if params.is_empty() {
+            return;
+        }
+        let no_gen = strip_impl_generics(&fn_key);
+        if no_gen != fn_key {
+            self.insert_one_key(no_gen, params.clone());
+        }
+        self.insert_one_key(fn_key, params);
+    }
+
+    fn insert_crate_files(
+        &mut self,
+        crate_root: &Path,
+        crate_name: &str,
+        crate_ident: &str,
+        scanned_files: &[modules::ScannedFile],
+        colliding_short_keys: &BTreeSet<String>,
+    ) {
+        let mut seen_paths = BTreeSet::new();
+        for sf in scanned_files {
+            if let Ok(c) = sf.path.canonicalize() {
+                seen_paths.insert(c);
+            }
+            let idx = LineIndex::new(&sf.source);
+            self.collect_items(
+                &sf.source,
+                &idx,
+                crate_ident,
+                colliding_short_keys,
+                &sf.root_mod_path,
+                &sf.root_cfg_tags,
+                &sf.parsed.items,
+            );
+        }
+        if let Ok(root_file) = modules::find_crate_root_file(crate_root, crate_name)
+            && root_file.canonicalize().is_ok_and(|c| !seen_paths.contains(&c))
+            && let Ok(source) = std::fs::read_to_string(&root_file)
+            && let Ok(parsed) = syn::parse_file(&source)
+        {
+            let idx = LineIndex::new(&source);
+            self.collect_items(
+                &source,
+                &idx,
+                crate_ident,
+                colliding_short_keys,
+                &[],
+                &[],
+                &parsed.items,
+            );
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn collect_items(
+        &mut self,
+        source: &str,
+        idx: &LineIndex,
+        crate_ident: &str,
+        colliding_short_keys: &BTreeSet<String>,
+        mod_path: &[String],
+        mod_cfg_tags: &[String],
+        items: &[Item],
+    ) {
+        let prefix = key::module_prefix(crate_ident, mod_path);
+        let (matched_helpers, _) = run::pair_converted_trait_helpers(
+            source,
+            idx,
+            &prefix,
+            mod_cfg_tags,
+            colliding_short_keys,
+            items,
+        );
+        for item in items {
+            match item {
+                Item::Mod(item_mod) if !modules::has_cfg_test(&item_mod.attrs) => {
+                    if let Some((_, inner)) = &item_mod.content {
+                        let mut child_mod = mod_path.to_vec();
+                        child_mod.push(item_mod.ident.to_string());
+                        let mut child_tags = mod_cfg_tags.to_vec();
+                        child_tags.extend(key::extract_cfg_tags(&item_mod.attrs));
+                        self.collect_items(
+                            source,
+                            idx,
+                            crate_ident,
+                            colliding_short_keys,
+                            &child_mod,
+                            &child_tags,
+                            inner,
+                        );
+                    }
+                }
+                Item::Type(item_type) if !modules::has_cfg_test(&item_type.attrs) => {
+                    if !eligible::type_has_non_static_lifetime(&item_type.ty) {
+                        let short = item_type.ident.to_string();
+                        self.insert_alias(short.clone(), (*item_type.ty).clone());
+                        self.insert_alias(format!("{prefix}::{short}"), (*item_type.ty).clone());
+                    }
+                }
+                Item::Fn(item_fn) if !modules::has_cfg_test(&item_fn.attrs) => {
+                    let mut cfgs = mod_cfg_tags.to_vec();
+                    cfgs.extend(key::extract_cfg_tags(&item_fn.attrs));
+                    let fn_key = key::free_fn_key(&prefix, &item_fn.sig.ident, &cfgs);
+                    self.insert(fn_key, extract_sig_param_tys(&item_fn.sig));
+                }
+                Item::Impl(item_impl) if !modules::has_cfg_test(&item_impl.attrs) => {
+                    let mut impl_cfgs = mod_cfg_tags.to_vec();
+                    impl_cfgs.extend(key::extract_cfg_tags(&item_impl.attrs));
+                    let trait_path = item_impl.trait_.as_ref().map(|(_, p, _)| p);
+                    for impl_item in &item_impl.items {
+                        let ImplItem::Fn(method) = impl_item else {
+                            continue;
+                        };
+                        if modules::has_cfg_test(&method.attrs) {
+                            continue;
+                        }
+                        let method_span = idx.span_range(source, method.span());
+                        if trait_path.is_none() && matched_helpers.contains_key(&method_span) {
+                            continue;
+                        }
+                        let mut fn_cfgs = impl_cfgs.clone();
+                        fn_cfgs.extend(key::extract_cfg_tags(&method.attrs));
+                        let fn_key = match trait_path {
+                            Some(tp) => {
+                                let short_key = key::trait_method_key(
+                                    &prefix,
+                                    &item_impl.self_ty,
+                                    tp,
+                                    &method.sig.ident,
+                                    &fn_cfgs,
+                                    false,
+                                );
+                                if colliding_short_keys.contains(&short_key) {
+                                    key::trait_method_key(
+                                        &prefix,
+                                        &item_impl.self_ty,
+                                        tp,
+                                        &method.sig.ident,
+                                        &fn_cfgs,
+                                        true,
+                                    )
+                                } else {
+                                    short_key
+                                }
+                            }
+                            None => key::inherent_method_key(
+                                &prefix,
+                                &item_impl.self_ty,
+                                &method.sig.ident,
+                                &fn_cfgs,
+                            ),
+                        };
+                        self.insert(fn_key, extract_sig_param_tys(&method.sig));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn ensure_crate_loaded(&mut self, target_ident: &str) {
+        if self.loaded_crates.contains(target_ident) {
+            return;
+        }
+        self.loaded_crates.insert(target_ident.to_string());
+        let Some((dir, pkg)) = self.crate_dirs.get(target_ident).cloned() else {
+            return;
+        };
+        let Ok(mod_names) = modules::expand_star_modules(&dir, &pkg, &["*".to_string()], &[]) else {
+            return;
+        };
+        let Ok(targets) = mod_names
+            .iter()
+            .map(|m| modules::normalize_module_arg(m))
+            .collect::<Result<Vec<_>, _>>()
+        else {
+            return;
+        };
+        let Ok(files) = modules::collect_module_files(&dir, &pkg, &targets, false) else {
+            return;
+        };
+        let colliding = run::collect_colliding_short_keys(target_ident, &targets, false, &files);
+        self.insert_crate_files(&dir, &pkg, target_ident, &files, &colliding);
+    }
+
+    fn lookup_key(&self, k: &str) -> Option<&[Type]> {
+        if let Some(v) = self.exact.get(k) {
+            return Some(v.as_slice());
+        }
+        self.no_cfg
+            .get(strip_cfg_suffix(k))
+            .and_then(|opt| opt.as_deref())
+    }
+
+    fn lookup_callee(&mut self, call: &ThirCall, crate_ident: &str, callee_path: &str) -> Option<Vec<Type>> {
+        if let Some(first) = callee_first_segment(callee_path) {
+            self.ensure_crate_loaded(first);
+        }
+        if let Some(params) = self.lookup_key(callee_path) {
+            return Some(params.to_vec());
+        }
+        let callee_def = call.callee_def.as_deref()?;
+        let impl_pos = callee_def.find("::{impl#")?;
+        let def_mod = &callee_def[..impl_pos];
+        let local_prefix = format!("{crate_ident}::");
+        let full_mod = if callee_path.starts_with(&local_prefix) && !def_mod.starts_with(&local_prefix) {
+            if def_mod.is_empty() {
+                crate_ident.to_string()
+            } else {
+                format!("{crate_ident}::{def_mod}")
+            }
+        } else {
+            def_mod.to_string()
+        };
+        let (owner_path, method_name) = callee_path.rsplit_once("::")?;
+        let type_name = owner_path.rsplit("::").next()?;
+        let candidate = format!("{full_mod}::{type_name}::{method_name}");
+        self.lookup_key(&candidate).map(|m| m.to_vec())
+    }
+}
+
 #[derive(Clone)]
 enum ShimBody {
     Method {
@@ -273,6 +777,9 @@ struct ExistingShim {
 
 #[derive(Clone)]
 struct SynCallDetail {
+    is_method: bool,
+    func_start: usize,
+    func_end: usize,
     recv_start: usize,
     recv_end: usize,
     recv_needs_parens: bool,
@@ -281,7 +788,6 @@ struct SynCallDetail {
     first_arg_start: Option<usize>,
     arg0_span: Option<(usize, usize)>,
     arg1_start: Option<usize>,
-    method_name: Option<String>,
     turbofish_src: Option<String>,
     existing_shim_id: Option<u32>,
 }
@@ -335,6 +841,23 @@ impl<'ast> Visit<'ast> for DetailVisitor<'_> {
             _ => None,
         };
         let (call_start, call_end) = self.idx.span_range(self.source, node.span());
+        let (func_start, func_end) = self.idx.span_range(self.source, node.func.span());
+        let (_, paren_open_end) = self
+            .idx
+            .span_range(self.source, node.paren_token.span.open());
+        let turbofish_src = match &*node.func {
+            Expr::Path(ep) => ep.path.segments.last().and_then(|seg| {
+                matches!(seg.arguments, PathArguments::AngleBracketed(_)).then(|| {
+                    let (s, e) = self.idx.span_range(self.source, seg.arguments.span());
+                    self.source[s..e].to_string()
+                })
+            }),
+            _ => None,
+        };
+        let first_arg_start = node
+            .args
+            .first()
+            .map(|a| self.idx.span_range(self.source, a.span()).0);
         let arg0_span = node
             .args
             .first()
@@ -347,16 +870,18 @@ impl<'ast> Visit<'ast> for DetailVisitor<'_> {
         self.details.insert(
             span,
             SynCallDetail {
+                is_method: false,
+                func_start,
+                func_end,
                 recv_start: call_start,
                 recv_end: call_start,
                 recv_needs_parens: false,
-                paren_open_end: call_start,
+                paren_open_end,
                 call_end,
-                first_arg_start: None,
+                first_arg_start,
                 arg0_span,
                 arg1_start,
-                method_name: None,
-                turbofish_src: None,
+                turbofish_src,
                 existing_shim_id,
             },
         );
@@ -396,6 +921,9 @@ impl<'ast> Visit<'ast> for DetailVisitor<'_> {
         self.details.insert(
             span,
             SynCallDetail {
+                is_method: true,
+                func_start: recv_start,
+                func_end: recv_end,
                 recv_start,
                 recv_end,
                 recv_needs_parens,
@@ -404,7 +932,6 @@ impl<'ast> Visit<'ast> for DetailVisitor<'_> {
                 first_arg_start,
                 arg0_span: None,
                 arg1_start: None,
-                method_name: Some(node.method.to_string()),
                 turbofish_src,
                 existing_shim_id: None,
             },
@@ -553,6 +1080,7 @@ fn parse_existing_shim(item_fn: &ItemFn, source: &str, idx: &LineIndex) -> Exist
 
 struct ShimRefCollector<'a> {
     targets: &'a [Vec<String>],
+    skip_targets: &'a [Vec<String>],
     shallow: bool,
     mod_path: Vec<String>,
     in_target_mod: bool,
@@ -589,7 +1117,8 @@ impl ShimRefCollector<'_> {
 impl<'ast> Visit<'ast> for ShimRefCollector<'_> {
     fn visit_file(&mut self, node: &'ast syn::File) {
         self.in_target_mod =
-            modules::is_target_or_descendant(&self.mod_path, self.targets, self.shallow);
+            modules::is_target_or_descendant(&self.mod_path, self.targets, self.shallow)
+                && !modules::is_target_or_descendant(&self.mod_path, self.skip_targets, false);
         visit::visit_file(self, node);
     }
 
@@ -602,7 +1131,8 @@ impl<'ast> Visit<'ast> for ShimRefCollector<'_> {
             let prev_in = self.in_target_mod;
             self.mod_path.push(node.ident.to_string());
             self.in_target_mod =
-                modules::is_target_or_descendant(&self.mod_path, self.targets, self.shallow);
+                modules::is_target_or_descendant(&self.mod_path, self.targets, self.shallow)
+                    && !modules::is_target_or_descendant(&self.mod_path, self.skip_targets, false);
             visit::visit_item_mod(self, node);
             self.mod_path = prev_path;
             self.in_target_mod = prev_in;
@@ -673,6 +1203,7 @@ struct AstCollector<'a> {
     idx: &'a LineIndex,
     crate_ident: &'a str,
     targets: &'a [Vec<String>],
+    skip_targets: &'a [Vec<String>],
     shallow: bool,
     colliding_short_keys: &'a BTreeSet<String>,
     fn_ledger: &'a FnLedgerIndex,
@@ -741,7 +1272,8 @@ impl<'a> AstCollector<'a> {
 
     fn visit_items(&mut self, items: &[Item]) {
         self.in_target_mod =
-            modules::is_target_or_descendant(&self.mod_path, self.targets, self.shallow);
+            modules::is_target_or_descendant(&self.mod_path, self.targets, self.shallow)
+                && !modules::is_target_or_descendant(&self.mod_path, self.skip_targets, false);
         let prefix = key::module_prefix(self.crate_ident, &self.mod_path);
         let (matched_helpers, _) = if self.in_target_mod {
             run::pair_converted_trait_helpers(
@@ -883,6 +1415,7 @@ fn collect_file_ast(
     file: &modules::ScannedFile,
     crate_ident: &str,
     targets: &[Vec<String>],
+    skip_targets: &[Vec<String>],
     shallow: bool,
     colliding_short_keys: &BTreeSet<String>,
     fn_ledger: &FnLedgerIndex,
@@ -895,6 +1428,7 @@ fn collect_file_ast(
         idx: &idx,
         crate_ident,
         targets,
+        skip_targets,
         shallow,
         colliding_short_keys,
         fn_ledger,
@@ -915,6 +1449,7 @@ fn collect_file_ast(
         .collect();
     let mut ref_collector = ShimRefCollector {
         targets,
+        skip_targets,
         shallow,
         mod_path: file.root_mod_path.clone(),
         in_target_mod: false,
@@ -947,19 +1482,48 @@ struct ShimSignature {
     sig_hash: String,
 }
 
-fn validate_and_format_shim_sig(call: &ThirCall) -> Result<ShimSignature, &'static str> {
-    if call.args.is_empty() {
+fn format_mapped_type(ty: &Type) -> String {
+    let raw = quote!(#ty).to_string();
+    let cleaned = raw
+        .replace("& '", "&'")
+        .replace("& mut ", "&mut ")
+        .replace(" :: ", "::")
+        .replace("< ", "<")
+        .replace(" >", ">")
+        .replace(" , ", ", ")
+        .replace("[ ", "[")
+        .replace(" ]", "]")
+        .replace(" ; ", "; ");
+    simplify_elided_refs(&cleaned)
+}
+
+fn validate_and_format_shim_sig(
+    call: &ThirCall,
+    callee_params: Option<&[Type]>,
+    aliases: &BTreeMap<String, Option<Type>>,
+    is_path_call: bool,
+) -> Result<ShimSignature, &'static str> {
+    if !is_path_call && call.args.is_empty() {
         return Err("missing receiver arg");
     }
     let mut parsed_args = Vec::with_capacity(call.args.len());
     let mut arg_tys = Vec::with_capacity(call.args.len());
-    for arg in &call.args {
+    for (idx, arg) in call.args.iter().enumerate() {
         let Some(raw_ty) = arg.ty.as_deref() else {
             return Err("unwritable arg type");
         };
-        let parsed: Type = syn::parse_str(raw_ty).map_err(|_| "unparseable arg type")?;
-        parsed_args.push(parsed);
-        arg_tys.push(simplify_elided_refs(raw_ty.trim()));
+        let base_formatted = simplify_elided_refs(raw_ty.trim());
+        let parsed_raw: Type = syn::parse_str(&base_formatted).map_err(|_| "unparseable arg type")?;
+        if let Some(param_ty) = callee_params.and_then(|v| v.get(idx)) {
+            let (mapped, changed) = apply_static_from_param_ty(&parsed_raw, param_ty, aliases, 0);
+            if changed {
+                arg_tys.push(format_mapped_type(&mapped));
+                parsed_args.push(mapped);
+                continue;
+            }
+        }
+        parsed_args.push(parsed_raw);
+        arg_tys.push(base_formatted);
     }
     let Some(raw_ret) = call.ret_ty.as_deref() else {
         return Err("unwritable return type");
@@ -974,8 +1538,12 @@ fn validate_and_format_shim_sig(call: &ThirCall) -> Result<ShimSignature, &'stat
     // (the output borrows from `&self`) by naming the receiver's outer reference `'r`. If the
     // callee actually ties the output to another argument, the shim fails to borrow-check, so a
     // wrong guess is a compile error, never a silent change.
-    let receiver_borrow = matches!(call.kind.as_str(), "method")
-        && call.args[0].ty.as_deref().is_some_and(|ty| ty.trim_start().starts_with('&'));
+    let receiver_borrow = !is_path_call
+        && matches!(call.kind.as_str(), "method")
+        && parsed_args
+            .first()
+            .is_some_and(eligible::type_has_non_static_lifetime)
+        && arg_tys[0].trim_start().starts_with('&');
     let self_borrow = borrowed_return && receiver_borrow;
     if borrowed_return && !self_borrow {
         if borrowed_inputs == 0 {
@@ -995,7 +1563,7 @@ fn validate_and_format_shim_sig(call: &ThirCall) -> Result<ShimSignature, &'stat
         Some(simplify_elided_refs(trimmed_ret))
     };
     if self_borrow {
-        arg_tys[0] = name_outer_reference(call.args[0].ty.as_deref().unwrap_or_default(), "'r");
+        arg_tys[0] = name_outer_reference(&arg_tys[0], "'r");
     }
     // A borrowed return with exactly one borrowed input that is not a borrowed receiver (for
     // example `Iter<'_, T>` by value -> `Enumerate<Iter<'_, T>>`): tie that input's elided
@@ -1006,8 +1574,8 @@ fn validate_and_format_shim_sig(call: &ThirCall) -> Result<ShimSignature, &'stat
             .iter()
             .position(|ty| eligible::type_has_non_static_lifetime(ty))
         {
-            let raw_arg = call.args[index].ty.as_deref().unwrap_or_default().trim();
-            arg_tys[index] = name_elided_lifetimes(raw_arg, "'r");
+            let formatted_arg = arg_tys[index].clone();
+            arg_tys[index] = name_elided_lifetimes(&formatted_arg, "'r");
             ret_ty = Some(name_elided_lifetimes(trimmed_ret, "'r"));
         }
     }
@@ -1186,14 +1754,21 @@ struct DesiredShim {
     ret_ty: Option<String>,
     callee_path: String,
     turbofish_src: Option<String>,
+    is_path_call: bool,
 }
 
 impl DesiredShim {
     fn sig_header_string(&self) -> String {
         let mut params = Vec::with_capacity(self.arg_tys.len());
-        params.push(format!("recv: {}", self.arg_tys[0]));
-        for (idx, ty) in self.arg_tys.iter().enumerate().skip(1) {
-            params.push(format!("a{}: {}", idx - 1, ty));
+        if self.is_path_call {
+            for (idx, ty) in self.arg_tys.iter().enumerate() {
+                params.push(format!("a{idx}: {ty}"));
+            }
+        } else {
+            params.push(format!("recv: {}", self.arg_tys[0]));
+            for (idx, ty) in self.arg_tys.iter().enumerate().skip(1) {
+                params.push(format!("a{}: {}", idx - 1, ty));
+            }
         }
         let ret_part = self
             .ret_ty
@@ -1206,9 +1781,13 @@ impl DesiredShim {
     }
 
     fn body_call_args(&self) -> Vec<String> {
-        std::iter::once("recv".to_string())
-            .chain((1..self.arg_tys.len()).map(|i| format!("a{}", i - 1)))
-            .collect()
+        if self.is_path_call {
+            (0..self.arg_tys.len()).map(|i| format!("a{i}")).collect()
+        } else {
+            std::iter::once("recv".to_string())
+                .chain((1..self.arg_tys.len()).map(|i| format!("a{}", i - 1)))
+                .collect()
+        }
     }
 
     fn render(&self, crate_ident: &str, style: &FileStyle, nl: &str) -> Result<String, String> {
@@ -1227,12 +1806,21 @@ impl DesiredShim {
         lines.push(attr::format_hook_attr(&expected, None, None, style));
         lines.push("#[inline(always)]".to_string());
         lines.push(format!("{} {{", self.sig_header_string()));
-        let qualified_fn = format_qualified_callee(
-            crate_ident,
-            &self.callee_path,
-            &self.arg_tys[0],
-            self.turbofish_src.as_deref(),
-        )?;
+        let qualified_fn = if self.is_path_call
+            && !self.callee_path.starts_with("<Self as ")
+            && !self.callee_path.contains("{impl#")
+        {
+            let local_callee = to_local_callee_path(&self.callee_path, crate_ident);
+            let tf = self.turbofish_src.as_deref().unwrap_or("");
+            format!("{local_callee}{tf}")
+        } else {
+            format_qualified_callee(
+                crate_ident,
+                &self.callee_path,
+                self.arg_tys.first().map(String::as_str).unwrap_or(""),
+                self.turbofish_src.as_deref(),
+            )?
+        };
         let call_args = self.body_call_args().join(", ");
         lines.push(format!("    {qualified_fn}({call_args})"));
         lines.push("}".to_string());
@@ -1266,9 +1854,14 @@ fn verify_shim_shape(
             expected_key
         ));
     }
-    let expected_params: Vec<String> = std::iter::once("recv".to_string())
-        .chain((1..shim.param_names.len()).map(|i| format!("a{}", i - 1)))
-        .collect();
+    let is_path_style = shim.param_names.first().map(String::as_str) != Some("recv");
+    let expected_params: Vec<String> = if is_path_style {
+        (0..shim.param_names.len()).map(|i| format!("a{i}")).collect()
+    } else {
+        std::iter::once("recv".to_string())
+            .chain((1..shim.param_names.len()).map(|i| format!("a{}", i - 1)))
+            .collect()
+    };
     if shim.param_names != expected_params {
         return Err(format!(
             "{}: shim __yoake_cs_{id} signature or body does not match expected form",
@@ -1278,13 +1871,23 @@ fn verify_shim_shape(
     let expected_method_args: Vec<String> = (1..shim.param_names.len())
         .map(|i| format!("a{}", i - 1))
         .collect();
-    let expected_call_args: Vec<String> = std::iter::once("recv".to_string())
-        .chain(expected_method_args.iter().cloned())
-        .collect();
+    let expected_call_args: Vec<String> = if is_path_style {
+        expected_params.clone()
+    } else {
+        std::iter::once("recv".to_string())
+            .chain(expected_method_args.iter().cloned())
+            .collect()
+    };
     let attr_needs_update = !attr::callsite_wrapper_matches(shim.attr_wrapper_cfg.as_deref(), style);
 
     match &shim.body {
         ShimBody::Method { method, args } => {
+            if is_path_style {
+                return Err(format!(
+                    "{}: shim __yoake_cs_{id} signature or body does not match expected form",
+                    file_path.display()
+                ));
+            }
             let expected_method = expected_callee_path.and_then(|cp| cp.rsplit("::").next());
             if args == &expected_method_args && expected_method.is_none_or(|em| em == method) {
                 Ok(ShimShapeStatus {
@@ -1306,31 +1909,48 @@ fn verify_shim_shape(
                 ));
             }
             if let Some(callee_path) = expected_callee_path {
-                let Some(recv_ty) = &shim.recv_ty else {
-                    return Err(format!(
-                        "{}: shim __yoake_cs_{id} is missing recv parameter type",
-                        file_path.display()
-                    ));
-                };
-                let owner_ty = strip_outer_reference_ty(recv_ty);
-                let owner_str = quote!(#owner_ty).to_string();
-                let expected_callee =
-                    format_qualified_callee(crate_ident, callee_path, &owner_str, None)?;
-                let expected_ep: ExprPath = syn::parse_str(&expected_callee).map_err(|e| {
-                    format!(
-                        "{}: invalid expected qualified callee '{expected_callee}': {e}",
-                        file_path.display()
-                    )
-                })?;
                 let actual_ep = strip_method_turbofish(func_path);
-                if key::canonical_expr_path_tokens(&actual_ep)
-                    != key::canonical_expr_path_tokens(&expected_ep)
-                {
-                    return Err(format!(
-                        "{}: shim __yoake_cs_{id} body '{}' does not match expected '{expected_callee}'",
-                        file_path.display(),
-                        quote!(#actual_ep)
-                    ));
+                let actual_tokens = key::canonical_expr_path_tokens(&actual_ep);
+                let matches_direct = if is_path_style && !callee_path.starts_with("<Self as ") {
+                    let direct_callee = to_local_callee_path(callee_path, crate_ident);
+                    syn::parse_str::<ExprPath>(&direct_callee).is_ok_and(|ep| {
+                        key::canonical_expr_path_tokens(&ep) == actual_tokens
+                    })
+                } else {
+                    false
+                };
+                if !matches_direct {
+                    let Some(recv_ty) = &shim.recv_ty else {
+                        if is_path_style {
+                            return Err(format!(
+                                "{}: shim __yoake_cs_{id} body '{}' does not match expected '{}'",
+                                file_path.display(),
+                                quote!(#actual_ep),
+                                to_local_callee_path(callee_path, crate_ident),
+                            ));
+                        }
+                        return Err(format!(
+                            "{}: shim __yoake_cs_{id} is missing recv parameter type",
+                            file_path.display()
+                        ));
+                    };
+                    let owner_ty = strip_outer_reference_ty(recv_ty);
+                    let owner_str = quote!(#owner_ty).to_string();
+                    let expected_callee =
+                        format_qualified_callee(crate_ident, callee_path, &owner_str, None)?;
+                    let expected_ep: ExprPath = syn::parse_str(&expected_callee).map_err(|e| {
+                        format!(
+                            "{}: invalid expected qualified callee '{expected_callee}': {e}",
+                            file_path.display()
+                        )
+                    })?;
+                    if actual_tokens != key::canonical_expr_path_tokens(&expected_ep) {
+                        return Err(format!(
+                            "{}: shim __yoake_cs_{id} body '{}' does not match expected '{expected_callee}'",
+                            file_path.display(),
+                            quote!(#actual_ep)
+                        ));
+                    }
                 }
             }
             Ok(ShimShapeStatus {
@@ -1383,7 +2003,7 @@ fn find_thir_file_entry<'a>(
 fn resolve_listed_thir_file_bytes(
     thir_file: &str,
     crate_root: &Path,
-    scanned_files: &[modules::ScannedFile],
+    scanned_files: &[&modules::ScannedFile],
     scanned_paths: &[String],
 ) -> Result<Option<Vec<u8>>, String> {
     if let Some(fi) = match_thir_file(thir_file, scanned_paths) {
@@ -1406,7 +2026,7 @@ fn resolve_listed_thir_file_bytes(
 
 fn verify_thir_freshness(
     crate_root: &Path,
-    scanned_files: &[modules::ScannedFile],
+    scanned_files: &[&modules::ScannedFile],
     thir_dump: &ThirDump,
 ) -> Result<(), String> {
     let scanned_paths: Vec<String> = scanned_files
@@ -1463,12 +2083,22 @@ pub fn execute(config: &Config) -> Result<bool, String> {
         .map(|m| modules::normalize_module_arg(m))
         .collect::<Result<Vec<_>, _>>()?;
 
+    let skip_targets = config
+        .skip_callsite_modules
+        .iter()
+        .map(|m| modules::normalize_module_arg(m))
+        .collect::<Result<Vec<_>, _>>()?;
+
     let scanned_files = modules::collect_module_files(
         &config.crate_root,
         &config.crate_name,
         &targets,
         config.shallow,
     )?;
+    let active_scanned_files: Vec<&modules::ScannedFile> = scanned_files
+        .iter()
+        .filter(|sf| !modules::is_target_or_descendant(&sf.root_mod_path, &skip_targets, false))
+        .collect();
     let thir_dump = match &config.thir {
         None => {
             if config.mode == Mode::Apply {
@@ -1489,7 +2119,7 @@ pub fn execute(config: &Config) -> Result<bool, String> {
                     config.crate_name
                 ));
             }
-            verify_thir_freshness(&config.crate_root, &scanned_files, &thir_dump)?;
+            verify_thir_freshness(&config.crate_root, &active_scanned_files, &thir_dump)?;
             Some(thir_dump)
         }
     };
@@ -1498,6 +2128,13 @@ pub fn execute(config: &Config) -> Result<bool, String> {
         &targets,
         config.shallow,
         &scanned_files,
+    );
+    let mut static_index = StaticParamIndex::new(
+        &config.crate_root,
+        &config.crate_name,
+        &crate_ident,
+        &scanned_files,
+        &colliding_short_keys,
     );
 
     let mut ledger_set = ledger_io::load_ledger_set(&config.ledger)?;
@@ -1513,15 +2150,23 @@ pub fn execute(config: &Config) -> Result<bool, String> {
     }
 
     let existing_sites = ledger_io::read_callsite_sites(&config.ledger, &crate_ident)?;
+    let tombstoned_sites = ledger_io::read_tombstoned_callsite_keys(&config.ledger, &crate_ident)?;
+    let mut site_manual_keys: BTreeMap<String, (String, SiteMeta)> = BTreeMap::new();
+    for (k, meta) in tombstoned_sites {
+        if let Some(reason) = manual_keys.remove(&k) {
+            site_manual_keys.insert(k, (reason, meta));
+        }
+    }
     let fn_ledger = FnLedgerIndex::build(&config.ledger, &ledger_set, &crate_ident)?;
 
-    let collected_files: Vec<CollectedFile> = scanned_files
+    let collected_files: Vec<CollectedFile> = active_scanned_files
         .iter()
         .map(|sf| {
             collect_file_ast(
                 sf,
                 &crate_ident,
                 &targets,
+                &skip_targets,
                 config.shallow,
                 &colliding_short_keys,
                 &fn_ledger,
@@ -1542,8 +2187,10 @@ pub fn execute(config: &Config) -> Result<bool, String> {
             &crate_ident,
             &mut ledger_set,
             &manual_keys,
+            &site_manual_keys,
             &existing_sites,
             &fn_ledger,
+            &mut static_index,
             &collected_files,
             thir_dump,
         ),
@@ -2031,6 +2678,7 @@ struct ExcludedCall {
     reason: String,
     manual: bool,
     from_hot_caller: bool,
+    exact_manual_key: Option<String>,
 }
 
 struct RewrittenCallRef {
@@ -2050,8 +2698,10 @@ fn execute_with_thir(
     crate_ident: &str,
     ledger_set: &mut LedgerSet,
     manual_keys: &BTreeMap<String, String>,
+    site_manual_keys: &BTreeMap<String, (String, SiteMeta)>,
     existing_sites: &BTreeMap<u32, SiteMeta>,
     fn_ledger: &FnLedgerIndex,
+    static_index: &mut StaticParamIndex,
     files: &[CollectedFile],
     thir_dump: &ThirDump,
 ) -> Result<bool, String> {
@@ -2133,6 +2783,16 @@ fn execute_with_thir(
                         });
                         continue;
                     }
+                    let is_path_call = !syn_call.detail.is_method;
+                    let callee_path = if is_path_call
+                        && thir_call.callee.starts_with("<Self as ")
+                        && let Some((trait_part, fn_name)) =
+                            thir_call.callee.strip_prefix("<Self as ").and_then(|r| r.rsplit_once(">::"))
+                    {
+                        format!("{trait_part}::{fn_name}")
+                    } else {
+                        thir_call.callee.clone()
+                    };
                     let callee_fn = fn_ledger.lookup_callee(thir_call, crate_ident);
                     let caller_prefix = caller
                         .fn_id
@@ -2140,7 +2800,7 @@ fn execute_with_thir(
                         .unwrap_or_else(|| caller.fn_key.clone());
                     let callee_part = callee_fn
                         .map(|id| format!("fn:{id}"))
-                        .unwrap_or_else(|| thir_call.callee.clone());
+                        .unwrap_or_else(|| callee_path.clone());
                     let base_key = format!("{caller_prefix}@call:{callee_part}");
 
                     if let Some(reason) = hot_callers.get(&caller.fn_key) {
@@ -2149,6 +2809,7 @@ fn execute_with_thir(
                             reason: reason.clone(),
                             manual: true,
                             from_hot_caller: true,
+                            exact_manual_key: None,
                         });
                         continue;
                     }
@@ -2158,6 +2819,7 @@ fn execute_with_thir(
                             reason: "path call".to_string(),
                             manual: false,
                             from_hot_caller: false,
+                            exact_manual_key: None,
                         });
                         continue;
                     }
@@ -2167,6 +2829,7 @@ fn execute_with_thir(
                             reason: "caller not in fn ledger".to_string(),
                             manual: false,
                             from_hot_caller: false,
+                            exact_manual_key: None,
                         });
                         continue;
                     };
@@ -2178,12 +2841,13 @@ fn execute_with_thir(
                             reason: reason.clone(),
                             manual: true,
                             from_hot_caller: false,
+                            exact_manual_key: None,
                         });
                         continue;
                     }
                     let recv_ty_opt = thir_call.args.first().and_then(|a| a.ty.as_deref());
                     if let Err(reason) = check_callee_policy(
-                        &thir_call.callee,
+                        &callee_path,
                         recv_ty_opt,
                         crate_ident,
                         config.engine_crates.as_deref(),
@@ -2195,6 +2859,7 @@ fn execute_with_thir(
                             reason: reason.to_string(),
                             manual: false,
                             from_hot_caller: false,
+                            exact_manual_key: None,
                         });
                         continue;
                     }
@@ -2209,10 +2874,17 @@ fn execute_with_thir(
                             reason,
                             manual: false,
                             from_hot_caller: false,
+                            exact_manual_key: None,
                         });
                         continue;
                     }
-                    let shim_sig = match validate_and_format_shim_sig(thir_call) {
+                    let static_params = static_index.lookup_callee(thir_call, crate_ident, &callee_path);
+                    let shim_sig = match validate_and_format_shim_sig(
+                        thir_call,
+                        static_params.as_deref(),
+                        &static_index.aliases,
+                        is_path_call,
+                    ) {
                         Ok(sig) => sig,
                         Err(reason) => {
                             excluded_calls.push(ExcludedCall {
@@ -2220,11 +2892,16 @@ fn execute_with_thir(
                                 reason: reason.to_string(),
                                 manual: false,
                                 from_hot_caller: false,
+                                exact_manual_key: None,
                             });
                             continue;
                         }
                     };
-                    let adj_prefix = recv_adjust_prefix(thir_call.recv_adjust.as_ref())?;
+                    let adj_prefix = if is_path_call {
+                        String::new()
+                    } else {
+                        recv_adjust_prefix(thir_call.recv_adjust.as_ref())?
+                    };
                     let mut site = syn_call.site.clone();
                     site.callee = callee_part;
                     let orig =
@@ -2233,7 +2910,7 @@ fn execute_with_thir(
                         file_idx: fi,
                         caller_id,
                         callee_fn,
-                        callee_path: thir_call.callee.clone(),
+                        callee_path,
                         base_key,
                         orig,
                         site,
@@ -2268,6 +2945,7 @@ fn execute_with_thir(
                         reason,
                         manual,
                         from_hot_caller,
+                        exact_manual_key: None,
                     });
                 } else if file
                     .top_macro_spans
@@ -2319,6 +2997,35 @@ fn execute_with_thir(
     assign_dup_ranks(&mut candidate_sites);
     for (cand, site) in candidates.iter_mut().zip(candidate_sites) {
         cand.site = site;
+    }
+
+    if !site_manual_keys.is_empty() {
+        let mut kept = Vec::with_capacity(candidates.len());
+        for cand in candidates {
+            let anchor_hex = format_hash(cand.site.anchor);
+            let ctx0_hex = format_hash(cand.site.context.0);
+            let ctx1_hex = format_hash(cand.site.context.1);
+            let matched = site_manual_keys.iter().find(|(_, (_, meta))| {
+                cand.caller_id == meta.caller
+                    && cand.callee_fn == meta.callee_fn
+                    && cand.callee_path == meta.callee_path
+                    && anchor_hex == meta.anchor
+                    && (cand.site.dup_rank == meta.dup_rank
+                        || meta.context == [ctx0_hex.clone(), ctx1_hex.clone()])
+            });
+            if let Some((excl_key, (reason, _))) = matched {
+                excluded_calls.push(ExcludedCall {
+                    base_key: cand.base_key,
+                    reason: reason.clone(),
+                    manual: true,
+                    from_hot_caller: false,
+                    exact_manual_key: Some(excl_key.clone()),
+                });
+            } else {
+                kept.push(cand);
+            }
+        }
+        candidates = kept;
     }
 
     reconcile_and_plan(
@@ -2752,6 +3459,8 @@ struct RetiredSite<'a> {
     call_ref: &'a RewrittenCallRef,
     orig: Option<String>,
     method_name: String,
+    is_path_call: bool,
+    orig_func: Option<String>,
     turbofish_src: Option<String>,
 }
 
@@ -2896,6 +3605,11 @@ fn reconcile_and_plan(
             };
 
         if let Some(reason) = inelig_reason {
+            let is_path_call = shim.param_names.first().map(String::as_str) != Some("recv");
+            let orig_func = match &shim.body {
+                ShimBody::QualifiedCall { func_path, .. } => Some(quote!(#func_path).to_string()),
+                _ => None,
+            };
             let method_name = callee_path
                 .as_deref()
                 .and_then(|cp| cp.rsplit("::").next())
@@ -2919,6 +3633,8 @@ fn reconcile_and_plan(
                 call_ref: r,
                 orig: site_meta.and_then(|s| s.orig.clone()),
                 method_name,
+                is_path_call,
+                orig_func,
                 turbofish_src: shim.turbofish_src.clone(),
             });
         }
@@ -3017,6 +3733,7 @@ fn reconcile_and_plan(
             reason: rs.reason.clone(),
             manual: rs.manual,
             from_hot_caller: rs.from_hot_caller,
+            exact_manual_key: None,
         });
     }
 
@@ -3105,7 +3822,14 @@ fn reconcile_and_plan(
         excl_used_keys.insert(entry.key.clone());
     }
     for ex in &all_excluded {
-        let ex_key = if !ex.from_hot_caller && manual_keys.contains_key(&ex.base_key) {
+        if let Some(exact) = &ex.exact_manual_key {
+            excl_used_keys.insert(exact.clone());
+        }
+    }
+    for ex in &all_excluded {
+        let ex_key = if let Some(exact) = &ex.exact_manual_key {
+            exact.clone()
+        } else if !ex.from_hot_caller && manual_keys.contains_key(&ex.base_key) {
             ex.base_key.clone()
         } else {
             allocate_unique_key(&ex.base_key, &mut excl_used_keys)
@@ -3160,6 +3884,7 @@ fn reconcile_and_plan(
             ret_ty: cand.shim_sig.ret_ty.clone(),
             callee_path: cand.callee_path.clone(),
             turbofish_src: cand.turbofish_src.clone(),
+            is_path_call: !cand.detail.is_method,
         });
     }
 
@@ -3183,6 +3908,14 @@ fn reconcile_and_plan(
                 start: call_start,
                 end: call_end,
                 replacement: orig.clone(),
+            });
+        } else if rs.is_path_call
+            && let Some(orig_func) = &rs.orig_func
+        {
+            edits_by_file.entry(fi).or_default().push(TextEdit {
+                start: rs.call_ref.detail.func_start,
+                end: rs.call_ref.detail.func_end,
+                replacement: orig_func.clone(),
             });
         } else {
             let Some((arg0_start, arg0_end)) = rs.call_ref.detail.arg0_span else {
@@ -3215,6 +3948,14 @@ fn reconcile_and_plan(
     let mut prefix_groups: BTreeMap<(usize, usize), Vec<(usize, String)>> = BTreeMap::new();
     for (ci, cand) in candidates.iter().enumerate() {
         let (id, _) = assigned_by_cand[&ci];
+        if !cand.detail.is_method {
+            edits_by_file.entry(cand.file_idx).or_default().push(TextEdit {
+                start: cand.detail.func_start,
+                end: cand.detail.func_end,
+                replacement: format!("__yoake_cs_{id}"),
+            });
+            continue;
+        }
         let mut prefix = format!("__yoake_cs_{id}({}", cand.adj_prefix);
         if cand.detail.recv_needs_parens {
             prefix.push('(');
@@ -3499,7 +4240,24 @@ pub fn verify_callsites(crate_name: &str, ledger: &Path, thir: &Path) -> Result<
         .unwrap_or_default();
     live_entries.sort_by_key(|e| e.id);
 
-    let total = live_entries.len();
+    let mut patched_ids = BTreeSet::new();
+    let patch_file = ledger.join(format!("{crate_ident}.callsites.patch"));
+    if let Ok(patch_text) = std::fs::read_to_string(&patch_file) {
+        for line in patch_text.lines() {
+            if let Some(rest) = line.strip_prefix('+')
+                && !rest.starts_with("++")
+                && let Some(pos) = rest.find("fn __yoake_cs_")
+            {
+                let after = &rest[pos + "fn __yoake_cs_".len()..];
+                let digits: String = after.chars().take_while(|c| c.is_ascii_digit()).collect();
+                if let Ok(id) = digits.parse::<u32>() {
+                    patched_ids.insert(id);
+                }
+            }
+        }
+    }
+
+    let mut checked = 0usize;
     let mut verified = 0usize;
     let mut issues = Vec::new();
 
@@ -3512,9 +4270,14 @@ pub fn verify_callsites(crate_name: &str, ledger: &Path, thir: &Path) -> Result<
         let expected = &meta.callee_path;
         match calls_by_shim.get(&id) {
             None => {
+                if patched_ids.contains(&id) {
+                    continue;
+                }
+                checked += 1;
                 issues.push(format!("missing: id={id} (__yoake_cs_{id}): expected {expected}"));
             }
             Some(calls) if calls.len() != 1 => {
+                checked += 1;
                 let got: Vec<&str> = calls.iter().map(|c| c.callee.as_str()).collect();
                 issues.push(format!(
                     "mismatch: id={id} (__yoake_cs_{id}): expected 1 call to {expected}, found {} ({})",
@@ -3523,6 +4286,7 @@ pub fn verify_callsites(crate_name: &str, ledger: &Path, thir: &Path) -> Result<
                 ));
             }
             Some(calls) => {
+                checked += 1;
                 // The ledger records a trait method from the original method call as
                 // `<Self as path::Trait>::m`; the fully qualified shim body is a path call, which THIR
                 // names `path::Trait::m`. Both name the same trait item.
@@ -3548,13 +4312,13 @@ pub fn verify_callsites(crate_name: &str, ledger: &Path, thir: &Path) -> Result<
     }
 
     if issues.is_empty() {
-        println!("verified {verified} of {total}");
+        println!("verified {verified} of {checked}");
         Ok(true)
     } else {
         for issue in &issues {
             eprintln!("{issue}");
         }
-        eprintln!("verified {verified} of {total}");
+        eprintln!("verified {verified} of {checked}");
         Ok(false)
     }
 }

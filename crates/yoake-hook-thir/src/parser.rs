@@ -19,6 +19,7 @@ enum CallState {
 struct RawArgument {
     ty: Option<String>,
     span: Option<ParsedSpan>,
+    file: Option<String>,
 }
 
 struct RawCall {
@@ -166,7 +167,8 @@ pub fn parse_reader<R: BufRead>(reader: R, options: &ParseOptions) -> Result<Dum
             if let Some(argument) = call.args.last_mut() {
                 if let Some(raw) = text.strip_prefix("ty:") {
                     argument.ty = Some(raw.trim().to_owned());
-                } else if let Some((_, span)) = parse_span(text) {
+                } else if let Some((file, span)) = parse_span(text) {
+                    argument.file = Some(file);
                     argument.span = Some(span);
                 }
             }
@@ -298,19 +300,22 @@ fn finish_one(
     calls: &mut Vec<Call>,
 ) -> Result<()> {
     let Some(file) = raw.file else { return Ok(()) };
-    let (_, fn_span) = raw.fn_span.ok_or_else(|| Error::new("target Call lacks fn_span"))?;
+    let (fn_file, fn_span) = raw.fn_span.ok_or_else(|| Error::new("target Call lacks fn_span"))?;
     let whole_span = raw.whole_span.ok_or_else(|| Error::new("target Call lacks enclosing span"))?;
     let fun_span = raw.fun_span.ok_or_else(|| Error::new("target Call lacks fun span"))?;
     // A Call whose `ty` is not an FnDef calls a fn pointer or closure value: an indirect call.
     // It stays in the list (reported, never rewritten) with resolution `dyn`.
     let indirect = raw.callee.is_none();
     let callee_def = raw.callee.unwrap_or_else(|| "<indirect>".to_owned());
-    let receiver_span = raw.args.first().and_then(|argument| argument.span);
+    let is_method_receiver = raw.args.first().is_some_and(|argument| {
+        let Some(receiver) = argument.span else { return false };
+        argument.file.as_deref() == Some(fn_file.as_str())
+            && (receiver.position.0, receiver.position.1) >= (whole_span.position.0, whole_span.position.1)
+            && (receiver.position.0, receiver.position.1) < (fun_span.position.0, fun_span.position.1)
+    });
     let kind = if !raw.from_hir_call {
         CallKind::Overloaded
-    } else if receiver_span.is_some_and(|receiver| {
-        (receiver.position.0, receiver.position.1) < (fun_span.position.0, fun_span.position.1)
-    }) {
+    } else if is_method_receiver {
         CallKind::Method
     } else {
         CallKind::Path

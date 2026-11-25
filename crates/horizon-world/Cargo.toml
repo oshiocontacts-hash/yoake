@@ -44,6 +44,7 @@ path = "examples/probe/main.rs"
 [features]
 # W9b: the generated hook bridges (the stamping overlay adds them) need the slice runtime
 yoake2-slice = ["dep:yoake-slice"]
+yoake-callsite-baseline = []
 
 [lints]
 workspace = true

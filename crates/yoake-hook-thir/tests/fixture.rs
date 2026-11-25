@@ -172,3 +172,49 @@ body:
 
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn free_function_call_with_macro_arg_from_earlier_line_is_path_not_method() {
+    let thir = "\
+DefId(0:1 ~ demo[abcd]::caller):
+body:
+    Expr {
+        ty: ()
+        span: src/a.rs:161:21: 161:70 (#0)
+        kind:
+            Call {
+                ty: FnDef(DefId(0:2 ~ demo[abcd]::component::partial), [])
+                from_hir_call: true
+                fn_span: src/a.rs:161:21: 161:70 (#0)
+                fun:
+                    Expr {
+                        ty: FnDef(DefId(0:2 ~ demo[abcd]::component::partial), [])
+                        span: src/a.rs:161:21: 161:28 (#0)
+                    }
+                args: [
+                    Expr {
+                        ty: alloc::string::String
+                        span: alloc/src/macros.rs:115:9: 117:11 (#5)
+                    }
+                ]
+            }
+    }
+";
+    let dump = parse_str(
+        thir,
+        &ParseOptions {
+            files: vec!["src/a.rs".into()],
+            externs: BTreeSet::new(),
+            crate_name: Some("demo".into()),
+            rustc: "fixture".into(),
+            cargo_lock_sha: String::new(),
+            workspace: None,
+            file_digests: Default::default(),
+        },
+    )
+    .unwrap();
+    assert_eq!(dump.calls.len(), 1);
+    assert_eq!(dump.calls[0].kind, CallKind::Path);
+    assert_eq!(dump.calls[0].callee, "demo::component::partial");
+    assert_eq!(dump.calls[0].recv_adjust, None);
+}
