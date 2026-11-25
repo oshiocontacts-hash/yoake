@@ -37,7 +37,7 @@ use std::fmt;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use horizon_mods::yak::{Archive, PublicKey, Wasm};
+use horizon_mods::yak::{Archive, Manifest, PublicKey, Wasm};
 pub use horizon_mods::yak::control::{
     APPROVED_ARG, APPROVED_ENV, DEV_ARG, AllowEntry, AllowFile, ApprovedEntry, ApprovedList, Control, ListDiff, Origin, OriginFile, OriginRecord,
     control_dir_in, guard, install_package, remove_package, sha256_hex,
@@ -105,6 +105,8 @@ pub enum Refusal {
     FromFriend,
     /// Another package in the folder has the same id: neither is loaded as full-access.
     DuplicateId { id: String, others: Vec<String> },
+    /// Dependency resolution with the sandboxed package set refused this package.
+    Dependency(String),
     /// A catalog package whose signature does not verify against the trust list.
     BadSignature(String),
     /// The package is malformed.
@@ -144,6 +146,7 @@ impl fmt::Display for Refusal {
             Refusal::DuplicateId { id, others } => {
                 write!(f, "another package has the same id '{id}' ({}): neither is loaded as full-access", others.join(", "))
             }
+            Refusal::Dependency(reason) => write!(f, "dependency resolution: {reason}"),
             Refusal::BadSignature(e) => write!(f, "signature does not verify: {e}"),
             Refusal::Package(e) => write!(f, "malformed package: {e}"),
             Refusal::Init(e) => write!(f, "could not start: {e}"),
@@ -310,9 +313,33 @@ impl LoadReport {
     }
 }
 
+fn package_files(dir: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
+    let mut files: Vec<PathBuf> = entries.flatten().map(|entry| entry.path()).filter(|path| path.extension().is_some_and(|extension| extension == "yak")).collect();
+    files.sort();
+    files
+}
+
+/// Manifests for startup dependency resolution. Reading an archive never executes its module.
+pub(crate) fn discover_manifests(mods_dir: &Path, remote_key: Option<&str>) -> Vec<Manifest> {
+    fn read(dir: &Path) -> Vec<Manifest> {
+        package_files(dir).into_iter().filter_map(|path| {
+            let bytes = std::fs::read(path).ok()?;
+            let archive = Archive::new(Cursor::new(bytes)).ok()?;
+            archive.manifest().wasm.as_ref().filter(|wasm| wasm.full_access())?;
+            Some(archive.manifest().clone())
+        }).collect()
+    }
+    let mut manifests = read(mods_dir);
+    if let Some(dir) = remote_key.filter(|key| horizon_mods::yak::control::valid_host_key(key)).and_then(|key| horizon_mods::yak::control::host_remote_dir(mods_dir, key)) {
+        let local_ids: std::collections::BTreeSet<_> = manifests.iter().map(|manifest| manifest.id.clone()).collect();
+        manifests.extend(read(&dir).into_iter().filter(|manifest| !local_ids.contains(&manifest.id)));
+    }
+    manifests
+}
+
 /// Loads every `*.yak` of a mods folder (sorted by file name, so the load order is stable) that is an approved
-/// full-access mod. `origins` says where each package came from. Packages that are not full-access are listed as
-/// skipped with [`Refusal::Sandboxed`]. Two packages with the same id make every full-access one of them refuse.
+/// full-access mod. Dependencies are resolved together with the sandboxed startup set before any module executes.
 pub fn load_dir(dir: &Path, origins: &OriginFile, allow: &AllowFile, trusted: &[PublicKey], cfg: &ModConfig) -> LoadReport {
     load_dir_on(ThreadSide::Server, dir, origins, allow, trusted, cfg)
 }
@@ -320,56 +347,99 @@ pub fn load_dir(dir: &Path, origins: &OriginFile, allow: &AllowFile, trusted: &[
 /// [`load_dir`] for the thread `side` (MX3CL1): only mods whose `[wasm] side` includes it are considered; the others
 /// are listed as [`Refusal::OtherSide`].
 pub fn load_dir_on(side: ThreadSide, dir: &Path, origins: &OriginFile, allow: &AllowFile, trusted: &[PublicKey], cfg: &ModConfig) -> LoadReport {
-    let mut report = LoadReport::default();
-    let Ok(entries) = std::fs::read_dir(dir) else { return report };
-    let mut files: Vec<PathBuf> = entries.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "yak")).collect();
-    files.sort();
-    // pass 1: read every package, find the ids that appear twice
-    struct Pack {
+    load_dirs_on(side, &[(dir, origins, allow, false)], trusted, cfg)
+}
+
+fn load_dirs_on(side: ThreadSide, sources: &[(&Path, &OriginFile, &AllowFile, bool)], trusted: &[PublicKey], cfg: &ModConfig) -> LoadReport {
+    struct Pack<'a> {
         path: PathBuf,
         bytes: Vec<u8>,
-        /// The manifest's id when the package parses.
-        id: Option<String>,
+        manifest: Option<Manifest>,
+        origins: &'a OriginFile,
+        allow: &'a AllowFile,
+        remote: bool,
+        remote_duplicate: bool,
     }
+    let mut report = LoadReport::default();
     let mut packs = Vec::new();
-    for path in files {
-        match std::fs::read(&path) {
-            Ok(bytes) => {
-                let id = Archive::new(Cursor::new(bytes.clone())).ok().map(|a| a.manifest().id.clone());
-                packs.push(Pack { path, bytes, id });
+    for &(dir, origins, allow, remote) in sources {
+        for path in package_files(dir) {
+            match std::fs::read(&path) {
+                Ok(bytes) => {
+                    let manifest = Archive::new(Cursor::new(bytes.clone())).ok().map(|archive| archive.manifest().clone());
+                    packs.push(Pack { path, bytes, manifest, origins, allow, remote, remote_duplicate: false });
+                }
+                Err(error) => report.skipped.push((path, Refusal::Package(error.to_string()))),
             }
-            Err(e) => report.skipped.push((path, Refusal::Package(e.to_string()))),
+        }
+    }
+    let local_ids: std::collections::BTreeSet<_> = packs.iter().filter(|pack| !pack.remote).filter_map(|pack| pack.manifest.as_ref().map(|manifest| manifest.id.clone())).collect();
+    for pack in &mut packs {
+        if pack.remote && pack.manifest.as_ref().is_some_and(|manifest| local_ids.contains(&manifest.id)) {
+            let id = &pack.manifest.as_ref().unwrap().id;
+            report.problems.push(format!("remote full-access mod '{id}' has the id of one of your own mods: your own mod runs, the host's was not loaded"));
+            pack.remote_duplicate = true;
         }
     }
     let mut by_id: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut manifests = crate::yak_mods::sandbox_manifests().to_vec();
     for pack in &packs {
-        if let Some(id) = &pack.id {
-            by_id.entry(id.clone()).or_default().push(pack.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default());
+        if pack.remote_duplicate {
+            continue;
+        }
+        if let Some(manifest) = &pack.manifest {
+            by_id.entry(manifest.id.clone()).or_default().push(pack.path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default());
+            if manifest.wasm.as_ref().is_some_and(|wasm| wasm.full_access()) {
+                manifests.push(manifest.clone());
+            }
         }
     }
-    // pass 2: load
-    for pack in packs {
-        if let Some(id) = &pack.id {
-            let names = &by_id[id];
+    let resolution = crate::yak_mods::resolve_packages(&manifests);
+    let mut scheduled = vec![false; packs.len()];
+    let mut load_order = Vec::new();
+    for id in &resolution.order {
+        for (index, pack) in packs.iter().enumerate() {
+            if !scheduled[index] && pack.manifest.as_ref().is_some_and(|manifest| manifest.id == *id && manifest.wasm.as_ref().is_some_and(|wasm| wasm.full_access())) {
+                scheduled[index] = true;
+                load_order.push(index);
+            }
+        }
+    }
+    load_order.extend((0..packs.len()).filter(|index| !scheduled[*index]));
+    for index in load_order {
+        let pack = &mut packs[index];
+        if pack.remote_duplicate {
+            continue;
+        }
+        if let Some(manifest) = &pack.manifest {
+            let names = &by_id[&manifest.id];
+            let full_access = manifest.wasm.as_ref().is_some_and(|wasm| wasm.full_access());
             if names.len() > 1 {
-                // a duplicate id: every full-access package of the group refuses (a sandboxed one is not our business)
-                let wasm = Archive::new(Cursor::new(pack.bytes.clone())).ok().and_then(|a| a.manifest().wasm.clone()).filter(|w| w.full_access());
-                let full_access = wasm.is_some();
-                let other_side = wasm.as_ref().is_some_and(|w| !side.runs(w));
-                let me = pack.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-                let others = names.iter().filter(|n| **n != me).cloned().collect();
-                report.skipped.push((pack.path, if other_side { Refusal::OtherSide } else if full_access { Refusal::DuplicateId { id: id.clone(), others } } else { Refusal::Sandboxed }));
+                let other_side = manifest.wasm.as_ref().is_some_and(|wasm| !side.runs(wasm));
+                let me = pack.path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
+                let others = names.iter().filter(|name| **name != me).cloned().collect();
+                report.skipped.push((pack.path.clone(), if other_side { Refusal::OtherSide } else if full_access { Refusal::DuplicateId { id: manifest.id.clone(), others } } else { Refusal::Sandboxed }));
+                continue;
+            }
+            if full_access && manifest.wasm.as_ref().is_some_and(|wasm| !side.runs(wasm)) {
+                report.skipped.push((pack.path.clone(), Refusal::OtherSide));
+                continue;
+            }
+            if let Some(reason) = resolution.refused.get(&manifest.id) {
+                report.skipped.push((pack.path.clone(), Refusal::Dependency(reason.clone())));
                 continue;
             }
         }
-        let origin = origins.origin_of(&sha256_hex(&pack.bytes));
-        match load_package_on(side, pack.bytes, origin, allow, trusted, cfg.clone()) {
+        let origin = pack.origins.origin_of(&sha256_hex(&pack.bytes));
+        match load_package_on(side, std::mem::take(&mut pack.bytes), origin, pack.allow, trusted, cfg.clone()) {
             Ok(loaded) => report.loaded.push(loaded),
-            Err(refusal) => report.skipped.push((pack.path, refusal)),
+            Err(refusal) => report.skipped.push((pack.path.clone(), refusal)),
         }
     }
-    for id in allow.legacy_ids() {
-        report.legacy_notes.push(id.clone());
+    for (_, _, allow, _) in sources {
+        for id in allow.legacy_ids() {
+            report.legacy_notes.push(id.clone());
+        }
     }
     report
 }
@@ -512,15 +582,17 @@ fn load_mods_scoped(side: ThreadSide, mods_dir: &Path, approved: Option<&Approve
     let trusted = horizon_mods::yak::trusted_keys();
     // before any `yoake_init` runs, so `hook_register` can tell each guest the mode of the ids it asks for
     yoake_slice::bridge::set_mode_resolver(Some(hook_mode));
-    let mut report = load_dir_on(side, mods_dir, &origins, &allow, &trusted, &ModConfig::full_access());
-    // MX3JN1: the joined host's folder, on the client thread only, with the entries scoped to that exact host
-    if let (ThreadSide::Client, Some(key), Some(list)) = (side, remote_key.filter(|key| horizon_mods::yak::control::valid_host_key(key)), approved) {
-        if let Some(dir) = horizon_mods::yak::control::host_remote_dir(mods_dir, key) {
-            let (remote_allow, remote_origins) = list.to_remote_files(key);
-            let remote = load_dir_on(side, &dir, &remote_origins, &remote_allow, &trusted, &ModConfig::full_access());
-            merge_remote(&mut report, remote);
-        }
+    // MX3JN1: the joined host's folder joins the same resolution pass, with entries scoped to that exact host.
+    let remote = if let (ThreadSide::Client, Some(key), Some(list)) = (side, remote_key.filter(|key| horizon_mods::yak::control::valid_host_key(key)), approved) {
+        horizon_mods::yak::control::host_remote_dir(mods_dir, key).map(|dir| (dir, list.to_remote_files(key)))
+    } else {
+        None
+    };
+    let mut sources = vec![(mods_dir, &origins, &allow, false)];
+    if let Some((dir, (remote_allow, remote_origins))) = remote.as_ref() {
+        sources.push((dir.as_path(), remote_origins, remote_allow, true));
     }
+    let mut report = load_dirs_on(side, &sources, &trusted, &ModConfig::full_access());
     // the "no list" note is only worth a line when there is a full-access package that it affects
     if approved.is_none() && report.skipped.iter().any(|(_, r)| !matches!(r, Refusal::Sandboxed | Refusal::OtherSide)) {
         report.problems.push(format!("the launcher gave no approved list ({APPROVED_ARG} or {APPROVED_ENV}): no full-access mod will run"));
@@ -533,21 +605,6 @@ fn load_mods_scoped(side: ThreadSide, mods_dir: &Path, approved: Option<&Approve
     announce(&report);
     announce_loaded(side, &report);
     report
-}
-
-/// Folds the report of a host's remote folder into the local one: a remote mod with the id of a loaded local mod is
-/// unloaded again (the local mod wins), the rest is added.
-fn merge_remote(report: &mut LoadReport, remote: LoadReport) {
-    for loaded in remote.loaded {
-        if report.loaded.iter().any(|local| local.id == loaded.id) {
-            let _ = runtime::unload(loaded.module);
-            report.problems.push(format!("remote full-access mod '{}' has the id of one of your own mods: your own mod runs, the host's was not loaded", loaded.id));
-        } else {
-            report.loaded.push(loaded);
-        }
-    }
-    report.skipped.extend(remote.skipped);
-    report.problems.extend(remote.problems);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
