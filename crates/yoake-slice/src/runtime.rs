@@ -491,6 +491,34 @@ pub mod register_status {
     pub const RESERVED_ID: i32 = -3;
 }
 
+/// Validates a `full-access` core module without instantiating or running `yoake_init`: checks the
+/// `yoake_abi` section, core WASM compilation, host/WASI imports, and `yoake_hook` export.
+pub fn validate_module(wasm: &[u8]) -> Result<AbiVersion, String> {
+    let abi = match module_abi_version(wasm).map_err(|e| e.to_string())? {
+        Some(version) => version,
+        None => {
+            return Err(format!(
+                "the module has no `yoake_abi` section (built without yoake_guest_sdk::export_guest!); this engine speaks {}.{}",
+                ABI_VERSION.major, ABI_VERSION.minor
+            ));
+        }
+    };
+    if let AbiCheck::Refuse(why) = check_abi(abi) {
+        return Err(why);
+    }
+    let engine = Engine::default();
+    let module = Module::new(&engine, wasm)
+        .map_err(|error| format!("full-access module is not a valid core Wasm module: {error:#}"))?;
+    let linker = build_linker(&engine).map_err(|error| format!("{error:#}"))?;
+    linker
+        .instantiate_pre(&module)
+        .map_err(|error| format!("full-access module has unsupported imports: {error:#}"))?;
+    if module.get_export(HOOK_EXPORT).is_none() {
+        return Err(format!("full-access module must export {HOOK_EXPORT}"));
+    }
+    Ok(abi)
+}
+
 /// Loads a mod (WAT text or a wasm binary) next to the ones already on this thread. It runs after them in
 /// every chain of equal priority. `name` is for `stats`. Fails (instead of panicking) when `yoake_init`
 /// traps or runs out of its budget; nothing is left loaded then.

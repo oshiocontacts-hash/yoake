@@ -108,6 +108,27 @@ pub struct WorkerHandle {
 }
 
 impl WorkerHandle {
+    /// Validates a worker component without spawning a thread or running guest code.
+    pub fn validate(component_bytes: &[u8]) -> Result<(), String> {
+        let engine = engine()?;
+        let component = Component::new(engine, component_bytes)
+            .map_err(|error| format!("worker is not a valid component: {error:#}"))?;
+        if !component
+            .component_type()
+            .exports(engine)
+            .any(|(export, _)| export == WORKER_RUN_INTERFACE)
+        {
+            return Err(format!(
+                "the worker component must export {WORKER_RUN_INTERFACE}"
+            ));
+        }
+        let linker = worker_linker(engine)?;
+        linker
+            .instantiate_pre(&component)
+            .map_err(|error| format!("worker component imports cannot be satisfied: {error:#}"))?;
+        Ok(())
+    }
+
     /// Compiles the worker component and starts its thread. A component without the
     /// `worker-run` export, or that does not compile, is an error; a failure while it instantiates or
     /// runs only ends the worker (logged).
@@ -197,6 +218,50 @@ impl Drop for WorkerHandle {
     }
 }
 
+fn worker_err(context: &'static str) -> impl FnOnce(wasmtime::Error) -> String {
+    move |error| format!("{context}: {error:#}")
+}
+
+fn worker_linker(engine: &Engine) -> Result<Linker<WorkerState>, String> {
+    let mut linker = Linker::<WorkerState>::new(engine);
+    wasmtime_wasi::p2::add_to_linker_sync(&mut linker).map_err(worker_err("linking WASI"))?;
+    wasmtime_wasi_http::p2::add_only_http_to_linker_sync(&mut linker)
+        .map_err(worker_err("linking wasi:http"))?;
+    {
+        let mut host = linker
+            .instance(WORKER_HOST_INTERFACE)
+            .map_err(worker_err("linking the worker interface"))?;
+        host.func_wrap(
+            "host-send",
+            |cx: StoreContextMut<'_, WorkerState>, (message,): (Vec<u8>,)| {
+                Ok((cx
+                    .data()
+                    .chan
+                    .to_main
+                    .push(message)
+                    .map_err(|error| error.to_string()),))
+            },
+        )
+        .map_err(worker_err("linking host-send"))?;
+        host.func_wrap(
+            "host-recv",
+            |cx: StoreContextMut<'_, WorkerState>, (): ()| {
+                let chan = cx.data().chan.clone();
+                Ok((chan.to_worker.pop_blocking(),))
+            },
+        )
+        .map_err(worker_err("linking host-recv"))?;
+        host.func_wrap(
+            "host-try-recv",
+            |cx: StoreContextMut<'_, WorkerState>, (): ()| {
+                Ok((cx.data().chan.to_worker.try_pop(),))
+            },
+        )
+        .map_err(worker_err("linking host-try-recv"))?;
+    }
+    Ok(linker)
+}
+
 fn run(
     engine: &Engine,
     component: &Component,
@@ -206,28 +271,7 @@ fn run(
     log: &LogSink,
     prefix: &str,
 ) -> Result<(), String> {
-    fn err(context: &'static str) -> impl FnOnce(wasmtime::Error) -> String {
-        move |error| format!("{context}: {error:#}")
-    }
-    let mut linker = Linker::<WorkerState>::new(engine);
-    wasmtime_wasi::p2::add_to_linker_sync(&mut linker).map_err(err("linking WASI"))?;
-    wasmtime_wasi_http::p2::add_only_http_to_linker_sync(&mut linker).map_err(err("linking wasi:http"))?;
-    {
-        let mut host = linker.instance(WORKER_HOST_INTERFACE).map_err(err("linking the worker interface"))?;
-        host.func_wrap("host-send", |cx: StoreContextMut<'_, WorkerState>, (message,): (Vec<u8>,)| {
-            Ok((cx.data().chan.to_main.push(message).map_err(|error| error.to_string()),))
-        })
-        .map_err(err("linking host-send"))?;
-        host.func_wrap("host-recv", |cx: StoreContextMut<'_, WorkerState>, (): ()| {
-            let chan = cx.data().chan.clone();
-            Ok((chan.to_worker.pop_blocking(),))
-        })
-        .map_err(err("linking host-recv"))?;
-        host.func_wrap("host-try-recv", |cx: StoreContextMut<'_, WorkerState>, (): ()| {
-            Ok((cx.data().chan.to_worker.try_pop(),))
-        })
-        .map_err(err("linking host-try-recv"))?;
-    }
+    let linker = worker_linker(engine)?;
     let mut builder = WasiCtxBuilder::new();
     builder
         .stdout(LinePipe::new(prefix, "stdout", log.clone()))
@@ -255,13 +299,13 @@ fn run(
         }
     });
     store.set_epoch_deadline(1);
-    let instance = linker.instantiate(&mut store, component).map_err(err("instantiating the worker"))?;
+    let instance = linker.instantiate(&mut store, component).map_err(worker_err("instantiating the worker"))?;
     let interface = instance
         .get_export_index(&mut store, None, WORKER_RUN_INTERFACE)
         .ok_or_else(|| format!("missing export {WORKER_RUN_INTERFACE}"))?;
     let run = instance
         .get_export_index(&mut store, Some(&interface), "run")
         .ok_or("missing export run")?;
-    let run = instance.get_typed_func::<(), ()>(&mut store, run).map_err(err("worker run"))?;
+    let run = instance.get_typed_func::<(), ()>(&mut store, run).map_err(worker_err("worker run"))?;
     run.call(&mut store, ()).map_err(|error| format!("{error:#}"))
 }

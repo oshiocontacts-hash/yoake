@@ -17,11 +17,31 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 use std::time::{SystemTime, UNIX_EPOCH};
+use yoake_inject_rt::Side;
+use yoake_mod_io::WorkerHandle;
+use yoake_slice::runtime as slice_runtime;
+use yoake_wasm::inject::Injection;
 use yoake_wasm::{ClientFullMod, ClientHost, ClientMod, Sandbox, ServerFullMod, ServerHost};
 
 type Result<T> = std::result::Result<T, String>;
 const FULL_UNWIRED: &[&str] = &["input_key", "item_model_select"];
-const USAGE: &str = "usage: yoake new <minigame|hud-only|custom-mob|utility|script> <name> | yoake <build|pack|check> | yoake dev [--test] | yoake test [--game EXE] [--filter TEXT] [--timeout-ms N] [--clients 1|2] [--module WASM] [--keep] [-- GAME-ARGS...]";
+const CORE_MODULE_RUSTFLAGS: &[&str] = &[
+    "-C",
+    "linker=rust-lld",
+    "-C",
+    "linker-flavor=wasm-ld",
+    "-C",
+    "strip=symbols",
+    "-C",
+    "link-arg=--no-entry",
+    "-C",
+    "link-arg=--export-memory",
+    "-C",
+    "link-arg=--export=yoake_hook",
+    "-C",
+    "link-arg=--export=yoake_init",
+];
+const USAGE: &str = "usage: yoake new <minigame|hud-only|custom-mob|utility|script|client-full|server-full|worker|full-access> <name> | yoake <build|pack|check> | yoake dev [--test] | yoake test [--game EXE] [--filter TEXT] [--timeout-ms N] [--clients 1|2] [--module WASM] [--keep] [-- GAME-ARGS...]";
 const CHECK_HELP: &str = "yoake check validates existing Wasm modules without rebuilding them; if src/**, Cargo.toml or yak.toml is newer, run yoake build first";
 
 fn main() {
@@ -102,43 +122,91 @@ fn process_project(root: &Path, command: &str, build_fn: impl FnOnce(&Path, &Man
     Ok(summary)
 }
 
-fn build(root: &Path, manifest: &Manifest) -> Result<()> {
-    let wasm = manifest.wasm.as_ref().ok_or("yak.toml must declare [wasm]")?;
-    let modules = wasm.modules();
-    let cargo_file = fs::read_to_string(root.join("Cargo.toml")).map_err(|error| error.to_string())?;
+fn crate_artifact(crate_root: &Path, target: &Path) -> Result<PathBuf> {
+    let cargo_file = fs::read_to_string(crate_root.join("Cargo.toml")).map_err(|error| error.to_string())?;
     let cargo: toml::Table = cargo_file.parse().map_err(|error| format!("Cargo.toml: {error}"))?;
     let package_name = cargo.get("package").and_then(|package| package.get("name")).and_then(toml::Value::as_str).ok_or("Cargo.toml needs package.name")?;
     let library_name = cargo.get("lib").and_then(|library| library.get("name")).and_then(toml::Value::as_str).unwrap_or(package_name).replace('-', "_");
+    Ok(target.join("wasm32-wasip2").join("release").join(format!("{library_name}.wasm")))
+}
+
+fn build(root: &Path, manifest: &Manifest) -> Result<()> {
+    let wasm = manifest.wasm.as_ref().ok_or("yak.toml must declare [wasm]")?;
+    let modules = wasm.modules();
     let target = target_directory(root, env::var_os("CARGO_TARGET_DIR").as_deref());
-    // The worker (`[wasm] worker`, world worker-mod) is built like a module, from its own feature.
     let worker = wasm.worker.as_deref();
-    let multi_module = modules.len() + usize::from(worker.is_some()) > 1;
-    if multi_module {
-        let features = cargo.get("features").and_then(toml::Value::as_table);
-        let sides = modules.iter().map(|(side, _)| *side).chain(worker.map(|_| "worker"));
-        if !sides.clone().all(|side| features.is_some_and(|features| features.contains_key(side))) {
-            return Err("yoake build, dev, and pack require Cargo features named `client` and `server` for a multi-module package; independently built modules can still be validated with yoake check".into());
+    let full_access = wasm.full_access();
+    if !root.join("Cargo.toml").is_file() {
+        for (side, path) in modules {
+            let side_root = root.join(side);
+            let destination = root.join(path);
+            check_plain_path(&destination)?;
+            let artifact = crate_artifact(&side_root, &target)?;
+            cargo_wasm(&side_root, &target, None, side, &artifact, &destination, full_access)?;
+        }
+        if let Some(path) = worker {
+            let worker_root = root.join("worker");
+            let destination = root.join(path);
+            check_plain_path(&destination)?;
+            let artifact = crate_artifact(&worker_root, &target)?;
+            cargo_wasm(&worker_root, &target, None, "worker", &artifact, &destination, false)?;
+        }
+        return Ok(());
+    }
+    let cargo_file = fs::read_to_string(root.join("Cargo.toml")).map_err(|error| error.to_string())?;
+    let cargo: toml::Table = cargo_file.parse().map_err(|error| format!("Cargo.toml: {error}"))?;
+    let artifact = crate_artifact(root, &target)?;
+    // Deduplicate identical destinations (e.g. an inject-mod sharing one binary across both sides)
+    // so single-binary packages do not require split `client`/`server` Cargo features.
+    let mut unique_modules: Vec<(&'static str, &str)> = Vec::new();
+    for (side, path) in modules {
+        if !unique_modules.iter().any(|(_, existing)| *existing == path) {
+            unique_modules.push((side, path));
         }
     }
-    let artifact = target.join("wasm32-wasip2").join("release").join(format!("{library_name}.wasm"));
-    for (side, path) in modules {
+    // The worker (`[wasm] worker`, world worker-mod) is built like a module, from its own feature.
+    let multi_module = unique_modules.len() + usize::from(worker.is_some()) > 1;
+    if multi_module {
+        let features = cargo.get("features").and_then(toml::Value::as_table);
+        let sides = unique_modules.iter().map(|(side, _)| *side).chain(worker.map(|_| "worker"));
+        if !sides.clone().all(|side| features.is_some_and(|features| features.contains_key(side))) {
+            return Err("yoake build, dev, and pack require Cargo features named `client`/`server`/`worker` for a multi-module package; independently built modules can still be validated with yoake check".into());
+        }
+    }
+    for (side, path) in unique_modules {
         let destination = root.join(path);
         check_plain_path(&destination)?;
-        cargo_wasm(root, &target, multi_module.then_some(side), side, &artifact, &destination)?;
+        cargo_wasm(root, &target, multi_module.then_some(side), side, &artifact, &destination, full_access)?;
     }
     if let Some(path) = worker {
         let destination = root.join(path);
         check_plain_path(&destination)?;
-        cargo_wasm(root, &target, multi_module.then_some("worker"), "worker", &artifact, &destination)?;
+        cargo_wasm(root, &target, multi_module.then_some("worker"), "worker", &artifact, &destination, false)?;
     }
     Ok(())
 }
 
-/// Builds the crate for `wasm32-wasip2` (with the Cargo feature `features`, if any) and copies the artifact to
-/// `destination`, dating it from the start of the build so `yoake check` sees it as fresh.
-fn cargo_wasm(root: &Path, target: &Path, features: Option<&str>, label: &str, artifact: &Path, destination: &Path) -> Result<()> {
+/// Builds the crate for `wasm32-wasip2` (with the Cargo feature `features`, if any, and core-module
+/// `wasm-ld` flags for `full-access`) and copies the artifact to `destination`, dating it from the
+/// start of the build so `yoake check` sees it as fresh.
+fn cargo_wasm(
+    root: &Path,
+    target: &Path,
+    features: Option<&str>,
+    label: &str,
+    artifact: &Path,
+    destination: &Path,
+    core_module: bool,
+) -> Result<()> {
     let mut command = Command::new("cargo");
     command.current_dir(root).args(["build", "--release", "--target", "wasm32-wasip2", "--target-dir"]).arg(target);
+    if core_module {
+        command.env("CARGO_ENCODED_RUSTFLAGS", CORE_MODULE_RUSTFLAGS.join("\x1f"));
+        command.env_remove("RUSTFLAGS");
+    } else {
+        command.env_remove("CARGO_ENCODED_RUSTFLAGS");
+        command.env_remove("RUSTFLAGS");
+    }
     if let Some(features) = features {
         command.args(["--features", features]);
     }
@@ -212,25 +280,40 @@ fn check(root: &Path, manifest: &Manifest) -> Result<serde_json::Value> {
             return Err(format!("{} is not a regular Wasm file within the {MAX_WASM_SIZE}-byte size limit", module_path.display()));
         }
         ensure_module_is_fresh(root, &module_path, &metadata)?;
-        if side == "worker" {
-            // The worker runs on its own thread with WASI p2 (world worker-mod). Only the file is
-            // checked here: yoake-wasm has no host to instantiate it in this command.
-            checked.push(json!({"side": side, "path": path, "world": "worker-mod"}));
-            continue;
-        }
         let mut bytes = Vec::new();
         file.take(MAX_WASM_SIZE + 1).read_to_end(&mut bytes)
             .map_err(|error| format!("{}: {error}", module_path.display()))?;
         if bytes.len() as u64 > MAX_WASM_SIZE {
             return Err(format!("{} exceeds the {MAX_WASM_SIZE}-byte size limit", module_path.display()));
         }
-        let world = if side == "server" { "server-full" } else {
+        if side == "worker" {
+            WorkerHandle::validate(&bytes)
+                .map_err(|error| format!("{} (worker, worker-mod): {error}", module_path.display()))?;
+            checked.push(json!({"side": side, "path": path, "world": "worker-mod"}));
+            continue;
+        }
+        let world = if manifest.wasm.as_ref().is_some_and(|wasm| wasm.full_access()) {
+            "full-access"
+        } else if manifest.wasm.as_ref().and_then(|wasm| wasm.world.as_deref()) == Some("inject-mod") {
+            "inject-mod"
+        } else if side == "server" {
+            "server-full"
+        } else {
             manifest.wasm.as_ref().and_then(|wasm| wasm.world.as_deref()).unwrap_or("client-mod")
         };
-        let result = match world {
-            "client-mod" => ClientMod::instantiate(&mut sandbox, &manifest.id, &bytes, Box::new(StubClient)).map(|_| ()),
-            "client-full" => ClientFullMod::instantiate(&mut sandbox, &manifest.id, &bytes, Box::new(StubClient), FULL_UNWIRED).map(|_| ()),
-            "server-full" => ServerFullMod::instantiate(&mut sandbox, &manifest.id, &bytes, Box::new(StubServer), FULL_UNWIRED).map(|_| ()),
+        let permissions: Vec<String> = manifest.wasm.as_ref().map_or_else(Vec::new, |wasm| wasm.permissions.clone());
+        let mixin_targets: &[String] = manifest.mixin.as_ref().map_or(&[], |mixin| &mixin.targets);
+        let result: Result<()> = match world {
+            "client-mod" => ClientMod::instantiate(&mut sandbox, &manifest.id, &bytes, Box::new(StubClient)).map(|_| ()).map_err(|error| format!("{error}")),
+            "client-full" => ClientFullMod::instantiate(&mut sandbox, &manifest.id, &bytes, Box::new(StubClient), FULL_UNWIRED).map(|_| ()).map_err(|error| format!("{error}")),
+            "server-full" => ServerFullMod::instantiate(&mut sandbox, &manifest.id, &bytes, Box::new(StubServer), FULL_UNWIRED).map(|_| ()).map_err(|error| format!("{error}")),
+            "full-access" => slice_runtime::validate_module(&bytes).map(|_| ()),
+            "inject-mod" => {
+                let inject_side = if side == "server" { Side::Server } else { Side::Client };
+                Injection::instantiate_with_permissions(&mut sandbox, &manifest.id, &bytes, mixin_targets, inject_side, &permissions)
+                    .map(|_| ())
+                    .map_err(|error| format!("{error}"))
+            }
             _ => return Err(format!("{}: unsupported {side} world {world}", module_path.display())),
         };
         result.map_err(|error| format!("{} ({side}, {world}): {error}", module_path.display()))?;
@@ -342,7 +425,7 @@ fn dev_project(
         check_project(root, &manifest)?;
         checked = true;
         let wasm = manifest.wasm.as_ref().ok_or("dev requires a [wasm] section")?;
-        if wasm.world.as_deref() == Some("client-full") || wasm.client.is_none() {
+        if wasm.world.as_deref().is_some_and(|world| world != "client-mod") || wasm.client.is_none() {
             notes.push("raw Wasm hot reload only supports client-mod; not installed".to_owned());
         } else if let Some(directory) = directory {
             install(root, &manifest, directory)?;
