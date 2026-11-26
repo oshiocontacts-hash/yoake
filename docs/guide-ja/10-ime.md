@@ -1,10 +1,10 @@
-# 9. MOD 画面で IME（日本語入力）を使う
+# 10. MOD 画面で IME（日本語入力）を使う
 
 `client-full` の MOD は、自分の MOD 画面（`Screen::Mod`）で IME の変換途中の文字列（preedit）と確定文字列を受け取れます。OS の候補ウィンドウをテキストボックスのそばに置くサービスもあります。
 
-対象は **サンドボックス化された WebAssembly MOD** です。Yoake 2.0 の full-access core モジュール用のフック ID・`engine_call` バインディングではありません。
+対象は **サンドボックス化された WebAssembly MOD** です。Yoake 2.0 の full-access core モジュールでは `hooks::IME_PREEDIT` / `hooks::IME_COMMIT` と `stubs::f_services` を使います（[MOD-GUIDE.ja.md](../yoake2/MOD-GUIDE.ja.md) を参照）。
 
-## 9-1. 購読と初期化
+## 10-1. 購読と初期化
 
 次の 4 つのフックを使います。
 
@@ -65,7 +65,7 @@ IME の有効状態と候補位置は MOD 画面を開くとき・閉じると�
 
 **既存の MOD への影響はありません。** `ime_set_allowed` も `ime_set_cursor_area` も一度も呼ばない MOD 画面は、このサービスが追加される前とまったく同じに動きます（タイトル画面から開いた MOD 画面では IME が有効、ゲーム内の MOD 画面では無効）。どちらかを呼んだ時点から、その画面は MOD の指定に従います。
 
-## 9-2. フックの動作
+## 10-2. フックの動作
 
 ### `ime_preedit(text, cursor)`
 
@@ -82,7 +82,7 @@ IME が確定した文字列を、既存の `screen_char_typed_pre` より先に
 
 これらのフックが発生するのは、**MOD 画面が開いていて、かつ MOD が購読している場合だけ**です。バニラのチャットや設定画面の IME 内容は配信されません。購読していない MOD は呼び出されません。
 
-## 9-3. サービスと座標
+## 10-3. サービスと座標
 
 ### `ime_set_allowed(allowed)`
 

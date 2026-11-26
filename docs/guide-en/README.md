@@ -44,7 +44,7 @@ Read the chapters in order from top to bottom for a complete walkthrough—from 
 - Choosing an editor and preparing a workspace folder (focused on Windows, with notes for macOS and Linux)
 
 ### 2. [Creating Your First Mod (`02-first-mod.md`)](./02-first-mod.md)
-- Scaffolding a project with `yoake new hud-only my-hud` (including a list of all 5 templates)
+- Scaffolding a project with `yoake new hud-only my-hud` (including a list of all 9 templates)
 - What each generated file does (`yak.toml`, `Cargo.toml`, `src/lib.rs`, `README.md`, `.yoake/`, etc.), including the `[features] tests` setting that the template includes
 - The `yoake build` → `yoake check` → `yoake pack` workflow and checking the output at `dist/<id>-<version>.yak`
 
@@ -54,7 +54,7 @@ Read the chapters in order from top to bottom for a complete walkthrough—from 
 - The two developer-mode switches (one for Wasm, one for DLL) and the safety precautions that go with them
 
 ### 4. [Exploring the Example Mods (`04-examples.md`)](./04-examples.md)
-- Walkthrough of the 19 examples in the repository, including `hello-std` (`hello`, `hello-std`, `hud-item`, `server-storage`, `config-demo`, `permission-demo`, `full-demo`, `full-services`, `mod-call-pair`, `chest-count`, `item-trade`, `player-vitals`, `content-demo`, `mixin-demo`, `test-demo`, `tested-counter`, `client-services-demo`, `gpu-demo`, and `ime`)
+- Walkthrough of the 30 packaged examples in the repository (`hello`, `hello-std`, `hud-item`, `sprite-demo`, `browser-demo`, `fox_ai`, `fox_texture`, `seat_fox`, `ruby-behaviors`, `level-generator`, `f2-io`, `f2-check`, `f1-f2-demo`, `mixin-config`, and more) plus test fixtures
 - Overview of the hooks (`hook`) and host services (`services`) each example uses
 - How to write `[config]`, `[wasm] permissions`, and `[permissions."<node>"]` in `yak.toml`
 
@@ -79,15 +79,40 @@ Read the chapters in order from top to bottom for a complete walkthrough—from 
 - Intercepting engine functions with the `inject-mod` WIT world, injection points (HEAD, RETURN, and overwrite), and the site catalog
 - Value ranges, command and chat interception, ordering, resource limits, and traps
 
+### 9. [Replacing Item and Block Sprites at Runtime (`09-sprites.md`)](./09-sprites.md)
+- Updating item rectangles in the shared atlas with `sprites::set_item` / `reset_item`
+- Updating block texture layers and regenerating mipmaps with `sprites::set_block` / `reset_block`
+- Size mismatches, multi-mod overwrites, resource pack reloads, and unload cleanup
+
+### 10. [Using IME (Input Method) on Mod Screens (`10-ime.md`)](./10-ime.md)
+- Subscribing to `IME_PREEDIT` / `IME_COMMIT` and drawing composition text
+- Enabling OS IME and placing the candidate window in GUI-scaled coordinates
+- Avoiding double input with `screen_char_typed_pre`, screen ownership, and lifecycle
+
 ### 11. [Screen, inventory, sound and food services (`11-small-services.md`)](./11-small-services.md)
 - Sending from screen input hooks, turned textures, reading inventories
 - Client-only sound, setting food, block entity write-back, consuming a key
+
+### 12. [Files, Network, and Workers (`12-files-network.md`)](./12-files-network.md)
+- `/data`, `/game`, and `/host` folders with standard `std::fs`
+- Why network calls run in a `worker-mod` component and exchanging messages (`worker::send` / `worker::recv`)
+- Queue limits, worker crashes, and legacy `[wasm] permissions`
 
 ### 13. [Dimensions, levels and chunk generators (`13-dimensions.md`)](./13-dimensions.md)
 - Adding dimensions with data-pack JSON (`dimension` and `dimension_type`), save folders, and validation errors
 - Generators (`noise`, `flat`, `debug`, `yoake:mod`), biome sources, and per-level seeds
 - Travel (`/execute in`, `/tp`, portal coordinate scale) and the reconnect rule for runtime-created levels
 - WASM mod level registration, runtime lifecycle, and chunk generators (`level-generator` example)
+
+### 14. [Creating Custom Mobs (`14-custom-mobs.md`)](./14-custom-mobs.md)
+- `content/` layout from `yoake new custom-mob` (`.bbmodel` / `.geo.json`, animations, controllers)
+- `ScriptGoal` AI with `server-full` `service.mobs`, synced values, and vehicle `seats`
+- The Cinder Fox examples (`fox_ai`, `fox_texture`, `seat_fox`) and debug/hot-reload commands
+
+### 15. [Embedded Browser and Media Display (`15-browser-media.md`)](./15-browser-media.md)
+- Using `Browser` in `client-full` with `service.browser` (`browser-demo`)
+- Painting frames into `GuiTexture`, forwarding input/JS, and capturing tab PCM audio
+- Web-only safety rules and limits
 
 ---
 

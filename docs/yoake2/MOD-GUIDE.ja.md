@@ -28,28 +28,28 @@
 
 ## 2. セットアップ: ツールチェーンとターゲット
 
-Yoake のソース一式（SDK とパックツールが入っています）と、それが指定するツールチェーンが必要です。
+Rust ツールチェーン（`rust-toolchain.toml` が **rustc 1.100.0** とターゲット `wasm32-unknown-unknown`・`wasm32-wasip2` を固定しています）と、次のどちらかを使います。
 
-- ソース一式のルートにある `rust-toolchain.toml` が **rustc 1.100.0** と、ターゲット `wasm32-unknown-unknown`・`wasm32-wasip2` を指定しています。ソース一式の中では rustup が自動で選びます。外では `rustc +1.100.0` と書いてください（ひな形のスクリプトはそうしていて、`YOAKE_TOOLCHAIN` で変えられます）。
-- MOD は素の `rustc` で **`wasm32-wasip2`** 向けにビルドします（Cargo は不要、コンポーネントの包みもなし）。出力は WASI インポートを持たないコアモジュールです。
-- **GNU ツールチェーンの Windows**: パックツール（`cargo-horizon-mod`）のコンパイルでは `dlltool` とアセンブラが `PATH` に必要になるクレートを使います。MOD 自体は不要で、`rustc` と同梱の `rust-lld` だけで足ります。ひな形での SDK と MOD のビルドにネイティブツールは要りません。
+- **`yoake` CLI（`crates/yoake-cli`）**: どこでも `yoake new full-access my-mod` を実行すると、バンドル済みの `yoake-guest-sdk` 付き Cargo プロジェクトが作られます。あとは `yoake build`・`yoake check`・`yoake pack` でビルド・検査・パックまで完了します。
+- **ソース一式内の `rustc` スクリプト（`templates/full-access-mod`）**: `build.sh` / `build.ps1` で `rustc +1.100.0` を直接呼び、`cargo-horizon-mod` でパックします。
 
-これ以外は何も入れません。`wasm-tools`、`cargo-component`、`wasm-opt` は使いません。
+GNU ツールチェーンの Windows では、`yoake` や `cargo-horizon-mod` のビルドに `dlltool` とアセンブラが `PATH` に必要です。MOD 自体のビルドには `rustc` と同梱の `rust-lld` だけで足ります。`wasm-tools`・`cargo-component`・`wasm-opt` は使いません。
 
 ## 3. プロジェクトの構成
 
-動く最小構成がひな形です。
+`yoake new full-access my-mod` を使うと、`yoake build`・`yoake check`・`yoake pack` にそのまま対応した Cargo プロジェクトが作られます。
 
 ```text
 my-mod/
-  yak.toml              パッケージのマニフェスト
-  src/lib.rs            MOD 本体（1 ファイルで足りる。no_std のクレートルート）
-  build.sh / build.ps1  SDK のコンパイル、MOD のコンパイル、.yak のパック
-  bin/wasm/<name>.wasm  ビルド出力（パスは yak.toml に書く）
-  dist/<id>-<version>.yak  できあがったパッケージ
+  yak.toml                 パッケージのマニフェスト（world = "full-access", interface = "1.7"）
+  Cargo.toml               .yoake/yoake-guest-sdk にパス依存
+  src/lib.rs               #![no_std] cdylib の MOD 本体
+  .yoake/yoake-guest-sdk/  同梱された SDK のコピー
+  bin/wasm/my-mod.wasm     ビルド出力（yoake build が書き出す）
+  dist/my-mod-0.1.0.yak    できあがったパッケージ（yoake pack が書き出す）
 ```
 
-MOD は `#![no_std]` の cdylib のクレートルートで、SDK の `rlib` に対してコンパイルします。
+手動の `rustc` スクリプト構成（`templates/full-access-mod`）では、`Cargo.toml` と `.yoake/` の代わりに `build.sh` / `build.ps1` を使います。どちらでも、MOD は `yoake-guest-sdk` に対してコンパイルする `#![no_std]` の cdylib クレートです。
 
 ```rust
 #![no_std]
@@ -63,9 +63,7 @@ fn hook(id: u32, root: Handle) -> i64 { let _ = original(root); 0 }
 export_guest!(init, hook);
 ```
 
-`export_guest!(init, hook)` が 2 つのエクスポート（`yoake_init`、`yoake_hook`）と ABI のカスタムセクション（第 13 章）を出力します。アロケータ（`alloc` が使えます）と、トラップするパニックハンドラは SDK が用意します。`std` はありません。
-
-Cargo のプロジェクトでも、同じフラグ（`crate-type = ["cdylib"]`、`panic = "abort"`、第 8 章のリンカ引数）を指定して `crates/yoake-guest-sdk` をパス依存にすれば動くはずです。ただしこのツリーに Cargo で MOD をビルドする例はないので、ひな形では採用していません。
+`export_guest!(init, hook)` が 2 つのエクスポート（`yoake_init`、`yoake_hook`）と ABI のカスタムセクション（第 13 章）を出力します。アロケータ（`alloc` が使えます）と、トラップするパニックハンドラは SDK が用意します。`std` はありません（`wasm32-wasip1` でビルドする場合を除く。第 15 章を参照）。
 
 ## 4. `yoake_init` とフックを書く
 
@@ -163,6 +161,11 @@ HOOK_EXPERIENCE_GIVE => {
 | `stubs::entities` | エンティティのフィールドのゲッター／セッターとメソッド。例: `entities_experience_total_get`、`entities_itementity_fire_ticks_set`、`entities_itementity_position_get` |
 | `stubs::items` | アイテムのデータ型とアイテムの関数 |
 | `stubs::game_items` | `Game` ルートからパスハンドルを開く `Game.<name>#handle` の関数 |
+| `stubs::mobs`、`stubs::motion` | Mob・プレイヤー移動のゲッター／セッターとメソッド |
+| `stubs::custom_mobs` | F4M カスタム Mob のフックと操作（`yoake_guest_sdk::custom_mobs` でラップ。第 17 章） |
+| `stubs::f_services` | F ルートのクライアント HUD・IME・音声・GPU サービス（`yoake_guest_sdk::f_services` でラップ。第 6 章） |
+| `stubs::mod_generator` | `worldgen::generate_chunk` 用の `ModChunk` バインディング（第 16 章） |
+| `stubs::launch_options`、`render_settings`、`render_world` | 起動設定やクライアント描画状態のバインディング |
 
 名前の付け方は、フィールドなら `<module>_<type>_<field>_get` / `_set`、メソッドなら `<module>_<type>_<method>` です。何がバインドされているかは `docs/yoake2/bindgen/`（`functions-*.md`、`coverage.md`）に、ID は `crates/yoake-bindgen/ids.lock.json`（追記のみで、再利用されません）にあります。スタブは `Result<T, Error>` を返します。
 
@@ -199,6 +202,17 @@ let ok = entities_itementity_fire_ticks_set(item, 55).is_ok();       // a setter
 
   パスハンドルは **パス**（`Game`、フィールド、ID）で、呼び出しのたびにルートから借り直されます。参照ではありません。有効なのはその activation の中だけです。対象が消えた（アイテムが拾われた、削除された）ときは `Stale`、`original` や同じ activation の別の呼び出しが実行中のときは `Locked`、別の型のメソッドを呼ぶと `WrongType` です。1 activation で最大 256 個まで。ほかのフックの中にはルートがないので、パスを求めても `WrongType` になります。
 
+### 複数引数のフックと値渡し引数（ABI 1.1）
+
+ABI 1.1 では、複数引数（最大 8 個）を取る関数のフックで `handle.arg(index)` により各引数のハンドルを取得できます（`handle.arg(0)` が `yoake_hook` に渡されたハンドルです）。SDK には次の関数があります。
+
+- `arg_value(h) -> Result<i64, Error>`: 値渡しスカラー引数のビット列を読みます（オブジェクトハンドルでは `WrongKind`）。
+- `set_arg_value(h, bits) -> Result<(), Error>`: 値渡し引数を書き換え、次の `original` と後続 MOD に渡します。
+- `swap_args(a, b) -> Result<(), Error>`: 同じ型・同じ可変性（`&mut` 同士または `&` 同士）の 2 つのオブジェクト引数をエイリアシングなしに入れ替えます。
+- `replace_arg(dst, src) -> Result<(), Error>`: 共有参照（`&T`）の引数を `src` に差し替えます（`&mut T` では `Overlap` になるため `swap_args` を使います）。
+
+ABI 1.1 の新しいハンドルステータス: `8`（`Overlap`）と `9`（`WrongKind`）。詳しくは [ENGINE_CALL_ABI.md](ENGINE_CALL_ABI.md#every-argument-of-a-hook-abi-11-w8) を参照してください。
+
 ### `OUT_TOO_SMALL` とチケット
 
 普段は見ることがありません。SDK の `call` が処理するからです。ただ、理由は知っておく価値があります。
@@ -218,12 +232,22 @@ let ok = entities_itementity_fire_ticks_set(item, 55).is_ok();       // a setter
 | `[wasm] client = "bin/wasm/y.wasm"` | クライアントセッションの準備ができたときの、ウィンドウのスレッド |
 | 両方 | 両方のスレッドで、別々の 2 つのインスタンスとして（メモリもグローバルも共有しない） |
 
-`[side]` は宣言したモジュールと完全に一致させる必要があります（`side.server` は `wasm.server` があるときだけ、`side.client` は `wasm.client` があるときだけ）。クライアント側も同じ許可リストと同じルールに従います。合成フックは次の 3 つです。
-- `hooks::SERVER_TICK`（`0x8000_0001`）：サーバーの tick ごとに呼ばれます。引数 0 はサーバーの `Game` ルートです。
-- `hooks::CLIENT_TICK`（`0x8000_0002`）：クライアントの tick ごとに 1 回呼ばれます。引数 0 はクライアントの `Game` です。
-- `hooks::HUD_RENDER`（`0x8000_0003`）：HUD のあと、フレームごとに 1 回呼ばれます。観察専用で、引数 0 は無効なハンドルなので、まだ HUD に描画はできません。
+`[side]` は宣言したモジュールと完全に一致させる必要があります（`side.server` は `wasm.server` があるときだけ、`side.client` は `wasm.client` があるときだけ）。クライアント側も同じ許可リストと同じルールに従います。合成フックは次のとおりです。
+- `hooks::SERVER_TICK`（`0x8000_0001`）：サーバーの tick ごとに呼ばれます。引数 0 はサーバーの `Game` ルートです（Full）。
+- `hooks::CLIENT_TICK`（`0x8000_0002`）：クライアントの tick ごとに 1 回呼ばれます。引数 0 はクライアントの `Game` です（Full）。
+- `hooks::HUD_RENDER`（`0x8000_0003`）：HUD のあと、フレームごとに 1 回呼ばれます。観察専用で、引数 0 は無効なハンドルです（描画には `f_services::hud_draw` を使います）。
+- `hooks::GPU_FRAME`（`0x8000_0004`）：レンダラーの GPU パスからフレームごとに 1 回呼ばれます（観察専用）。
+- `hooks::IME_PREEDIT`（`0x8000_0005`）・`hooks::IME_COMMIT`（`0x8000_0006`）：IME の変換途中／確定イベント（観察専用）。内容は `f_services::ime_event()` で読みます。
 
-`hook_register` は、2 つの tick には `0`（Full）を、`HUD_RENDER` には `1`（観察専用）を返します。
+### F ルートのクライアントサービス（`yoake_guest_sdk::f_services` / `stubs::f_services`）
+
+クライアント側のフルアクセスモジュールは、`[wasm] permissions` なしでサンドボックス `client-full` と同じクライアントホストサービスを呼べます。
+- **HUD**: `f_services::{hud_draw, hud_gui_size, hud_gui_scale}`（`hud_draw` は `HUD_RENDER` 内のみ、1 フレーム最大 8,192 個の `FHud` コマンド）。
+- **音声**: `f_services::{play_sound, play_sound_at}` と RAII の `f_services::AudioStream`（`open`、`push`、`queued`、`dropped`、`move_to`。Drop で自動クローズ）。
+- **IME**: `f_services::{ime_set_allowed, ime_set_cursor_area, ime_event}`。
+- **GPU**: `stubs::f_services::f_services_gpu_*`（リソースは `yoake-f-client` に紐づき、クライアント MOD のアンロード時に解放されます）。
+
+完全な例は [`crates/yoake-guest-sdk/examples/f_client_services.rs`](../../crates/yoake-guest-sdk/examples/f_client_services.rs) にあります。
 
 ## 7. 小さな MOD を最後まで
 
@@ -264,7 +288,19 @@ export_guest!(init, hook);
 
 ## 8. wasm にビルドする
 
-`rustc` を 2 回呼びます。`crates/yoake-guest-sdk/tests/support/build.rs`（エンジン自身のテストが使っているもの）と同じです。
+### `yoake build` を使う方法（`yoake new full-access` の場合）
+
+`yoake new full-access <name>` で作ったプロジェクト内では、`yoake build` がコアモジュール用の `rust-lld` フラグ（`--no-entry`、`--export-memory`、`--export=yoake_hook`、`--export=yoake_init`）を自動で渡し、成果物を `[wasm] server` / `[wasm] client`（および `[wasm] worker`）へコピーします。
+
+```sh
+yoake build
+yoake check
+yoake pack
+```
+
+### 手動で `rustc` を使う方法（`crates/yoake-guest-sdk/tests/support/build.rs`）
+
+Cargo を使わず `rustc` を 2 回呼んでビルドする方法です。
 
 ```sh
 COMMON="--edition 2024 --target wasm32-wasip2 -C panic=abort -C opt-level=1"
@@ -305,7 +341,7 @@ server = true
 required_on_join = false
 
 [wasm]
-interface = "1.0"
+interface = "1.7"
 server = "bin/wasm/my_full_access_mod.wasm"
 world = "full-access"
 ```
@@ -320,18 +356,20 @@ world = "full-access"
 | `authors` | 1〜128 名 |
 | `[yoake] version` | ランチャーがインストール済みの Yoake と照合するバージョン条件（`>=0.0.0` なら常に一致） |
 | `[wasm] world` | `"full-access"` |
-| `[wasm] interface` | `"1.0"`（メジャーは 1。マイナーが 1 以上だと別の world が必要になるので `1.0` を使う） |
-| `[wasm] server` | `bin/wasm/` の **直下** にある、`.wasm` で終わるファイル。このツリーでは必須。`wasm.client` は不可（第 6 章） |
+| `[wasm] interface` | `"1.7"`（または `"1.0"`。メジャーは 1、マイナー `1`/`2` は `inject-mod` 専用） |
+| `[wasm] server` / `client` | `server` と `client` の少なくとも一方を指定。`bin/wasm/` の直下にある `.wasm` ファイル |
 | `[wasm] permissions` | 指定不可。フルアクセスは全か無かだから |
-| `[wasm] worker` | 省略可。`bin/wasm/` 直下のコンポーネント（第 14 章） |
-| `[wasm] host_filesystem` | 省略可。真偽値。`/host/<ドライブ文字>` を使えるようにする（第 14 章） |
-| `[side]` | `server = true` |
+| `[wasm] worker` | 省略可。`bin/wasm/` 直下の `worker-mod` コンポーネント（第 15 章） |
+| `[wasm] host_filesystem` | 省略可。真偽値。`/host/<ドライブ文字>` を使えるようにする（第 15 章） |
+| `[side]` | `side.server` は `wasm.server` の有無、`side.client` は `wasm.client` の有無と一致させる |
 
 ほかに `name_ja`、`license`、`homepage`、`dependencies`、`optional`、`conflicts` が使えます。`yak.toml` と同じ場所にある `README.md`、`LICENSE`、`content/`、`assets/`、`shaders/`、`config/` も一緒にパックされます。
 
 ### パックする
 
-ソース一式にパックツール `cargo-horizon-mod` があります。ソース一式のルートで次を実行します。
+`yoake new full-access` で作ったプロジェクトでは `yoake pack` を実行します（ビルドと `yoake check` による `yoake_abi`／インポート検証を行い、`dist/<id>-<version>.yak` を出力します）。
+
+手動の `rustc` 構成（`templates/full-access-mod`）では、ソース一式のパックツール `cargo-horizon-mod` を使います。ソース一式のルートで次を実行します。
 
 ```sh
 cargo run -p cargo-horizon-mod -- pack path/to/my-mod
@@ -342,8 +380,6 @@ cargo run -p cargo-horizon-mod -- pack path/to/my-mod
 ```sh
 cargo run -p cargo-horizon-mod -- yak verify path/to/my_full_access_mod-0.1.0.yak
 ```
-
-フルアクセス MOD に `yoake build`／`pack`／`check`（`crates/yoake-cli` の `yoake` CLI）は使わないでください。サンドボックス型の WebAssembly 向けに Cargo でコンポーネントをビルドし、サーバーモジュールもサンドボックス型のコンポーネントとして検査するツールだからです。
 
 ## 10. ランチャーでインストールして許可する
 
@@ -415,7 +451,7 @@ MOD の更新: 同じ ID の別バージョンは「already installed in another
 
 ## 13. バージョニング: ABI セクション
 
-フルアクセスのゲストはすべて、`yoake_abi` という名前のカスタムセクションに ABI を宣言します。ちょうど 4 バイトで、メジャーバージョンをリトルエンディアンの `u16`、続けてマイナーバージョンをリトルエンディアンの `u16` で置きます。SDK とエンジンは **1.0**（`01 00 00 00`）で、`export_guest!` が出力します（SDK の `ABI_MAJOR`、`ABI_MINOR`）。ローダーはこのセクションを、**ゲストのコードを一切実行する前に** モジュールのバイト列から読みます。
+フルアクセスのゲストはすべて、`yoake_abi` という名前のカスタムセクションに ABI を宣言します。ちょうど 4 バイトで、メジャーバージョンをリトルエンディアンの `u16`、続けてマイナーバージョンをリトルエンディアンの `u16` で置きます。SDK とエンジンは **1.1**（`01 00 01 00`。`1.0` のゲスト `01 00 00 00` も後方互換の古いマイナーとしてそのまま読み込めます）で、`export_guest!` が出力します（SDK の `ABI_MAJOR`、`ABI_MINOR`）。ローダーはこのセクションを、**ゲストのコードを一切実行する前に** モジュールのバイト列から読みます。
 
 | ゲストのセクション | 結果 |
 |---|---|
@@ -429,7 +465,46 @@ MOD の更新: 同じ ID の別バージョンは「already installed in another
 
 MOD 自身の `yak.toml` の `version` は別物です。リリースのたびに上げてください。そのたびにプレイヤーは新しいファイルを許可することになります。
 
-## 14. ファイル・ネットワーク・ワーカー (FR-F2)
+## 14. MOD 画面の IME（サンドボックスの `client-full` と F ルートの `f_services`）
+
+フルアクセス MOD には `hooks::IME_PREEDIT`、`hooks::IME_COMMIT`、および `f_services::{ime_set_allowed, ime_set_cursor_area, ime_event}` が用意されています（第 6 章および [`crates/yoake-guest-sdk/examples/f_client_services.rs`](../../crates/yoake-guest-sdk/examples/f_client_services.rs) を参照）。サンドボックス用のサービス番号 201 / 202 をフルアクセスのフック ID として登録しないでください（それらはサンドボックス専用です）。
+
+**サンドボックス型の `client-full` コンポーネント**では、MOD 自身が所有する画面で IME を次のように扱います。
+
+`client-full` の MOD は、`hook::SCREEN_INIT_POST`、`hook::FRAME`、`hook::IME_PREEDIT`、`hook::IME_COMMIT` を購読します。`screen_init_post` にはホストへの書き込み権限がない（サービスを呼ぶと `Err` になる）ため、画面が開いたことだけを覚えておき、`frame` から成功するまで再試行して有効化と候補ウィンドウ位置を設定します。
+
+```rust
+use yoake_wasm_sdk::full::client::{ime_set_allowed, ime_set_cursor_area};
+
+fn screen_init_post(&mut self, _screen: et::NativeScreenView) {
+    self.pending = true; // MOD 画面を開くたびに IME 状態はリセットされる
+}
+
+fn frame(&mut self, _elapsed: u64) {
+    if self.pending
+        && ime_set_allowed(true).is_ok()
+        && ime_set_cursor_area(32.0, 48.0, 180.0, 20.0).is_ok()
+    {
+        self.pending = false;
+    }
+}
+
+fn ime_preedit(&mut self, text: String, cursor: Option<(u32, u32)>) {
+    // MOD のテキスト欄に `text` を描画する。cursor は UTF-8 バイト位置。
+}
+
+fn ime_commit(&mut self, text: String) {
+    // 確定文字列を 1 回だけ挿入する。
+}
+```
+
+`ime_set_allowed` はサービス番号 **201**、`ime_set_cursor_area` は **202** です。矩形 `(x, y, w, h)` は物理ピクセルではなく GUI スケーリング済み座標で渡し、有限数・非負のサイズである必要があります。現在開いている MOD 画面を所有する MOD 以外が呼ぶと `Err` を返します。状態は MOD 画面の開閉ごとにリセットされます。どちらも呼ばない MOD 画面は従来どおり（タイトル上の MOD 画面では有効、ゲーム内では無効）に動き、`[wasm] permissions` に `service.ime` を書く必要もありません（書くとエラーになります）。
+
+**引数の順番の注意**: ジェネレーターはサービス引数をアルファベット順に並べるため、生の WIT インポート `services::ime_set_cursor_area` は `(h, w, x, y)` の順です。順序を直したラッパー `yoake_wasm_sdk::full::client::ime_set_cursor_area(x, y, w, h)` を使ってください。
+
+preedit と commit のフックは MOD 画面が開いている間の購読者にだけ届きます。確定文字列は文字ごとの `screen_char_typed_pre` より先に届くため、二重入力にならないようどちらか一方だけで挿入してください。詳しくは [`docs/guide-ja/10-ime.md`](../guide-ja/10-ime.md) と [`crates/yoake-wasm-sdk/examples/ime/`](../../crates/yoake-wasm-sdk/examples/ime/src/lib.rs) を参照してください。
+
+## 15. ファイル・ネットワーク・ワーカー (FR-F2)
 
 Yoake の MOD は、身内のグループの中だけで使います。だから Forge や Fabric の MOD と同じように、ファイルとネットワークが使えます。変わらない決まりは 2 つです。MOD を入れていないときは何も変わりません。そして、**ゲームのメインスレッドは MOD を待ちません**。ファイルは短くて同期的なので、メインスレッドで使ってかまいません。ネットワークは何秒も待つことがあります。だから**ワーカー**を通します。
 
@@ -464,14 +539,16 @@ MOD は **ワーカー** を 1 つ宣言できます。ワーカーは WebAssemb
 
 ```toml
 [wasm]
-interface = "1.0"
+interface = "1.7"
 world = "full-access"
 server = "bin/wasm/my_mod.wasm"
 worker = "bin/wasm/my_worker.wasm"   # コンポーネント（world は `worker-mod`）
 host_filesystem = false               # 省略できます
 ```
 
-ワーカーでは WASI preview 2 がすべて使えます。上のファイル、`wasi:sockets`（TCP・UDP・名前解決）、`wasi:http` の送信、時間のかかる待ち、本物の時計です。ただし**エンジンのハンドルは持ちません**。MOD とのやり取りは、バイト列のメッセージだけです。WIT は `crates/yoake-wasm/wit-worker/yoake-worker.wit`（パッケージ `yoake:mods@1.6.0`）にあります。追加だけのマイナー更新で、1.0〜1.2 のものは何も変えていません。
+`server-full` ＋ `worker-mod` のプロジェクトを SDK の `Worker` トレイトと `export_worker!` で作るには `yoake new worker <name>` を実行します。`full-access` コアモジュールと `worker-mod` コンポーネントの組み合わせ例は [`crates/yoake-guest-sdk/examples/f1-f2-demo/`](../../crates/yoake-guest-sdk/examples/f1-f2-demo/src/lib.rs) にあります。
+
+ワーカーでは WASI preview 2 がすべて使えます。上のファイル、`wasi:sockets`（TCP・UDP・名前解決）、`wasi:http` の送信、時間のかかる待ち、本物の時計です。ただし**エンジンのハンドルは持ちません**。MOD とのやり取りは、バイト列のメッセージだけです。WIT は `crates/yoake-wasm/wit-worker/yoake-worker.wit`（パッケージ `yoake:mods@1.7.0`、SDK では `yoake_wasm_sdk::worker::{Worker, send, recv, try_recv}` と `export_worker!`）にあります。追加だけのマイナー更新で、1.0〜1.2 のものは何も変えていません。
 
 | 側 | 呼び出し |
 |---|---|
@@ -498,6 +575,23 @@ host_filesystem = false               # 省略できます
 ### サービスの権限ゲートはなくなりました
 
 サンドボックスの MOD のサービス呼び出し（`config`・`permissions`・`storage`）は、`[wasm] permissions` がなくても使えます。古い MOD が読み込めるように、この項目は今も読み取ります。`service.commands`・`service.chat`・`service.gpu` の意味は変わりません。`service.http` はマニフェストでは受け付けていましたが、通信の部分はつながっていませんでした。HTTP はワーカーの `wasi:http` を使ってください。
+
+## 16. レベルとワールド生成（F3-8b）
+
+サーバー側のインジェクトフックが 4 つ用意されています（すべて `side = "server"`、ID は `inject-sites.json`、購読する MOD がなければノーオペレーションです）。
+
+| ID | 引数 | 呼ばれるタイミング |
+| --- | --- | --- |
+| `level::before_open` | `&mut Game`, レベル ID | まだ開いていないレベルをフォルダから読み込む直前 |
+| `level::after_open` | `&mut Game`, レベル ID | レベルが開き、MOD が `LevelEvent.Load` を受け取ったあと |
+| `level::before_close` | `&mut Game`, レベル ID | `unload`・`delete`・`regenerate` で閉じる直前（チャンクとファイルがまだ残っている間） |
+| `worldgen::generate_chunk` | レベル ID, `cx`, `cz`, `&mut ModChunk` | MOD ジェネレーター（`yoake:mod`）を使うレベルのチャンクごとに、ジェネレーターが埋める直前に 1 回 |
+
+`worldgen::generate_chunk` はバニラの 3 ディメンションや `flat` / `debug` / `noise` のレベルでは呼ばれないため、バニラ地形には一切影響しません。フックから `ModChunk` のバインディング（`stubs::mod_generator` の `set_block`、`fill_layer`、`block`、`set_biome`、`mark_failed`）で空のチャンクに書き込めますが、そのあとにレベルのジェネレーターがチャンクを埋めます。地形そのものを置き換えたい場合はジェネレーター自体を登録してください（サンドボックス WebAssembly MOD の `generator_register`、第 13 章 [`13-dimensions.md`](../guide-ja/13-dimensions.md)）。チャンク生成ワーカースレッドで動くため処理は短く保ってください。呼び出し上限を超えると下の安全性ルールによりそのチャンクは未生成扱いになります。
+
+WebAssembly サービス側は後方互換の列挙型を維持するため、`current_level(player)`（サービス 235）がプレイヤーの現在いる実際のレベル ID（文字列）を返します。
+
+ジェネレーターの安全性: MOD ジェネレーターが応答できなかった場合（モジュールがビジー、トラップ、呼び出し上限超過）、約 1 ティック後に 1 回だけ再試行します。それも失敗するとチャンクはジェネレーターが書いた状態のまま `not_generated`（未生成）とマークされ、保存されません（次回読み込み時に再生成されます）。誰かがそのチャンク内のブロックを書き換えるとマークが外れ、建築した内容は保存されます。
 
 ## 17. カスタム Mob と brain オプション (F4M-4b)
 
@@ -560,6 +654,18 @@ host_filesystem = false               # 省略できます
 - **引数の順番の注意:** ジェネレーターは WIT 引数をアルファベット順に並べるため、生のインポートは `services::mob_texture_create(height, width)`、`services::mob_texture_write(id, origin, rgba, size)`、`services::mob_texture_bind(entity, id, slot)` になります。`(width, height)`、`(id, origin, size, rgba)`、`(entity, slot, id)` の順を保つ `yoake_wasm_sdk::full::client::mob_texture_*` ラッパーを使ってください。
 - **寿命とリロード:** 作成済みのテクスチャとバインドは、リソースパックの再読み込み（アトラス再構築）やシェーダーパックの切り替えを跨いで維持されます。MOD のアンロード／再読み込み時には、その MOD が所有するテクスチャとバインドが自動的に解放・解除されます。
 - 例: `crates/yoake-wasm-sdk/examples/fox_texture`（`fox_ai` が `mob_hurt` で `warmth` を更新した際に Cinder Fox のテクスチャを塗り替えます）。
+
+### フルアクセスの `custom_mobs`（ルート F、F4M-11）
+
+フルアクセスのコアモジュールからは、`yoake_guest_sdk::custom_mobs`（`stubs::custom_mobs` のラッパー）でカスタム Mob を制御・描画できます。
+
+- **フック（`hooks::*`）**:
+  - サーバー側のゴール・ライフサイクル: `MOB_GOAL_CAN_USE`、`MOB_GOAL_CAN_CONTINUE`、`MOB_GOAL_START`、`MOB_GOAL_TICK`、`MOB_GOAL_STOP`（`custom_mobs::register_goal_hooks(r, 0)` でまとめて登録可能）、`MOB_TICK`、`MOB_SPAWN_CHECK`、`MOB_SPAWNED`、`MOB_HURT`、`MOB_DIED`、`MOB_INTERACT`、`MOB_ANIM_EVENT`、`MOB_LOAD`、`MOB_SAVE`、`MOB_TAMED`、`MOB_BRED`、`MOB_SYNCED_CHANGED_SERVER`。
+  - クライアント側の描画ステージ・イベント: `CUSTOM_MOB_BEFORE_POSE`、`CUSTOM_MOB_AFTER_POSE`、`CUSTOM_MOB_AFTER_VERTICES`（`custom_mobs::register_draw_stage_hooks(r, 0)` で登録）、`MOB_POSE`、`MOB_ANIM_EVENT_CLIENT`、`MOB_SYNCED_CHANGED_CLIENT`。
+- **イベントの取得と応答**: `custom_mobs::hook_event()`（描画ステージでは `draw_event()`）でイベントを読み、`reply_bool`・`reply_hurt`・`reply_interact`・`reply_save`・`reply_pose`・`draw_cancel` で応答します。
+- **操作（`CustomMob`）**: `CustomMob::new(mob_id)` から `.info()`、`.synced()` / `.set_synced()`、`.trigger_anim()`、`.set_controller_state()`、`.hold_controller_state()` / `.release_controller_state()`、`.navigate_to()` / `.navigate_stop()`、`.look_at()`、`.jump()`、`.set_target()`、`.attack()`、`.impulse()`、`.attribute()` / `.set_attribute_base()` / `.add_attribute_modifier()` / `.remove_attribute_modifier()`、`.set_hitbox_enabled()`、`.data()` / `.put_data()`、`.seat_set()`、`.memory()` / `.set_memory()`、`.locator()`、`.bind_texture()`、`.claim_control()`、`.despawn()` を呼べます。
+- **ゴール登録とボーン姿勢**: `custom_mobs::register_goal(name)`、`spawn_queued(...)`、`texture_create` / `texture_write`、姿勢フック内の `pose_bone_count` / `pose_get` / `pose_set` / `pose_write` を備えています。
+- **サンプル**: [`crates/yoake-guest-sdk/examples/fox_ai_full.rs`](../../crates/yoake-guest-sdk/examples/fox_ai_full.rs)（`fox_ai` のルート F 版）。
 
 ### カスタム Mob のデバッグ表示とホットリロード (F4M-12, F4M-13)
 
@@ -721,7 +827,7 @@ yoake_wasm_sdk::export_server_full!(Guest);
 3. **実際のゲームでの動作。** ゲームは一度も起動していません。ひな形とサンプルは、本物のローダーと仮の `Game` ルート（パス `Game.experience` に本物の `Experience` を置いたもの）で動かしました。本物の `Game` に対して同じ SDK サンプルを動かすテストは `crates/horizon-client/src/game/yoake2_examples_tests.rs` にありますが、`HORIZON_TEST_RESOURCES` がないと無視されます。
 4. **「許可したあとにゲームを起動（再起動）する」** はコードからの推論です（ランチャーはゲームを起動する前にリストを書き、ゲームは最初のワールド開始時に 1 度だけ読む）。動作中のランチャーでは確認していません。
 5. **呼び出し箇所フック**（台帳の `kind = callsite`）: 台帳とブリッジでは関数フックと同じように並んでいて、`docs/yoake2/HOOK-SLICE-BRIDGE.md` には、ゲストから見えるのは引数 0 のハンドルで、ほかの引数は見えないとあります。このガイドのために呼び出し箇所フックを動かしてはいません。
-6. **フルアクセス MOD に `yoake` CLI を使わないこと**: `crates/yoake-cli/src/main.rs` を読んでの判断です（Cargo でコンポーネントをビルドし、サーバーモジュールをサンドボックス型のコンポーネントとして検査する）。フルアクセスのパッケージに対して実行はしていません。
+6. **`yoake new full-access` の実ゲーム E2E 動作**: `full-access` テンプレートと `f1-f2-demo` に対する `yoake build` / `yoake check` は `tools/verify_f5_kit.py` で、`f_client_services` と `fox_ai_full` は `crates/yoake-guest-sdk/tests/guest_runtime.rs` で検証済みですが、ドキュメント更新のこの作業では GUI ゲーム本体を起動した確認は行っていません。
 7. **`build.sh` は Windows の Git Bash でしか実行していません。** Linux と macOS は試していません。この Windows（GNU ツールチェーン）のマシンでは、パックツールのコンパイルに MinGW（`dlltool`、`as`）のフォルダを `PATH` に通す必要がありました。
 8. **フック ID は安定した公開一覧ではありません。** 台帳には `tombstone` のエントリやブリッジされていない ID があります。ブリッジ済みのフックが 201 個というのはこのコミット時点の数です。
 9. **フック 1 回あたり 110〜150 ns** は S2 スパイクのレポート（`MX3S2.md`）にある、1 台のマシンでの測定値です。桁の目安として読んでください。

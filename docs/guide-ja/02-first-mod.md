@@ -16,34 +16,39 @@ yoake new hud-only my-hud
 コマンドの書式は次の通りです。
 
 ```sh
-yoake new <minigame|hud-only|custom-mob|utility|script> <name>
+yoake new <minigame|hud-only|custom-mob|utility|script|client-full|server-full|worker|full-access> <name>
 ```
 
-### 選べる 5 種類のテンプレート
+### 選べる 9 種類のテンプレート
 
-CLI の仕様と生成物は `crates/yoake-cli/src/scaffold.rs` と `main.rs` に基づきます。[^cli] どのテンプレートもクライアント側のひな形で、`script` と `custom-mob` はプレースホルダーです。
+CLI の仕様と生成物は `crates/yoake-cli/src/scaffold.rs` と `main.rs` に基づきます。[^cli] `script` だけプレースホルダーで、残りの 8 つはそのまま `yoake build` と `yoake check` が通る実用的なひな形です。
 
-| テンプレート名 | 生成されるひな形 |
-|---|---|
-| `hud-only` | 画面（HUD）に文字を表示するクライアント MOD |
-| `minigame` | クライアント側のミニゲーム開始点（サーバーのゲーム処理には別のサーバー MOD が必要） |
-| `custom-mob` | データとモデルのプレースホルダー（モブは登録しない） |
-| `utility` | キー入力をログに出すクライアント MOD |
-| `script` | スクリプト連携は未実装のプレースホルダー |
+| テンプレート名 | WIT ワールド | 生成されるひな形 |
+|---|---|---|
+| `hud-only` | `client-mod` | 画面（HUD）に文字を表示するクライアント MOD |
+| `minigame` | `client-mod` | クライアント側のミニゲーム開始点（サーバーのゲーム処理には別のサーバー MOD が必要） |
+| `custom-mob` | `server-full` | F4M カスタム Mob（`content/` のモデル・アニメ・定義 + `ScriptGoal` AI、`permissions = ["service.mobs"]`） |
+| `utility` | `client-mod` | キー入力をログに出すクライアント MOD |
+| `script` | `client-mod` | スクリプト連携は未実装のプレースホルダー |
+| `client-full` | `client-full` | フルカタログ（`ClientMod`）のクライアント MOD |
+| `server-full` | `server-full` | フルカタログ（`ServerMod`）のサーバー MOD |
+| `worker` | `server-full` + `worker-mod` | 通信・重いファイル処理用の WASI p2 ワーカーをペアにしたサーバー MOD |
+| `full-access` | `full-access` | `yoake-guest-sdk` を使う `#![no_std]` フルアクセス・コア Wasm MOD |
 
 > [!IMPORTANT]
 > `<name>` は **3〜48 文字**で、**英小文字で始まり、英小文字・数字・単一のハイフンだけ**を使えます。アンダースコア（`_`）、末尾のハイフン、連続したハイフン（`--`）は `yoake new` の `<name>` では使えません（`yak.toml` の `id` そのものは `_` も許します。[5 章の ⑦](./05-errors.md) を参照）。Windows の予約名（`con`、`prn`、`aux`、`nul`、`com1`〜`com9`、`lpt1`〜`lpt9`）も拒否されます。
 >
-> `<name>` はそのまま `yak.toml` の **`id`**（パッケージ ID）、Rust の**クレート名**、**`bin/wasm/<name>.wasm`** のファイル名になります。
+> `<name>` はそのまま `yak.toml` の **`id`**（ただし `custom-mob` は名前空間にするため `-` を `_` に変換）、Rust の**クレート名**、**`bin/wasm/<name>.wasm`** のファイル名になります。
 
 > [!NOTE]
 > **WIT ワールド（MOD の種類）**は、MOD が使えるフックとサービスの組み合わせです。セーブデータのワールドとは別の意味です。
 >
 > - **`client-mod`**: 19 個の基本フックで足りる場合に選びます。`world` を省略した場合の既定で、生 `.wasm` のホットリロードにも対応します。
-> - **`client-full`**: アイテムアイコン、ツールチップ、FOV などフルカタログ（client-full / server-full）の機能が必要な場合に選びます。`.yak` としてインストールして使います。
-> - **`inject-mod`**: エンジン関数に割り込む Mixin 用です。`interface = "1.1"` が必要で、クライアントモジュールにもサーバーモジュールにも書けます（`[mixin] targets` の `side` に合わせます）。詳しくは [8. Yoake Mixin 入門（`08-mixin.md`）](./08-mixin.md) を見てください。
->
-> サーバーモジュールの WIT ワールドは `server-full` です（Mixin の `inject-mod` を除きます）。
+> - **`client-full`**: アイテムアイコン、ツールチップ、FOV、GPU、スプライト差し替え、ブラウザなどの機能が必要な場合に選びます。`.yak` としてインストールして使います。
+> - **`server-full`**: `server = "..."` を指定したサーバーモジュールの既定です（`world = "server-full"` は書かず、`server` パスだけで選ばれます）。
+> - **`worker-mod`**: `[wasm] worker` に指定する、通信や重いファイル I/O 専用の別スレッド・コンポーネントです（[12 章](./12-files-network.md)）。
+> - **`inject-mod`**: エンジン関数に割り込む Mixin 用です。`interface = "1.1"` または `"1.2"` が必要で、クライアント／サーバーの両方に書けます（[8 章](./08-mixin.md)）。
+> - **`full-access`**: エンジン関数を直接呼ぶコア Wasm モジュール用です（[MOD-GUIDE.ja.md](../yoake2/MOD-GUIDE.ja.md)）。`yoake build`・`check`・`pack` はこれらすべての種類に対応しています。
 
 ---
 
@@ -79,11 +84,11 @@ server = false
 required_on_join = false
 
 [wasm]
-interface = "1.0"
+interface = "1.7"
 client = "bin/wasm/my-hud.wasm"
 ```
 
-`world` がないため、WIT ワールドは `client-mod` です。
+`world` がないため、WIT ワールドは `client-mod` です（`1.0` 〜 `1.7` が指定できます）。
 
 #### `Cargo.toml`
 
@@ -111,7 +116,7 @@ strip = true
 panic = "abort"
 
 [workspace]
-exclude = [".yoake/yoake-wasm-sdk"]
+exclude = [".yoake/yoake-wasm-sdk", ".yoake/yoake-guest-sdk"]
 ```
 
 `crate-type = ["cdylib", "rlib"]` により、WebAssembly コンポーネントと Rust ライブラリの両方をビルドできます。`[features]` の `tests` は、`yoake test` がテストモジュールをビルドするときに使うフィーチャです（[6. MOD をゲームエンジンの中でテストする（`06-testing.md`）](./06-testing.md) を参照）。

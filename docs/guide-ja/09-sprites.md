@@ -7,18 +7,18 @@
 
 ---
 
-## 9-1. 使えるホストサービス
+## 9-1. 使えるホストサービスと SDK ヘルパー
 
-`yoake_wasm_sdk::full::client::services`（WIT インターフェース `client-services`）に以下の 6 つが用意されています。
+`yoake_wasm_sdk::full::client::sprites`（WIT インターフェース `client-services` のラッパー）に以下の 6 つが用意されています。
 
-| サービス | 引数 | 役割 |
+| SDK ヘルパー（`sprites::*`） | WIT サービス（`client_services::*`） | 役割 |
 |---|---|---|
-| `item_sprite_set` | `(item_id, rgba, (width, height))` | 指定アイテムの共有アトラス上の矩形だけを `rgba` で上書きします（元の画像は内部に保存されます）。 |
-| `item_sprite_reset` | `(item_id)` | `item_sprite_set` で上書きしたアイテムの見た目を、現在のリソースパックの元のテクスチャへ戻します。 |
-| `block_sprite_set` | `(rgba, (width, height), texture_id)` | `mymod:block/pan` や `minecraft:block/stone` のようなブロックモデルテクスチャ層を `rgba` で上書きし、全ミップマップレベルを再生成します。 |
-| `block_sprite_reset` | `(texture_id)` | 上書きしたブロックテクスチャ層を元のリソースパック画像（アニメーション含む）へ戻します。 |
-| `item_sprite_pixels` | `(item_id)` | アイテムの現在のスプライトを `(width, height, rgba)` で返します（`item_sprite_set` の上書き後はその内容。アニメーションは先頭フレーム）。 |
-| `block_sprite_pixels` | `(texture_id)` | ブロックモデルテクスチャの現在の画像を `(width, height, rgba)` で返します（上書き中はその内容、アニメーションは先頭フレーム。大きさはテクスチャ配列の 1 層の大きさ）。 |
+| `set_item(item_id, (width, height), rgba)` | `item_sprite_set(item_id, rgba, (width, height))` | 指定アイテムの共有アトラス上の矩形だけを `rgba` で上書きします（元の画像は内部に保存されます）。 |
+| `reset_item(item_id)` | `item_sprite_reset(item_id)` | `set_item` で上書きしたアイテムの見た目を、現在のリソースパックの元のテクスチャへ戻します。 |
+| `set_block(texture_id, (width, height), rgba)` | `block_sprite_set(rgba, (width, height), texture_id)` | `mymod:block/pan` や `block/stone`（`minecraft:block/stone`）のようなブロックモデルテクスチャ層を `rgba` で上書きし、全ミップマップレベルを再生成します。 |
+| `reset_block(texture_id)` | `block_sprite_reset(texture_id)` | 上書きしたブロックテクスチャ層を元のリソースパック画像（アニメーション含む）へ戻します。 |
+| `item_pixels(item_id)` | `item_sprite_pixels(item_id)` | アイテムの現在のスプライトを `(width, height, rgba)` で返します（`set_item` の上書き後はその内容。アニメーションは先頭フレーム）。 |
+| `block_pixels(texture_id)` | `block_sprite_pixels(texture_id)` | ブロックモデルテクスチャの現在の画像を `(width, height, rgba)` で返します（上書き中はその内容、アニメーションは先頭フレーム。大きさはテクスチャ配列の 1 層の大きさ）。 |
 
 - **`rgba` の形式**: 1 ピクセル 4 バイトの **RGBA8**（`[r, g, b, a, ...]`、上端行から左→右）で、長さは必ず `width * height * 4` バイトである必要があります。
 - **サイズ不一致の扱い**: 対象スプライト／ブロックテクスチャ配列の実際の解像度と一致しない `size`（または 0 やバイト数不一致）はエラーを返し、アトラスを変更しません（自動リサイズは行いません）。
@@ -29,8 +29,10 @@
 
 ## 9-2. Rust コード例（`client-full`）
 
+完全なサンプルは [`crates/yoake-wasm-sdk/examples/sprite-demo/`](../../crates/yoake-wasm-sdk/examples/sprite-demo/src/lib.rs) にあります。
+
 ```rust
-use yoake_wasm_sdk::full::bindings::yoake::mods::client_services;
+use yoake_wasm_sdk::full::client::sprites;
 
 fn apply_tint_icon() -> Result<(), String> {
     // 16x16 RGBA8 の単色テクスチャ（16 * 16 * 4 = 1024 bytes）
@@ -38,17 +40,20 @@ fn apply_tint_icon() -> Result<(), String> {
     for _ in 0..(16 * 16) {
         rgba.extend_from_slice(&[255, 80, 40, 255]);
     }
-    client_services::item_sprite_set("minecraft:diamond", &rgba, (16, 16))?;
-    client_services::block_sprite_set(&rgba, (16, 16), "minecraft:block/stone")?;
+    sprites::set_item("minecraft:diamond", (16, 16), &rgba)?;
+    sprites::set_block("block/stone", (16, 16), &rgba)?;
     Ok(())
 }
 
 fn restore_sprites() -> Result<(), String> {
-    client_services::item_sprite_reset("minecraft:diamond")?;
-    client_services::block_sprite_reset("minecraft:block/stone")?;
+    sprites::reset_item("minecraft:diamond")?;
+    sprites::reset_block("block/stone")?;
     Ok(())
 }
 ```
+
+> [!TIP]
+> 生の WIT バインディング `yoake_wasm_sdk::full::bindings::yoake::mods::client_services` も直接呼べますが、引数がアルファベット順に並んでいます。`full::client::sprites` ラッパーなら `(id, (width, height), rgba)` の自然な順で呼べます。
 
 ---
 

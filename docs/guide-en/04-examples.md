@@ -1,6 +1,6 @@
 # 4. Exploring the Example Mods
 
-The `crates/yoake-wasm-sdk/examples/` folder contains 19 purpose-built example mods (`hello` and `hello-std` share one row in the table in 4-1).
+The repository includes **30 packaged examples** (passing `yoake build` and `yoake check`) across `crates/yoake-wasm-sdk/examples/` and `crates/yoake-guest-sdk/examples/`, plus standalone test fixtures.
 The fastest way to build your own mod is to open the example closest to what you have in mind and adapt its `yak.toml` and `src/lib.rs`.
 
 ---
@@ -9,24 +9,41 @@ The fastest way to build your own mod is to open the example closest to what you
 
 | Example | WIT world (mod kind) | What It Demonstrates | Main Hooks (`hook::*`) | Main Host Services |
 |---|---|---|---|---|
-| `hello` (and `hello-std`) | `client-mod` | Minimal client mod. Counts ticks, draws a background rectangle and text on the HUD, and returns a settings button label (`hello` is `#![no_std]`; `hello-std` uses `std`) | `TICK`, `HUD`, `SETTINGS` (`hello-std` uses `TICK`, `KEY`, `HUD`) | `yoake_wasm_sdk::log`, `hud::rect`, `hud::text` |
+| `hello` | `client-mod` | Minimal `#![no_std]` client mod: counts ticks, draws a background rect and text on the HUD, and returns a settings label | `TICK`, `HUD`, `SETTINGS` | `yoake_wasm_sdk::log`, `hud::rect`, `hud::text` |
+| `hello-std` | `client-mod` | Minimal `std` client mod using `println!` and `std::time::Instant`; counts ticks, logs key presses, and draws HUD text | `TICK`, `KEY`, `HUD` | `hud::text` (+ `println!`, `std::time`) |
 | `hud-item` | `client-full` | Draws a translucent panel, a `minecraft:diamond` item icon, and a text label on the HUD every frame | `HUD` | None (returns `Rect`, `Item`, and `Text` inside `et::HudOutcome`) |
-| `server-storage` | `server-full` | Adds a `/visits` command, saves each player's visit count (keyed by UUID) in `World`-scope storage, and replies in chat | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::storage_get`, `services::storage_put`, `services::tell` |
+| `tested-counter` | `client-mod` | Beginner example pairing a client HUD tick counter with `#[yoake_test]` engine tests in the same crate | `TICK`, `HUD` | `hud::text` (+ `TestWorld` calls) |
 | `config-demo` | `client-full` | Reads banner text and color options declared under `[config]` in `yak.toml` and updates the HUD whenever `config_changed` fires | `HUD`, `CONFIG_CHANGED` (+ `init`) | `services::config_get` |
+| `client-services-demo` | `client-full` | Exercises client services inside `hud` (key bindings, world line, post shader, writable `GuiTexture`, IME) and checks both valid and invalid inputs | `HUD` | `register_key_binding`, `draw_world_line`, `register_post_shader`, `gui_texture_write`, `ime_set_allowed`, etc. |
+| `gpu-demo` | `client-full` | Custom WGSL render and compute pipelines: a textured mesh, compute-updated particles, and depth-based tint (`verify`/`reload`/`trap` features) | `HUD` | `gpu::{Shader, RenderPipeline, ComputePipeline, Buffer, BindGroup}` etc. |
+| `sprite-demo` | `client-full` | L2 runtime sprite override ([Chapter 9](./09-sprites.md)): tints `minecraft:apple` and `block/stone` on first tick and restores on `R` | `TICK`, `KEY` | `sprites::{item_pixels, set_item, reset_item, block_pixels, set_block, reset_block}` |
+| `ime` | `client-full` | Enables OS IME on a mod screen, receives preedit/commit, and places the candidate window in GUI coordinates ([Chapter 10](./10-ime.md)) | `SCREEN_INIT_POST`, `FRAME`, `IME_PREEDIT`, `IME_COMMIT` | `ime_set_allowed`, `ime_set_cursor_area` |
+| `browser-demo` | `client-full` | MEDIA1 embedded browser overlay ([Chapter 15](./15-browser-media.md)): toggles a `Browser` on `B` and paints its frames onto a HUD `GuiTexture` | `HUD`, `KEY` | `media::Browser`, `hud::GuiTexture`, `client::gui_texture_id` |
+| `fox_texture` | `client-full` | F4M client example ([Chapter 14](./14-custom-mobs.md)): repaints Cinder Fox skin dynamically on `warmth` change and draws a cube and apple via `mob_layer` | `SYNCED_CHANGED_CLIENT`, `PLAYER_RENDER_LISTENED`, `MOB_LAYER` | `mob_texture_create`, `mob_texture_write`, `mob_texture_bind` |
+| `server-storage` | `server-full` | Adds a `/visits` command, saves each player's visit count (keyed by UUID) in `World`-scope storage, and replies in chat | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::storage_get`, `services::storage_put`, `services::tell` |
 | `permission-demo` | `server-full` | Adds a `/secret` command and checks the `"secret.access"` permission node with `has_permission` before replying | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::has_permission`, `services::tell` |
-| `full-demo` | `client-full` / `server-full` | All-in-one showcase covering the client (HUD, hiding the hotbar, custom tooltips, FOV adjustment), server (`/wasmping` and `/wasmsvc` exercising host services), and cross-mod calls (`peer`) | client: `HUD`, `GUI_LAYER_PRE`, `TOOLTIP`, `COMPUTE_FOV` / server: `REGISTER_COMMANDS`, `PERFORM_COMMAND`, `SERVER_TICK` / peer: `handle_call` | `tell`, `give_items`, `break_block_as`, `edit_blocks`, `run_command`, `mod_call`, and many more |
-| `full-services` | `client-full` / `server-full` | End-to-end test of config, storage (inline and chunked blobs), and permission-node checks, plus verifying `"permission denied: ..."` rejections when a service permission is omitted | `CONFIG_CHANGED` (+ client `init` / server `handle_call`) | `config_get`, `config_set`, `storage_get`, `storage_put`, `storage_delete`, `storage_blob_begin/write/commit/abort/read`, `has_permission` |
-| `mod-call-pair` | `server-full` | From `caller`'s `/ping <text>`, calls `responder`'s `handle_call` so that two mods exchange UTF-8 text | `REGISTER_COMMANDS`, `PERFORM_COMMAND` / `handle_call` | `services::mod_call`, `services::tell` |
 | `chest-count` | `server-full` | `/chestcount <x> <y> <z>` reads the container at the given coordinates and replies with a total per item ID | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::container_slots`, `services::tell` |
-| `item-trade` | `server-full` | `/trade` takes exactly 16 cobblestone, but only if it can take all of them (nothing is taken if there are too few), and gives 1 diamond | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::inventory_apply` (`Give`), `ext::take`, `ext::take_exact`, `services::tell` |
-| `player-vitals` | `server-full` | `/vitals` replies with the player's health and the `known` / `done` state of the `minecraft:story/root` advancement | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::advancement_progress`, `services::attribute_get`, `services::tell` |
-| `content-demo` | `server-full` | A `.yak` with data-defined content (blocks, items, a mob effect, a recipe, a loot table, a mob, a sound, and a creative tab) plus a small server module that reacts to the mob: right-clicking it plays its sound, and kills and ticks are counted | `INTERACT_ENTITY`, `MOB_KILLED`, `ENTITY_TICK_POST` | `services::play_sound_at`, `services::tell`, `ext::attachment_*` |
-| `mixin-demo` | `inject-mod` | Halves fall damage, doubles the bonemeal crop-growth increment, and logs chat (see [8. Getting Started with Yoake Mixin](./08-mixin.md)) | None (Mixin handlers instead of hooks) | None |
-| `test-demo` | `test-mod` | A test module that exercises every call of the test driver, including passing, failing, and trapping tests (see [6. Testing Your Mod Inside the Game Engine](./06-testing.md)) | None | `TestWorld` calls |
-| `tested-counter` | `client-mod` | A small beginner example that pairs a client mod (tick counter on the HUD) with engine tests in the same crate (see [6. Testing Your Mod Inside the Game Engine](./06-testing.md)) | `TICK`, `HUD` | `hud::text`, `TestWorld` calls |
-| `client-services-demo` | `client-full` | Calls client services inside the `hud` hook (key bindings, a world line, a post shader, writable GUI textures, and IME enablement/candidate placement), and checks both successful calls and validation errors. It is the guest used by the runtime integration tests | `HUD` | `services::register_key_binding`, `services::key_binding_state`, `services::draw_world_line`, `services::register_post_shader`, `hud::GuiTexture::create`, `services::gui_texture_write`, `services::ime_set_allowed`, `services::ime_set_cursor_area` |
-| `gpu-demo` | `client-full` | An example of the GPU surface (the `gpu` module): a textured mesh, a compute-updated particle buffer, and a depth-based tint after the world is drawn. Extra Cargo features `verify` / `reload` / `trap` build variants for testing | `HUD` | `gpu::{Shader, RenderPipeline, ComputePipeline, Buffer, BindGroup}` and more |
-| `ime` | `client-full` | Enables IME on a mod screen, receives preedit text/cursor ranges and commits, and places the OS candidate window in GUI-scaled coordinates (see the Japanese `10-ime.md` chapter) | `SCREEN_INIT_POST`, `FRAME`, `IME_PREEDIT`, `IME_COMMIT` | `services::ime_set_allowed`, `services::ime_set_cursor_area` |
+| `item-trade` | `server-full` | `/trade` takes exactly 16 cobblestone only if all 16 are present and gives 1 diamond | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::inventory_apply` (`Give`), `ext::take`, `ext::take_exact`, `services::tell` |
+| `player-vitals` | `server-full` | `/vitals` replies with the player's health and the `known` / `done` state of `minecraft:story/root` | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::advancement_progress`, `services::attribute_get`, `services::tell` |
+| `mod-call-pair/caller` | `server-full` | `/ping <text>` calls `mod-call-responder`'s `handle_call` and replies with the returned UTF-8 text | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::mod_call`, `services::tell` |
+| `mod-call-pair/responder` | `server-full` | Handles `"echo"` calls from `caller` in `handle_call` and sends back a `pong` response | `handle_call` | None |
+| `content-demo` | `server-full` | Data-defined blocks, items, effect, recipe, loot, mob, sound, and creative tab with a server module reacting to `gem_cow` | `INTERACT_ENTITY`, `MOB_KILLED`, `ENTITY_TICK_POST` | `acting_player`, `play_sound_at`, `tell`, `ext::attachment_*` |
+| `ruby-behaviors` | `server-full` | REM-15 `behavior-register` demo: `ruby:lamp` block, `ruby:wand` item, 9-slot `ruby:vault` menu, and `ruby:alloy` recipe type | `handle_call` (`Behaviors` trait) | `ext::register_behavior`, `ext::recipe_data`, `block_property`, `set_block_property` |
+| `level-generator` | `server-full` | F3-8 custom dimension type, level (`levelgen:terraces`), and WASM chunk generator via `handle_call` ([Chapter 13](./13-dimensions.md)) | `handle_call` (+ `init`) | `ext::register_type`, `ext::register_generator`, `ext::register_level` |
+| `f2-check` | `server-full` / `worker-mod` | FR-F2 split-crate example: `/data` and `/game` file I/O plus non-blocking worker HTTP POST and TCP echo ([Chapter 12](./12-files-network.md)) | `TICK` (+ `init`) / worker `run` | `std::fs`, `worker::{send, recv}`, `wasi:http`, `std::net` |
+| `f2-io` | `server-full` / `worker-mod` | FR-F2 single-crate feature-split example (`server` + `worker`, plus `files` / `main` test-guest features) | `TICK` (+ `init`) / worker `run` | `worker::{send, recv}`, `wasi:http`, `std::net` |
+| `fox_ai` | `server-full` | F4M server AI ([Chapter 14](./14-custom-mobs.md)): Cinder Fox `pounce` `ScriptGoal`, `"hit"` timeline leap+bite, and `mob_hurt` updating `warmth` | `MOB_GOAL_*`, `MOB_ANIM_EVENT`, `MOB_HURT` | `mobs::{info, memory_*, trigger_anim, impulse, attack, set_synced}` |
+| `seat_fox` | `server-full` | F4M vehicle seats ([Chapter 14](./14-custom-mobs.md)): automatically seats nearby `minecraft:chicken` onto seat 1 of `sample_mobs:cinder_fox` | `CUSTOM_MOB_SPAWNED`, `MOB_TICK`, `ENTITY_JOIN_LEVEL`, `ENTITY_LEAVE_LEVEL` | `mobs::{info, seat_set}` |
+| `full-demo` | `client-full` / `server-full` | All-in-one showcase covering client (HUD, hiding hotbar, tooltips, FOV), server (`/wasmping`, `/wasmsvc`), and `handle_call` | `HUD`, `GUI_LAYER_PRE`, `TOOLTIP`, `COMPUTE_FOV`, `REGISTER_COMMANDS`, `PERFORM_COMMAND`, `SERVER_TICK`, `handle_call` | `tell`, `give_items`, `break_block_as`, `edit_blocks`, `run_command`, `mod_call`, etc. |
+| `full-services` | `client-full` / `server-full` | Exercises `[config]`, inline/blob storage, and permission checks across both client and server | `CONFIG_CHANGED`, `handle_call` (+ `init`) | `config_get/set`, `storage_*`, `storage_blob_*`, `has_permission` |
+| `mixin-demo` | `inject-mod` | Halves fall damage, doubles bonemeal crop-growth increment, and logs chat ([Chapter 8](./08-mixin.md)) | None (Mixin HEAD / RETURN handlers) | None (`println!` logging only) |
+| `mixin-config` | `inject-mod` | Configurable `inject-mod` reading and reacting to `[config.count]` updates on `tick_sleep_timer` | None (Mixin + `config_changed`) | `mixin::config_get` |
+| `yoake-guest-sdk/f1-f2-demo` | `full-access` / `worker-mod` | F1+F2 demo: `#![no_std]` core server module (`SERVER_TICK`, `yoake_guest_sdk::worker`) paired with a WASI p2 worker | `hooks::SERVER_TICK` / worker `run` | `yoake_guest_sdk::worker::{send, recv}` |
+
+Non-package fixtures:
+
+- `crates/yoake-wasm-sdk/examples/test-demo`: A `test-mod` fixture for testing the test runner itself (no `yak.toml`; see [Chapter 6](./06-testing.md)).
+- `crates/yoake-guest-sdk/examples/`: Four standalone single-file `.rs` fixtures (`engine_call_game_path.rs`, `f_client_services.rs`, `fox_ai_full.rs`, `tick_and_item_use.rs`).
 
 ---
 
@@ -130,32 +147,51 @@ This uses the `inject-mod` WIT world to halve fall damage, double the bonemeal c
 
 `tested-counter` is a beginner example that puts a client mod showing a tick counter on the HUD and `#[yoake_test]` tests in the same crate. `test-demo` is a test module for trying out the test runner itself, with 6 tests: passing, failing, trapping, running out of time, every driver call, and two clients. Read both together with [6. Testing Your Mod Inside the Game Engine (`06-testing.md`)](./06-testing.md).
 
-### ⑩ `client-services-demo` and `gpu-demo` (New Client Services and the GPU)
+### ⑩ `client-services-demo`, `gpu-demo`, `sprite-demo`, and `browser-demo` (Client Services, GPU, Sprites, and Browser)
 
-Both are client mods for the `client-full` world and use `export_client_full!`. Their folders contain no `yak.toml`; the runtime tests load the built `.wasm` directly. If you reuse them in a mod you ship, write `"client-full"` in `[wasm] world` in `yak.toml`.
+All four are `client-full` client mods using `export_client_full!`. Each comes with a `yak.toml` (`interface = "1.7"`, `world = "client-full"`) and builds directly with `yoake build`.
 
-- `client-services-demo`: Inside the `hud` hook it calls the key binding, world line, post shader, and GUI texture services. It tries both calls that should succeed and calls that should return an error (an invalid shader, a write outside the texture), so it shows how to use these services and how errors come back. The example declares no `[wasm] permissions`.
-- `gpu-demo`: Builds render and compute pipelines from WGSL shaders through the `gpu` module. Calling `gpu` requires `"service.gpu"` in `[wasm] permissions` (see 4-3). For details, see the GPU section of `docs/yoake-wasm-dev.md`.
+- `client-services-demo`: Calls key bindings, world lines, post shaders, writable `GuiTexture`, and IME inside `hud`, testing both valid calls and validation errors.
+- `gpu-demo`: Builds render and compute pipelines from WGSL shaders through the `gpu` module (requires `"service.gpu"` in `[wasm] permissions`; see the GPU section of [`docs/yoake-wasm-dev.md`](../yoake-wasm-dev.md#client-gpu-api)).
+- `sprite-demo`: Tints item and block sprites dynamically on startup and restores them on `R` ([Chapter 9](./09-sprites.md)).
+- `browser-demo`: Toggles an embedded browser on `B` and paints its frames onto a HUD `GuiTexture` ([Chapter 15](./15-browser-media.md)).
+
+### ⑪ `ime` (IME Input on Mod Screens)
+
+`ime` enables OS IME on a mod screen and receives preedit text, cursor range, and committed text, placing the candidate window in GUI-scaled coordinates. See [Chapter 10](./10-ime.md).
+
+### ⑫ `fox_ai`, `fox_texture`, and `seat_fox` (F4M Custom Mobs and Seats)
+
+These examples pair with the [`tools/fixtures/cinder_fox/`](../../tools/fixtures/cinder_fox/README.md) data fixture. `fox_ai` and `seat_fox` run on `server-full`, `fox_texture` runs on `client-full`, and all three declare `permissions = ["service.mobs"]` ([Chapter 14](./14-custom-mobs.md)).
+
+### ⑬ `f2-check`, `f2-io`, and `f1-f2-demo` (Files and Workers)
+
+Show how to run HTTP, TCP, and heavy file I/O in a background worker without blocking the game thread ([Chapter 12](./12-files-network.md)). `f1-f2-demo` in `crates/yoake-guest-sdk/examples/f1-f2-demo` pairs a `full-access` core module with a `worker-mod` worker.
+
+### ⑭ `ruby-behaviors`, `level-generator`, and `mixin-config`
+
+- `ruby-behaviors`: Attaches custom block, item, menu, and recipe-type behavior with `ext::register_behavior` (see [MOD-GUIDE.md section 19](../yoake2/MOD-GUIDE.md#19-behaviours-of-the-mods-own-blocks-items-menus-and-recipe-types-rem-15)).
+- `level-generator`: Registers a custom dimension type, level, and WASM chunk generator ([Chapter 13](./13-dimensions.md)).
+- `mixin-config`: An `inject-mod` (`interface = "1.2"`) that reads `[config.count]` and reacts to `config_changed` ([Chapter 8](./08-mixin.md)).
 
 ---
 
 ## 4-3. Writing `[wasm] permissions`, `[config]`, and `[permissions."<node>"]` in `yak.toml`
 
-Whenever a mod uses privileged features—reading or writing config, persisting storage, checking permission nodes, or running server commands—it must declare them in `yak.toml`.
+Whenever a mod uses privileged features, declare them in `yak.toml`.
 
 ### Available `[wasm] permissions`
 
-There are 7 service permissions (capabilities, `[wasm] permissions`) you can declare:[^manifest]
+There are **10** known service permissions (`[wasm] permissions`):[^manifest]
 
-- `"service.chat"`: Lets a client module rewrite outgoing chat and command text through Mixin (`wasm.client` is required, and it is used together with `service.commands`; see [Chapter 8](./08-mixin.md))
-- `"service.commands"`: Calling `run_command` from a server module (`wasm.server` is required, except with the `inject-mod` WIT world, which does not need a server module). It is also required to register Mixin handlers on the sensitive command and chat sites ([Chapter 8](./08-mixin.md))
-- `"service.config"`: Calling `config_get`, `config_set`, or `config_dir`, and receiving synced config
-- `"service.gpu"`: Calling the `gpu` module from a client module (only in the `client-full` world; not available in `server-full` or `client-mod`)
-- `"service.browser"`: Opening browsers with `media-services` (`full::client::browser`): an installed Edge or Chrome with a profile of the package's own, web pages only (http, https, data, blob, about:blank), frames into a `GuiTexture`, tab sound as PCM. Only for a `wasm.client` with `world = "client-full"`. See `docs/yoake2/reports/FR-MEDIA1.md`.
-- `"service.screen-share"`: Reserved for screen sharing (service ids 255-259, not wired yet). Same rule as `service.browser`.
-- `"service.http"`: A `service.http` service permission declaration that is paired with `[http] hosts` (declaring only one of the two fails validation; note that HTTP transport itself is not connected yet)[^dev-doc]
-- `"service.permissions"`: Calling `has_permission` from a server module (`wasm.server` is required)
-- `"service.storage"`: Calling `storage_*` as well as `world_storage_*`, `config_read`, and `config_write`
+- `"service.commands"`: Calling `run_command` from a server module (`wasm.server` is required, except with `inject-mod`). Also required for Mixin handlers on sensitive command and chat sites ([Chapter 8](./08-mixin.md))
+- `"service.chat"`: Lets a client module rewrite outgoing chat and command text through Mixin (`wasm.client` is required, used together with `service.commands`; see [Chapter 8](./08-mixin.md))
+- `"service.gpu"`: Calling the `gpu` module from a client module (only in `client-full`; not available in `server-full` or `client-mod`)
+- `"service.mobs"`: Custom-mob scripting (`mobs::*` on `server-full`, and `mob_texture_*` / `mob_bone_index` / `mob_locator` on `client-full`; see [Chapter 14](./14-custom-mobs.md))
+- `"service.browser"`: Opening embedded browsers with `full::client::media::Browser` (only for `wasm.client` with `world = "client-full"`; see [Chapter 15](./15-browser-media.md))
+- `"service.screen-share"`: Reserved for future screen sharing (not wired yet; same manifest rule as `service.browser`)
+- `"service.http"`: Paired with `[http] hosts` (declaring only one fails validation; HTTP transport itself is not wired—use `wasi:http` in a worker, [Chapter 12](./12-files-network.md))
+- `"service.config"` / `"service.permissions"` / `"service.storage"`: Accepted in manifests for backward compatibility with older mods. The current host grants config, permission-node, and storage services without requiring them in `permissions` ([Chapter 12](./12-files-network.md))
 
 ### Writing `[config]` (Excerpt from `config-demo`'s Manifest)
 
