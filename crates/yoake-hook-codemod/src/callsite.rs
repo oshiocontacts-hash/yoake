@@ -3247,32 +3247,12 @@ fn execute_with_thir(
     }
 
     if !site_manual_keys.is_empty() {
-        let mut kept = Vec::with_capacity(candidates.len());
-        for cand in candidates {
-            let anchor_hex = format_hash(cand.site.anchor);
-            let ctx0_hex = format_hash(cand.site.context.0);
-            let ctx1_hex = format_hash(cand.site.context.1);
-            let matched = site_manual_keys.iter().find(|(_, (_, meta))| {
-                cand.caller_id == meta.caller
-                    && cand.callee_fn == meta.callee_fn
-                    && cand.callee_path == meta.callee_path
-                    && anchor_hex == meta.anchor
-                    && (cand.site.dup_rank == meta.dup_rank
-                        || meta.context == [ctx0_hex.clone(), ctx1_hex.clone()])
-            });
-            if let Some((excl_key, (reason, _))) = matched {
-                excluded_calls.push(ExcludedCall {
-                    base_key: cand.base_key,
-                    reason: reason.clone(),
-                    manual: true,
-                    from_hot_caller: false,
-                    exact_manual_key: Some(excl_key.clone()),
-                });
-            } else {
-                kept.push(cand);
-            }
-        }
-        candidates = kept;
+        candidates = filter_site_manual_exclusions(
+            candidates,
+            site_manual_keys,
+            existing_sites,
+            &mut excluded_calls,
+        );
     }
 
     reconcile_and_plan(
@@ -3295,6 +3275,76 @@ fn execute_with_thir(
         &excluded_calls,
         &mut summary,
     )
+}
+
+fn site_meta_matches_candidate_base(cand: &CandidateCall, meta: &SiteMeta) -> bool {
+    cand.caller_id == meta.caller
+        && cand.callee_fn == meta.callee_fn
+        && cand.callee_path == meta.callee_path
+        && format_hash(cand.site.anchor) == meta.anchor
+}
+
+/// Matches tombstoned manual-exclusion site metadata against candidate calls.
+/// Matches by `dup_rank` first so identical zero-context duplicate siblings never steal a live sibling's slot.
+fn filter_site_manual_exclusions(
+    candidates: Vec<CandidateCall>,
+    site_manual_keys: &BTreeMap<String, (String, SiteMeta)>,
+    existing_sites: &BTreeMap<u32, SiteMeta>,
+    excluded_calls: &mut Vec<ExcludedCall>,
+) -> Vec<CandidateCall> {
+    let mut matched_excl: Vec<Option<(String, String)>> = vec![None; candidates.len()];
+    let mut consumed: BTreeSet<String> = BTreeSet::new();
+
+    for (ci, cand) in candidates.iter().enumerate() {
+        if let Some((excl_key, (reason, _))) = site_manual_keys.iter().find(|(ek, (_, meta))| {
+            !consumed.contains(ek.as_str())
+                && site_meta_matches_candidate_base(cand, meta)
+                && cand.site.dup_rank == meta.dup_rank
+        }) {
+            consumed.insert(excl_key.clone());
+            matched_excl[ci] = Some((excl_key.clone(), reason.clone()));
+        }
+    }
+
+    for (ci, cand) in candidates.iter().enumerate() {
+        if matched_excl[ci].is_some() {
+            continue;
+        }
+        let ctx0_hex = format_hash(cand.site.context.0);
+        let ctx1_hex = format_hash(cand.site.context.1);
+        if ctx0_hex == "0000000000000000" && ctx1_hex == "0000000000000000" {
+            continue;
+        }
+        if existing_sites.values().any(|meta| {
+            site_meta_matches_candidate_base(cand, meta) && cand.site.dup_rank == meta.dup_rank
+        }) {
+            continue;
+        }
+        if let Some((excl_key, (reason, _))) = site_manual_keys.iter().find(|(ek, (_, meta))| {
+            !consumed.contains(ek.as_str())
+                && site_meta_matches_candidate_base(cand, meta)
+                && meta.context == [ctx0_hex.clone(), ctx1_hex.clone()]
+        }) {
+            consumed.insert(excl_key.clone());
+            matched_excl[ci] = Some((excl_key.clone(), reason.clone()));
+        }
+    }
+
+    let mut kept = Vec::with_capacity(candidates.len());
+    for (ci, cand) in candidates.into_iter().enumerate() {
+        if let Some((excl_key, reason)) = matched_excl[ci].take() {
+            excluded_calls.push(ExcludedCall {
+                base_key: cand.base_key,
+                reason,
+                manual: true,
+                from_hot_caller: false,
+                exact_manual_key: Some(excl_key),
+            });
+        } else {
+            kept.push(cand);
+        }
+    }
+    kept
 }
 
 fn site_meta_from_candidate(id: u32, cand: &CandidateCall) -> SiteMeta {
@@ -4691,5 +4741,87 @@ mod private_path_tests {
         assert!(idx.private_mods.contains("dep_crate::priv_m"));
         assert!(idx.private_mods.contains("dep_crate::crate_m"));
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn duplicate_zero_context_manual_exclusion_keeps_live_sibling() {
+        use super::{
+            CandidateCall, ExcludedCall, ShimSignature, SynCallDetail, filter_site_manual_exclusions,
+        };
+        use crate::ledger_io::SiteMeta;
+        use std::collections::BTreeMap;
+        use yoake_callsite_match::Site;
+
+        let mk_cand = |dup_rank: u32| CandidateCall {
+            file_idx: 0,
+            caller_id: 5657,
+            callee_fn: None,
+            callee_path: "demo::Dim::id".into(),
+            render_callee_path: "demo::Dim::id".into(),
+            base_key: "fn:5657@call:demo::Dim::id".into(),
+            orig: "self.dim.id()".into(),
+            site: Site {
+                caller: "fn:5657".into(),
+                callee: "demo::Dim::id".into(),
+                anchor: 0xd90faaa3214e6bbd,
+                stmt_index: 0,
+                stmt_hash: 0,
+                stmt_path: vec![],
+                stmt_path_hashes: vec![],
+                context: (0, 0),
+                dup_rank,
+                in_closure: false,
+            },
+            shim_sig: ShimSignature {
+                arg_tys: vec![],
+                ret_ty: None,
+                sig_hash: "0".into(),
+            },
+            adj_prefix: String::new(),
+            turbofish_src: None,
+            cfg_attrs: vec![],
+            detail: SynCallDetail {
+                is_method: true,
+                func_start: 0,
+                func_end: 0,
+                recv_start: 0,
+                recv_end: 0,
+                recv_needs_parens: false,
+                paren_open_end: 0,
+                call_end: 0,
+                first_arg_start: None,
+                arg0_span: None,
+                arg1_start: None,
+                turbofish_src: None,
+                existing_shim_id: None,
+            },
+            span: [1, 1, 1, 2],
+        };
+
+        let meta_1 = SiteMeta {
+            caller: 5657,
+            callee_fn: None,
+            callee_path: "demo::Dim::id".into(),
+            anchor: "d90faaa3214e6bbd".into(),
+            stmt_path: vec![],
+            context: ["0000000000000000".into(), "0000000000000000".into()],
+            dup_rank: 1,
+            shim: "__yoake_cs_28714".into(),
+            orig: None,
+        };
+        let mut manual = BTreeMap::new();
+        manual.insert("fn:5657@call:demo::Dim::id#1".into(), ("E0503".into(), meta_1));
+
+        let mut excluded: Vec<ExcludedCall> = Vec::new();
+        let kept = filter_site_manual_exclusions(
+            vec![mk_cand(0), mk_cand(1)],
+            &manual,
+            &BTreeMap::new(),
+            &mut excluded,
+        );
+        assert_eq!(kept.len(), 1);
+        assert_eq!(kept[0].site.dup_rank, 0);
+        assert_eq!(excluded.len(), 1);
+        assert_eq!(excluded[0].exact_manual_key.as_deref(), Some("fn:5657@call:demo::Dim::id#1"));
     }
 }
