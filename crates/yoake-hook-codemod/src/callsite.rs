@@ -37,6 +37,8 @@ struct ThirDump {
     #[serde(rename = "crate", default)]
     crate_name: Option<String>,
     #[serde(default)]
+    externs: BTreeSet<String>,
+    #[serde(default)]
     files: BTreeMap<String, ThirFileSummary>,
     #[serde(default)]
     calls: Vec<ThirCall>,
@@ -553,15 +555,20 @@ fn publicize_paths(text: &str, caller_key: &str, crate_ident: &str, private_mods
 }
 
 impl StaticParamIndex {
-    fn find_workspace_crates(start: &Path) -> BTreeMap<String, (PathBuf, String)> {
-        let mut dir = Some(start);
+    fn find_workspace_crates(start: &Path, ledger_dir: &Path) -> BTreeMap<String, (PathBuf, String)> {
         let mut ws_root = None;
-        while let Some(d) = dir {
-            if d.join("hook-ledger").join("stamp-config.txt").is_file() {
-                ws_root = Some(d.to_path_buf());
+        for anchor in [start, ledger_dir] {
+            let mut dir = Some(anchor);
+            while let Some(d) = dir {
+                if d.join("hook-ledger").join("stamp-config.txt").is_file() {
+                    ws_root = Some(d.to_path_buf());
+                    break;
+                }
+                dir = d.parent();
+            }
+            if ws_root.is_some() {
                 break;
             }
-            dir = d.parent();
         }
         let Some(ws) = ws_root else {
             return BTreeMap::new();
@@ -593,6 +600,7 @@ impl StaticParamIndex {
 
     fn new(
         crate_root: &Path,
+        ledger_dir: &Path,
         crate_name: &str,
         crate_ident: &str,
         scanned_files: &[modules::ScannedFile],
@@ -604,7 +612,7 @@ impl StaticParamIndex {
             private_mods: BTreeSet::new(),
             aliases: BTreeMap::new(),
             loaded_crates: BTreeSet::new(),
-            crate_dirs: Self::find_workspace_crates(crate_root),
+            crate_dirs: Self::find_workspace_crates(crate_root, ledger_dir),
         };
         index.insert_crate_files(
             crate_root,
@@ -612,6 +620,7 @@ impl StaticParamIndex {
             crate_ident,
             scanned_files,
             colliding_short_keys,
+            false,
         );
         index.loaded_crates.insert(crate_ident.to_string());
         index
@@ -659,6 +668,7 @@ impl StaticParamIndex {
         crate_ident: &str,
         scanned_files: &[modules::ScannedFile],
         colliding_short_keys: &BTreeSet<String>,
+        is_foreign: bool,
     ) {
         let mut seen_paths = BTreeSet::new();
         for sf in scanned_files {
@@ -674,6 +684,7 @@ impl StaticParamIndex {
                 &sf.root_mod_path,
                 &sf.root_cfg_tags,
                 &sf.parsed.items,
+                is_foreign,
             );
         }
         if let Ok(root_file) = modules::find_crate_root_file(crate_root, crate_name)
@@ -690,6 +701,7 @@ impl StaticParamIndex {
                 &[],
                 &[],
                 &parsed.items,
+                is_foreign,
             );
         }
     }
@@ -704,6 +716,7 @@ impl StaticParamIndex {
         mod_path: &[String],
         mod_cfg_tags: &[String],
         items: &[Item],
+        is_foreign: bool,
     ) {
         let prefix = key::module_prefix(crate_ident, mod_path);
         let (matched_helpers, _) = run::pair_converted_trait_helpers(
@@ -717,7 +730,12 @@ impl StaticParamIndex {
         for item in items {
             match item {
                 Item::Mod(item_mod) if !modules::has_cfg_test(&item_mod.attrs) => {
-                    if matches!(item_mod.vis, syn::Visibility::Inherited) {
+                    let is_priv = if is_foreign {
+                        !matches!(item_mod.vis, syn::Visibility::Public(_))
+                    } else {
+                        matches!(item_mod.vis, syn::Visibility::Inherited)
+                    };
+                    if is_priv {
                         self.private_mods.insert(format!("{prefix}::{}", item_mod.ident));
                     }
                     if let Some((_, inner)) = &item_mod.content {
@@ -733,6 +751,7 @@ impl StaticParamIndex {
                             &child_mod,
                             &child_tags,
                             inner,
+                            is_foreign,
                         );
                     }
                 }
@@ -826,7 +845,49 @@ impl StaticParamIndex {
             return;
         };
         let colliding = run::collect_colliding_short_keys(target_ident, &targets, false, &files);
-        self.insert_crate_files(&dir, &pkg, target_ident, &files, &colliding);
+        self.insert_crate_files(&dir, &pkg, target_ident, &files, &colliding, true);
+    }
+
+    /// Loads any workspace dependency crate named at path root positions in `text` (so its aliases
+    /// and private modules are known even when the call's callee lives in a different crate).
+    fn ensure_crates_in_text(&mut self, text: &str) {
+        if self.crate_dirs.is_empty() {
+            return;
+        }
+        let bytes = text.as_bytes();
+        let mut i = 0;
+        let mut at_root = true;
+        while i < bytes.len() {
+            let b = bytes[i];
+            if b == b'\'' {
+                i += 1;
+                while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                    i += 1;
+                }
+                continue;
+            }
+            if b.is_ascii_alphabetic() || b == b'_' {
+                let start = i;
+                while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                    i += 1;
+                }
+                let ident = &text[start..i];
+                if at_root && bytes.get(i..i + 2) == Some(b"::") && self.crate_dirs.contains_key(ident) {
+                    self.ensure_crate_loaded(ident);
+                }
+                at_root = matches!(ident, "mut" | "fn" | "for" | "dyn" | "impl" | "const");
+                continue;
+            }
+            if b == b':' && bytes.get(i + 1) == Some(&b':') {
+                at_root = false;
+                i += 2;
+                continue;
+            }
+            if !b.is_ascii_whitespace() {
+                at_root = matches!(b, b'&' | b'<' | b'(' | b'[' | b',' | b';' | b'=' | b'|' | b'+');
+            }
+            i += 1;
+        }
     }
 
     fn lookup_key(&self, k: &str) -> Option<&[Type]> {
@@ -2284,6 +2345,7 @@ pub fn execute(config: &Config) -> Result<bool, String> {
     );
     let mut static_index = StaticParamIndex::new(
         &config.crate_root,
+        &config.ledger,
         &config.crate_name,
         &crate_ident,
         &scanned_files,
@@ -2458,7 +2520,7 @@ fn callee_first_segment(callee_path: &str) -> Option<&str> {
     {
         return trait_path.split("::").next();
     }
-    if callee_path.starts_with(['<', '[', '(']) {
+    if callee_path.starts_with(['<', '[', '(', '*']) {
         return None;
     }
     callee_path.split("::").next()
@@ -2468,6 +2530,7 @@ fn is_engine_callee(
     callee_path: &str,
     crate_ident: &str,
     engine_crates: Option<&[String]>,
+    thir_externs: &BTreeSet<String>,
 ) -> bool {
     let Some(first) = callee_first_segment(callee_path) else {
         return false;
@@ -2477,7 +2540,12 @@ fn is_engine_callee(
     }
     match engine_crates {
         Some(list) => list.iter().any(|c| c == first),
-        None => first.starts_with("horizon_") || first.starts_with("yoake_") || first == crate_ident,
+        None => {
+            let direct_ok = thir_externs.is_empty()
+                || first == crate_ident
+                || thir_externs.contains(first);
+            direct_ok && (first.starts_with("horizon_") || first.starts_with("yoake_") || first == crate_ident)
+        }
     }
 }
 
@@ -2531,13 +2599,14 @@ fn check_callee_policy(
     recv_ty_str: Option<&str>,
     crate_ident: &str,
     engine_crates: Option<&[String]>,
+    thir_externs: &BTreeSet<String>,
     allowlist: &CallsiteAllowlist,
     track_caller_set: &BTreeSet<String>,
 ) -> Result<(), &'static str> {
     if track_caller::is_track_caller(callee_path, track_caller_set) {
         return Err("track-caller");
     }
-    if !is_engine_callee(callee_path, crate_ident, engine_crates)
+    if !is_engine_callee(callee_path, crate_ident, engine_crates, thir_externs)
         && !is_allowlisted(callee_path, recv_ty_str, allowlist)
     {
         return Err("non-engine callee");
@@ -3006,6 +3075,7 @@ fn execute_with_thir(
                         recv_ty_opt,
                         crate_ident,
                         config.engine_crates.as_deref(),
+                        &thir_dump.externs,
                         &allowlist,
                         &track_caller_set,
                     ) {
@@ -3032,6 +3102,15 @@ fn execute_with_thir(
                             exact_manual_key: None,
                         });
                         continue;
+                    }
+                    static_index.ensure_crates_in_text(&callee_path);
+                    for arg in &thir_call.args {
+                        if let Some(ty) = arg.ty.as_deref() {
+                            static_index.ensure_crates_in_text(ty);
+                        }
+                    }
+                    if let Some(ty) = thir_call.ret_ty.as_deref() {
+                        static_index.ensure_crates_in_text(ty);
                     }
                     let static_params = static_index.lookup_callee(thir_call, crate_ident, &callee_path);
                     let shim_sig = match validate_and_format_shim_sig(
@@ -3205,6 +3284,7 @@ fn execute_with_thir(
         existing_sites,
         &allowlist,
         &track_caller_set,
+        &thir_dump.externs,
         &inside_shim_thir,
         files,
         &scanned_fn_ids,
@@ -3642,6 +3722,7 @@ fn reconcile_and_plan(
     existing_sites: &BTreeMap<u32, SiteMeta>,
     allowlist: &CallsiteAllowlist,
     track_caller_set: &BTreeSet<String>,
+    thir_externs: &BTreeSet<String>,
     inside_shim_thir: &BTreeMap<u32, &ThirCall>,
     files: &[CollectedFile],
     scanned_fn_ids: &BTreeSet<u32>,
@@ -3742,6 +3823,7 @@ fn reconcile_and_plan(
                     recv_ty_opt,
                     crate_ident,
                     config.engine_crates.as_deref(),
+                    thir_externs,
                     allowlist,
                     track_caller_set,
                 )
@@ -4565,5 +4647,49 @@ mod private_path_tests {
     fn lifetimes_and_other_crates_are_left_alone() {
         let out = publicize_paths("&'static horizon_core::a::B<'_>", "demo::x::f", "demo", &set());
         assert_eq!(out, "&'static horizon_core::a::B<'_>");
+    }
+
+    #[test]
+    fn pointer_callees_and_non_extern_engine_crates_are_excluded() {
+        use super::is_engine_callee;
+        let externs: BTreeSet<String> = ["horizon_command", "yoake_wasm"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect();
+        assert!(!is_engine_callee("*const horizon_mod_abi::ModDescriptor::is_null", "horizon_client", None, &externs));
+        assert!(!is_engine_callee("horizon_mobmodel::procedural::Set::get", "horizon_client", None, &externs));
+        assert!(is_engine_callee("horizon_command::Context::has", "horizon_client", None, &externs));
+        assert!(is_engine_callee("<Self as yoake_wasm::ClientServices>::hud_place", "horizon_client", None, &externs));
+        assert!(is_engine_callee("horizon_client::game::Game::tick", "horizon_client", None, &externs));
+    }
+
+    #[test]
+    fn static_param_index_loads_foreign_private_mods_via_ledger_workspace() {
+        use super::StaticParamIndex;
+        let base = std::env::temp_dir().join(format!("yoake_static_idx_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let ws = base.join("ws");
+        let scratch_crate = base.join("scratch").join("crates").join("app");
+        let ledger = ws.join("hook-ledger");
+        std::fs::create_dir_all(&ledger).unwrap();
+        std::fs::write(ledger.join("stamp-config.txt"), "").unwrap();
+        let dep = ws.join("crates").join("dep_crate");
+        std::fs::create_dir_all(dep.join("src")).unwrap();
+        std::fs::write(dep.join("Cargo.toml"), "[package]\nname = \"dep-crate\"\n").unwrap();
+        std::fs::write(
+            dep.join("src").join("lib.rs"),
+            "mod priv_m { pub struct S; }\npub(crate) mod crate_m { pub struct C; }\npub use priv_m::S;\n",
+        ).unwrap();
+        std::fs::write(dep.join("src").join("priv_m.rs"), "").unwrap();
+        std::fs::write(dep.join("src").join("crate_m.rs"), "").unwrap();
+        std::fs::create_dir_all(scratch_crate.join("src")).unwrap();
+        std::fs::write(scratch_crate.join("Cargo.toml"), "[package]\nname = \"app\"\n").unwrap();
+        std::fs::write(scratch_crate.join("src").join("lib.rs"), "").unwrap();
+
+        let mut idx = StaticParamIndex::new(&scratch_crate, &ledger, "app", "app", &[], &BTreeSet::new());
+        idx.ensure_crates_in_text("&'_ dep_crate::priv_m::S");
+        assert!(idx.private_mods.contains("dep_crate::priv_m"));
+        assert!(idx.private_mods.contains("dep_crate::crate_m"));
+        let _ = std::fs::remove_dir_all(&base);
     }
 }

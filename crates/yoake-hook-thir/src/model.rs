@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -12,6 +12,8 @@ pub struct Dump {
     pub crate_name: String,
     #[serde(default)]
     pub source_snapshot: String,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub externs: BTreeSet<String>,
     pub files: BTreeMap<String, FileSummary>,
     pub calls: Vec<Call>,
 }

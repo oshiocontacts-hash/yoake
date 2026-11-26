@@ -1,8 +1,8 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::io::BufRead;
 
 use crate::model::*;
-use crate::normalize::{normalize_callee, normalize_type, resolution};
+use crate::normalize::{NormalizeContext, normalize_callee, normalize_type, resolution};
 use crate::receiver::{NodeKind, ReceiverTree};
 use crate::span::{callee_path, defid_path, indentation, parse_span};
 use crate::{Error, ParseOptions, Result};
@@ -75,6 +75,11 @@ pub fn parse_reader<R: BufRead>(reader: R, options: &ParseOptions) -> Result<Dum
     let mut tree = ReceiverTree::default();
     let mut caller = String::new();
     let mut saw_fn_span = false;
+    let ctx = NormalizeContext::from_workspace(
+        options.workspace.as_deref(),
+        options.crate_name.as_deref(),
+        &options.externs,
+    );
 
     for line in reader.lines() {
         let line = line?;
@@ -84,7 +89,7 @@ pub fn parse_reader<R: BufRead>(reader: R, options: &ParseOptions) -> Result<Dum
         }
         let indent = indentation(&line);
         if indent == 0 && text.starts_with("DefId(") {
-            finish_calls(&mut stack, &tree, &options.externs, &mut files, &mut calls)?;
+            finish_calls(&mut stack, &tree, &ctx, &mut files, &mut calls)?;
             stack.clear();
             exprs.clear();
             tree = ReceiverTree::default();
@@ -98,7 +103,7 @@ pub fn parse_reader<R: BufRead>(reader: R, options: &ParseOptions) -> Result<Dum
             &mut stack,
             indent,
             &tree,
-            &options.externs,
+            &ctx,
             &mut files,
             &mut calls,
         )?;
@@ -174,7 +179,7 @@ pub fn parse_reader<R: BufRead>(reader: R, options: &ParseOptions) -> Result<Dum
             }
         }
     }
-    finish_calls(&mut stack, &tree, &options.externs, &mut files, &mut calls)?;
+    finish_calls(&mut stack, &tree, &ctx, &mut files, &mut calls)?;
     if !saw_fn_span {
         return Err(Error::new("no THIR Call node with fn_span was seen"));
     }
@@ -191,6 +196,7 @@ pub fn parse_reader<R: BufRead>(reader: R, options: &ParseOptions) -> Result<Dum
         cargo_lock_sha: options.cargo_lock_sha.clone(),
         crate_name,
         source_snapshot,
+        externs: options.externs.clone(),
         files,
         calls,
     })
@@ -269,12 +275,12 @@ fn finish_ready_calls(
     stack: &mut Vec<RawCall>,
     indent: usize,
     tree: &ReceiverTree,
-    externs: &BTreeSet<String>,
+    ctx: &NormalizeContext,
     files: &mut BTreeMap<String, FileSummary>,
     calls: &mut Vec<Call>,
 ) -> Result<()> {
     while stack.last().is_some_and(|call| indent <= call.indent) {
-        finish_one(stack.pop().unwrap(), tree, externs, files, calls)?;
+        finish_one(stack.pop().unwrap(), tree, ctx, files, calls)?;
     }
     Ok(())
 }
@@ -282,12 +288,12 @@ fn finish_ready_calls(
 fn finish_calls(
     stack: &mut Vec<RawCall>,
     tree: &ReceiverTree,
-    externs: &BTreeSet<String>,
+    ctx: &NormalizeContext,
     files: &mut BTreeMap<String, FileSummary>,
     calls: &mut Vec<Call>,
 ) -> Result<()> {
     while let Some(call) = stack.pop() {
-        finish_one(call, tree, externs, files, calls)?;
+        finish_one(call, tree, ctx, files, calls)?;
     }
     Ok(())
 }
@@ -295,7 +301,7 @@ fn finish_calls(
 fn finish_one(
     raw: RawCall,
     tree: &ReceiverTree,
-    externs: &BTreeSet<String>,
+    ctx: &NormalizeContext,
     files: &mut BTreeMap<String, FileSummary>,
     calls: &mut Vec<Call>,
 ) -> Result<()> {
@@ -335,7 +341,7 @@ fn finish_one(
             ty: argument
                 .ty
                 .as_deref()
-                .and_then(|ty| normalize_type(ty, &local_crate, externs)),
+                .and_then(|ty| normalize_type(ty, &local_crate, ctx)),
             span: argument
                 .span
                 .or(macro_expanded.then_some(whole_span))
@@ -362,13 +368,13 @@ fn finish_one(
         callee: if indirect {
             callee_def.clone()
         } else {
-            normalize_callee(&callee_def, receiver_ty.as_deref(), kind, &local_crate, externs)
+            normalize_callee(&callee_def, receiver_ty.as_deref(), kind, &local_crate, ctx)
         },
         callee_def,
         ret_ty: raw
             .ret_ty
             .as_deref()
-            .and_then(|ty| normalize_type(ty, &local_crate, externs)),
+            .and_then(|ty| normalize_type(ty, &local_crate, ctx)),
         args: normalized_args,
         recv_adjust,
         resolution: if indirect { Resolution::Dyn } else { resolution(receiver_ty.as_deref()) },
