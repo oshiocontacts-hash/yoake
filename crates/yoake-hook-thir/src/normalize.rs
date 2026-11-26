@@ -97,8 +97,9 @@ pub fn normalize_callee(
     // wrong for associated fns without a receiver (`Vec3::new(..)`): Phase 2 (path call sites)
     // must take the owner from the written path instead.
     if raw.contains("{impl#") {
-        let recv = rewrite_aliased_externs(receiver_ty.unwrap_or("Self"), &ctx.aliased_externs);
+        let recv = replace_regions(&strip_defid_hashes(receiver_ty.unwrap_or("Self")));
         let owner = strip_owner_generics(strip_references(&recv));
+        let owner = rewrite_aliased_externs(&owner, &ctx.aliased_externs);
         format!("{}::{method}", canonical_path(&owner, local_crate, ctx))
     } else {
         let trait_path = raw.rsplit_once("::").map_or(raw.as_str(), |(path, _)| path);
@@ -484,7 +485,7 @@ mod tests {
 
         let callee = normalize_callee(
             "horizon_client_lib::horizon_command::Reader::{impl#1}::can_read",
-            Some("&'_ horizon_client_lib::horizon_command::Reader<'_>"),
+            Some("&'^0_0.Named(DefId(0:1), \"'r\") horizon_client_lib::horizon_command::Reader<'{erased}>"),
             CallKind::Method,
             "horizon_client",
             &ctx,
