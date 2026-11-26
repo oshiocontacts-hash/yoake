@@ -1,4 +1,4 @@
-//! Guest SDK for Yoake WebAssembly client mods (`yoake:mods@1.0.0`, world `client-mod`).
+//! Guest SDK for Yoake WebAssembly client mods (`yoake:mods@1.7.0`, world `client-mod`).
 //!
 //! ```ignore
 //! #![no_std]
@@ -39,6 +39,9 @@ pub mod mixin;
 
 #[cfg(feature = "full")]
 pub mod full;
+
+#[cfg(feature = "worker")]
+pub mod worker;
 
 /// Everything a `#![no_std]` mod usually needs from `alloc`.
 pub mod prelude {
@@ -391,6 +394,37 @@ pub mod hud {
     }
     pub fn text_width(text: &str) -> Result<Option<f32>> {
         imp::hud::text_width(text)
+    }
+    pub fn batch_len() -> Result<u64> {
+        imp::hud::batch_len()
+    }
+    pub fn batch_scale_since(start: u64, origin: (f32, f32), scale: (f32, f32)) -> Result<()> {
+        imp::hud::batch_scale_since(
+            start,
+            Point {
+                x: origin.0,
+                y: origin.1,
+            },
+            Point {
+                x: scale.0,
+                y: scale.1,
+            },
+        )
+    }
+    pub fn batch_clip_since(start: u64, bounds: [f32; 4]) -> Result<()> {
+        let [x, y, width, height] = bounds;
+        imp::hud::batch_clip_since(
+            start,
+            Rect {
+                x,
+                y,
+                width,
+                height,
+            },
+        )
+    }
+    pub fn batch_tint_since(start: u64, alpha: f32) -> Result<()> {
+        imp::hud::batch_tint_since(start, alpha)
     }
 }
 

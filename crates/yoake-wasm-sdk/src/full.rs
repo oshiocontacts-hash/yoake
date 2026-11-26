@@ -200,6 +200,327 @@ pub mod client {
         include!("gpu.rs");
     }
 
+    /// FR-REM05 / FR-F2: talk to the mod's worker (`[wasm] worker`) without blocking the client thread.
+    pub mod worker {
+        use super::bindings::yoake::mods::worker as raw;
+        use crate::prelude::*;
+
+        /// Queues `message` for the worker.
+        pub fn send(message: Vec<u8>) -> Result<(), String> {
+            raw::worker_send(&message)
+        }
+
+        /// The worker's next reply, or `None`.
+        pub fn recv() -> Option<Vec<u8>> {
+            raw::worker_recv()
+        }
+    }
+
+    /// L2: dynamic runtime overrides for vanilla and modded item/block sprites.
+    pub mod sprites {
+        use super::services;
+        use crate::prelude::*;
+
+        /// Replaces item `item_id`'s inventory/held sprite with `width x height` RGBA8 pixels.
+        pub fn set_item(item_id: &str, size: (u32, u32), rgba: &[u8]) -> Result<(), String> {
+            services::item_sprite_set(item_id, rgba, size)
+        }
+
+        /// Restores item `item_id`'s original pack sprite.
+        pub fn reset_item(item_id: &str) -> Result<(), String> {
+            services::item_sprite_reset(item_id)
+        }
+
+        /// Reads item `item_id`'s current sprite as `(width, height, rgba8)`.
+        pub fn item_pixels(item_id: &str) -> Result<(u32, u32, Vec<u8>), String> {
+            services::item_sprite_pixels(item_id)
+        }
+
+        /// Replaces block/atlas sprite `texture_id` with `width x height` RGBA8 pixels.
+        pub fn set_block(texture_id: &str, size: (u32, u32), rgba: &[u8]) -> Result<(), String> {
+            services::block_sprite_set(rgba, size, texture_id)
+        }
+
+        /// Restores block/atlas sprite `texture_id`'s original pack pixels.
+        pub fn reset_block(texture_id: &str) -> Result<(), String> {
+            services::block_sprite_reset(texture_id)
+        }
+
+        /// Reads block/atlas sprite `texture_id`'s current pixels as `(width, height, rgba8)`.
+        pub fn block_pixels(texture_id: &str) -> Result<(u32, u32, Vec<u8>), String> {
+            services::block_sprite_pixels(texture_id)
+        }
+    }
+
+    /// FR-MEDIA1: owned `Browser` handle over `browser` (`media-services`, requires `service.browser`).
+    pub mod media {
+        pub use super::media_types::*;
+        use super::{browser as raw, hud};
+        use crate::prelude::*;
+
+        /// Owned handle to an embedded Edge/Chrome browser instance; closed on drop.
+        #[derive(Debug)]
+        pub struct Browser {
+            handle: u32,
+        }
+
+        impl Browser {
+            pub fn open(
+                url: &str,
+                width: u32,
+                height: u32,
+                scale: f32,
+                options: &BrowserOptions,
+            ) -> Result<Self, String> {
+                raw::browser_open(height, options, scale, url, width).map(|handle| Self { handle })
+            }
+
+            pub fn handle(&self) -> u32 {
+                self.handle
+            }
+
+            pub fn set_visible(&self, visible: bool) -> Result<(), String> {
+                raw::browser_set_visible(self.handle, visible)
+            }
+
+            pub fn navigate(&self, url: &str) -> Result<(), String> {
+                raw::browser_navigate(self.handle, url)
+            }
+
+            pub fn history(&self, action: HistoryAction) -> Result<(), String> {
+                raw::browser_history(action, self.handle)
+            }
+
+            pub fn back(&self) -> Result<(), String> {
+                self.history(HistoryAction::Back)
+            }
+
+            pub fn forward(&self) -> Result<(), String> {
+                self.history(HistoryAction::Forward)
+            }
+
+            pub fn reload(&self) -> Result<(), String> {
+                self.history(HistoryAction::Reload)
+            }
+
+            pub fn input(&self, event: &InputEvent) -> Result<(), String> {
+                raw::browser_input(event, self.handle)
+            }
+
+            pub fn state(&self) -> Result<PageState, String> {
+                raw::browser_state(self.handle)
+            }
+
+            pub fn frame_to_texture(&self, texture: &hud::GuiTexture) -> Result<Option<u64>, String> {
+                raw::browser_frame_to_texture(self.handle, texture)
+            }
+
+            pub fn frame_jpeg(&self, quality: u8) -> Result<Option<(u64, Vec<u8>)>, String> {
+                raw::browser_frame_jpeg(self.handle, quality)
+            }
+
+            pub fn audio_pcm(&self) -> Result<Vec<i16>, String> {
+                raw::browser_audio_pcm(self.handle)
+            }
+
+            pub fn eval(&self, expression: &str) -> Result<u64, String> {
+                raw::browser_eval(expression, self.handle)
+            }
+
+            pub fn eval_result(ticket: u64) -> Result<EvalAnswer, String> {
+                raw::browser_eval_result(ticket)
+            }
+
+            pub fn post(&self, json: &str) -> Result<(), String> {
+                raw::browser_post(self.handle, json)
+            }
+
+            pub fn messages(&self) -> Result<Vec<String>, String> {
+                raw::browser_messages(self.handle)
+            }
+        }
+
+        impl Drop for Browser {
+            fn drop(&mut self) {
+                let _ = raw::browser_close(self.handle);
+            }
+        }
+
+        /// Decodes JPEG image bytes into an existing [`hud::GuiTexture`], returning `(width, height)`.
+        pub fn jpeg_to_texture(bytes: &[u8], texture: &hud::GuiTexture) -> Result<(u32, u32), String> {
+            raw::jpeg_to_texture(bytes, texture)
+        }
+    }
+
+    /// Friendlier wrappers over `client-services` with natural argument order.
+    pub mod ext {
+        use super::{hud, services, types};
+        use crate::prelude::*;
+
+        pub fn register_key_binding(id: &str, default_key: &str, category: &str, label: &str) -> Result<(), String> {
+            services::register_key_binding(category, default_key, id, label)
+        }
+
+        pub fn key_binding_state(id: &str) -> Result<types::KeyState, String> {
+            services::key_binding_state(id)
+        }
+
+        pub fn hud_place(corner: types::HudCorner, size: types::Vec2) -> Result<Option<types::Vec2>, String> {
+            services::hud_place(corner, size)
+        }
+
+        pub fn gui_texture_write(
+            texture: &hud::GuiTexture,
+            origin: (u32, u32),
+            size: (u32, u32),
+            rgba: &[u8],
+        ) -> Result<(), String> {
+            services::gui_texture_write(rgba, origin, size, texture)
+        }
+
+        pub fn draw_gui_item(stack: &types::ItemStack, at: types::Vec2, scale: f32) -> Result<bool, String> {
+            services::draw_gui_item(at, scale, stack)
+        }
+
+        pub fn draw_world_line(start: types::Vec3, end: types::Vec3, color: u32, width: f32) -> Result<(), String> {
+            services::draw_world_line(color, end, start, width)
+        }
+
+        pub fn draw_world_quad(corners: &[types::Vec3], color: u32) -> Result<(), String> {
+            services::draw_world_quad(color, corners)
+        }
+
+        pub fn draw_world_textured_quad(
+            texture: &hud::GuiTexture,
+            corners: &[types::Vec3],
+            uv: types::Box2,
+            color: u32,
+        ) -> Result<(), String> {
+            services::draw_world_textured_quad(color, corners, texture, uv)
+        }
+
+        pub fn draw_world_billboard(
+            texture: &hud::GuiTexture,
+            center: types::Vec3,
+            size: types::Vec2,
+            uv: types::Box2,
+            color: u32,
+        ) -> Result<(), String> {
+            services::draw_world_billboard(center, color, size, texture, uv)
+        }
+
+        pub fn draw_post_tint(color: u32) -> Result<(), String> {
+            services::draw_post_tint(color)
+        }
+
+        pub fn draw_post_vignette(color: u32) -> Result<(), String> {
+            services::draw_post_vignette(color)
+        }
+
+        pub fn post_shader_register(id: &str, uniform_size: u32, wgsl: &str) -> Result<(), String> {
+            services::register_post_shader(id, uniform_size, wgsl)
+        }
+
+        pub fn post_shader_unregister(id: &str) -> Result<(), String> {
+            services::unregister_post_shader(id)
+        }
+
+        pub fn post_shader_set_uniforms(id: &str, bytes: &[u8]) -> Result<(), String> {
+            services::set_post_shader_uniforms(bytes, id)
+        }
+
+        pub fn post_shader_enable(id: &str, enabled: bool) -> Result<(), String> {
+            services::enable_post_shader(enabled, id)
+        }
+
+        pub fn post_shader_state(id: &str) -> Result<bool, String> {
+            services::post_shader_state(id)
+        }
+
+        pub fn map_columns(chunk: (i32, i32), below: Option<i32>) -> Result<Option<types::MapTile>, String> {
+            services::map_columns(below, chunk)
+        }
+
+        pub fn config_get(key: &str) -> Result<types::ConfigValue, String> {
+            services::config_get(key)
+        }
+
+        pub fn config_set(key: &str, value: &types::ConfigValue) -> Result<(), String> {
+            services::config_set(key, value)
+        }
+
+        pub fn storage_get(scope: types::StorageScope, key: &str) -> Result<Option<Vec<u8>>, String> {
+            services::storage_get(key, scope)
+        }
+
+        pub fn storage_put(scope: types::StorageScope, key: &str, value: &[u8]) -> Result<(), String> {
+            services::storage_put(key, scope, value)
+        }
+
+        pub fn storage_delete(scope: types::StorageScope, key: &str) -> Result<bool, String> {
+            services::storage_delete(key, scope)
+        }
+
+        pub fn storage_blob_begin(scope: types::StorageScope, key: &str, total: u64) -> Result<u64, String> {
+            services::storage_blob_begin(key, scope, total)
+        }
+
+        pub fn storage_blob_write(id: u64, offset: u64, data: &[u8]) -> Result<(), String> {
+            services::storage_blob_write(data, id, offset)
+        }
+
+        pub fn storage_blob_commit(id: u64) -> Result<(), String> {
+            services::storage_blob_commit(id)
+        }
+
+        pub fn storage_blob_abort(id: u64) -> Result<bool, String> {
+            services::storage_blob_abort(id)
+        }
+
+        pub fn storage_blob_read(scope: types::StorageScope, key: &str, offset: u64, length: u32) -> Result<Vec<u8>, String> {
+            services::storage_blob_read(key, length, offset, scope)
+        }
+
+        /// Owned handle to a client streaming PCM audio source; closes automatically on drop.
+        #[derive(Debug)]
+        pub struct AudioStream {
+            handle: u32,
+        }
+
+        impl AudioStream {
+            pub fn open(anchor: types::PcmAnchor, sample_rate: u32, channels: u16, category: &str) -> Result<Self, String> {
+                services::audio_stream_open(anchor, category, channels, sample_rate)
+                    .map(|handle| Self { handle })
+            }
+
+            pub fn push_f32(&self, samples: &[f32]) -> Result<u32, String> {
+                services::audio_stream_push(samples, self.handle)
+            }
+
+            pub fn push_i16(&self, samples: &[i16]) -> Result<u32, String> {
+                services::audio_stream_push_i16(samples, self.handle)
+            }
+
+            pub fn queued(&self) -> Result<Option<u32>, String> {
+                services::audio_stream_queued(self.handle)
+            }
+
+            pub fn dropped(&self) -> Result<Option<u64>, String> {
+                services::audio_stream_dropped(self.handle)
+            }
+
+            pub fn move_to(&self, anchor: types::PcmAnchor) -> Result<(), String> {
+                services::audio_stream_move(anchor, self.handle)
+            }
+        }
+
+        impl Drop for AudioStream {
+            fn drop(&mut self) {
+                let _ = services::audio_stream_close(self.handle);
+            }
+        }
+    }
+
     #[allow(unused_imports)]
     use crate::prelude::*;
 
@@ -339,6 +660,96 @@ pub mod server {
         /// Makes `data` the whole saved data of the mod block entity at a position. (Service 294.)
         pub fn block_entity_replace(x: i32, y: i32, z: i32, data: &crate::nbt::Compound) -> Result<(), String> {
             services::block_entity_patch_at(&data.to_bytes(), types::BlockPos { x, y, z }, true)
+        }
+
+        /// Clears one exact inventory slot only when it matches `expected`.
+        pub fn player_remove_slot(player: &str, slot: u32, expected: &types::ItemStack) -> Result<bool, String> {
+            services::player_remove_slot(expected, player, slot)
+        }
+
+        /// Reads the mod's declared config key.
+        pub fn config_get(key: &str) -> Result<types::ConfigValue, String> {
+            services::config_get(key)
+        }
+
+        /// Writes and validates the mod's config key.
+        pub fn config_set(key: &str, value: &types::ConfigValue) -> Result<(), String> {
+            services::config_set(key, value)
+        }
+
+        /// Checks whether `player` holds `node`.
+        pub fn has_permission(player: &str, node: &str) -> Result<bool, String> {
+            services::has_permission(node, player)
+        }
+
+        pub fn storage_get(scope: types::StorageScope, key: &str) -> Result<Option<Vec<u8>>, String> {
+            services::storage_get(key, scope)
+        }
+
+        pub fn storage_put(scope: types::StorageScope, key: &str, value: &[u8]) -> Result<(), String> {
+            services::storage_put(key, scope, value)
+        }
+
+        pub fn storage_delete(scope: types::StorageScope, key: &str) -> Result<bool, String> {
+            services::storage_delete(key, scope)
+        }
+
+        pub fn storage_blob_begin(scope: types::StorageScope, key: &str, total: u64) -> Result<u64, String> {
+            services::storage_blob_begin(key, scope, total)
+        }
+
+        pub fn storage_blob_write(id: u64, offset: u64, data: &[u8]) -> Result<(), String> {
+            services::storage_blob_write(data, id, offset)
+        }
+
+        pub fn storage_blob_commit(id: u64) -> Result<(), String> {
+            services::storage_blob_commit(id)
+        }
+
+        pub fn storage_blob_abort(id: u64) -> Result<bool, String> {
+            services::storage_blob_abort(id)
+        }
+
+        pub fn storage_blob_read(scope: types::StorageScope, key: &str, offset: u64, length: u32) -> Result<Vec<u8>, String> {
+            services::storage_blob_read(key, length, offset, scope)
+        }
+
+        pub fn world_border(dimension: &str) -> Result<types::WorldBorderState, String> {
+            services::world_border(dimension)
+        }
+
+        pub fn set_world_border(
+            dimension: &str,
+            center_x: f64,
+            center_z: f64,
+            size: f64,
+            target_size: Option<f64>,
+            lerp_ticks: Option<u64>,
+        ) -> Result<(), String> {
+            services::set_world_border(center_x, center_z, dimension, lerp_ticks, size, target_size)
+        }
+
+        pub fn play_sound_at(
+            dimension: &str,
+            position: types::Vec3,
+            sound: &str,
+            category: &str,
+            volume: f32,
+            pitch: f32,
+        ) -> Result<u32, String> {
+            services::play_sound_at(category, dimension, pitch, position, sound, volume)
+        }
+
+        pub fn set_player_velocity(dimension: &str, player: &str, velocity: types::Vec3) -> Result<bool, String> {
+            services::set_server_player_velocity(dimension, player, velocity)
+        }
+
+        pub fn set_player_attack_hitbox(player: &str, width: f32, height: f32) -> Result<bool, String> {
+            services::set_player_attack_hitbox(height, player, width)
+        }
+
+        pub fn clear_player_attack_hitbox(player: &str) -> Result<bool, String> {
+            services::clear_player_attack_hitbox(player)
         }
 
         /// Makes this package the generator of levels whose stem is
@@ -624,6 +1035,9 @@ pub mod server {
         /// An enum tracked value, by name.
         pub fn choice_value(v: &str) -> types::MobValue {
             types::MobValue { kind: types::MobValueKind::Choice, string_value: v.to_owned(), ..bool_value(false) }
+        }
+        pub fn vec3_value(v: types::Vec3) -> types::MobValue {
+            types::MobValue { kind: types::MobValueKind::Vec3, vec3_value: v, ..bool_value(false) }
         }
 
         /// A snapshot of a mob (`None`: not loaded or not alive).
