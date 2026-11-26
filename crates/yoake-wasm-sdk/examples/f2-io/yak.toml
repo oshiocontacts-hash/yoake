@@ -1,0 +1,20 @@
+format = 1
+id = "f2-io"
+version = "0.1.0"
+name = "F2 IO & Worker Demo"
+authors = ["Yoake SDK Examples"]
+description = "FR-F2 example package pairing a server-full module with a worker component (plus test-guest features)."
+license = "MIT"
+
+[yoake]
+version = "*"
+
+[side]
+client = false
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.7"
+server = "bin/wasm/f2-io-server.wasm"
+worker = "bin/wasm/f2-io-worker.wasm"

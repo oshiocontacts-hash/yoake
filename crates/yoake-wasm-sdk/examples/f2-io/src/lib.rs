@@ -193,3 +193,30 @@ mod worker_guest {
 
     export!(Worker);
 }
+
+#[cfg(feature = "server")]
+mod server_mod {
+    use yoake_wasm_sdk::full::hook;
+    use yoake_wasm_sdk::full::server::{ServerMod, worker};
+
+    #[derive(Default)]
+    struct F2Server;
+
+    impl ServerMod for F2Server {
+        fn subscriptions() -> &'static [&'static str] {
+            &[hook::TICK]
+        }
+
+        fn init(&mut self) {
+            let _ = worker::send(b"echo:f2-io-init".to_vec());
+        }
+
+        fn tick(&mut self) {
+            while let Some(reply) = worker::recv() {
+                println!("f2-io reply: {}", String::from_utf8_lossy(&reply));
+            }
+        }
+    }
+
+    yoake_wasm_sdk::export_server_full!(F2Server);
+}

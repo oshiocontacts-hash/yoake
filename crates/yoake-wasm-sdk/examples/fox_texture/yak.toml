@@ -1,0 +1,21 @@
+format = 1
+id = "fox_texture"
+version = "0.1.0"
+name = "Cinder Fox Texture"
+authors = ["Yoake SDK Examples"]
+description = "Client-side custom mob runtime texture and model-layer example for sample_mobs:cinder_fox."
+license = "MIT"
+
+[yoake]
+version = "*"
+
+[side]
+client = true
+server = false
+required_on_join = false
+
+[wasm]
+interface = "1.7"
+world = "client-full"
+client = "bin/wasm/fox_texture.wasm"
+permissions = ["service.mobs"]

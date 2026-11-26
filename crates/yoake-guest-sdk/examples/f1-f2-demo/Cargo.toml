@@ -1,0 +1,25 @@
+[package]
+name = "yoake-guest-f1-f2-demo"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+server = ["dep:yoake-guest-sdk"]
+worker = ["dep:yoake-wasm-sdk"]
+
+[dependencies]
+yoake-guest-sdk = { path = "../..", optional = true }
+yoake-wasm-sdk = { path = "../../../yoake-wasm-sdk", default-features = false, features = ["std", "worker"], optional = true }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+panic = "abort"
+
+[workspace]

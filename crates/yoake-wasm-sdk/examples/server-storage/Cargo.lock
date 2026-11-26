@@ -321,6 +321,7 @@ name = "yoake-wasm-sdk"
 version = "0.1.0"
 dependencies = [
  "wit-bindgen",
+ "yoake-wasm-test-macros",
 ]
 
 [[package]]
@@ -329,6 +330,10 @@ version = "0.1.0"
 dependencies = [
  "yoake-wasm-sdk",
 ]
+
+[[package]]
+name = "yoake-wasm-test-macros"
+version = "0.1.0"
 
 [[package]]
 name = "zmij"

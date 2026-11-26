@@ -1,0 +1,31 @@
+format = 1
+id = "mixin-config"
+version = "0.1.0"
+name = "Mixin Config Demo"
+authors = ["Yoake SDK Examples"]
+description = "Configurable inject-mod example reacting to live config updates."
+license = "MIT"
+
+[yoake]
+version = "*"
+
+[side]
+client = false
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.2"
+world = "inject-mod"
+server = "bin/wasm/mixin-config.wasm"
+permissions = ["service.config"]
+
+[mixin]
+targets = [
+    "game::tick_sleep_timer#198a5917f750358ff70ce3f80ede1aa2c142d914cbe7bed985f5b6f4ed29a7b7",
+]
+
+[config.count]
+type = "int"
+side = "server"
+default = 10

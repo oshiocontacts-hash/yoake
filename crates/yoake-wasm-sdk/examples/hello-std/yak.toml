@@ -1,0 +1,19 @@
+format = 1
+id = "hello-std"
+version = "0.1.0"
+name = "Hello Std Demo"
+authors = ["Yoake SDK Examples"]
+description = "Standard-library (std) WebAssembly client-mod example."
+license = "MIT"
+
+[yoake]
+version = "*"
+
+[side]
+client = true
+server = false
+required_on_join = false
+
+[wasm]
+interface = "1.7"
+client = "bin/wasm/hello-std.wasm"

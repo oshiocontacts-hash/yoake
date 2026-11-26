@@ -1,0 +1,35 @@
+format = 1
+id = "full-services"
+version = "0.1.0"
+name = "Full Services Demo"
+authors = ["Yoake SDK Examples"]
+description = "Exercises declared config, permissions, and bounded blob storage on client and server."
+license = "MIT"
+
+[yoake]
+version = "*"
+
+[side]
+client = true
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.7"
+world = "client-full"
+client = "bin/wasm/full-services-client.wasm"
+server = "bin/wasm/full-services-server.wasm"
+permissions = ["service.config", "service.permissions", "service.storage"]
+
+[config.local]
+type = "bool"
+side = "client"
+default = false
+
+[config.shared]
+type = "bool"
+side = "synced"
+default = false
+
+[permissions."example.edit"]
+default_op_level = 2

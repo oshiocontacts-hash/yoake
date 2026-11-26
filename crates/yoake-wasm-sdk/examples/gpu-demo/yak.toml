@@ -1,0 +1,21 @@
+format = 1
+id = "gpu-demo"
+version = "0.1.0"
+name = "GPU Pipeline Demo"
+authors = ["Yoake SDK Examples"]
+description = "Client-side custom WGSL render, compute, particle, and post-effect demo."
+license = "MIT"
+
+[yoake]
+version = "*"
+
+[side]
+client = true
+server = false
+required_on_join = false
+
+[wasm]
+interface = "1.7"
+world = "client-full"
+client = "bin/wasm/gpu-demo.wasm"
+permissions = ["service.gpu"]
