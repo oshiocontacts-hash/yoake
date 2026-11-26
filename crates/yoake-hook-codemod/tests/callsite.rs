@@ -3131,3 +3131,68 @@ pub fn reg<'a>(d: &Data<'a>) -> &'a str {
 {rewritten}"
     );
 }
+
+#[test]
+fn callsite_patch_retires_live_sites_when_caller_added_to_hot_callers() {
+    let dir = TestDir::new("patch_hot_caller_retire");
+    let ws = dir.path();
+    let bag_rs = "\
+pub struct Bag {
+    pub count: u32,
+}
+
+impl Bag {
+    pub fn pick(&self, other: &Self) -> u32 {
+        self.count + other.count
+    }
+
+    pub fn hot_run(&self, other: &Self) -> u32 {
+        let a = self.pick(other);
+        a + 1
+    }
+}
+";
+    let crate_dir = ws.join("crates/demo");
+    fs::create_dir_all(crate_dir.join("src")).unwrap();
+    fs::create_dir_all(ws.join("hook-ledger")).unwrap();
+    fs::write(crate_dir.join("Cargo.toml"), "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n").unwrap();
+    fs::write(crate_dir.join("src/lib.rs"), "pub mod bag;\n").unwrap();
+    fs::write(crate_dir.join("src/bag.rs"), bag_rs).unwrap();
+    fs::write(ws.join("hook-ledger/meta.json"), "{\n  \"version\": 2,\n  \"next_id\": 1\n}\n").unwrap();
+    fs::write(ws.join("hook-ledger/demo.json"), "{\n  \"crate\": \"demo\",\n  \"entries\": [],\n  \"excluded\": []\n}\n").unwrap();
+    fs::write(ws.join("hook-ledger/stamp-config.txt"), "crates/demo demo *\n").unwrap();
+
+    let run = |args: &[&str]| {
+        let out = Command::new(codemod_bin()).args(args).arg("--workspace-root").arg(ws).output().unwrap();
+        let text = format!("{}\n{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert!(out.status.success(), "{args:?}:\n{text}");
+        text
+    };
+
+    run(&["sync-ledger"]);
+    let calls = thir_with_file(
+        bag_rs,
+        serde_json::json!([
+            { "file": "src/bag.rs", "span": span_of(bag_rs, "self.pick(other)"), "ctxt": 0, "kind": "method",
+              "callee": "demo::bag::Bag::pick", "callee_def": "bag::{impl#0}::pick", "ret_ty": "u32",
+              "args": [ { "ty": "&'_ crate::bag::Bag" }, { "ty": "&'_ crate::bag::Bag" } ],
+              "recv_adjust": { "borrow": "shared", "derefs": 1 }, "resolution": "concrete" }
+        ]),
+    );
+    let thir = ws.join("calls.json");
+    fs::write(&thir, serde_json::to_string(&calls).unwrap()).unwrap();
+    run(&["callsite-patch", "--crate", "demo", "--thir", thir.to_str().unwrap()]);
+    let patch_before = fs::read_to_string(ws.join("hook-ledger/demo.callsites.patch")).unwrap();
+    assert!(patch_before.contains("__yoake_cs_"), "{patch_before}");
+
+    // Now add the caller to callsite-hot-callers.txt and regenerate the patch:
+    // its live callsite must be tombstoned automatically and excluded as hot-path.
+    fs::write(ws.join("hook-ledger/callsite-hot-callers.txt"), "demo::bag::Bag::hot_run hot-path\n").unwrap();
+    run(&["callsite-patch", "--crate", "demo", "--thir", thir.to_str().unwrap()]);
+    assert!(!ws.join("hook-ledger/demo.callsites.patch").exists(), "patch should be removed when no live callsites remain");
+    let ledger: serde_json::Value = serde_json::from_str(&fs::read_to_string(ws.join("hook-ledger/demo.json")).unwrap()).unwrap();
+    let cs_entries: Vec<_> = ledger["entries"].as_array().unwrap().iter().filter(|e| e["kind"] == "callsite").collect();
+    assert_eq!(cs_entries.len(), 1);
+    assert_eq!(cs_entries[0]["status"], "tombstone");
+    assert!(ledger["excluded"].as_array().unwrap().iter().any(|ex| ex["kind"] == "callsite" && ex["manual"] == true && ex["reason"] == "hot-path"));
+}

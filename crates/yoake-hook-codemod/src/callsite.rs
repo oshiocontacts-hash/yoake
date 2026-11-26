@@ -3970,6 +3970,12 @@ fn reconcile_and_plan(
     let mut updated_sites = existing_sites.clone();
     let mut all_excluded: Vec<ExcludedCall> = excluded_calls.to_vec();
 
+    let fn_key_by_id: BTreeMap<u32, String> = files
+        .iter()
+        .flat_map(|f| f.callers.iter())
+        .filter_map(|c| c.fn_id.map(|id| (id, c.fn_key.clone())))
+        .collect();
+
     {
         let shard = ledger_set.shard_mut(crate_ident);
         for entry in shard.live() {
@@ -4012,6 +4018,16 @@ fn reconcile_and_plan(
                 shard
                     .tombstone(&key)
                     .map_err(|e| format!("failed to tombstone '{key}': {e}"))?;
+            } else if config.retire_ineligible
+                && existing_sites
+                    .get(&id)
+                    .and_then(|meta| fn_key_by_id.get(&meta.caller))
+                    .is_some_and(|ck| hot_callers.contains_key(ck))
+            {
+                tombstones.remove(&key);
+                shard
+                    .tombstone(&key)
+                    .map_err(|e| format!("failed to tombstone hot-caller site '{key}': {e}"))?;
             } else {
                 let meta = existing_sites.get(&id).ok_or_else(|| {
                     format!("live callsite '{key}' (id={id}) is missing site metadata in ledger")
