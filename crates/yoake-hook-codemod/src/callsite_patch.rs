@@ -1178,7 +1178,10 @@ where
         .map(|p| PathBuf::from(p[0]))
         .ok_or_else(|| format!("no line for crate '{}' in {}", args.crate_name, args.stamp_config.display()))?;
     let crate_root = crate::overlay::canon(&workspace.join(&crate_rel))?;
-    let overlay_root = options.overlay.as_ref().map(|o| o.stamp_dir.join("root"));
+    let overlay_root = options
+        .overlay
+        .as_ref()
+        .map(|o| crate::overlay::crate_overlay_root(&o.stamp_dir, &ident));
 
     let mut round_args = args.clone();
     let mut total_withdrawn = 0usize;

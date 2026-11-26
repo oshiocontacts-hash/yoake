@@ -563,9 +563,10 @@ fn sync_ledger(config: &SyncLedgerConfig) -> Result<bool, String> {
             continue;
         }
         println!("sync-ledger: {}", parts[1]);
+        let ident = key::normalize_crate_name(parts[1]);
         overlay::build_overlay(&overlay::OverlayArgs {
             workspace_root: config.workspace_root.clone(),
-            overlay_root: config.overlay_root.clone(),
+            overlay_root: config.overlay_root.join(ident),
             crate_root: PathBuf::from(parts[0]),
             crate_name: parts[1].to_string(),
             ledger: config.ledger.clone(),

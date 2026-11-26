@@ -2734,7 +2734,7 @@ impl Bag {
     // the overlay applies it, then stamps the functions around it
     let overlay = ws.join("ov");
     run(&["sync-ledger", "--overlay-root", overlay.to_str().unwrap()]);
-    let stamped = fs::read_to_string(overlay.join("crates/demo/src/bag.rs")).unwrap();
+    let stamped = fs::read_to_string(overlay.join("demo/crates/demo/src/bag.rs")).unwrap();
     assert!(stamped.contains("let _ = __yoake_cs_"), "{stamped}");
     assert!(stamped.contains("fn __yoake_cs_") && stamped.contains("kind = callsite"), "{stamped}");
     assert!(stamped.contains("yoake_hook"), "the functions are stamped too: {stamped}");

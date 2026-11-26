@@ -167,7 +167,7 @@ fn the_overlay_stamps_without_touching_the_tree_and_keeps_paths_ids_and_fingerpr
     // 3. stamped build from the committed ledger
     ok(&cargo(&ws, &t_a, true, &["build", "--offline"]));
     let stamped = run_app(&t_a);
-    let overlay_a = std::fs::read_to_string(t_a.join("yoake-stamp/root/crates/demo/src/a.rs")).unwrap();
+    let overlay_a = std::fs::read_to_string(t_a.join("yoake-stamp/root/demo/crates/demo/src/a.rs")).unwrap();
     assert!(overlay_a.contains("yoake_hook(") && overlay_a.contains("demo::a::Counter::bump"), "{overlay_a}");
     assert_eq!(std::fs::read_to_string(ws.join("crates/demo/src/a.rs")).unwrap(), source_before, "tree untouched");
     assert_eq!(stamped["file"], plain["file"], "file!() names the original file");
@@ -178,7 +178,7 @@ fn the_overlay_stamps_without_touching_the_tree_and_keeps_paths_ids_and_fingerpr
 
     // 4. identical ids on a second clean machine
     ok(&cargo(&ws, &t_b, true, &["build", "--offline"]));
-    assert_eq!(tree_hash(&t_a.join("yoake-stamp/root")), tree_hash(&t_b.join("yoake-stamp/root")), "overlay trees equal");
+    assert_eq!(tree_hash(&t_a.join("yoake-stamp/root/demo")), tree_hash(&t_b.join("yoake-stamp/root/demo")), "overlay trees equal");
     let _ = std::fs::remove_dir_all(&t_b);
 
     // 5. fingerprints
@@ -195,7 +195,7 @@ fn the_overlay_stamps_without_touching_the_tree_and_keeps_paths_ids_and_fingerpr
     write(&ws.join("crates/demo/src/a.rs"), &edited);
     let demo = ok(&cargo(&ws, &t_a, true, &["build", "--offline", "-v"]));
     assert!(compiled(&demo, "demo"), "an edit of the original source rebuilds the stamped crate:\n{demo}");
-    let overlay_after = std::fs::read_to_string(t_a.join("yoake-stamp/root/crates/demo/src/a.rs")).unwrap();
+    let overlay_after = std::fs::read_to_string(t_a.join("yoake-stamp/root/demo/crates/demo/src/a.rs")).unwrap();
     assert!(overlay_after.contains("pub fn extra"), "overlay follows the source");
     assert!(!overlay_after.contains("::extra\""), "a fn without a ledger id is not hooked (frozen ledger)");
 
@@ -235,7 +235,7 @@ fn verify_through_the_overlay_withdraws_a_rejected_stamp_and_leaves_the_tree_alo
     };
     assert_eq!(status("demo::a::Counter::foo").as_deref(), Some("tombstone"), "{ledger}");
     assert_eq!(status("demo::a::Counter::bump").as_deref(), Some("live"), "{ledger}");
-    let overlay = std::fs::read_to_string(target.join("yoake-stamp/root/crates/demo/src/a.rs")).unwrap();
+    let overlay = std::fs::read_to_string(target.join("yoake-stamp/root/demo/crates/demo/src/a.rs")).unwrap();
     assert!(overlay.contains("Counter::bump") && !overlay.contains("Counter::foo\""), "{overlay}");
     let _ = std::fs::remove_dir_all(&tmp);
 }

@@ -299,8 +299,11 @@ fn scanned_files(config: &Config, options: &VerifyOptions) -> Result<BTreeSet<Pa
         let mut out = BTreeSet::new();
         for f in files {
             let f = crate::overlay::canon(&f)?;
+            let ident = crate::key::normalize_crate_name(&config.crate_name);
             if let Ok(rel) = f.strip_prefix(&workspace)
-                && let Ok(c) = overlay.stamp_dir.join("root").join(rel).canonicalize()
+                && let Ok(c) = crate::overlay::crate_overlay_root(&overlay.stamp_dir, &ident)
+                    .join(rel)
+                    .canonicalize()
             {
                 out.insert(normalize(&c));
             }
@@ -359,7 +362,10 @@ fn stamp_round(config: &Config, options: &VerifyOptions) -> Result<(), String> {
         None => crate::run::execute(config).map(|_| ()),
         Some(overlay) => crate::overlay::build_overlay(&crate::overlay::OverlayArgs {
             workspace_root: overlay.workspace_root.clone(),
-            overlay_root: overlay.stamp_dir.join("root"),
+            overlay_root: crate::overlay::crate_overlay_root(
+                &overlay.stamp_dir,
+                &crate::key::normalize_crate_name(&config.crate_name),
+            ),
             crate_root: config.crate_root.clone(),
             crate_name: config.crate_name.clone(),
             ledger: config.ledger.clone(),
@@ -388,10 +394,15 @@ pub fn run_with(
             return Ok(true);
         }
         let scanned = scanned_files(config, options)?;
-        let base = options
-            .overlay
-            .as_ref()
-            .map_or_else(|| options.dir.clone(), |o| o.stamp_dir.join("root"));
+        let base = options.overlay.as_ref().map_or_else(
+            || options.dir.clone(),
+            |o| {
+                crate::overlay::crate_overlay_root(
+                    &o.stamp_dir,
+                    &crate::key::normalize_crate_name(&config.crate_name),
+                )
+            },
+        );
         let keys = keys_for_errors(&outcome.errors, &base, &scanned);
         let known = read_excludes(&config.ledger);
         let new: BTreeMap<String, String> =

@@ -190,7 +190,9 @@ pub fn build_overlay(args: &OverlayArgs) -> Result<OverlayResult, String> {
     let state = overlay_state(&rels, &root_file, &ident, &args.ledger, &args.stamp_config, &exe);
     if !args.frozen {
         // a sync run always runs: it is how ids are assigned
-    } else if std::fs::read_to_string(&state_file).is_ok_and(|old| old == state) && result.root_file.is_file() {
+    } else if std::fs::read_to_string(&state_file).is_ok_and(|old| old == state)
+        && result.overlay_files.iter().all(|f| f.is_file())
+    {
         return Ok(result);
     }
 
@@ -349,6 +351,10 @@ pub fn expand_argfiles(args: &[String]) -> Vec<String> {
         .collect()
 }
 
+pub fn crate_overlay_root(stamp_dir: &Path, crate_ident: &str) -> PathBuf {
+    stamp_dir.join("root").join(crate_ident)
+}
+
 /// `<exe> <rustc> <args...>`: see the module comment.
 pub fn run_wrapper(args: Vec<String>) -> ExitCode {
     crate::run::set_quiet(true);
@@ -404,7 +410,7 @@ pub fn run_wrapper(args: Vec<String>) -> ExitCode {
         .unwrap_or_else(|| workspace.join("target").join("yoake-stamp"));
     let _ = std::fs::create_dir_all(&stamp_dir);
     let stamp_dir = canon(&stamp_dir).unwrap_or(stamp_dir);
-    let overlay_root = stamp_dir.join("root");
+    let overlay_root = crate_overlay_root(&stamp_dir, &wanted);
     let _lock = Lock::take(stamp_dir.join(format!(".lock-{wanted}")));
     let overlay_args = OverlayArgs {
         workspace_root: workspace.clone(),
@@ -618,6 +624,65 @@ mod tests {
         assert!(out.contains(&format!("crates{sep}demo{sep}src{sep}lib.rs")), "{out}");
         assert!(out.lines().next().unwrap().contains("demo.json"), "{out}");
         assert!(out.contains("stamp-config.txt:"), "{out}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn per_crate_overlay_root_prevents_cross_crate_include_str_clobber() {
+        let dir = std::env::temp_dir().join(format!("yoake-cross-crate-overlay-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let ledger = dir.join("hook-ledger");
+        let stamp_dir = dir.join("target").join("yoake-stamp");
+        let a_src = dir.join("crates").join("alpha").join("src");
+        let b_src = dir.join("crates").join("beta").join("src");
+        std::fs::create_dir_all(&ledger).unwrap();
+        std::fs::create_dir_all(&a_src).unwrap();
+        std::fs::create_dir_all(&b_src).unwrap();
+        std::fs::write(ledger.join("meta.json"), "{\n  \"version\": 2,\n  \"next_id\": 1\n}\n").unwrap();
+        let cfg = ledger.join("stamp-config.txt");
+        std::fs::write(
+            &cfg,
+            "crates/alpha alpha * min_stmts=1\ncrates/beta beta * min_stmts=1\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("crates/alpha/Cargo.toml"), "[package]\nname = \"alpha\"\nversion = \"0.1.0\"\nedition = \"2024\"\n").unwrap();
+        std::fs::write(dir.join("crates/beta/Cargo.toml"), "[package]\nname = \"beta\"\nversion = \"0.1.0\"\nedition = \"2024\"\n").unwrap();
+        std::fs::write(a_src.join("lib.rs"), "pub mod loot;\n").unwrap();
+        std::fs::write(a_src.join("loot.rs"), "pub fn roll() -> u32 {\n    let x = 1;\n    x + 1\n}\n").unwrap();
+        std::fs::write(b_src.join("lib.rs"), "pub mod hooks;\n").unwrap();
+        std::fs::write(
+            b_src.join("hooks.rs"),
+            "pub fn check() -> &'static str {\n    include_str!(\"../../../alpha/src/loot.rs\")\n}\n",
+        )
+        .unwrap();
+
+        let alpha_res = build_overlay(&OverlayArgs {
+            workspace_root: dir.clone(),
+            overlay_root: crate_overlay_root(&stamp_dir, "alpha"),
+            crate_root: PathBuf::from("crates/alpha"),
+            crate_name: "alpha".to_string(),
+            ledger: ledger.clone(),
+            stamp_config: cfg.clone(),
+            frozen: false,
+            renames: vec![],
+            tombstones: vec![],
+        })
+        .unwrap();
+        let _beta_res = build_overlay(&OverlayArgs {
+            workspace_root: dir.clone(),
+            overlay_root: crate_overlay_root(&stamp_dir, "beta"),
+            crate_root: PathBuf::from("crates/beta"),
+            crate_name: "beta".to_string(),
+            ledger: ledger.clone(),
+            stamp_config: cfg.clone(),
+            frozen: false,
+            renames: vec![],
+            tombstones: vec![],
+        })
+        .unwrap();
+
+        let alpha_loot = std::fs::read_to_string(alpha_res.root_file.parent().unwrap().join("loot.rs")).unwrap();
+        assert!(alpha_loot.contains("yoake_hook("), "beta must not clobber alpha's stamped loot.rs: {alpha_loot}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
