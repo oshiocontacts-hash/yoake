@@ -42,32 +42,43 @@ let text = std::fs::read_to_string("/data/score.txt")?;
 
 ワーカーはゲームの中身（エンジンのハンドル）には触れません。MOD とのやり取りは、バイト列のメッセージだけです。
 
-`yak.toml` に、ワーカーのファイルを書きます。
+`yoake new worker my-worker` でサーバー＋ワーカーのひな形をすぐ作れます。`yak.toml` にワーカーのファイルを書きます。
 
 ```toml
 [wasm]
-interface = "1.0"
-client = "bin/wasm/my_mod.wasm"
-worker = "bin/wasm/my_worker.wasm"
+interface = "1.7"
+server = "bin/wasm/my-worker.wasm"
+worker = "bin/wasm/my-worker-worker.wasm"
 ```
 
 メッセージのやり取りは次のとおりです。
 
 | 誰が | 送る | 受け取る |
 |---|---|---|
-| MOD | `worker-send` | `worker-recv`（待たずに、なければ `none`） |
-| ワーカー | `host-send` | `host-recv`（来るまで待つ）、`host-try-recv`（待たない） |
+| MOD | `worker::send`（`worker-send`） | `worker::recv`（`worker-recv`。待たずに、なければ `None`） |
+| ワーカー | `worker::send`（`host-send`） | `worker::recv`（`host-recv`。来るまで待つ）、`worker::try_recv`（`host-try-recv`。待たない） |
 
-ワーカーは `run` という関数を 1 つ書き出します。その中で `host-recv` を繰り返し呼ぶのが基本の形です。
+SDK の `yoake_wasm_sdk::worker`（Cargo フィーチャ `worker`）を使うと、`Worker` トレイトと `export_worker!` で次のように書けます。
 
 ```rust
-fn run() {
-    while let Some(message) = host_recv() {
-        // message を見て、通信やファイル処理をする
-        host_send(b"done").ok();
+use yoake_wasm_sdk::worker::{self, Worker};
+
+#[derive(Default)]
+struct MyWorker;
+
+impl Worker for MyWorker {
+    fn run(&mut self) {
+        while let Some(message) = worker::recv() {
+            // message を見て、通信やファイル処理をする
+            let _ = worker::send(b"done");
+        }
     }
 }
+
+yoake_wasm_sdk::export_worker!(MyWorker);
 ```
+
+フルアクセス MOD（`world = "full-access"`）からも、`yoake_guest_sdk::worker::{send, recv}` で同じワーカーを使えます（[`crates/yoake-guest-sdk/examples/f1-f2-demo/`](../../crates/yoake-guest-sdk/examples/f1-f2-demo/src/lib.rs)）。
 
 ## 決まりと上限
 
@@ -80,4 +91,4 @@ fn run() {
 
 サンドボックスの MOD のサービス（設定・権限・保存）は、`permissions` に書かなくても使えるようになりました。古い MOD が読み込めるように、書いてあっても読み取ります。
 
-サンプルは `crates/yoake-wasm-sdk/examples/f2-io` にあります。くわしい仕様は `docs/yoake2/MOD-GUIDE.ja.md` の第 14 章です。
+サンプルは [`crates/yoake-wasm-sdk/examples/f2-io`](../../crates/yoake-wasm-sdk/examples/f2-io/src/lib.rs) と [`crates/yoake-wasm-sdk/examples/f2-check`](../../crates/yoake-wasm-sdk/examples/f2-check/server/src/lib.rs) にあります。くわしい仕様は [`docs/yoake2/MOD-GUIDE.ja.md`](../yoake2/MOD-GUIDE.ja.md#15-ファイルネットワークワーカー-fr-f2) の第 15 章です。

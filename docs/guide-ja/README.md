@@ -45,7 +45,7 @@ WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔�
 - エディタと作業フォルダの準備（Windows を中心に、macOS / Linux も補足）
 
 ### 2. [最初の MOD を作る（`02-first-mod.md`）](./02-first-mod.md)
-- `yoake new hud-only my-hud` でひな形を作る（5 種類のテンプレート一覧つき）
+- `yoake new hud-only my-hud` でひな形を作る（9 種類のテンプレート一覧つき）
 - 作られるファイル（`yak.toml` / `Cargo.toml` / `src/lib.rs` / `README.md` / `.yoake/` など）の役割
 - `yoake build` → `yoake check` → `yoake pack` の流れと、出力される `dist/<id>-<version>.yak` の確認
 
@@ -54,7 +54,7 @@ WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔�
 - WIT ワールドが `client-mod` の MOD を `YOAKE_WASM_DEV_DIR` と `yoake dev` でホットリロードする方法と、Wasm の開発者モードの安全上の注意
 
 ### 4. [サンプル MOD 集を読む（`04-examples.md`）](./04-examples.md)
-- リポジトリ内の 19 個のサンプル（`hello`、`hello-std`、`hud-item`、`server-storage`、`config-demo`、`permission-demo`、`full-demo`、`full-services`、`mod-call-pair`、`chest-count`、`item-trade`、`player-vitals`、`content-demo`、`mixin-demo`、`test-demo`、`tested-counter`、`client-services-demo`、`gpu-demo`、`ime`）の解説
+- リポジトリ内の 30 個のパッケージサンプル（`hello`、`hello-std`、`hud-item`、`sprite-demo`、`browser-demo`、`fox_ai`、`fox_texture`、`seat_fox`、`ruby-behaviors`、`level-generator`、`f2-io`、`f2-check`、`f1-f2-demo`、`mixin-config` ほか）とテスト用フィクスチャの解説
 - 各サンプルが使うフック（`hook`）とホストサービス（`services`）の一覧
 - `yak.toml` での `[config]`、`[wasm] permissions`、`[permissions."<node>"]` の書き方
 
@@ -104,6 +104,16 @@ WebAssembly MOD はゲーム本体の中の安全なサンドボックス（隔�
 - `noise` / `flat` / `debug` / `yoake:mod` ジェネレーター、バイオームソース、レベルごとのシード値
 - `/execute in`・`/tp`・ポータルの座標倍率と、接続中に作ったレベルの再接続ルール
 - WASM MOD でのレベル登録・作成・削除・アンロード・再生成と、チャンクジェネレーターの書き方
+
+### 14. [カスタム Mob を作る（`14-custom-mobs.md`）](./14-custom-mobs.md)
+- `yoake new custom-mob` で作る `content/` 構成（`.bbmodel` / `.geo.json`、アニメーション、コントローラー）
+- `ScriptGoal` と `server-full` の `service.mobs` による AI、同期データ、`seats`（乗り物座席）
+- Cinder Fox サンプル（`fox_ai`・`fox_texture`・`seat_fox`）とデバッグ／ホットリロード
+
+### 15. [埋め込みブラウザとメディア表示（`15-browser-media.md`）](./15-browser-media.md)
+- `client-full` と `service.browser` による `Browser` ハンドルの操作（`browser-demo`）
+- `GuiTexture` へのフレーム描画、入力・JavaScript 実行、タブ音声（PCM）の取得
+- ウェブページ限定の安全ルールと各種上限
 
 ---
 

@@ -16,34 +16,39 @@ yoake new hud-only my-hud
 The command syntax is:
 
 ```sh
-yoake new <minigame|hud-only|custom-mob|utility|script> <name>
+yoake new <minigame|hud-only|custom-mob|utility|script|client-full|server-full|worker|full-access> <name>
 ```
 
-### The 5 Available Templates
+### The 9 Available Templates
 
-The CLI behavior and generated files below are based on `crates/yoake-cli/src/scaffold.rs` and `main.rs`.[^cli] Every template scaffolds a client-side project, and `script` and `custom-mob` are currently placeholders.
+The CLI behavior and generated files below are based on `crates/yoake-cli/src/scaffold.rs` and `main.rs`.[^cli] Only `script` is a placeholder; the other 8 templates build and pass `yoake check` right away.
 
-| Template Name | What It Generates |
-|---|---|
-| `hud-only` | Client mod that draws text on the screen (HUD) |
-| `minigame` | Client-side minigame starting point (requires a separate server mod for server-side game logic) |
-| `custom-mob` | Placeholder for data and models (does not register a mob) |
-| `utility` | Client mod that logs key presses |
-| `script` | Placeholder (scripting integration not implemented) |
+| Template Name | WIT World | What It Generates |
+|---|---|---|
+| `hud-only` | `client-mod` | Client mod that draws text on the screen (HUD) |
+| `minigame` | `client-mod` | Client-side minigame starting point (requires a separate server mod for server-side game logic) |
+| `custom-mob` | `server-full` | F4M custom mob (`content/` model, animation, controller, `entity_type/starter_mob.json` + `ScriptGoal` AI, `permissions = ["service.mobs"]`) |
+| `utility` | `client-mod` | Client mod that logs key presses |
+| `script` | `client-mod` | Placeholder (scripting integration not implemented) |
+| `client-full` | `client-full` | Full-catalog (`ClientMod`) client mod |
+| `server-full` | `server-full` | Full-catalog (`ServerMod`) server mod |
+| `worker` | `server-full` + `worker-mod` | Server mod paired with a WASI p2 worker component for blocking HTTP/TCP I/O |
+| `full-access` | `full-access` | `#![no_std]` full-access core Wasm mod built with `yoake-guest-sdk` |
 
 > [!IMPORTANT]
 > `<name>` must be **3 to 48 characters long**, **start with a lowercase ASCII letter, and contain only lowercase ASCII letters, digits, and single hyphens**. Underscores (`_`), trailing hyphens, and consecutive hyphens (`--`) are not allowed in the `<name>` of `yoake new`. Windows reserved names (`con`, `prn`, `aux`, `nul`, `com1`–`com9`, `lpt1`–`lpt9`) are also rejected.
 >
-> `<name>` is used directly as the **`id`** in `yak.toml`, the Rust **crate name**, and the filename in **`bin/wasm/<name>.wasm`**. The `id` field in `yak.toml` itself also accepts underscores (see [5-3 ⑦](./05-errors.md)); for example, a package with data content such as `content-demo` uses its `id` as a namespace, so its `id` takes only `[a-z0-9_]`.[^id-namespace]
+> `<name>` is used directly as the **`id`** in `yak.toml` (except `custom-mob`, which converts `-` to `_` so it works as a content namespace), the Rust **crate name**, and the filename in **`bin/wasm/<name>.wasm`**. The `id` field in `yak.toml` itself also accepts underscores (see [5-3 ⑦](./05-errors.md)); for example, a package with data content such as `content-demo` uses its `id` as a namespace, so its `id` takes only `[a-z0-9_]`.[^id-namespace]
 
 > [!NOTE]
 > A **WIT world (mod kind)** defines which combination of hooks and services a mod can use. Not to be confused with a save-game world.
 >
 > - **`client-mod`**: Pick this when the 19 core client hooks are enough. It is the default when `world` is omitted in `yak.toml`, and it supports hot-reloading raw `.wasm` files.
-> - **`client-full`**: Pick this when you need full-catalog (`client-full` / `server-full`) features such as item icons, custom tooltips, or FOV adjustments. You install and test it as a `.yak` package.
-> - **`inject-mod`**: Pick this when you want to intercept engine functions with Mixin. It needs `interface = "1.1"` and can be written on the client side, the server side, or both, following the `side` of the sites listed under `[mixin] targets` (see [8. Getting Started with Yoake Mixin](./08-mixin.md)).
->
-> Except for `inject-mod`, server modules use the `server-full` WIT world.
+> - **`client-full`**: Pick this when you need full-catalog client features such as item icons, custom tooltips, FOV, GPU, runtime sprites, or embedded browser (`service.browser`). You install and test it as a `.yak` package.
+> - **`server-full`**: The default WIT world for a module declared with `server = "..."` (do not write `world = "server-full"`).
+> - **`worker-mod`**: A dedicated-thread component declared with `[wasm] worker` for network and heavy file I/O (see [Chapter 12](./12-files-network.md)).
+> - **`inject-mod`**: Pick this when you want to intercept engine functions with Mixin. It needs `interface = "1.1"` or `"1.2"` and can be written on the client side, the server side, or both (see [Chapter 8](./08-mixin.md)).
+> - **`full-access`**: A core Wasm module that calls engine bindings directly (see [MOD-GUIDE.md](../yoake2/MOD-GUIDE.md)). `yoake build`, `yoake check`, and `yoake pack` now handle all of these worlds.
 
 ---
 
@@ -79,11 +84,11 @@ server = false
 required_on_join = false
 
 [wasm]
-interface = "1.0"
+interface = "1.7"
 client = "bin/wasm/my-hud.wasm"
 ```
 
-Because `world` is omitted, its WIT world defaults to `client-mod`.
+Because `world` is omitted, its WIT world defaults to `client-mod` (`1.0` through `1.7` are accepted).
 
 #### `Cargo.toml`
 
@@ -111,7 +116,7 @@ strip = true
 panic = "abort"
 
 [workspace]
-exclude = [".yoake/yoake-wasm-sdk"]
+exclude = [".yoake/yoake-wasm-sdk", ".yoake/yoake-guest-sdk"]
 ```
 
 Setting `crate-type = ["cdylib", "rlib"]` allows building both a WebAssembly component and a Rust library. The `tests` feature is switched on only when `yoake test` builds your engine tests (see [6. Testing Your Mod Inside the Game Engine](./06-testing.md)).

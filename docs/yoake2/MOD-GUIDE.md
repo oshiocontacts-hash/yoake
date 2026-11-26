@@ -49,33 +49,28 @@ your mod does.
 
 ## 2. Setup: toolchain and target
 
-You need the Yoake source checkout (the SDK and the pack tool live in it) and the toolchain it pins.
+You need the Rust toolchain (`rust-toolchain.toml` pins **rustc 1.100.0** with `wasm32-unknown-unknown` and `wasm32-wasip2`) and either:
 
-- `rust-toolchain.toml` at the checkout root pins **rustc 1.100.0** with the targets `wasm32-unknown-unknown` and
-  `wasm32-wasip2`. Inside the checkout rustup picks it up by itself. Outside it, call `rustc +1.100.0` (the template's
-  scripts do, `YOAKE_TOOLCHAIN` changes it).
-- The mod is built for **`wasm32-wasip2`** with the plain `rustc` (no Cargo needed, no component wrapper): the output
-  is a core module with no WASI imports.
-- **Windows with the GNU toolchain**: building the pack tool (`cargo-horizon-mod`) compiles crates that need `dlltool`
-  and an assembler on `PATH`. The mod itself does not (it only needs `rustc` and the bundled `rust-lld`). The SDK
-  build and the module build in the template need no native tools.
+- **The `yoake` CLI (`crates/yoake-cli`)**: run `yoake new full-access my-mod` anywhere to scaffold a standalone Cargo project with a bundled `yoake-guest-sdk`, then build/check/pack with `yoake build`, `yoake check`, and `yoake pack`.
+- **Or the checkout's `rustc` script (`templates/full-access-mod`)**: `build.sh` / `build.ps1` compiles `yoake-guest-sdk` and the mod with `rustc +1.100.0` directly, then packs with `cargo-horizon-mod`.
 
-Nothing else is installed: no `wasm-tools`, no `cargo-component`, no `wasm-opt`.
+On Windows with the GNU toolchain, building `yoake` or `cargo-horizon-mod` needs `dlltool` and an assembler on `PATH`; building a mod itself only needs `rustc` and the bundled `rust-lld`. Nothing else is required (`wasm-tools`, `cargo-component`, and `wasm-opt` are not used).
 
 ## 3. Project layout
 
-The starter template is the smallest layout that works:
+With `yoake new full-access my-mod`, you get a Cargo project ready for `yoake build`, `yoake check`, and `yoake pack`:
 
 ```text
 my-mod/
-  yak.toml              the package manifest
-  src/lib.rs            the mod (one file is enough; a no_std crate root)
-  build.sh / build.ps1  compile the SDK, compile the mod, pack the .yak
-  bin/wasm/<name>.wasm  build output (the path is named in yak.toml)
-  dist/<id>-<version>.yak  the package
+  yak.toml                 the package manifest (world = "full-access", interface = "1.7")
+  Cargo.toml               depends on .yoake/yoake-guest-sdk
+  src/lib.rs               #![no_std] cdylib mod
+  .yoake/yoake-guest-sdk/  bundled copy of the SDK
+  bin/wasm/my-mod.wasm     build output (written by yoake build)
+  dist/my-mod-0.1.0.yak    the package (written by yoake pack)
 ```
 
-The module is a `#![no_std]` cdylib crate root compiled against the SDK `rlib`:
+For the manual `rustc` script layout (`templates/full-access-mod`), `build.sh` / `build.ps1` replaces `Cargo.toml` and `.yoake/`. In both cases, the module is a `#![no_std]` cdylib crate root compiled against `yoake-guest-sdk`:
 
 ```rust
 #![no_std]
@@ -90,11 +85,7 @@ export_guest!(init, hook);
 ```
 
 `export_guest!(init, hook)` emits the two exports (`yoake_init`, `yoake_hook`) and the ABI custom section
-(section 13). The SDK provides the allocator (`alloc` works) and a panic handler that traps. There is no `std`.
-
-A Cargo project also works if you set the same flags (`crate-type = ["cdylib"]`, `panic = "abort"`, the linker
-arguments of section 8) and depend on `crates/yoake-guest-sdk` by path; nothing in this tree builds a mod that way, so
-the template does not.
+(section 13). The SDK provides the allocator (`alloc` works) and a panic handler that traps. There is no `std` (unless you target `wasm32-wasip1`, see section 15).
 
 ## 4. Writing `yoake_init` and hooks
 
@@ -224,6 +215,11 @@ You rarely call `engine_call` yourself. `yoake_guest_sdk::stubs` has generated t
 | `stubs::entities` | getters and setters of entity fields and their methods, e.g. `entities_experience_total_get`, `entities_itementity_fire_ticks_set`, `entities_itementity_position_get` |
 | `stubs::items` | item data types and item functions |
 | `stubs::game_items` | the `Game.<name>#handle` functions that open a path handle from the `Game` root |
+| `stubs::mobs`, `stubs::motion` | mob and player-motion getters, setters, and methods |
+| `stubs::custom_mobs` | F4M custom-mob hooks and controls (wrapped by `yoake_guest_sdk::custom_mobs`, section 17) |
+| `stubs::f_services` | F-route client HUD, IME, audio, and GPU services (wrapped by `yoake_guest_sdk::f_services`, section 6) |
+| `stubs::mod_generator` | `ModChunk` bindings for `worldgen::generate_chunk` (section 16) |
+| `stubs::launch_options`, `render_settings`, `render_world` | launch options and client rendering state bindings |
 
 The names follow `<module>_<type>_<field>_get` / `_set` for fields and `<module>_<type>_<method>` for methods. A list of
 what is bound is in `docs/yoake2/bindgen/` (`functions-*.md`, `coverage.md`) and the ids are in
@@ -267,6 +263,17 @@ A handle is the receiver of a call. There are two kinds:
   while `original` or another call of this activation runs, and `WrongType` for a method of another type. At most 256
   per activation. Inside any other hook there is no root, and asking for a path is `WrongType`.
 
+### Multi-argument hooks and by-value arguments (ABI 1.1)
+
+In ABI 1.1, hooks on functions with multiple arguments (up to 8) expose each argument via `handle.arg(index)` (where `handle.arg(0)` is the handle passed to `yoake_hook`). The SDK provides:
+
+- `arg_value(h) -> Result<i64, Error>`: reads a by-value scalar argument's bits (`WrongKind` on an object handle).
+- `set_arg_value(h, bits) -> Result<(), Error>`: replaces a by-value argument for the next `original` and downstream mods.
+- `swap_args(a, b) -> Result<(), Error>`: swaps two object arguments of the same type and mutability without aliasing.
+- `replace_arg(dst, src) -> Result<(), Error>`: makes a shared (`&T`) argument point to `src` (`Overlap` on `&mut T`; use `swap_args` there).
+
+New handle status codes in ABI 1.1: `8` (`Overlap`) and `9` (`WrongKind`). See [ENGINE_CALL_ABI.md](ENGINE_CALL_ABI.md#every-argument-of-a-hook-abi-11-w8).
+
 ### `OUT_TOO_SMALL` and tickets
 
 You normally never see this, because the SDK's `call` handles it. It is worth knowing why:
@@ -294,11 +301,22 @@ A full-access package declares a `[wasm] server` module, a `[wasm] client` modul
 | both | both threads, as two separate instances (no shared memory or globals) |
 
 `[side]` must agree exactly with the declared modules (`side.server` iff `wasm.server`, `side.client` iff
-`wasm.client`), and the client side takes the same approved list and the same rules. The synthetic hooks are
-`hooks::SERVER_TICK` (`0x8000_0001`, every server tick, argument 0 the server's `Game` root), `hooks::CLIENT_TICK`
-(`0x8000_0002`, once per client tick, argument 0 the client's `Game`) and `hooks::HUD_RENDER` (`0x8000_0003`, once per
-frame after the HUD, observe-only, argument 0 a dead handle: it cannot draw into the HUD yet). `hook_register`
-returns `0` (Full) for the two ticks and `1` (observe-only) for `HUD_RENDER`.
+`wasm.client`), and the client side takes the same approved list and the same rules. The synthetic hooks are:
+- `hooks::SERVER_TICK` (`0x8000_0001`): every server tick, argument 0 is the server's `Game` root (`Full`).
+- `hooks::CLIENT_TICK` (`0x8000_0002`): once per client tick, argument 0 is the client's `Game` (`Full`).
+- `hooks::HUD_RENDER` (`0x8000_0003`): once per frame after the vanilla HUD, observe-only, argument 0 is a dead handle (use `f_services::hud_draw` to draw).
+- `hooks::GPU_FRAME` (`0x8000_0004`): once per frame from the renderer's GPU pass, observe-only.
+- `hooks::IME_PREEDIT` (`0x8000_0005`) and `hooks::IME_COMMIT` (`0x8000_0006`): IME composition/commit events, observe-only; read payload with `f_services::ime_event()`.
+
+### F-route client services (`yoake_guest_sdk::f_services` and `stubs::f_services`)
+
+Client full-access modules can call the same client host services as sandboxed `client-full` mods without needing `[wasm] permissions`:
+- **HUD**: `f_services::{hud_draw, hud_gui_size, hud_gui_scale}` (`hud_draw` only inside `HUD_RENDER`, up to 8,192 `FHud` commands per frame).
+- **Audio**: `f_services::{play_sound, play_sound_at}` and RAII `f_services::AudioStream` (`open`, `push`, `queued`, `dropped`, `move_to`; closes on drop).
+- **IME**: `f_services::{ime_set_allowed, ime_set_cursor_area, ime_event}`.
+- **GPU**: `stubs::f_services::f_services_gpu_*` (resources belong to `yoake-f-client` and are dropped when client mods unload).
+
+See [`crates/yoake-guest-sdk/examples/f_client_services.rs`](../../crates/yoake-guest-sdk/examples/f_client_services.rs) for a complete example.
 
 ## 7. A complete small mod
 
@@ -340,7 +358,19 @@ export_guest!(init, hook);
 
 ## 8. Building to wasm
 
-Two `rustc` invocations, taken from `crates/yoake-guest-sdk/tests/support/build.rs` (what the engine's own tests use):
+### Using `yoake build` (recommended for `yoake new full-access`)
+
+Inside a project created with `yoake new full-access <name>`, `yoake build` automatically passes the core-module `rust-lld` flags (`--no-entry`, `--export-memory`, `--export=yoake_hook`, `--export=yoake_init`) and copies the compiled `.wasm` to `[wasm] server` / `[wasm] client` (plus any `[wasm] worker` component):
+
+```sh
+yoake build
+yoake check
+yoake pack
+```
+
+### Manual `rustc` build (from `crates/yoake-guest-sdk/tests/support/build.rs`)
+
+Two `rustc` invocations build the SDK and mod directly without Cargo:
 
 ```sh
 COMMON="--edition 2024 --target wasm32-wasip2 -C panic=abort -C opt-level=1"
@@ -384,7 +414,7 @@ server = true
 required_on_join = false
 
 [wasm]
-interface = "1.0"
+interface = "1.7"
 server = "bin/wasm/my_full_access_mod.wasm"
 world = "full-access"
 ```
@@ -399,19 +429,21 @@ Rules the manifest checker enforces for a full-access mod:
 | `authors` | 1 to 128 names |
 | `[yoake] version` | a version requirement the launcher checks against the installed Yoake (`>=0.0.0` always matches) |
 | `[wasm] world` | `"full-access"` |
-| `[wasm] interface` | `"1.0"` (major must be 1; a minor of 1 or higher needs another world, so use `1.0`) |
-| `[wasm] server` | a file **directly** under `bin/wasm/` ending in `.wasm`; required in this tree; no `wasm.client` (section 6) |
+| `[wasm] interface` | `"1.7"` (or `"1.0"`; major must be 1, minor `1`/`2` are reserved for `inject-mod`) |
+| `[wasm] server` / `client` | at least one of `server` or `client`, directly under `bin/wasm/` ending in `.wasm` |
 | `[wasm] permissions` | not allowed: a full-access mod is all-or-nothing |
-| `[wasm] worker` | optional: a component directly under `bin/wasm/` (section 14) |
-| `[wasm] host_filesystem` | optional boolean: `/host/<letter>` preopens (section 14) |
-| `[side]` | `server = true` |
+| `[wasm] worker` | optional: a `worker-mod` component directly under `bin/wasm/` (section 15) |
+| `[wasm] host_filesystem` | optional boolean: `/host/<letter>` preopens (section 15) |
+| `[side]` | `side.server` must equal `wasm.server` presence, and `side.client` must equal `wasm.client` presence |
 
 Optional keys include `name_ja`, `license`, `homepage`, `dependencies`, `optional`, `conflicts`. A `README.md`,
 `LICENSE`, `content/`, `assets/`, `shaders/` and `config/` next to `yak.toml` are packed too.
 
 ### Pack it
 
-There is a pack tool in the checkout: `cargo-horizon-mod`. From the checkout:
+From a `yoake new full-access` project, run `yoake pack` (which runs `build`, validates `yoake_abi` and imports via `yoake check`, and writes `dist/<id>-<version>.yak`).
+
+If you build manually with `rustc` (`templates/full-access-mod`), use `cargo-horizon-mod` from the checkout:
 
 ```sh
 cargo run -p cargo-horizon-mod -- pack path/to/my-mod
@@ -425,9 +457,6 @@ a package with a WebAssembly module is still labelled that way. To check the res
 ```sh
 cargo run -p cargo-horizon-mod -- yak verify path/to/my_full_access_mod-0.1.0.yak
 ```
-
-Do not use `yoake build`/`pack`/`check` (the `yoake` CLI, `crates/yoake-cli`) for a full-access mod: it builds
-components with Cargo for the sandboxed WebAssembly path and checks server modules as sandboxed components.
 
 ## 10. Installing and allowing it in the launcher
 
@@ -514,8 +543,8 @@ price of full access, so keep hooks short.
 ## 13. Versioning: the ABI section
 
 Every full-access guest declares its ABI in a custom section named `yoake_abi`: exactly four bytes, the major version
-as a little-endian `u16` and then the minor version as a little-endian `u16`. The SDK and engine are at **1.0**
-(`01 00 00 00`); `export_guest!` emits it (`ABI_MAJOR`, `ABI_MINOR` in the SDK). The loader reads it from the module
+as a little-endian `u16` and then the minor version as a little-endian `u16`. The SDK and engine are at **1.1**
+(`01 00 01 00`; `1.0` guests with `01 00 00 00` continue to load cleanly as backwards-compatible older minors); `export_guest!` emits it (`ABI_MAJOR`, `ABI_MINOR` in the SDK). The loader reads it from the module
 bytes **before any guest code runs**:
 
 | guest section | result |
@@ -532,11 +561,11 @@ working across engine updates of the same major version.
 
 A mod's own `version` in `yak.toml` is separate: bump it for each release, and expect the player to allow each new file.
 
-## 14. IME for mod screens (sandboxed `client-full`, not full-access)
+## 14. IME for mod screens (sandboxed `client-full`, and F-route `f_services`)
 
-The sandboxed component API has IME support for a mod-owned screen. It is not exposed to full-access core modules:
-there are no ledger hook ids or `engine_call` bindings for it in this tree. Do not register service ids 201/202 as
-full-access hook ids; those ids belong only to the sandboxed client-service catalog.
+Full-access client modules have `hooks::IME_PREEDIT`, `hooks::IME_COMMIT`, and `f_services::{ime_set_allowed, ime_set_cursor_area, ime_event}` (see section 6 and [`crates/yoake-guest-sdk/examples/f_client_services.rs`](../../crates/yoake-guest-sdk/examples/f_client_services.rs)). Do not register sandboxed service IDs 201/202 as full-access hook IDs; those belong only to the sandboxed catalog.
+
+For **sandboxed `client-full` components**, the component API has IME support for a mod-owned screen:
 
 A `client-full` mod subscribes to `hook::SCREEN_INIT_POST`, `hook::FRAME`, `hook::IME_PREEDIT`, and
 `hook::IME_COMMIT`. The services need write access to the host, which `screen_init_post` does not have (the calls
@@ -625,17 +654,18 @@ A mod may declare a worker, a WebAssembly **component** that the engine runs on 
 
 ```toml
 [wasm]
-interface = "1.0"
+interface = "1.7"
 world = "full-access"
 server = "bin/wasm/my_mod.wasm"
 worker = "bin/wasm/my_worker.wasm"   # a component, world `worker-mod`
 host_filesystem = false               # optional
 ```
 
+To scaffold a `server-full` + `worker-mod` project with the SDK's `Worker` trait and `export_worker!`, run `yoake new worker <name>`. For a `full-access` core module paired with a `worker-mod` component, see [`crates/yoake-guest-sdk/examples/f1-f2-demo/`](../../crates/yoake-guest-sdk/examples/f1-f2-demo/src/lib.rs).
+
 The worker has full WASI preview 2: files as above, `wasi:sockets` (TCP, UDP, name lookup), `wasi:http` outgoing
 requests, blocking waits and real clocks. It has **no engine handles**. It talks to its mod only through byte messages.
-The WIT is `crates/yoake-wasm/wit-worker/yoake-worker.wit` (package `yoake:mods@1.6.0`, an additive minor: new
-interfaces only, nothing of 1.0 to 1.2 changed):
+The WIT is `crates/yoake-wasm/wit-worker/yoake-worker.wit` (package `yoake:mods@1.7.0`, exported in the SDK as `yoake_wasm_sdk::worker::{Worker, send, recv, try_recv}` and `export_worker!`):
 
 | side | calls |
 |---|---|
@@ -771,6 +801,18 @@ client renders its own bindings (commonly driven by `hook::SYNCED_CHANGED_CLIENT
   shader-pack toggles. Unloading or reloading the mod automatically frees its textures and clears its bindings.
 - Example: `crates/yoake-wasm-sdk/examples/fox_texture` (updates the Cinder Fox skin when `fox_ai` updates `warmth` in
   `mob_hurt`).
+
+### Full-access `custom_mobs` (Route F, F4M-11)
+
+Full-access core modules can script and draw custom mobs via `yoake_guest_sdk::custom_mobs` (wrapping `stubs::custom_mobs`):
+
+- **Hooks (`hooks::*`)**:
+  - Server goals & lifecycle: `MOB_GOAL_CAN_USE`, `MOB_GOAL_CAN_CONTINUE`, `MOB_GOAL_START`, `MOB_GOAL_TICK`, `MOB_GOAL_STOP` (use `custom_mobs::register_goal_hooks(r, 0)`), `MOB_TICK`, `MOB_SPAWN_CHECK`, `MOB_SPAWNED`, `MOB_HURT`, `MOB_DIED`, `MOB_INTERACT`, `MOB_ANIM_EVENT`, `MOB_LOAD`, `MOB_SAVE`, `MOB_TAMED`, `MOB_BRED`, `MOB_SYNCED_CHANGED_SERVER`.
+  - Client render stages & events: `CUSTOM_MOB_BEFORE_POSE`, `CUSTOM_MOB_AFTER_POSE`, `CUSTOM_MOB_AFTER_VERTICES` (use `custom_mobs::register_draw_stage_hooks(r, 0)`), `MOB_POSE`, `MOB_ANIM_EVENT_CLIENT`, `MOB_SYNCED_CHANGED_CLIENT`.
+- **Event & reply flow**: Read the active hook payload with `custom_mobs::hook_event()` (or `draw_event()` in render stages) and answer via `reply_bool`, `reply_hurt`, `reply_interact`, `reply_save`, `reply_pose`, or `draw_cancel`.
+- **Controls (`CustomMob`)**: `CustomMob::new(mob_id)` exposes `.info()`, `.synced()` / `.set_synced()`, `.trigger_anim()`, `.set_controller_state()`, `.hold_controller_state()` / `.release_controller_state()`, `.navigate_to()` / `.navigate_stop()`, `.look_at()`, `.jump()`, `.set_target()`, `.attack()`, `.impulse()`, `.attribute()` / `.set_attribute_base()` / `.add_attribute_modifier()` / `.remove_attribute_modifier()`, `.set_hitbox_enabled()`, `.data()` / `.put_data()`, `.seat_set()`, `.memory()` / `.set_memory()`, `.locator()`, `.bind_texture()`, `.claim_control()`, and `.despawn()`.
+- **Goal registration & poses**: `custom_mobs::register_goal(name)` (register a goal name), `spawn_queued(...)`, `texture_create` / `texture_write`, and `pose_bone_count` / `pose_get` / `pose_set` / `pose_write` inside pose hooks.
+- **Example**: [`crates/yoake-guest-sdk/examples/fox_ai_full.rs`](../../crates/yoake-guest-sdk/examples/fox_ai_full.rs) (mirrors `fox_ai` via Route F).
 
 ### Debug view and hot reload of custom mobs (F4M-12, F4M-13)
 
@@ -983,8 +1025,7 @@ for every block, `use-item-on`, ...) stay as they were, for a mod that wants eve
 5. **Call-site hooks** (`kind = callsite` in the ledger): the ledger and the bridges list them like function hooks, and
    `docs/yoake2/HOOK-SLICE-BRIDGE.md` says the guest sees argument 0 as a handle and the other arguments are not
    visible. No call-site hook was run for this guide.
-6. **`yoake` CLI for full-access mods**: "do not use it" is from reading `crates/yoake-cli/src/main.rs` (it builds
-   components with Cargo and checks a server module as a sandboxed component); it was not run on a full-access package.
+6. **Real-game e2e of `yoake new full-access`**: `yoake build` and `yoake check` on the `full-access` template and `f1-f2-demo` pass in `tools/verify_f5_kit.py`, and `crates/yoake-guest-sdk/tests/guest_runtime.rs` tests `f_client_services` and `fox_ai_full`; launching the full GUI game client on them was not run in this docs pass.
 7. **`build.sh` was run in Git Bash on Windows only**; Linux and macOS were not tried. On this Windows (GNU toolchain)
    host the pack tool needed a MinGW (`dlltool`, `as`) directory on `PATH` to compile.
 8. **Hook ids are not a stable public list.** The ledger has `tombstone` entries and ids that are not bridged; the

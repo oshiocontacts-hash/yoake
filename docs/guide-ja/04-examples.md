@@ -1,6 +1,6 @@
 # 4. サンプル MOD 集を読む
 
-`crates/yoake-wasm-sdk/examples/` には、目的別の 19 個のサンプル MOD が入っています（`hello` と `hello-std` は 4-1 の表で 1 行にまとめています）。
+リポジトリ内には `crates/yoake-wasm-sdk/examples/` と `crates/yoake-guest-sdk/examples/` に **30 個のパッケージ済みサンプル**（`yoake build` / `yoake check` が通るもの）と、テスト用の単体フィクスチャが入っています。
 自分が作りたい機能に近いサンプルを開いて、`yak.toml` と `src/lib.rs` を真似するのが一番の近道です。
 
 ---
@@ -9,24 +9,41 @@
 
 | サンプル名 | WIT ワールド（MOD の種類） | 何を見せているか | 主なフック（`hook::*`） | 主なホストサービス |
 |---|---|---|---|---|
-| `hello`（および `hello-std`） | `client-mod` | 最小のクライアント MOD。ティック数を数えて HUD に背景矩形と文字を描画し、設定ボタン名を返す（`hello` は `#![no_std]`、`hello-std` は `std` 使用） | `TICK`, `HUD`, `SETTINGS`（`hello-std` は `TICK`, `KEY`, `HUD`） | `yoake_wasm_sdk::log`, `hud::rect`, `hud::text` |
+| `hello` | `client-mod` | 最小の `#![no_std]` クライアント MOD。ティック数を数えて HUD に背景矩形と文字を描画し、設定ボタン名を返す | `TICK`, `HUD`, `SETTINGS` | `yoake_wasm_sdk::log`, `hud::rect`, `hud::text` |
+| `hello-std` | `client-mod` | Rust 標準ライブラリ（`std`）と `println!` を使う最小クライアント MOD。キー入力を記録し HUD に文字を出す | `TICK`, `KEY`, `HUD` | `hud::text`（＋ `println!`、`std::time::Instant`） |
 | `hud-item` | `client-full` | 毎フレーム HUD に半透明パネル・`minecraft:diamond` のアイテムアイコン・ラベル文字を描画する | `HUD` | なし（`et::HudOutcome` に `Rect`, `Item`, `Text` を詰めて返す） |
-| `server-storage` | `server-full` | `/visits` コマンドを追加し、プレイヤー UUID ごとの訪問回数を `World` スコープのストレージに保存して返答する | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::storage_get`, `services::storage_put`, `services::tell` |
+| `tested-counter` | `client-mod` | ティック数を数えて HUD に表示する小さなクライアント MOD に、`#[yoake_test]` によるゲームエンジン内のテストを組み合わせた入門例 | `TICK`, `HUD` | `hud::text`（＋ `TestWorld`） |
 | `config-demo` | `client-full` | `yak.toml` の `[config]` で定義した文字と色を読み取り、設定変更時に `config_changed` で HUD 表示を更新する | `HUD`, `CONFIG_CHANGED`（＋ `init`） | `services::config_get` |
+| `client-services-demo` | `client-full` | クライアントのサービス（キーバインド、ワールド内の線、ポストシェーダー、GUI テクスチャー、IME）を呼び、成功とエラー返却を検証する | `HUD` | `register_key_binding`, `draw_world_line`, `register_post_shader`, `gui_texture_write`, `ime_set_allowed` ほか |
+| `gpu-demo` | `client-full` | `gpu` モジュールでテクスチャー付きメッシュ・コンピュートパーティクル・深度ベースの色付けを描く（`verify` / `reload` / `trap` feature つき） | `HUD` | `gpu::{Shader, RenderPipeline, ComputePipeline, Buffer, BindGroup}` ほか |
+| `sprite-demo` | `client-full` | L2 実行時スプライト差し替え（[9 章](./09-sprites.md)）。起動時に `minecraft:apple` と `block/stone` を着色し、`R` キーで元に戻す | `TICK`, `KEY` | `sprites::{item_pixels, set_item, reset_item, block_pixels, set_block, reset_block}` |
+| `ime` | `client-full` | MOD 画面の IME を有効化し、変換途中文字列・カーソル範囲・確定文字列を受け取り、候補ウィンドウの位置を設定する（[10 章](./10-ime.md)） | `SCREEN_INIT_POST`, `FRAME`, `IME_PREEDIT`, `IME_COMMIT` | `ime_set_allowed`, `ime_set_cursor_area` |
+| `browser-demo` | `client-full` | MEDIA1 埋め込みブラウザ表示（[15 章](./15-browser-media.md)）。`B` キーで `Browser` を切り替え、最新フレームを HUD の `GuiTexture` に描く | `HUD`, `KEY` | `media::Browser`, `hud::GuiTexture`, `client::gui_texture_id` |
+| `fox_texture` | `client-full` | F4M クライアント例（[14 章](./14-custom-mobs.md)）。`warmth` 変化時に Cinder Fox の肌を塗り替え、`mob_layer` で頭上に立方体とリンゴを描く | `SYNCED_CHANGED_CLIENT`, `PLAYER_RENDER_LISTENED`, `MOB_LAYER` | `mob_texture_create`, `mob_texture_write`, `mob_texture_bind` |
+| `server-storage` | `server-full` | `/visits` コマンドを追加し、プレイヤー UUID ごとの訪問回数を `World` スコープのストレージに保存して返答する | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::storage_get`, `services::storage_put`, `services::tell` |
 | `permission-demo` | `server-full` | `/secret` コマンドを追加し、`has_permission` で `"secret.access"` 権限ノードの有無を判定して返答を変える | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::has_permission`, `services::tell` |
-| `full-demo` | `client-full` / `server-full` | クライアント（HUD・ホットバー非表示・ツールチップ追加・FOV 変更）、サーバー（`/wasmping`・`/wasmsvc` で各種サービス巡回）、別 MOD 連携（`peer`）の総合デモ | client: `HUD`, `GUI_LAYER_PRE`, `TOOLTIP`, `COMPUTE_FOV` / server: `REGISTER_COMMANDS`, `PERFORM_COMMAND`, `SERVER_TICK` / peer: `handle_call` | `tell`, `give_items`, `break_block_as`, `edit_blocks`, `run_command`, `mod_call` ほか多数 |
-| `full-services` | `client-full` / `server-full` | 設定・ストレージ（通常および分割 blob）・権限ノードの確認の一連の操作と、サービス権限が未宣言のときに `"permission denied: ..."` で拒否される動作の検証 | `CONFIG_CHANGED`（＋ client `init` / server `handle_call`） | `config_get`, `config_set`, `storage_get`, `storage_put`, `storage_delete`, `storage_blob_begin/write/commit/abort/read`, `has_permission` |
-| `mod-call-pair` | `server-full` | `caller` の `/ping <text>` から `responder` の `handle_call` を呼び、2 つの MOD で UTF-8 テキストをやり取りする | `REGISTER_COMMANDS`, `PERFORM_COMMAND` / `handle_call` | `services::mod_call`, `services::tell` |
-| `chest-count` | `server-full` | `/chestcount <x> <y> <z>` で指定した座標のコンテナを読み、アイテム ID ごとの合計を返答する | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::container_slots`, `services::tell` |
-| `item-trade` | `server-full` | `/trade` で丸石をちょうど 16 個、全部取れるときだけ取り出し（足りなければ何も取らない）、ダイヤモンド 1 個を与える | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::inventory_apply`（`Give`）, `ext::take`, `ext::take_exact`, `services::tell` |
+| `chest-count` | `server-full` | `/chestcount <x> <y> <z>` で指定座標のコンテナを読み、アイテム ID ごとの合計を返答する | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::container_slots`, `services::tell` |
+| `item-trade` | `server-full` | `/trade` で丸石をちょうど 16 個、全部取れるときだけ取り出し、ダイヤモンド 1 個を与える | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::inventory_apply`（`Give`）, `ext::take`, `ext::take_exact`, `services::tell` |
 | `player-vitals` | `server-full` | `/vitals` でプレイヤーの体力と `minecraft:story/root` 実績の `known` / `done` を返答する | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::advancement_progress`, `services::attribute_get`, `services::tell` |
-| `tested-counter` | `client-mod` | ティック数を数えて HUD に表示する小さなクライアント MOD に、`#[yoake_test]` によるゲームエンジン内のテストを組み合わせた入門例 | `TICK`, `HUD` | `hud::text` |
-| `content-demo` | `server-full` | データだけで定義したブロック・アイテム・エフェクト・レシピ・ルートテーブル・モブ・サウンド・クリエイティブタブに、サーバーモジュールが反応する（`content_demo:gem_cow` を右クリックで鳴き声、倒した数をワールドごとに数える） | `INTERACT_ENTITY`, `MOB_KILLED`, `ENTITY_TICK_POST` | `services::acting_player`, `services::play_sound_at`, `services::tell`, `ext::attachment_get`, `ext::attachment_set` |
-| `mixin-demo` | `inject-mod` | 落下ダメージの半減、骨粉の成長量の 2 倍化、チャットの記録（[8 章](./08-mixin.md)） | なし（フックではなく Mixin の HEAD / RETURN で割り込む） | なし（`println!` のログのみ） |
-| `test-demo` | `test-mod`（テストモジュール） | テストランナー自体を試すための 6 つのテスト（成功・失敗・トラップ・時間切れ・ドライバの全呼び出し・2 クライアント）（[6 章](./06-testing.md)） | なし | `TestWorld` の各呼び出し |
-| `client-services-demo` | `client-full` | クライアントのサービス（キーバインドの登録と状態の取得、ワールド内の線の描画、ポストシェーダーの登録、書き込み可能な GUI テクスチャーの作成と範囲書き込み、IME の有効化と候補位置）を `hud` フックの中で呼び、正しい引数では成功し、不正な入力（無効なシェーダー、範囲外の書き込み）ではエラーが返ることを確かめる。ランタイムの統合テストで使うゲスト | `HUD` | `services::register_key_binding`, `services::key_binding_state`, `services::draw_world_line`, `services::register_post_shader`, `hud::GuiTexture::create`, `services::gui_texture_write`, `services::ime_set_allowed`, `services::ime_set_cursor_area` |
-| `gpu-demo` | `client-full` | GPU の口（`gpu` モジュール）の例。テクスチャー付きメッシュ、コンピュートで更新するパーティクル、深度を使ったワールド描画後の色付けを描く。`--features verify` / `reload` / `trap` で検証用のビルドもできる（Cargo の feature） | `HUD` | `gpu::{Shader, RenderPipeline, ComputePipeline, Buffer, BindGroup}` ほか |
-| `ime` | `client-full` | MOD 画面の IME を有効化し、変換途中の文字列とカーソル範囲、確定文字列を受け取り、候補ウィンドウの位置を GUI 座標で設定する（[9 章](./10-ime.md)） | `SCREEN_INIT_POST`, `FRAME`, `IME_PREEDIT`, `IME_COMMIT` | `services::ime_set_allowed`, `services::ime_set_cursor_area` |
+| `mod-call-pair/caller` | `server-full` | `/ping <text>` から `mod-call-responder` の `handle_call` を呼び、返ってきた UTF-8 テキストをプレイヤーへ返す | `REGISTER_COMMANDS`, `PERFORM_COMMAND` | `services::mod_call`, `services::tell` |
+| `mod-call-pair/responder` | `server-full` | `caller` からの `handle_call("echo", ...)` を受け取り、`pong` をつけて応答を返す | `handle_call` | なし |
+| `content-demo` | `server-full` | データだけで定義したブロック・アイテム・効果・レシピ・ルート・モブ・音・タブに反応する（`gem_cow` の鳴き声と撃破数記録） | `INTERACT_ENTITY`, `MOB_KILLED`, `ENTITY_TICK_POST` | `acting_player`, `play_sound_at`, `tell`, `ext::attachment_*` |
+| `ruby-behaviors` | `server-full` | REM-15 の `behavior-register` 例。自作ブロック `ruby:lamp`、杖 `ruby:wand`、9 スロットのメニュー `ruby:vault`、レシピ種別 `ruby:alloy` を実装する | `handle_call`（`Behaviors` トレイト） | `ext::register_behavior`, `ext::recipe_data`, `block_property`, `set_block_property` |
+| `level-generator` | `server-full` | F3-8 の独自ディメンション型・レベル（`levelgen:terraces`）・WASM チャンクジェネレーターの実装例（[13 章](./13-dimensions.md)） | `handle_call`（＋ `init`） | `ext::register_type`, `ext::register_generator`, `ext::register_level` |
+| `f2-check` | `server-full` / `worker-mod` | FR-F2 の別クレート構成例。`/data` と `/game` へのファイル読み書きと、ワーカーでの HTTP POST・TCP エコーを行う（[12 章](./12-files-network.md)） | `TICK`（＋ `init`） / worker `run` | `std::fs`, `worker::{send, recv}`, `wasi:http`, `std::net` |
+| `f2-io` | `server-full` / `worker-mod` | FR-F2 の Cargo feature 切り替え構成例（`server` / `worker`、テスト用 `files` / `main` feature つき） | `TICK`（＋ `init`） / worker `run` | `worker::{send, recv}`, `wasi:http`, `std::net` |
+| `fox_ai` | `server-full` | F4M サーバー AI 例（[14 章](./14-custom-mobs.md)）。`ScriptGoal` `"pounce"`、アニメイベント `"hit"` での飛びかかり攻撃、被弾時の `warmth` 更新 | `MOB_GOAL_*`, `MOB_ANIM_EVENT`, `MOB_HURT` | `mobs::{info, memory_*, trigger_anim, impulse, attack, set_synced}` |
+| `seat_fox` | `server-full` | F4M 乗り物座席例（[14 章](./14-custom-mobs.md)）。`sample_mobs:cinder_fox` の座席 1 に近くのニワトリを自動で乗せる | `CUSTOM_MOB_SPAWNED`, `MOB_TICK`, `ENTITY_JOIN_LEVEL`, `ENTITY_LEAVE_LEVEL` | `mobs::{info, seat_set}` |
+| `full-demo` | `client-full` / `server-full` | クライアント（HUD・ホットバー非表示・ツールチップ・FOV）、サーバー（`/wasmping`・`/wasmsvc`）、別 MOD 連携の総合デモ | `HUD`, `GUI_LAYER_PRE`, `TOOLTIP`, `COMPUTE_FOV`, `REGISTER_COMMANDS`, `PERFORM_COMMAND`, `SERVER_TICK`, `handle_call` | `tell`, `give_items`, `break_block_as`, `edit_blocks`, `run_command`, `mod_call` ほか |
+| `full-services` | `client-full` / `server-full` | クライアントとサーバー両側での `[config]`・ストレージ（通常および分割 blob）・権限ノードをまとめて試す例 | `CONFIG_CHANGED`, `handle_call`（＋ `init`） | `config_get/set`, `storage_*`, `storage_blob_*`, `has_permission` |
+| `mixin-demo` | `inject-mod` | 落下ダメージの半減、骨粉の成長量の 2 倍化、チャットの記録（[8 章](./08-mixin.md)） | なし（Mixin の HEAD / RETURN で割り込む） | なし（`println!` のログのみ） |
+| `mixin-config` | `inject-mod` | `[config]` の値（`count`）を読み取り、`config_changed` に追従して `tick_sleep_timer` の戻り値を変える Mixin 例 | なし（Mixin + `config_changed`） | `mixin::config_get` |
+| `yoake-guest-sdk/f1-f2-demo` | `full-access` / `worker-mod` | F1＋F2 例。`#![no_std]` コアサーバーモジュール（`SERVER_TICK`、`yoake_guest_sdk::worker`）と WASI p2 ワーカーを組み合わせる | `hooks::SERVER_TICK` / worker `run` | `yoake_guest_sdk::worker::{send, recv}` |
+
+パッケージ外のフィクスチャ:
+
+- `crates/yoake-wasm-sdk/examples/test-demo`: `test-mod` ワールドのテストランナー検証用フィクスチャ（`yak.toml` なし、[6 章](./06-testing.md)）。
+- `crates/yoake-guest-sdk/examples/`: 単一 `.rs` のテスト用フィクスチャ 4 つ（`engine_call_game_path.rs`、`f_client_services.rs`、`fox_ai_full.rs`、`tick_and_item_use.rs`）。
 
 ---
 
@@ -133,36 +150,51 @@
 
 `tested-counter` は、ティック数を HUD に出すクライアント MOD と `#[yoake_test]` のテストを同じクレートに入れた入門例です。`test-demo` はテストランナー自体を試すためのテストモジュールで、成功・失敗・トラップ・時間切れ・ドライバの全呼び出し・2 クライアントのテストが入っています。どちらも [6. MOD をゲームエンジンの中でテストする（`06-testing.md`）](./06-testing.md) と合わせて読んでください。
 
-### ⑩ `client-services-demo` と `gpu-demo`（クライアント側の新しいサービスと GPU）
+### ⑩ `client-services-demo`、`gpu-demo`、`sprite-demo`、`browser-demo`（クライアント側のサービス・GPU・スプライト・ブラウザ）
 
-どちらも `client-full` ワールドのクライアント MOD で、`export_client_full!` を使います。サンプルのフォルダに `yak.toml` はなく、ランタイムのテストがビルドした `.wasm` を直接読み込みます。実際に配る MOD に使うときは、`yak.toml` の `[wasm] world` に `"client-full"` を書いてください。
+どれも `client-full` ワールドのクライアント MOD で、`export_client_full!` を使います。`yak.toml`（`interface = "1.7"`、`world = "client-full"`）が付いており、`yoake build` でそのままビルドできます。
 
-- `client-services-demo`: `hud` フックの中でキーバインド、ワールド内の線、ポストシェーダー、GUI テクスチャー、IME の各サービスを呼びます。成功する呼び出しと、エラーが返るべき呼び出し（無効なシェーダー、テクスチャーの範囲外への書き込み）を両方試すので、サービスの使い方とエラーの扱いを確かめる例になります。例は `[wasm] permissions` を宣言しません。
-- `gpu-demo`: `gpu` モジュールで WGSL シェーダーからレンダー／コンピュートのパイプラインを作る例です。`gpu` の呼び出しには `[wasm] permissions` の `"service.gpu"` が必要です（4-3 参照）。使い方の詳細は `docs/yoake-wasm-dev.md` の GPU の節を参照してください。
+- `client-services-demo`: `hud` フックの中でキーバインド、ワールド内の線、ポストシェーダー、GUI テクスチャー、IME の各サービスを呼び、成功する呼び出しとエラーが返る呼び出しの両方を試します。
+- `gpu-demo`: `gpu` モジュールで WGSL シェーダーからレンダー／コンピュートのパイプラインを作る例です。`gpu` の呼び出しには `[wasm] permissions` の `"service.gpu"` が必要です（4-3 参照）。使い方の詳細は [`docs/yoake-wasm-dev.md`](../yoake-wasm-dev.md#client-gpu-api) の GPU の節を参照してください。
+- `sprite-demo`: 起動時にアイテムとブロックのスプライトを動的に着色し、`R` キーで元に戻す例です（[9 章](./09-sprites.md)）。
+- `browser-demo`: `B` キーで埋め込みブラウザを開閉し、HUD の `GuiTexture` に描画する例です（[15 章](./15-browser-media.md)）。
 
 ### ⑪ `ime`（MOD 画面の日本語入力）
 
-`ime` は自分の MOD 画面で IME を有効にし、preedit・カーソル範囲・確定文字列を受け取る `client-full` の例です。候補ウィンドウの矩形を GUI スケーリング済み座標で設定します。使い方と既存の文字フックとの二重入力を防ぐ注意は [9. MOD 画面で IME（日本語入力）を使う](./10-ime.md) を参照してください。
+`ime` は自分の MOD 画面で IME を有効にし、preedit・カーソル範囲・確定文字列を受け取る `client-full` の例です。候補ウィンドウの矩形を GUI スケーリング済み座標で設定します。使い方と二重入力を防ぐ注意は [10. MOD 画面で IME（日本語入力）を使う](./10-ime.md) を参照してください。
+
+### ⑫ `fox_ai`・`fox_texture`・`seat_fox`（F4M カスタム Mob と座席）
+
+`tools/fixtures/cinder_fox/` のデータ定義と合わせて動くカスタム Mob サンプルです。`fox_ai` と `seat_fox` は `server-full`、`fox_texture` は `client-full` で、どれも `permissions = ["service.mobs"]` を宣言します（[14 章](./14-custom-mobs.md)）。
+
+### ⑬ `f2-check`・`f2-io`・`f1-f2-demo`（ファイルとワーカー通信）
+
+メインのゲームスレッドを止めずに HTTP・TCP・重いファイル I/O を行うワーカー構成の例です（[12 章](./12-files-network.md)）。`f1-f2-demo` は `crates/yoake-guest-sdk/examples/f1-f2-demo` にあり、フルアクセス MOD（`world = "full-access"`）からワーカーを呼びます。
+
+### ⑭ `ruby-behaviors`・`level-generator`・`mixin-config`
+
+- `ruby-behaviors`: 自分のブロック・アイテム・メニュー・レシピ種別に `ext::register_behavior` で振る舞いを付ける例です（[MOD-GUIDE.ja.md 第 19 章](../yoake2/MOD-GUIDE.ja.md#19-自分のブロックアイテムメニューレシピ種別に振る舞いを付ける-rem-15)）。
+- `level-generator`: 独自のディメンション型・レベル・チャンクジェネレーターを登録して地形を生成する例です（[13 章](./13-dimensions.md)）。
+- `mixin-config`: `[config]` の設定変更に反応する `inject-mod`（`interface = "1.2"`）の例です（[8 章](./08-mixin.md)）。
 
 ---
 
 ## 4-3. `yak.toml` での `[wasm] permissions`・`[config]`・`[permissions."<node>"]` の書き方
 
-MOD が特別な機能（設定の読み書き、ストレージ保存、権限ノードのチェック、サーバーコマンド実行など）を使うときは、`yak.toml` に宣言を書きます。
+MOD が特別な機能を使うときは、`yak.toml` に宣言を書きます。
 
 ### `[wasm] permissions` の種類
 
-指定可能なサービス権限（capability、`[wasm] permissions`）は次の 7 つです。[^manifest]
+指定可能なサービス権限（capability、`[wasm] permissions`）は次の **10 個** です。[^manifest]
 
-- `"service.chat"`: クライアントモジュールが Mixin でチャット／コマンドの文字を書き換えるサービス権限（`wasm.client` が必須で、`service.commands` と合わせて使います。[8 章](./08-mixin.md)）
 - `"service.commands"`: サーバーモジュールからの `run_command` の呼び出し（`wasm.server` が必須。`inject-mod` はサーバーモジュールが無くてもよい）。Mixin でコマンド・チャットのサイトに割り込むときにも必要です（[8 章](./08-mixin.md)）
-- `"service.config"`: `config_get` / `config_set` / `config_dir` の呼び出しと、同期設定の受信
+- `"service.chat"`: クライアントモジュールが Mixin でチャット／コマンドの文字を書き換えるサービス権限（`wasm.client` が必須で、`service.commands` と合わせて使います。[8 章](./08-mixin.md)）
 - `"service.gpu"`: クライアントモジュールの `gpu` モジュールの呼び出し（`client-full` ワールドだけ。`server-full` と `client-mod` では使えません）
-- `"service.browser"`: `media-services`（`full::client::browser`）でブラウザを開く。入っている Edge か Chrome を、パッケージ専用のプロファイルで開きます。開けるのはウェブのページだけ（http・https・data・blob・about:blank）。絵は `GuiTexture` に、タブの音は PCM で受け取ります。`world = "client-full"` の `wasm.client` だけ。詳しくは `docs/yoake2/reports/FR-MEDIA1.md`。
-- `"service.screen-share"`: 画面共有用に取ってあります（サービス番号 255〜259、まだつないでいません）。決まりは `service.browser` と同じです。
-- `"service.http"`: `[http] hosts`（HTTPS のホストの一覧）と対になる `service.http` サービス権限の宣言です。`service.http` を宣言するなら `[http] hosts` が必要で、逆に `[http]` を書くなら `service.http` が必要です。HTTP 通信自体は（未実装）です[^dev-doc]
-- `"service.permissions"`: サーバーモジュールからの `has_permission` の呼び出し（`wasm.server` が必須）
-- `"service.storage"`: `storage_*` および `world_storage_*` / `config_read` / `config_write` の呼び出し
+- `"service.mobs"`: カスタム Mob のスクリプト制御（`server-full` の `mobs::*` や、`client-full` の `mob_texture_*` / `mob_bone_index` / `mob_locator`。[14 章](./14-custom-mobs.md)）
+- `"service.browser"`: `client-full` での埋め込みブラウザ（`full::client::media::Browser`。[15 章](./15-browser-media.md)）
+- `"service.screen-share"`: 画面共有用に予約されています（現時点では未接続。決まりは `service.browser` と同じです）
+- `"service.http"`: `[http] hosts` と対になる宣言です（未接続。HTTP 通信には [12 章](./12-files-network.md) のワーカーを使ってください）
+- `"service.config"` / `"service.permissions"` / `"service.storage"`: 旧バージョンとの互換性のためにマニフェストで受け付けている権限名です。現在のホストでは、これらを書かなくても設定・権限ノード・ストレージのサービスを利用できます（[12 章](./12-files-network.md)）
 
 ### `[config]` の書き方（`config-demo` のマニフェストより抜粋）
 

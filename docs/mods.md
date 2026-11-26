@@ -364,12 +364,73 @@ server with it may be disconnected when one spawns.
 
 #### Mob types
 
+An entity type in `data/<id>/horizon/entity_type/<name>.json` has two ways to declare a mob:
+
+1. **Full custom mobs (`"template": "yoake:mob"`, F4M)** — own model (`.geo.json` or Blockbench `.bbmodel`), animations, animation controllers, multi-part bone-tracked hitboxes, synced values, custom attributes, built-in + `ScriptGoal` AI (with optional brain memories/sensors/activities), vehicle seats, and optional vanilla `proxy` for stock clients.
+2. **Legacy template reskins** — copying one of `minecraft:pig`, `cow`, `sheep`, `chicken`, `zombie`, `skeleton`, `spider`, or `creeper` to reuse that vanilla mob's model, animations, sounds, and species behavior.
+
+##### Custom mobs (F4M: `"template": "yoake:mob"`)
+
+A custom mob JSON defines everything the client, host, and dedicated server need to agree on before network ids are assigned (`format = 1`):
+
+```json
+{
+  "template": "yoake:mob",
+  "format": 1,
+  "category": "creature",
+  "size": { "width": 0.6, "height": 0.7, "eye_height": 0.5 },
+  "hitboxes": [
+    { "name": "body", "size": [0.6, 0.7] },
+    { "name": "head", "size": [0.4, 0.4], "bone": "head", "damage_multiplier": 1.5 }
+  ],
+  "attributes": {
+    "max_health": 14,
+    "movement_speed": 0.3,
+    "sample_mobs:warmth": { "default": 0, "min": 0, "max": 10, "sync": "all" }
+  },
+  "model": {
+    "geo": "sample_mobs:geo/cinder_fox",
+    "textures": { "default": "sample_mobs:entity/cinder_fox" },
+    "animations": ["sample_mobs:animations/cinder_fox"],
+    "controllers": ["sample_mobs:controllers/cinder_fox"],
+    "server_events": ["pounce"],
+    "shadow": { "radius": 0.4, "strength": 0.8 },
+    "layers": [
+      { "name": "glow", "texture": "sample_mobs:entity/cinder_fox_glowmask", "mode": "emissive" }
+    ],
+    "item_slots": { "mainhand": "mouth" }
+  },
+  "synced": {
+    "state": { "type": "enum", "values": ["idle", "sit", "pounce"], "default": "idle", "persistent": true }
+  },
+  "ai": {
+    "navigator": "ground",
+    "goals": [
+      { "type": "swim", "priority": 0 },
+      { "type": "script", "id": "pounce", "priority": 2 },
+      { "type": "wander", "priority": 6, "speed": 1.0 }
+    ],
+    "script_goals": [
+      { "id": "pounce", "priority": 2, "flags": ["move", "look"], "interval": 5 }
+    ]
+  },
+  "spawn_egg": { "primary": "0xD2691E", "secondary": "0xFFF0A0" },
+  "proxy": "minecraft:fox"
+}
+```
+
+- **Assets under `assets/<ns>/`**: `geo/<name>.geo.json` (Bedrock 1.8 / 1.12+) or `geo/<name>.bbmodel` (Blockbench directly), `animations/<name>.animation.json`, `controllers/<name>.json` (state machines with safe Molang expressions and one-shot `triggers`), `textures/entity/<name>.png`, and optional `<name>_glowmask.png` (`emissive` layer). Limits per type: 256 bones, 4,096 cubes, 128 animations, 16 hitboxes, 64 goals, 32 synced values (256 bytes total).
+- **Size and hitboxes**: `size` (`width`, `height`, optional `eye_height`) is the single solid collision box. `hitboxes` adds hurt/pick parts (`damage_multiplier`, `pick`, `hurt`, optional `bone` to follow an animated bone).
+- **AI and brain option**: `ai.navigator` (`ground`, `climb`, `swim`, `fly`, `amphibious`), 40+ built-in goal/target types plus `"type": "script"` (`ai.script_goals`), and optional brain `memories` (up to 64), `sensors` (`nearest_players`, `nearest_living`, `hurt_by`, `blocks`, `light`, up to 32), `activities`, `schedule`, and `default_activity`.
+- **Seats, taming, breeding, and interaction**: `seats` (up to 8, with `offset` or `locator`, `controls`: `"player"` or `"none"`, `allowed_types`, `yaw_lock`), `saddle_item`, `rideable_when`, `tameable`, `breedable`, and `interact` shortcuts (`feed`, `tame`, `ride`, `give_item`).
+- **Spawning, drops, and proxy**: `spawn` rules (`biomes`, `structures`, `dimensions`, `weight`, `min`, `max`, `placement`, `light`, `time`, `y_range`, `cluster`), `despawn`, `spawn_egg` (`{ "primary", "secondary" }` generates `<id>:<name>_spawn_egg`; `true` expects your own item), `loot_table`, and `sounds` (`ambient`, `hurt`, `death`, `step`, `attack`, `swim`, `fly`). If `proxy` is set (e.g. `"minecraft:fox"`), stock clients see that vanilla entity; if any loaded custom mob omits `proxy`, the server requires Horizon clients.
+- **Scripting (`service.mobs`)**: Server `server-full` modules (`yoake_wasm_sdk::full::server::mobs`), client `client-full` modules (`mob_texture_create/write/bind`, `mob_bone_index`, `mob_locator`), or `full-access` modules (`yoake_guest_sdk::custom_mobs`) implement `ScriptGoal`s and hooks (`mob_hurt`, `mob_interact`, `mob_anim_event`, etc.). See [`docs/guide-en/14-custom-mobs.md`](guide-en/14-custom-mobs.md) and [`docs/yoake2/MOD-GUIDE.md` section 17](yoake2/MOD-GUIDE.md#17-custom-mobs-and-the-brain-option-f4m-4b).
+- **Debug and hot reload**: `/yoake mobdebug` (`F3+M`), `/yoake mobs`, and `/yoake mob reload [type]` (in `YOAKE_WASM_UNSIGNED=1` dev mode).
+
+##### Legacy template reskins
+
 An entity type whose `template` is one of `minecraft:pig`, `cow`, `sheep`, `chicken`, `zombie`, `skeleton`, `spider`
-or `creeper` is a mob: a copy of that vanilla mob's type with the mod's id, texture, size, attributes, goals, drops and
-spawns. It keeps its template's **model and animation** (drawn by reference: there is no Blockbench or JSON model path
-for mod entities yet, see below), sounds, spawn rules (a cow-based mob needs grass and light, a zombie-based one
-darkness), baby and breeding behaviour, and anything its species does apart from its goals (a zombie-based mob burns in
-sunlight). All fields but `template` are optional:
+or `creeper` copies that vanilla mob's model, animations, sounds, spawn rules, and species behavior, replacing only its id, texture, box, attributes, `behaviours`, `loot_table`, `spawn`, and `spawn_egg`. All fields but `template` are optional:
 
 ```json
 { "template": "minecraft:cow",
@@ -390,35 +451,10 @@ sunlight). All fields but `template` are optional:
   "spawn_egg": true }
 ```
 
-- `texture` is `<namespace>:entity/<path>`, a PNG at `assets/<namespace>/textures/entity/<path>.png` in the mod's own
-  namespaces (the layout of the template's texture). `width`, `height` and `eye_height` (above 0, at most 16) replace the
-  box; with only `height` the eyes keep their place in it.
-- `attributes` (bare or `minecraft:` names): `max_health` (1-1024), `movement_speed` (0-10), `attack_damage` (0-2048),
-  `attack_knockback` (0-5), `armor` (0-30), `armor_toughness` (0-20), `knockback_resistance` (0-1) and `follow_range`
-  (1-128). The rest are the template's.
-- `behaviours` are vanilla goals, first listed first (priority 0, 1, ...): `float`, `wander` (`speed`),
-  `look_at_player` (`range`), `random_look`, `panic` (`speed`, runs when hurt), `tempt` (`items`, `speed`: follows a
-  player holding one), `flee` (`from`: `minecraft:player` and/or vanilla mob ids, `distance`, `walk_speed`,
-  `sprint_speed`), `melee_attack` (`speed`; uses `attack_damage`), `target_player` (`must_see`) and `hurt_by_target`.
-  Speeds are 0-4. A mob that lists them has exactly these, the targets (`target_player`, `hurt_by_target`) after
-  the goals; a mob without the list keeps its template's goals, breeding included. A hostile mob wants `melee_attack`
-  with `target_player`.
-- `loot_table` is a loot table of the mod's namespaces; by default `<id>:entities/<name>`, that is
-  `data/<id>/loot_table/entities/<name>.json` (vanilla's entity loot tables, so conditions such as
-  `killed_by_player` and `looting` work). A mod mob with no such table drops nothing.
-- `spawn` adds the mob to the natural spawns of the biomes (`biomes` is an id, a `#tag` or a list, as in a biome
-  modifier) at its template's category, with a `weight` (1-1000) and group size `min` to `max` (1-32). It is the
-  `add_spawns` biome modifier written for you.
-- `spawn_egg: true` requires an item `<id>:<name>_spawn_egg` of the mod (declared like any item, with its own model and
-  texture): the game spawns the mob when an item named `<type>_spawn_egg` is used on a block, as it does for vanilla.
-
-A mob is `/summon`ed as `<id>:<name>`, saved with its chunk and shown to clients as its template is. Every player needs
-the same mods, as with blocks. What a full Blockbench or JSON model path needs: the engine draws mob models from baked
-model layers keyed by `<model>#<layer>` and animates them by the species' animation family; a custom model means a
-new layer key per mod type in `MobType.layers`, a loader for the model JSON into the `Part` tree (the
-OptiFine `.jem` loader in `mobs/cem.rs` already builds `Part`s from boxes and could be reused, with the mod's bones
-animated by a mod-side animation), and an animation family for it. The `.jem`-based route is the closest: a mod may
-ship `optifine/cem` files for a mod mob's layer once layers are keyed by the mob's own id.
+- `texture` is `<namespace>:entity/<path>` (`assets/<namespace>/textures/entity/<path>.png`, matching the template's UV layout). `width`, `height`, and `eye_height` (above 0, at most 16) replace the box.
+- `attributes` (bare or `minecraft:` names): `max_health` (1–1024), `movement_speed` (0–10), `attack_damage` (0–2048), `attack_knockback` (0–5), `armor` (0–30), `armor_toughness` (0–20), `knockback_resistance` (0–1), and `follow_range` (1–128).
+- `behaviours`: `float`, `wander` (`speed`), `look_at_player` (`range`), `random_look`, `panic` (`speed`), `tempt` (`items`, `speed`), `flee` (`from`, `distance`, `walk_speed`, `sprint_speed`), `melee_attack` (`speed`), `target_player` (`must_see`), and `hurt_by_target` (speeds 0–4).
+- `loot_table` defaults to `<id>:entities/<name>`; `spawn` adds to biome spawns (`weight` 1–1000, `min`/`max` 1–32); `spawn_egg: true` expects `<id>:<name>_spawn_egg`.
 
 #### Sounds, particles and creative tabs (data only)
 

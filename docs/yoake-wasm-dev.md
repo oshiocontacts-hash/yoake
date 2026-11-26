@@ -1,27 +1,30 @@
 # Writing a Yoake WebAssembly mod
 
-A Yoake wasm mod is a WebAssembly **component** (`wasm32-wasip2`) for the WIT world
-`yoake:mods/client-mod@1.0.0` (`crates/yoake-wasm/wit/yoake-mod.wit`). The guest SDK is
-`crates/yoake-wasm-sdk`; a complete example is `crates/yoake-wasm-sdk/examples/hello`.
-The frozen world stays unchanged. The extended `client-full` and `server-full` worlds use
-`yoake:mods@1.0.0` in `yoake-full.wit`; the GPU interface belongs to `client-full` only.
+A Yoake wasm mod is a WebAssembly **component** (`wasm32-wasip2`) for the WIT package
+`yoake:mods@1.7.0`:
+- `client-mod` (`crates/yoake-wasm/wit/yoake-mod.wit`, with `wit-mod-1.0/yoake-mod.wit` preserved so existing `1.0.0` `client-mod` `.yak` packages keep loading).
+- `client-full` and `server-full` (`crates/yoake-wasm/wit/yoake-full.wit`; GPU, runtime sprites, and `media-services` belong to `client-full` only).
+- `worker-mod` (`crates/yoake-wasm/wit-worker/yoake-worker.wit`, for `[wasm] worker` background I/O threads).
+- `inject-mod` (`crates/yoake-wasm/wit-inject/`, `1.1`/`1.2` for Mixin injections).
+- `full-access` (core `wasm32` module using `yoake-guest-sdk`, see [`docs/yoake2/MOD-GUIDE.md`](yoake2/MOD-GUIDE.md)).
 
-## The 1.0 ABI freeze
+The guest SDK is `crates/yoake-wasm-sdk`; a minimal example is `crates/yoake-wasm-sdk/examples/hello`.
 
-`crates/yoake-wasm/wit/abi-1.0-baseline.wit` freezes the current `yoake:mods@1.0.0`
+## The 1.0 ABI freeze and 1.7.0 additive growth
+
+`crates/yoake-wasm/wit/abi-1.0-baseline.wit` freezes the `yoake:mods@1.0.0`
 interfaces and worlds, including `native-screen-view.kind`. The snapshot is comment-enveloped
 WIT (remove its three-line header and each remaining line's `// ` prefix to parse it separately).
 This keeps the snapshot inert when guest and host bindings load the live `wit/` directory.
+`crates/horizon-mod-api-gen/src/abi/baseline.rs` normalizes `package yoake:mods@1.7.0;` to `1.0.0` when comparing against that baseline.
 `abi-1.0-ids.json` freezes the service/hook ID tables and capability names from all four active
-ABI catalogs, and separately preserves the package manifest's accepted `WASM_PERMISSIONS`.
+ABI catalogs, and separately preserves the package manifest's accepted `WASM_PERMISSIONS` (`10` known capabilities).
 
-Run `cargo test --offline -j 4 -p horizon-mod-api-gen` to check compatibility. Existing record
+Run `cargo test --offline -j 4 -p horizon-mod-api-gen` to check additive compatibility. Existing record
 fields (including their order and types), enum/variant/flag cases, aliases, function parameters
 and results, world bindings, IDs and capability names cannot change or disappear. Independent
-new types, functions with unused IDs, hooks, interfaces and capability names are additions;
-they do not require a baseline refresh. In particular, W2DN's reserved service IDs **127–145**
-and hook IDs **43–44** are additions, not permission to alter existing entries. The separate
-`yoake:mods@1.1.0` package in `wit-inject/` is not part of this 1.0 snapshot.
+new types, functions with unused IDs, hooks, interfaces and capability names are additive.
+The separate `yoake:mods@1.1.0` package in `wit-inject/` is not part of this 1.0 snapshot.
 
 Before the initial 1.0 release only, the owner may deliberately refresh both baseline files
 after reviewing the entire ABI diff (PowerShell):
@@ -82,7 +85,7 @@ export_mod!(Hello);
   `wasi:filesystem/{types,preopens}`. stdin is empty, the environment and the arguments are empty,
   `std::process::exit` traps the mod (only that mod is disabled), the clock never blocks the host:
   `thread::sleep` and `pollable.block()` on a clock wait of more than 2 ms trap the mod (shorter waits
-  return at once), the filesystem has the preopens `/data` (the mod's own folder `mod-data/<id>`), `/game` and, with `[wasm] host_filesystem = true`, `/host/<letter>` (FR-F2), and the main instance may not use sockets or `wasi:http` (they are linked, but the context denies them; use a worker, `docs/yoake2/MOD-GUIDE.md` section 14). A component that imports any interface outside `yoake:mods/*`, `yoake:mods/worker@1.3.0` and the list above is rejected at load. The example is
+  return at once), the filesystem has the preopens `/data` (the mod's own folder `mod-data/<id>`), `/game` and, with `[wasm] host_filesystem = true`, `/host/<letter>` (FR-F2), and the main instance may not use sockets or `wasi:http` (they are linked, but the context denies them; use a worker, `docs/yoake2/MOD-GUIDE.md` section 15). A component that imports any interface outside `yoake:mods/*`, `yoake:mods/worker@1.7.0` (also linked at `@1.6.0` and `@1.0.0`) and the list above is rejected at load. The example is
   `crates/yoake-wasm-sdk/examples/hello-std`.
 - For the smallest modules turn `std` off (`default-features = false, features = ["runtime"]`) and
   write `#![no_std]`: the SDK ships its own allocator and panic handler (feature `runtime`) and
@@ -108,35 +111,33 @@ Put the component at `bin/wasm/<name>.wasm` and declare it in `yak.toml`:
 ```toml
 [wasm]
 client = "bin/wasm/hello.wasm"
-interface = "1.0"
+interface = "1.7"
 ```
 
-`interface = "1.0"` is the package's WASM compatibility declaration, checked separately from
-the extended WIT package version. Keep it at `1.0` for this host, including full-world mods
-built against WIT `1.0.0`. The host rejects imports outside `yoake:mods/*` and the WASI subset above.
+`interface` is the package's WASM compatibility declaration checked by `horizon-mods` (`SUPPORTED_WASM_INTERFACE = (1, 7)`).
+Hook worlds (`client-mod`, `client-full`, `server-full`, `full-access`) accept `"1.0"` through `"1.7"` (note `"1.1"` and `"1.2"` are reserved for `world = "inject-mod"`).
+The host rejects imports outside `yoake:mods/*` and the WASI subset above.
 
-## Developer mode: hot reload
+## Trust rules and developer hot reload
 
-With `YOAKE_WASM_UNSIGNED=1`, the game can load unsigned WASM modules from `.yak` packages whose
-manifest declares `[wasm]` and has no `[bin]`, when the package has no `SIGNATURE` file. If a
-`SIGNATURE` file is present, it must still be valid and match the installed files. It polls each
-unsigned installed module once a second and, when the file changed (and stayed unchanged for a whole
-poll), builds a fresh instance and swaps it in at the next frame or tick. A new build that fails to
-load keeps the old instance running (one warning in the log). `YOAKE_WASM_DEV_DIR=<folder>`
-additionally loads every `<id>.wasm` in the folder as a mod (no `.yak` needed) and reloads it the
-same way. Those modules receive a `dev-` id prefix and are skipped if that id belongs to an installed
-mod, keeping their settings and storage separate. Hot-reloaded modules do not pin a
-`required_on_join` digest while their bytes can change. Both features are off unless the WASM switch
-or legacy DLL switch is exactly `1`. WASM remains sandboxed, but it still receives permissions
-declared by its mod; for example, a server module may have `service.commands`. The WASM switch does
-not enable or load DLL/native code. The launcher developer option
-**自分の WASM MOD をテスト / Test your own WASM mods** asks for confirmation and sets this switch
-for the launched game.
+### Sandboxed and Mixin `.yak` packages (`yak_mods.rs` / `wasm_mods.rs`)
 
-The older `YOAKE_DLL_MODS_UNSIGNED=1` remains a compatibility superset: it still permits unsigned
-native DLL mods and also enables these WASM development features. Use it only for native DLL work.
-The startup log has one line saying `wasm: no mods (engine not started)` or
-`wasm: N mod(s), engine started`.
+- **Default (release) mode**: every sandboxed `.yak` module (`client-mod`, `client-full`, `server-full`, `inject-mod`) must have a valid `SIGNATURE` signed by a key in `yak::trusted_keys()` covering every installed file.
+- **Developer mode (`YOAKE_WASM_UNSIGNED=1`, or legacy superset `YOAKE_DLL_MODS_UNSIGNED=1`)**: permits unsigned `.yak` packages that have `[wasm]`, no `[bin]`, and **no `SIGNATURE` file**. If a `SIGNATURE` file IS present, it must still be valid and match the installed files.
+- **Test worker (`--yoake-test`)**: a verified test worker also accepts the unsigned package under test without enabling DLL mods.
+- **Remote packages (`--remote-mods <host>`)**: `.yak` files received from a server (`<mods>/remote/<host>/<sha256>.yak`) are unpacked into `yoake-remote/` only when their SHA-256 matches their filename and they are not `full-access`; their Wasm modules still require a trusted signature unless unsigned developer mode is enabled.
+- **Hot reload**: in developer mode, each unsigned installed client module (and server modules when `YOAKE_WASM_SERVER_RELOAD=1` is also set) is polled once a second and swapped in at the next frame or tick after staying unchanged for a full poll. A failed reload keeps the old instance running with one warning. `YOAKE_WASM_DEV_DIR=<folder>` additionally loads every `<id>.wasm` in the folder as `dev-<id>` (skipped if that ID conflicts with an installed mod). Hot-reloaded modules do not pin `required_on_join` digests while their bytes can change. The launcher option **自分の WASM MOD をテスト / Test your own WASM mods** asks for confirmation and sets `YOAKE_WASM_UNSIGNED=1`.
+
+The older `YOAKE_DLL_MODS_UNSIGNED=1` remains a compatibility superset: it still permits unsigned native DLL mods and also enables these WASM development features. Use it only for native DLL work. The startup log has one line saying `wasm: no mods (engine not started)` or `wasm: N mod(s), engine started`.
+
+### Full-access packages (`world = "full-access"`, `yoake2_mods.rs`)
+
+- Skipped by the sandboxed loader (`yak_mods::wasm_mods_from`).
+- Loaded only from the launcher's launch-scoped `--full-access-approved <path>` (`YOAKE_FULL_ACCESS_APPROVED`) list (`ApprovedList`), matching both the `.yak` SHA-256 and the recorded origin (`yak-origins.toml`):
+  - `local` / `dev`: runs only when explicitly approved for those exact bytes.
+  - `catalog`: runs when approved or signed by a trusted key.
+  - `server` / `friend`: runs only on the client thread and only when approved in a list scoped to that exact joined host (`--remote-mods`).
+  - Unknown origin (e.g. dropped into `mods/` by hand), `ContentChanged` (rebuilt bytes), or duplicate package IDs are refused.
 
 ## CLI and test scaffolding
 
@@ -157,29 +158,11 @@ The `examples/hello` and `examples/full-demo` projects under `crates/yoake-wasm-
 include manifests. Run `yoake build` in either example before `yoake check`: a raw Cargo build
 alone does not place the components at the paths declared by `yak.toml`.
 
-`new` also accepts `minigame`, `custom-mob`, `utility` and `script`. These are starter projects,
-not complete game modes; mob data, models and script files are placeholders. The CLI embeds the
-SDK and WIT definitions in each generated project. Optionally set `YOAKE_SDK_PATH` when creating a
-project to use a local SDK checkout instead; that override stores its absolute path in the manifest.
+`new` accepts 9 templates: `minigame`, `hud-only`, `custom-mob`, `utility`, `script`, `client-full`, `server-full`, `worker`, and `full-access`. `custom-mob` generates a working F4M mob with Bedrock assets and a `server-full` `ScriptGoal` AI; `script` remains a placeholder (`yoake-script` is not implemented). The CLI bundles `yoake-wasm-sdk`, `wit`, `wit-worker`, and standalone `yoake-guest-sdk` under `.yoake/`. Optionally set `YOAKE_SDK_PATH` when creating a project to reference a local SDK checkout instead.
 
-`build` compiles declared modules into `bin/wasm/` and checks them; it does not pack them. Cargo
-uses `CARGO_TARGET_DIR` when set, or the project's `target/` directory otherwise. For a package
-declaring both a client and a server module, its Cargo project must define `client` and `server`
-features that select the respective worlds, as in `full-demo`. The CLI builds once with each
-feature in addition to the project's default features. Projects using another arrangement can
-build components separately and run `yoake check`, but must adapt their features for `yoake build`,
-`yoake dev` or `yoake pack`.
-`pack` builds declared Wasm modules first, checks the package, and writes the unsigned
-`dist/<id>-<version>.yak`, replacing the previous package of that version. Packages without `[wasm]`
-skip component validation and can be checked and packed without a Wasm build. Signing remains an
-owner operation.
+`build` compiles declared modules (`client`, `server`, `worker`) into `bin/wasm/` and checks them; it does not pack them. Cargo uses `CARGO_TARGET_DIR` when set, or the project's `target/` directory otherwise. Multi-module single-crate packages declare `client`/`server`/`worker` Cargo features (while split-folder packages with `client/`/`server/`/`worker/` `Cargo.toml` subdirectories, or `inject-mod` packages sharing one binary across `client` and `server`, build without split features). For `world = "full-access"`, `yoake build` passes the core-module `rust-lld` flags automatically. `pack` builds declared Wasm modules first, checks the package, and writes the unsigned `dist/<id>-<version>.yak`, replacing the previous package of that version. Packages without `[wasm]` skip component validation and can be checked and packed without a Wasm build. Signing remains an owner operation.
 
-`check` validates the manifest, permissions and module sizes, then uses the game's Wasmtime
-configuration and host linker to instantiate each declared component against its world. It calls
-`init` with stub hosts and checks the returned hook names using the game's subscription rules.
-A JSON summary reports the checked modules and nonempty lines from `WASM-NEEDS.md`, if present.
-Stub hosts do not supply live game state, so initialization that depends on game services can fail
-or behave differently, and successful validation does not prove that hooks work in a running game.
+`check` validates the manifest, permissions, freshness (`src/**`, `Cargo.toml`, `yak.toml`), and module sizes, then checks each declared module: sandboxed worlds (`client-mod`, `client-full`, `server-full`) instantiate against stub hosts and validate subscriptions; `worker` validates via `WorkerHandle::validate`; `inject-mod` validates via `Injection::instantiate_with_permissions`; and `full-access` validates via `yoake_slice::runtime::validate_module` (`yoake_abi`, imports, `yoake_hook`). A JSON summary reports the checked modules and nonempty lines from `WASM-NEEDS.md`, if present. Stub hosts do not supply live game state, so initialization that depends on game services can fail or behave differently, and successful validation does not prove that hooks work in a running game.
 
 Every command emits exactly one JSON result line on stdout, including on failure; diagnostics go to
 stderr. `dev` includes `built`, `checked`, `installed`, `errors`, `notes`, `tests` and `wasm_needs`.
@@ -440,7 +423,7 @@ client thread and to the server module when it runs on the server thread.
 
 ```toml
 [wasm]
-interface = "1.0"
+interface = "1.7"
 client = "bin/wasm/demo-client.wasm"   # world client-mod (default) ...
 world  = "client-full"                  # ... or the full client world
 server = "bin/wasm/demo-server.wasm"   # always server-full
@@ -484,15 +467,16 @@ client module fails to load does not run its server module either.
 
 #### Permissions
 
-`[wasm] permissions = ["service.commands"]` lets the server module call `run_command` (the package
-installer/launcher should show it; the load log also says it). Without it `run_command` answers an
-error. Even with it a command line goes to the game's own commands only (never to another mod's command
-hook) and `transfer`, `fetchprofile`, `publish`, `unpublish`, `debug`, `jfr`, `perf`, `stop`, `save-off`,
-`save-on`, `op`, `deop`, `whitelist`, `ban`, `ban-ip`, `pardon`, `pardon-ip`, `setidletimeout`, `test`,
-`compute` and `pregen` are refused, also after `run` in `execute` and `return`.
+`WASM_PERMISSIONS` in `crates/horizon-mods/src/yak/manifest.rs` defines 10 capability names:
 
-The client-only `gpu` imports additionally require `service.gpu`. They are not imported by
-`server-full` or the frozen `client-mod` world. A GPU error does not grant another capability.
+- `service.commands` lets a server module call `run_command` (or lets `inject-mod` hook command/chat sites). Without it `run_command` answers an error. Even with it a command line goes to the game's own commands only (never to another mod's command hook) and `transfer`, `fetchprofile`, `publish`, `unpublish`, `debug`, `jfr`, `perf`, `stop`, `save-off`, `save-on`, `op`, `deop`, `whitelist`, `ban`, `ban-ip`, `pardon`, `pardon-ip`, `setidletimeout`, `test`, `compute` and `pregen` are refused, also after `run` in `execute` and `return`.
+- `service.chat` (with `service.commands` and `wasm.client`) permits `inject-mod` client chat/command injections.
+- `service.gpu` enables `client-full` `gpu` imports (not imported by `server-full` or `client-mod`).
+- `service.mobs` enables F4M custom-mob server/client services (`mobs-server`, `mob-texture-*`, `mob-bone-index`, `mob-locator`).
+- `service.browser` enables `media-services` (`Browser`) for `wasm.client` with `world = "client-full"`.
+- `service.screen-share` is reserved for future screen sharing (same manifest check as `service.browser`; not wired yet).
+- `service.http` pairs with `[http] hosts` in `yak.toml` (HTTP transport itself is not wired; use `wasi:http` in a `[wasm] worker`).
+- `service.config`, `service.permissions`, and `service.storage` remain accepted in manifests for backward compatibility; `PackageServices::require` now grants config, permission-node, and storage services without requiring them in `[wasm] permissions`.
 
 ### Writing one (SDK feature `full`)
 
@@ -720,12 +704,12 @@ both `client-full` and `server-full`; `has-permission(node, player)` is server-o
 
 Declare capabilities in `yak.toml`; every guest import checks them before touching config or disk:
 
-| Capability | Authorizes |
+| Capability | Status / Authorizes |
 | --- | --- |
-| `service.config` | `config-get`, `config-set`, `config-dir`, and receiving synced config |
-| `service.mobs` | The `mob-*` server services (ids 260-281) and the client `mob-bone-index` / `mob-locator` (282-283) that script fully custom mobs |
-| `service.permissions` | `has-permission` for this package's declared permission nodes |
-| `service.storage` | All `storage-*` imports and legacy `world-storage-*` / raw `config-read/write` |
+| `service.config` | Accepted for compatibility; `config-get`, `config-set`, `config-dir`, and synced config now work without declaring it |
+| `service.mobs` | Enforced: `mob-*` server services and client `mob-bone-index` / `mob-locator` / `mob-texture-*` |
+| `service.permissions` | Accepted for compatibility; `has-permission` now works without declaring it |
+| `service.storage` | Accepted for compatibility; `storage-*` and legacy `world-storage-*` / `config-read/write` now work without declaring it |
 
 Missing capability, invalid input, unavailable scope, or I/O failure returns the import's error result,
 not a panic. The host-owned config screen is a user action, not a guest import, and does not require
@@ -885,9 +869,7 @@ is canonicalized before checks below it, so a linked/junctioned base or `..` in 
 Unix ancestors use search-only handles (`O_PATH`/`O_SEARCH`). Permissions/config paths below the
 trusted base are also checked for links/reparse points.
 
-HTTP, general networking, chunk force-loading and the other W2D proposal entries are not connected by
-this work. `HttpsPolicy`, transfer accounting, `ChunkTickets` and `RequestTickets` remain standalone
-helpers, not transport implementations.
+Chunk force-loading IS connected through `world-control` (`AddForceLoad` / `RemoveForceLoad`, up to 256 chunks), and outgoing HTTP (`wasi:http`) and sockets (`wasi:sockets`) ARE available inside `[wasm] worker` components (`FR-F2`, `worker-mod`). `service.http` / `[http] hosts` (`HttpsPolicy`, `transfer` accounting, `RequestTickets`) remain standalone manifest/helper items without a main-instance transport.
 
 ## Levels and chunk generators (F3-8)
 
