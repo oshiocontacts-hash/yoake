@@ -203,10 +203,16 @@ fn screen_tick(function: u32, try_other_mod: bool) -> Vec<u8> {
 }
 
 fn component(subscription: &str, tick: impl FnOnce(u32) -> Vec<u8>) -> Vec<u8> {
+    component_with_wit(include_str!("../wit/yoake-mod.wit"), subscription, tick)
+}
+
+fn component_with_wit(
+    wit_source: &str,
+    subscription: &str,
+    tick: impl FnOnce(u32) -> Vec<u8>,
+) -> Vec<u8> {
     let mut resolve = Resolve::default();
-    let package = resolve
-        .push_str("yoake-mod.wit", include_str!("../wit/yoake-mod.wit"))
-        .unwrap();
+    let package = resolve.push_str("yoake-mod.wit", wit_source).unwrap();
     let world = resolve.select_world(&[package], Some("client-mod")).unwrap();
     let module = wit_component::dummy_module(&resolve, world, ManglingAndAbi::Standard32);
     let (imported, open, init, tick_index, frames_listened) = function_indices(&module);
@@ -351,4 +357,26 @@ fn net_frames_listened_preserves_an_existing_listener() {
 
     assert_eq!(guest.net_frames_listened(true), Some(true));
     assert_eq!(guest.net_frames_listened(false), Some(false));
+}
+
+#[test]
+fn legacy_1_0_client_mod_component_loads_and_runs() {
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let bytes = component_with_wit(
+        include_str!("../wit-mod-1.0/yoake-mod.wit"),
+        "tick",
+        |open| screen_tick(open, false),
+    );
+    let mut sandbox = Sandbox::new();
+    let mut guest = ClientMod::instantiate(
+        &mut sandbox,
+        "mine",
+        &bytes,
+        Box::new(FakeHost { calls: calls.clone() }),
+    )
+    .unwrap();
+
+    assert!(guest.subscribed("tick"));
+    assert_eq!(guest.tick(0), Some(()));
+    assert_eq!(*calls.lock().unwrap(), ["mine"]);
 }

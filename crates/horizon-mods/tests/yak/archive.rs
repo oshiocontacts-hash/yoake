@@ -291,20 +291,24 @@ const FAKE_WASM: &[u8] = b"\0asm\x01\0\0\0";
 
 #[test]
 fn wasm_module_packs_and_round_trips() {
-    let temp = Temp::new();
-    temp.write("mod/yak.toml", [DATA, WASM_MANIFEST].concat());
-    temp.write("mod/bin/wasm/sample.wasm", FAKE_WASM);
-    temp.write("mod/bin/wasm/unlisted.wasm", FAKE_WASM);
-    let output = temp.join("sample.yak");
-    let summary = pack_directory(&temp.join("mod"), &output, &BTreeMap::new()).unwrap();
-    assert_eq!(summary.files, 2);
-    let mut archive = Archive::new(File::open(&output).unwrap()).unwrap();
-    assert_eq!(archive.manifest().wasm.as_ref().unwrap().client.as_deref(), Some("bin/wasm/sample.wasm"));
-    assert_eq!(archive.files(&Part::Wasm).count(), 1);
-    let view = temp.join("view");
-    archive.extract_target(&view, Target::LinuxX64, &[]).unwrap();
-    assert_eq!(fs::read(view.join("bin/wasm/sample.wasm")).unwrap(), FAKE_WASM);
-    assert!(!view.join("bin/wasm/unlisted.wasm").exists());
+    for interface in ["1.0", "1.7"] {
+        let temp = Temp::new();
+        let wasm_manifest = format!("\n[wasm]\ninterface = \"{interface}\"\nclient = \"bin/wasm/sample.wasm\"\n");
+        temp.write("mod/yak.toml", [DATA, wasm_manifest.as_str()].concat());
+        temp.write("mod/bin/wasm/sample.wasm", FAKE_WASM);
+        temp.write("mod/bin/wasm/unlisted.wasm", FAKE_WASM);
+        let output = temp.join("sample.yak");
+        let summary = pack_directory(&temp.join("mod"), &output, &BTreeMap::new()).unwrap();
+        assert_eq!(summary.files, 2);
+        let mut archive = Archive::new(File::open(&output).unwrap()).unwrap();
+        assert_eq!(archive.manifest().wasm.as_ref().unwrap().interface, interface);
+        assert_eq!(archive.manifest().wasm.as_ref().unwrap().client.as_deref(), Some("bin/wasm/sample.wasm"));
+        assert_eq!(archive.files(&Part::Wasm).count(), 1);
+        let view = temp.join("view");
+        archive.extract_target(&view, Target::LinuxX64, &[]).unwrap();
+        assert_eq!(fs::read(view.join("bin/wasm/sample.wasm")).unwrap(), FAKE_WASM);
+        assert!(!view.join("bin/wasm/unlisted.wasm").exists());
+    }
 }
 
 #[test]

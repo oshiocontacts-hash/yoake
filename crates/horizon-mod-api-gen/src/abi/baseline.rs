@@ -6,6 +6,7 @@ use wit_parser::{Function, FunctionKind, Handle, InterfaceId, Resolve, Type, Typ
 
 const HEADER: &str = "// Yoake 1.0 ABI baseline. Refresh deliberately BEFORE release only.\n// Comment-enveloped WIT: kept inert when bindings parse this directory.\n// Decode by removing this header and the leading `// ` from every remaining line.\n";
 const PACKAGE: &str = "package yoake:mods@1.0.0;";
+const CURRENT_PACKAGE: &str = "package yoake:mods@1.7.0;";
 
 struct Abi<'a> {
     resolve: &'a Resolve,
@@ -189,7 +190,7 @@ fn current_wit(root: &Path) -> String {
         };
         for line in content.lines() {
             if line.starts_with("package ") {
-                assert_eq!(line, PACKAGE);
+                assert_eq!(line, CURRENT_PACKAGE);
             } else {
                 source.push_str(line);
                 source.push('\n');

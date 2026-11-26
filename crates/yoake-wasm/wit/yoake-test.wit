@@ -1,4 +1,4 @@
-package yoake:mods@1.0.0;
+package yoake:mods@1.7.0;
 
 // Hand-written (not generated). The test-mode world of `yoake test`: a *test module* is a component of
 // the world `test-mod`. It is never a mod: it is loaded only by the engine's test runner

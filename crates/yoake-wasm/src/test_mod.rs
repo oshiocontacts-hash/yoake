@@ -387,7 +387,9 @@ mod tests {
                 .contains("test runner")
         );
         assert!(crate::check_import("yoake:mods/test-driver@1.0.0", true, false).is_ok());
+        assert!(crate::check_import("yoake:mods/test-driver@1.7.0", true, false).is_ok());
         assert!(crate::check_import("yoake:mods/logging@1.0.0", false, false).is_ok());
+        assert!(crate::check_import("yoake:mods/logging@1.7.0", false, false).is_ok());
     }
 
     #[test]

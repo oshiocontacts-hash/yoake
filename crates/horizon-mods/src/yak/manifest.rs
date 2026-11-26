@@ -149,7 +149,7 @@ pub struct Mixin {
 }
 
 /// Highest `yoake:mods` WebAssembly interface (major, minor) this build understands.
-pub const SUPPORTED_WASM_INTERFACE: (u32, u32) = (1, 2);
+pub const SUPPORTED_WASM_INTERFACE: (u32, u32) = (1, 7);
 /// Largest accepted `.wasm` module, in bytes.
 pub const MAX_WASM_SIZE: u64 = 32 * 1024 * 1024;
 
@@ -273,8 +273,8 @@ impl Wasm {
                 SUPPORTED_WASM_INTERFACE.0, SUPPORTED_WASM_INTERFACE.1
             ));
         }
-        if minor >= 1 && self.world.as_deref() != Some("inject-mod") {
-            return Err("wasm interfaces 1.1/1.2 require wasm.world = \"inject-mod\"; ordinary hook worlds use 1.0".into());
+        if matches!(minor, 1 | 2) && self.world.as_deref() != Some("inject-mod") {
+            return Err("wasm interfaces 1.1/1.2 require wasm.world = \"inject-mod\"; ordinary hook worlds use 1.0 or 1.7".into());
         }
         if self.full_access() {
             // MX3CL1: `wasm.server` runs on the server thread, `wasm.client` on the client thread; both may be declared

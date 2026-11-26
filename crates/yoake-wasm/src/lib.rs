@@ -23,6 +23,7 @@ mod full_hook_names;
 mod gpu_services;
 mod hook_names;
 mod host;
+mod host_1_0;
 mod media_services;
 pub mod host_services;
 pub mod inject;
@@ -37,6 +38,17 @@ pub mod bindings {
     wasmtime::component::bindgen!({
         path: "wit",
         world: "client-mod",
+    });
+}
+
+/// Legacy `yoake:mods@1.0.0` `client-mod` bindings so existing 1.0 `.yak` files keep loading.
+pub(crate) mod bindings_1_0 {
+    wasmtime::component::bindgen!({
+        path: "wit-mod-1.0",
+        world: "client-mod",
+        with: {
+            "yoake:mods/types@1.0.0": crate::bindings::yoake::mods::types,
+        },
     });
 }
 
@@ -229,7 +241,8 @@ pub const AGGREGATE_WINDOW: Duration = Duration::from_millis(50);
 /// A mod that overruns its aggregate budget in this many windows in a row is disabled.
 pub const AGGREGATE_STRIKES: u32 = 20;
 pub const FUEL_PER_CALL: u64 = 10_000_000;
-const INTERFACE_VERSION: &str = "1.0.0";
+const INTERFACE_VERSION: &str = "1.7.0";
+const LEGACY_INTERFACE_VERSION: &str = "1.0.0";
 
 /// The per-call and aggregate time limits of one module.
 #[derive(Clone, Copy, Debug)]
@@ -379,6 +392,7 @@ fn check_import(name: &str, test_module: bool, supports_config: bool) -> Result<
         ));
     }
     if version != INTERFACE_VERSION
+        && version != LEGACY_INTERFACE_VERSION
         && !(supports_config && interface == "config" && version == "1.2.0")
     {
         return Err(format!("unsupported component interface version: {name}"));
@@ -498,11 +512,15 @@ pub mod worker_link {
     }
 }
 
-/// `yoake:mods/worker@1.6.0` (and the full worlds' `worker@1.0.0`): the main instance's two calls to its worker.
+/// `yoake:mods/worker@1.6.0` (and the full worlds' `worker@1.7.0` / legacy `1.0.0`): the main instance's two calls to its worker.
 /// Neither blocks.
 fn link_worker_interface<T: Send + 'static>(linker: &mut Linker<HostState<T>>) -> wasmtime::Result<()> {
     use wasmtime::StoreContextMut;
-    for name in [yoake_mod_io::WORKER_INTERFACE, yoake_mod_io::WORKER_FULL_INTERFACE] {
+    for name in [
+        yoake_mod_io::WORKER_INTERFACE,
+        yoake_mod_io::WORKER_FULL_INTERFACE,
+        "yoake:mods/worker@1.0.0",
+    ] {
         let mut instance = linker.instance(name)?;
         instance.func_wrap("worker-send", |cx: StoreContextMut<'_, HostState<T>>, (message,): (Vec<u8>,)| {
             let result = match &cx.data().worker {
@@ -535,6 +553,13 @@ pub struct CompiledComponent {
 }
 
 impl CompiledComponent {
+    pub(crate) fn exports_interface(&self, name: &str) -> bool {
+        self.component
+            .component_type()
+            .exports(&self.runtime.engine)
+            .any(|(exported, _)| exported == name)
+    }
+
     pub fn instantiate<T: 'static + Send>(
         self,
         id: impl Into<String>,
@@ -1128,7 +1153,7 @@ mod budget_tests {
     }
 }
 
-/// FR-REM05: the worker's two calls are linked under the mod's 1.6.0 name and the full worlds' 1.0.0 name, and both
+/// FR-REM05: the worker's two calls are linked under the mod's 1.6.0 name and the full worlds' 1.7.0 name (plus 1.0.0), and all
 /// names pass the component import check.
 #[cfg(test)]
 mod worker_link_tests {
@@ -1141,6 +1166,7 @@ mod worker_link_tests {
         link_worker_interface(&mut linker).expect("the worker calls link");
         assert!(check_import(yoake_mod_io::WORKER_INTERFACE, false, false).is_ok());
         assert!(check_import(yoake_mod_io::WORKER_FULL_INTERFACE, false, false).is_ok());
-        assert_eq!(yoake_mod_io::WORKER_FULL_INTERFACE, "yoake:mods/worker@1.0.0");
+        assert!(check_import("yoake:mods/worker@1.0.0", false, false).is_ok());
+        assert_eq!(yoake_mod_io::WORKER_FULL_INTERFACE, "yoake:mods/worker@1.7.0");
     }
 }
