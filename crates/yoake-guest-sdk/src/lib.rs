@@ -36,6 +36,7 @@ extern crate std;
 
 mod heap;
 pub mod custom_mobs;
+pub mod f_services;
 pub mod stubs;
 pub mod sys;
 pub mod wire;
@@ -312,7 +313,7 @@ impl Default for Registrar {
 /// The guest ABI major version emitted by [`export_guest!`].
 pub const ABI_MAJOR: u16 = 1;
 /// The guest ABI minor version emitted by [`export_guest!`].
-pub const ABI_MINOR: u16 = 0;
+pub const ABI_MINOR: u16 = 1;
 
 /// Exports the ABI version and the two entry points of a multiplexed guest: `yoake_init` calls
 /// `init(&mut Registrar)`, and `yoake_hook` calls `hook(hook_id, handle)` and returns its `i64`.
@@ -358,8 +359,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn guest_abi_version_is_1_0() {
-        assert_eq!((ABI_MAJOR, ABI_MINOR), (1, 0));
+    fn guest_abi_version_is_1_1() {
+        assert_eq!((ABI_MAJOR, ABI_MINOR), (1, 1));
     }
 
     #[test]

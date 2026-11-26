@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 use yoake_mod_io::{FileAccess, LogSink, ModIo};
@@ -15,6 +15,14 @@ use yoake_slice::runtime::{self, ModConfig};
 
 #[path = "support/build.rs"]
 mod build;
+
+fn lock_runtime() -> MutexGuard<'static, ()> {
+    static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
+    GUARD
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 fn tmp() -> PathBuf {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("std_io");
@@ -42,17 +50,22 @@ fn tick(hook: u32) {
 }
 
 fn build_std_guest() -> Vec<u8> {
-    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/guests_std/std_fs.rs");
-    let wasm = tmp().join("std_fs.wasm");
-    let result = Command::new("rustc")
-        .args(["--edition", "2024", "--target", "wasm32-wasip1", "--crate-type", "cdylib", "-C", "opt-level=1", "-C", "panic=abort"])
-        .arg("-o")
-        .arg(&wasm)
-        .arg(&source)
-        .output()
-        .expect("run rustc");
-    assert!(result.status.success(), "std guest did not compile:\n{}", String::from_utf8_lossy(&result.stderr));
-    std::fs::read(&wasm).unwrap()
+    static BYTES: OnceLock<Vec<u8>> = OnceLock::new();
+    BYTES
+        .get_or_init(|| {
+            let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/guests_std/std_fs.rs");
+            let wasm = tmp().join("std_fs.wasm");
+            let result = Command::new("rustc")
+                .args(["--edition", "2024", "--target", "wasm32-wasip1", "--crate-type", "cdylib", "-C", "opt-level=1", "-C", "panic=abort"])
+                .arg("-o")
+                .arg(&wasm)
+                .arg(&source)
+                .output()
+                .expect("run rustc");
+            assert!(result.status.success(), "std guest did not compile:\n{}", String::from_utf8_lossy(&result.stderr));
+            std::fs::read(&wasm).unwrap()
+        })
+        .clone()
 }
 
 #[derive(Clone, Default)]
@@ -74,6 +87,7 @@ fn slot(reports: &[(i32, i64)], n: i32) -> Vec<i64> {
 
 #[test]
 fn std_guest_uses_std_fs_log_clocks_and_random_through_wasip1() {
+    let _guard = lock_runtime();
     let wasm = build_std_guest();
     let game = scratch("std");
     let log = Log::default();
@@ -101,6 +115,7 @@ fn std_guest_uses_std_fs_log_clocks_and_random_through_wasip1() {
 
 #[test]
 fn a_wait_in_a_full_access_module_traps_it() {
+    let _guard = lock_runtime();
     let wasm = build_std_guest();
     let game = scratch("sleep");
     let cfg = ModConfig { io: Some(ModIo::new(FileAccess::new(&game, "sleeper", false))), ..ModConfig::full_access() };
@@ -116,6 +131,7 @@ fn a_wait_in_a_full_access_module_traps_it() {
 
 #[test]
 fn a_module_without_wasi_imports_loads_as_before() {
+    let _guard = lock_runtime();
     let wat = r#"(module
   (import "env" "hook_register" (func $register (param i32 i32) (result i32)))
   (memory (export "memory") 1)
@@ -149,6 +165,7 @@ fn build_worker_component() -> Vec<u8> {
 
 #[test]
 fn sdk_guest_talks_to_its_worker_and_a_missing_worker_is_an_error_code() {
+    let _guard = lock_runtime();
     let guest = build_sdk_guest("worker_sdk");
     // no worker declared
     runtime::uninstall().unwrap();

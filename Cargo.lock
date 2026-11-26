@@ -6406,6 +6406,9 @@ dependencies = [
  "horizon-mods",
  "serde_json",
  "toml",
+ "yoake-inject-rt",
+ "yoake-mod-io",
+ "yoake-slice",
  "yoake-wasm",
 ]
 

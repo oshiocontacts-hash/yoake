@@ -1,0 +1,20 @@
+format = 1
+id = "sprite-demo"
+version = "0.1.0"
+name = "L2 Sprite Override Demo"
+authors = ["Yoake SDK Examples"]
+description = "Runtime item and block sprite override example using yoake_wasm_sdk::full::client::sprites (L2)."
+license = "MIT"
+
+[yoake]
+version = "*"
+
+[side]
+client = true
+server = false
+required_on_join = false
+
+[wasm]
+interface = "1.7"
+world = "client-full"
+client = "bin/wasm/sprite-demo.wasm"

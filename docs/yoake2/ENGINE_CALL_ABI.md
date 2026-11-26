@@ -6,9 +6,9 @@ writing a retry loop: **there is no retry**.
 ## ABI version
 
 Every full-access guest declares its ABI in a WASM custom section named `yoake_abi`. Its payload is exactly four bytes:
-the major version as a little-endian `u16`, then the minor version as a little-endian `u16`. The current engine version is **1.1** (the Rust
-SDK still declares 1.0, `01 00 00 00`, and loads: an older minor is fine); this includes the hook modes and read-only arguments described below.
-A WAT guest writes `(@custom "yoake_abi" "\01\00\00\00")`, and the Rust SDK's `export_guest!` emits the section.
+the major version as a little-endian `u16`, then the minor version as a little-endian `u16`. The current engine and Rust SDK version is **1.1**
+(`01 00 01 00`; older 1.0 guests, `01 00 00 00`, keep loading cleanly); this includes the hook modes and read-only arguments described below.
+A WAT guest writes `(@custom "yoake_abi" "\01\00\00\00")` (or `"\01\00\01\00"`), and the Rust SDK's `export_guest!` emits the section.
 
 The loader reads this section directly from the module bytes, without running guest code, and checks it before
 `yoake_init` runs:

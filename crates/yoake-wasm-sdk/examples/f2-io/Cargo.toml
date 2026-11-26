@@ -12,11 +12,13 @@ crate-type = ["cdylib"]
 [features]
 files = []
 main = []
+server = ["dep:yoake-wasm-sdk"]
 worker = []
 
 [dependencies]
 wit-bindgen = { version = "=0.57.1", default-features = false, features = ["realloc", "macros"] }
 wasip2 = "1.0.4"
+yoake-wasm-sdk = { path = "../..", features = ["full"], optional = true }
 
 [profile.release]
 opt-level = "s"

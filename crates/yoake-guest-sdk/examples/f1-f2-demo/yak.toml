@@ -1,0 +1,21 @@
+format = 1
+id = "f1-f2-demo"
+version = "0.1.0"
+name = "F1+F2 Guest SDK Demo"
+authors = ["Yoake SDK Examples"]
+description = "Full-access core server module using yoake-guest-sdk (F1 hooks + F2 worker queue) paired with a WASI p2 worker."
+license = "MIT"
+
+[yoake]
+version = "*"
+
+[side]
+client = false
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.7"
+world = "full-access"
+server = "bin/wasm/f1-f2-demo-server.wasm"
+worker = "bin/wasm/f1-f2-demo-worker.wasm"

@@ -1,0 +1,20 @@
+format = 1
+id = "fox_ai"
+version = "0.1.0"
+name = "Cinder Fox AI"
+authors = ["Yoake SDK Examples"]
+description = "Server-side ScriptGoal pounce behaviour for sample_mobs:cinder_fox."
+license = "MIT"
+
+[yoake]
+version = "*"
+
+[side]
+client = false
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.7"
+server = "bin/wasm/fox_ai.wasm"
+permissions = ["service.mobs"]

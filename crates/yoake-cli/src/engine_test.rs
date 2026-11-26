@@ -73,7 +73,7 @@ pub(crate) fn build_module(root: &Path, manifest: &Manifest, given: Option<&Path
             if features.is_some_and(|features| features.contains_key(TESTS_FEATURE)) {
                 let target = target_directory(root, env::var_os("CARGO_TARGET_DIR").as_deref());
                 let artifact = target.join("wasm32-wasip2").join("release").join(format!("{library}.wasm"));
-                cargo_wasm(root, &target, Some(TESTS_FEATURE), "the tests", &artifact, &destination)?;
+                cargo_wasm(root, &target, Some(TESTS_FEATURE), "the tests", &artifact, &destination, false)?;
                 true
             } else {
                 false

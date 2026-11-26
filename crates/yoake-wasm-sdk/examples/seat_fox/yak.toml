@@ -1,0 +1,20 @@
+format = 1
+id = "seat_fox"
+version = "0.1.0"
+name = "Seat Fox"
+authors = ["Yoake SDK Examples"]
+description = "Seats nearby chickens on custom vehicle seats via service.mobs."
+license = "MIT"
+
+[yoake]
+version = "*"
+
+[side]
+client = false
+server = true
+required_on_join = false
+
+[wasm]
+interface = "1.7"
+server = "bin/wasm/seat_fox.wasm"
+permissions = ["service.mobs"]

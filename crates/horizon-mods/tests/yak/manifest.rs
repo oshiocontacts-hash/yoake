@@ -278,11 +278,20 @@ fn wasm_interface_versions_are_checked() {
         )))
     };
     assert!(parse("1.0").is_ok());
+    assert!(parse("1.7").is_ok());
     assert!(parse("2.0").unwrap_err().contains("major"));
     assert!(parse("0.9").unwrap_err().contains("major"));
     assert!(parse("1.1").unwrap_err().contains("require wasm.world"));
     assert!(parse("1.2").unwrap_err().contains("require wasm.world"));
-    assert!(parse("1.3").unwrap_err().contains("newer"));
+    assert!(parse("1.8").unwrap_err().contains("newer"));
+    let full_access = |iface: &str| {
+        let base = super::support::DATA.replace("client = true\nserver = true", "client = false\nserver = true");
+        Manifest::parse(&format!("{base}\n[wasm]\ninterface = \"{iface}\"\nserver = \"bin/wasm/s.wasm\"\nworld = \"full-access\"\n"))
+    };
+    assert!(Manifest::parse(&with_wasm("\n[wasm]\ninterface = \"1.0\"\nclient = \"bin/wasm/a.wasm\"\nworld = \"client-full\"\n")).is_ok());
+    assert!(full_access("1.0").is_ok());
+    assert!(Manifest::parse(&with_wasm("\n[wasm]\ninterface = \"1.7\"\nclient = \"bin/wasm/a.wasm\"\nworld = \"client-full\"\n")).is_ok());
+    assert!(full_access("1.7").is_ok());
     for bad in ["1", "1.", ".0", "1.x", "1.0.0", "", "-1.0", "1. 0"] {
         assert!(parse(bad).is_err(), "{bad:?}");
     }

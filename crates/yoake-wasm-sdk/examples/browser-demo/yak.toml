@@ -1,0 +1,21 @@
+format = 1
+id = "browser-demo"
+version = "0.1.0"
+name = "MEDIA1 Browser HUD Demo"
+authors = ["Yoake SDK Examples"]
+description = "Embedded browser overlay example using yoake_wasm_sdk::full::client::media (MEDIA1)."
+license = "MIT"
+
+[yoake]
+version = "*"
+
+[side]
+client = true
+server = false
+required_on_join = false
+
+[wasm]
+interface = "1.7"
+world = "client-full"
+client = "bin/wasm/browser-demo.wasm"
+permissions = ["service.browser"]

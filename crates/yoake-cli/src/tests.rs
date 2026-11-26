@@ -221,6 +221,9 @@ fn bundled_sdk_contains_wit_and_macro_sources() {
     assert!(sdk.join("../yoake-wasm/wit/inject-sites.json").is_file());
     assert!(sdk.join("../yoake-wasm/wit/state-catalog.json").is_file());
     assert!(sdk.join("../yoake-wasm/wit/coverage.json").is_file());
+    assert!(sdk.join("../yoake-wasm/wit-worker/yoake-worker.wit").is_file());
+    assert!(sdk.join("../yoake-guest-sdk/Cargo.toml").is_file());
+    assert!(sdk.join("../yoake-guest-sdk/src/lib.rs").is_file());
     assert!(sdk.join("src/testing/engine.rs").is_file());
     assert!(!sdk.join("examples").exists());
     assert!(!sdk.join("target").exists());
@@ -632,27 +635,53 @@ fn the_game_is_started_with_the_runner_flags() {
 }
 
 #[test]
-fn a_declared_worker_is_checked_as_a_file_beside_the_client() {
+fn a_declared_worker_is_validated_beside_the_client() {
     let Some(bytes) = test_guests::load(&test_guests::HELLO) else {
         return;
     };
     let project = Project::new("worker-test", Some(&bytes), None, None);
-    // `[wasm] worker` sits in the same table as the modules (appended last in yak.toml).
     let yak = project.root.join("yak.toml");
     let manifest = fs::read_to_string(&yak).unwrap() + "worker = \"bin/wasm/worker.wasm\"\n";
     fs::write(&yak, manifest).unwrap();
-    // yak.toml was rewritten after the client was written: write the client again so it is not stale.
     fs::write(project.root.join("bin/wasm/client.wasm"), &bytes).unwrap();
 
     // Declared but missing: the check fails and names the file.
     let error = check_project(&project).unwrap_err();
     assert!(error.contains("worker.wasm"), "{error}");
 
+    // Core module / non-component bytes are rejected as an invalid worker component.
     fs::write(project.root.join("bin/wasm/worker.wasm"), b"\0asm\x01\0\0\0").unwrap();
+    let error = check_project(&project).unwrap_err();
+    assert!(error.contains("worker.wasm") && error.contains("worker-mod"), "{error}");
+
+    // Valid worker-mod component passes validation.
+    let Some(worker_bytes) = test_guests::load(&test_guests::F2_WORKER) else {
+        return;
+    };
+    fs::write(project.root.join("bin/wasm/worker.wasm"), worker_bytes).unwrap();
     let summary = check_project(&project).unwrap();
     assert_eq!(summary["ok"], true);
     assert_eq!(summary["modules"][0]["side"], "client");
     assert_eq!(summary["modules"][1]["side"], "worker");
     assert_eq!(summary["modules"][1]["path"], "bin/wasm/worker.wasm");
     assert_eq!(summary["modules"][1]["world"], "worker-mod");
+}
+
+#[test]
+fn all_templates_create_valid_projects() {
+    let project = Project::new("template-suite", None, None, None);
+    for template in scaffold::TEMPLATES {
+        let name = format!("tpl-{template}");
+        let created = scaffold::create_in(&project.root, template, &name).unwrap();
+        let manifest = read_manifest(&created).unwrap();
+        assert_eq!(manifest.name, name);
+    }
+    let mob_root = project.root.join("tpl-custom-mob");
+    let mob_content_dir = mob_root.join("content");
+    assert!(mob_content_dir.join("horizon-mod.toml").is_file());
+    assert!(mob_content_dir.join("data/tpl_custom_mob/horizon/entity_type/starter_mob.json").is_file());
+    assert!(mob_content_dir.join("assets/tpl_custom_mob/textures/entity/starter_mob.png").is_file());
+    let package = horizon_mods::Package::read(&mob_content_dir).unwrap();
+    let content = horizon_mods::Content::read(&mob_content_dir, &package.manifest).unwrap();
+    assert_eq!(content.custom_mobs.len(), 1);
 }

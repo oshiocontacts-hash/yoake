@@ -1,6 +1,6 @@
 /.local/
 /target/
-**/examples/*/bin/wasm/*.wasm
+**/examples/**/bin/wasm/*.wasm
 **/__pycache__/
 *.py[cod]
 /.venv/
