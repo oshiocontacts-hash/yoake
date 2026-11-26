@@ -2654,6 +2654,9 @@ name = "horizon-core"
 version = "0.1.0"
 dependencies = [
  "libm",
+ "yoake-hook-ledger",
+ "yoake-hook-macro",
+ "yoake-hook-rt",
  "yoake-value",
 ]
 
@@ -2752,6 +2755,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "horizon-mobmodel"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "glam",
+ "png 0.18.1",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "horizon-mod-api-gen"
 version = "0.1.0"
 dependencies = [
@@ -2767,6 +2781,7 @@ dependencies = [
 name = "horizon-mods"
 version = "0.1.0"
 dependencies = [
+ "horizon-mobmodel",
  "horizon-release-sign",
  "horizon-shader-api",
  "libc",
@@ -2823,6 +2838,9 @@ dependencies = [
  "serde_json",
  "sha1",
  "sha2",
+ "yoake-hook-ledger",
+ "yoake-hook-macro",
+ "yoake-hook-rt",
 ]
 
 [[package]]
@@ -2879,6 +2897,9 @@ dependencies = [
  "serde_json",
  "sha2",
  "xxhash-rust",
+ "yoake-hook-ledger",
+ "yoake-hook-macro",
+ "yoake-hook-rt",
  "yoake-inject-macro",
  "yoake-inject-rt",
  "yoake-state",
@@ -7446,6 +7467,27 @@ dependencies = [
  "once_cell",
  "pkg-config",
 ]
+
+[[package]]
+name = "yoake-hook-ledger"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "yoake-hook-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "yoake-hook-rt"
+version = "0.1.0"
 
 [[package]]
 name = "yoake-inject-macro"
